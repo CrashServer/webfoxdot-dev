@@ -34,8 +34,9 @@ Browser editor  →  JS transpiler  →  eval()  →  Player engine
 ## Quick start (local dev)
 
 ```bash
-# 1. Clone / enter the project
-cd /path/to/supersonic-proto
+# 1. Clone
+git clone git@github.com:CrashServer/webfoxdot-dev.git webfoxDot
+cd webfoxDot
 
 # 2. Start the dev server
 python3 serve.py
@@ -127,7 +128,7 @@ webfoxdot/
 ## Project structure
 
 ```
-supersonic-proto/
+webfoxDot/
 ├── index.html                 Main app (thin bootstrap + eval context)
 ├── serve.py                   Local dev server (Python, sets CORS headers)
 ├── css/
