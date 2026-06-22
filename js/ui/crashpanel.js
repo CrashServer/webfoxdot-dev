@@ -123,9 +123,9 @@ function _initScaleRoot() {
             scaleEl.appendChild(o);
         });
         scaleEl.onchange = () => { Scale.default = scaleEl.value; };
-        // Reflect external changes back to select
+        // Reflect external changes (e.g. Scale.default = "major" in editor) back to select
         setInterval(() => {
-            if (Scale.default && scaleEl.value !== Scale.default) scaleEl.value = Scale.default;
+            if (scaleEl.value !== Scale._name) scaleEl.value = Scale._name;
         }, 500);
     }
 

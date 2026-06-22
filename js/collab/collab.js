@@ -22,8 +22,14 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
 
     // ── Yjs document + WebSocket provider ─────────────────────────────────
+    const isLocal = ['localhost', '127.0.0.1', '192.168.1.186'].includes(window.location.hostname);
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsBase  = isLocal
+        ? 'ws://localhost:4444'
+        : `${wsProto}//${window.location.host}/webfoxDot/ws`;
+
     const ydoc     = new Y.Doc();
-    const provider = new WebsocketProvider(`ws://localhost:4444`, sessionSlug, ydoc);
+    const provider = new WebsocketProvider(wsBase, sessionSlug, ydoc);
     const ytext    = ydoc.getText('code');
     const binding  = new CodemirrorBinding(ytext, editor, provider.awareness);
 
@@ -34,7 +40,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
     provider.awareness.setLocalStateField('user', user);
 
     // ── App-message WebSocket (eval relay + clock sync) ───────────────────
-    const ws = new WebSocket(`ws://localhost:4444/${sessionSlug}`);
+    const ws = new WebSocket(`${wsBase}/${sessionSlug}`);
 
     let clockOffset = 0; // ms offset from server time
     let beatMaster  = false;

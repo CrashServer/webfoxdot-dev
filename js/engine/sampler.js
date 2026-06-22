@@ -11,6 +11,7 @@ let   _nextUserBuf   = USER_BUF_START;
 export function samplesLoaded() { return _loaded; }
 
 // Load manifest + all WAVs into SC buffers. Call once at boot.
+// Returns number of samples actually loaded, or 0 if sample files are unreachable.
 export async function loadSamples(sc, onProgress) {
     _sc = sc;
     const resp = await fetch('./samples/manifest.json');
@@ -21,6 +22,17 @@ export async function loadSamples(sc, onProgress) {
         for (let i = 0; i < info.count; i++) {
             allEntries.push({ url: info.urls[i], bufId: info.bufStart + i });
         }
+    }
+
+    if (allEntries.length === 0) { _loaded = true; return 0; }
+
+    // Probe first entry before loading all — skip if files are not reachable
+    try {
+        const probe = await fetch(allEntries[0].url, { method: 'HEAD' });
+        if (!probe.ok) throw new Error();
+    } catch {
+        console.warn('loadSamples: sample files unreachable — run setup_samples.py to configure your sample bank.');
+        return 0;
     }
 
     let done = 0;
@@ -36,6 +48,7 @@ export async function loadSamples(sc, onProgress) {
         }));
     }
     _loaded = true;
+    return done;
 }
 
 // char + sampleIndex → SC buffer ID

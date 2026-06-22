@@ -280,10 +280,14 @@
             }
             synthStatus.textContent = 'loading samples…';
             try {
-                await loadSamples(sc, (done, total) => {
+                const sampleCount = await loadSamples(sc, (done, total) => {
                     synthStatus.textContent = `samples ${done}/${total}…`;
                 });
-                log('  samples loaded ✓', 'ok');
+                if (sampleCount > 0) {
+                    log(`  samples loaded ✓ (${sampleCount})`, 'ok');
+                } else {
+                    log('  samples skipped — run setup_samples.py to configure sample bank', 'warn');
+                }
             } catch (e) {
                 log(`  samples FAILED: ${e.message}`, 'error');
                 console.error('loadSamples:', e);
