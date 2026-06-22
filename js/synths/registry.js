@@ -57,6 +57,16 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.2, ratio: 2, index: 5, cutoff: 8000, rq: 0.8 },
         extraParams: ['ratio', 'index', 'cutoff', 'rq'],
     },
+    bell: {
+        scName: 'fd_bell',
+        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.5, rate: 1 },
+        extraParams: ['rate'],
+    },
+    pads: {
+        scName: 'fd_pads',
+        defaults: { oct: 4, amp: 0.6, dur: 2, pan: 0, attack: 0.1, release: 0.4, cutoff: 1200, rq: 0.6 },
+        extraParams: ['cutoff', 'rq'],
+    },
 };
 
 export class SynthCall {

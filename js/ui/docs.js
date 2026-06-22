@@ -61,10 +61,15 @@ const TIMEVARS = [
     { name: 'linvar(values, durs)',     desc: 'Linear interpolation between values over durs' },
     { name: 'sinvar(values, durs)',     desc: 'Sine-shaped interpolation between values' },
     { name: 'expvar(values, durs)',     desc: 'Exponential interpolation (useful for freq/amp)' },
+    { name: 'fi(beats, a, b)',          desc: 'Envelope (use with _ suffix): fade in a→b over beats, holds at b. e.g. lpf_=fi(0.5, 400, 4000)' },
+    { name: 'fo(beats, a, b)',          desc: 'Envelope (_ suffix): fade out b→a over beats, holds at a' },
+    { name: 'fb(beats, a, b)',          desc: 'Envelope (_ suffix): bounce a↔b every beats (wobble). Loops within sus' },
 ];
 
 const FUNCTIONS = [
     { name: 'play(pattern, opts)',      desc: 'Drum/sample pattern. Chars map to samples. space=rest, (Xo)=fire both at once, [XoX]=subdivide into sub-steps, {Xo}=random pick, &lt;Xo&gt;=alternate on successive hits. Quotes optional if pattern has spaces. opts: amp, dur (default 1), pan, rate, sample' },
+    { name: 'loadsample(char, url)',    desc: 'Load a WAV from a URL (or [urls]) and assign it to a play() char. GitHub raw / release URLs work. e.g. loadsample("K", "https://raw.githubusercontent.com/u/r/main/kick.wav")' },
+    { name: 'loadpack(url)',            desc: 'Load a pack: JSON manifest {char: url | [urls]}. Relative URLs resolve against the pack location' },
     { name: 'drop(playTime, dropTime, nbloop)', desc: 'Silence a random subset of players for dropTime beats, then restore. Default: 14, 2, 1' },
     { name: 'unsolo()',                 desc: 'Restore all players muted by solo / Alt+S' },
     { name: 'rest()',                   desc: 'Silence for one step (use in degree list)' },

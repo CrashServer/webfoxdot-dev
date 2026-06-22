@@ -21,6 +21,7 @@ SynthDef(\fd_fx_chain, {
     |out=0, in_bus=64,
      lpf=0, lpf_rq=0.7,
      hpf=0, hpf_rq=0.7,
+     crush=0, crush_bits=8, crush_rate=44100,
      reverb=0, rev_room=0.6, rev_damp=0.5,
      tanh=0, tanh_drive=2,
      echo=0, echo_time=0.25, echo_dec=0.5|
@@ -35,6 +36,13 @@ SynthDef(\fd_fx_chain, {
     // ── High-pass filter — hpf = cutoff Hz (0 = bypass) ─────────────────
     wet = RHPF.ar(sig, (hpf > 0).if(hpf.clip(20, 20000), 20), hpf_rq.clip(0.01, 1.0));
     sig = XFade2.ar(sig, wet, (hpf > 0) * 2 - 1);
+
+    // ── Bitcrush — bit-depth quantize + sample-rate decimate ─────────────
+    //   crush_bits: quantization levels (lower = grittier, e.g. 4)
+    //   crush_rate: downsample target in Hz (lower = more aliasing, e.g. 4000)
+    wet = Latch.ar(sig, Impulse.ar(crush_rate.clip(500, 44100)));
+    wet = (wet * crush_bits.clip(1, 256)).round / crush_bits.clip(1, 256);
+    sig = XFade2.ar(sig, wet, crush * 2 - 1);
 
     // ── Tanh saturation ──────────────────────────────────────────────────
     wet = (sig * tanh_drive.clip(0.001, 100)).tanh;

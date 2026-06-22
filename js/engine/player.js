@@ -5,6 +5,7 @@ import { buildParams, SynthCall } from '../synths/registry.js';
 import { FX_KEYS }               from '../fx/registry.js';
 import { FXChain }               from '../fx/chain.js';
 import { patGet }                 from '../patterns/sequences.js';
+import { isEnv, evalEnv }         from '../patterns/timevars.js';
 import { toMidi }                 from './scale.js';
 import { PlayStringCall, parsePattern, charToBufId } from './sampler.js';
 
@@ -88,6 +89,8 @@ export class Player {
         this._mode     = 'synth';   // 'synth' | 'sample'
         this._pattern  = null;      // parsed steps array
         this._playOpts = {};
+        // Axis-3 parameter-envelope scheduler
+        this._envTimer = null;
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
@@ -134,6 +137,18 @@ export class Player {
 
         const step = this._step;
         const r    = resolveArgs(this._args, step);
+
+        // Extract Axis-3 envelopes: keys ending in "_" whose value is an envelope.
+        // Only FX-chain params can be modulated mid-note (persistent node + n_set).
+        const envs = {};
+        for (const k of Object.keys(r)) {
+            if (k.endsWith('_') && isEnv(r[k])) {
+                const base = k.slice(0, -1);
+                if (FX_KEYS.has(base)) envs[base] = r[k];
+                delete r[k];
+            }
+        }
+
         const { synth: sArgs, fx: fxArgs } = splitArgs(r);
         const dur  = Math.max(0.0625, r.dur ?? 1);
         const oct  = r.oct ?? 5;
@@ -148,6 +163,12 @@ export class Player {
         // Update FX params every step (handles TimeVars on FX params)
         if (this._fxChain && Object.keys(fxArgs).length > 0) {
             this._fxChain.update(fxArgs, _sc);
+        }
+
+        // Start Axis-3 envelopes (sub-beat modulation of FX params via n_set)
+        if (Object.keys(envs).length > 0) {
+            const susBeats = r.sus ?? r.dur ?? 1;
+            this._startEnvelopes(envs, susBeats);
         }
 
         // Trigger note(s)
@@ -235,6 +256,29 @@ export class Player {
             'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
     }
 
+    // Run parameter envelopes on the FX chain via n_set at ~60fps.
+    // Restarts on each note trigger; runs until `susBeats` elapse.
+    _startEnvelopes(envs, susBeats) {
+        if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
+        if (!this._fxChain || !_sc) return;
+        const bases = Object.keys(envs);
+        if (bases.length === 0) return;
+
+        const startBeat = this._clock.now();
+        const tick = () => {
+            if (!this._active || !this._fxChain) {
+                clearInterval(this._envTimer); this._envTimer = null; return;
+            }
+            const elapsed = this._clock.now() - startBeat;
+            const upd = {};
+            for (const base of bases) upd[base] = evalEnv(envs[base], elapsed);
+            this._fxChain.update(upd, _sc);
+            if (elapsed >= susBeats) { clearInterval(this._envTimer); this._envTimer = null; }
+        };
+        tick();
+        this._envTimer = setInterval(tick, 16);
+    }
+
     _trigger(midi, r) {
         if (!_sc) return;
         const secPerBeat = 60 / this._clock.bpm;
@@ -256,6 +300,7 @@ export class Player {
     stop() {
         this._active = false;
         this._every  = [];
+        if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
         if (this._fxChain && _sc) {
             this._fxChain.free(_sc);
             this._fxChain = null;

@@ -106,8 +106,9 @@
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PRange, PStep, PSine, PTri,
              PChain, PMarkov } from './js/patterns/sequences.js';
-    import { _var, _linvar, _sinvar, _expvar, setClockRef } from './js/patterns/timevars.js';
-    import { loadSamples, PlayStringCall } from './js/engine/sampler.js';
+    import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
+    import { loadSamples, PlayStringCall,
+             loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { transpile, applyRenames }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { incrementValue, stopPlayerAtCursor,
@@ -171,8 +172,13 @@
             PEuclid, PRange, PStep, PSine, PTri,
             PChain, PMarkov,
             _var, _linvar, _sinvar, _expvar,
+            fi: _fi, fo: _fo, fb: _fb,
             rest:   () => null,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
+            loadsample: (char, url) => loadSampleFromURL(char, url)
+                .then(ok => log(ok ? `sample "${char}" loaded` : `sample "${char}" failed`, ok ? 'ok' : 'error')),
+            loadpack: (url) => loadPackFromURL(url)
+                .then(n => log(n ? `pack loaded: ${n} samples` : `pack failed`, n ? 'ok' : 'error')),
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop),
             unsolo: () => _unsoloFn(clock),
@@ -236,7 +242,7 @@
     // ── Boot ─────────────────────────────────────────────────────────────────
     const SYNTHDEFS_TO_LOAD = [
         'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
-        'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm',
+        'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm', 'fd_bell', 'fd_pads',
         'fd_sampler', 'fd_fx_chain',
     ];
 
@@ -303,40 +309,61 @@
     }
 
     // ── Editor ────────────────────────────────────────────────────────────────
-    const INITIAL_CODE = `# WebFoxDot  |  Ctrl+Enter: run  |  Alt+X: comment+stop  |  Alt+S: solo  |  Alt+O: soloDrop(8)  |  Ctrl+;: stop all  |  Alt+↑↓: nudge value
+    const INITIAL_CODE = `# WebFoxDot  |  Ctrl+Enter: run block  |  Alt+X: comment+stop  |  Alt+S: solo  |  Ctrl+;: stop all  |  Alt+↑↓: nudge number
+# Run a block: put the cursor inside it and press Ctrl+Enter. Edit + re-run live.
 
 Clock.bpm = 120
 Scale.default = "minor"
 Root.default = 0
 
-# ── drums  . = rest  () = simultaneous  [] = subdivide  {} = random  <> = alternate
-b1 >> play(X.oX.o, amp=0.9)
-# b2 >> play(<X.-> [oh] {X.}, amp=0.8)
 
-# ── bass ──────────────────────────────────────────────────────────────
+# ══ 1. DRUMS — play() patterns ══════════════════════════════════════════
+# chars map to samples | . = rest | spaces optional
+#   (Xo) simultaneous   [Xo] subdivide   {Xo} random   <Xo> alternate
+b1 >> play(X.oX.o, amp=0.9)
+# b2 >> play(X.[oo]X.<o->, amp=0.8)
+# b3 >> play((Xs).h.{ox}.h, amp=0.7)
+
+
+# ══ 2. SYNTHS — degree arrays + per-step brackets ═══════════════════════
 p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
 
-# ── pluck ─────────────────────────────────────────────────────────────
-# p2 >> pluck([0, 4, 7, .], oct=4, amp=0.8, dur=0.5, cutoff=4000)
+# pluck — Karplus string          fm — ratio/index FM
+# p2 >> pluck([0, 4, 7, .], oct=4, dur=0.5, cutoff=4000)
+# p3 >> fm([0, 7, 5, 3], oct=4, ratio=2, index=var([2, 9], [4, 4]))
 
-# ── pulse — width = duty cycle 0–1 ───────────────────────────────────
-# p3 >> pulse([0, 0, 7, 5], oct=4, amp=0.5, cutoff=var([800, 3000], [4, 4]), width=0.3)
+# bell — metallic Klank           pads — lush sustained
+# p4 >> bell([0, 4, 7], oct=5, dur=1, rate=2, amp=0.5)
+# p5 >> pads([0, 3, 5], oct=4, dur=4, amp=0.5, reverb=0.4)
 
-# ── blip — rate = harmonic count ─────────────────────────────────────
-# p4 >> blip([0, 3, 5, 7], oct=5, amp=0.6, dur=0.25, rate=8)
+# pulse (width) · blip (rate) · saw · sine · rsin · donk all available
+# p6 >> pulse([0,0,7,5], oct=4, width=0.3, amp=0.5)
 
-# ── fm — ratio = mod/carrier  index = depth ──────────────────────────
-# p5 >> fm([0, 7, 5, 3], oct=4, amp=0.6, ratio=2, index=var([2, 9], [4, 4]))
 
-# ── saw + rsin ────────────────────────────────────────────────────────
-# p6 >> saw([0, 4, 7, 4], oct=4, amp=0.5, dur=0.5, cutoff=2000, reverb=0.3)
-# p7 >> rsin([0, 0, 7, 5], oct=4, amp=0.4, cutoff=var([800, 2400], [4, 4]), rq=0.08)
+# ══ 3. f* PARAMETER ENVELOPES — "_" suffix, per-note, FX params only ════
+# fi=fade in  fo=fade out  fb=bounce/wobble   sig: f(beats, from, to)
+# p7 >> saw([0, 4], oct=4, dur=1, lpf_=fi(0.5, 400, 5000), amp=0.5)
+# p8 >> saw([0, 3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000), amp=0.5)
 
-# ── performance ───────────────────────────────────────────────────────
+
+# ══ 4. FX — append to any player (lpf hpf reverb echo tanh crush) ═══════
+# crush = bitcrush (bits=levels, srate=downsample Hz)
+# p1 >> dbass([0,-3,0,4], oct=3, crush=0.6, bits=4, echo=0.3, echo_time=0.375)
+
+
+# ══ 5. EXTERNAL SAMPLES — load from any CORS-friendly URL ═══════════════
+# loadsample("K", "https://raw.githubusercontent.com/user/repo/main/kick.wav")
+# loadpack("https://raw.githubusercontent.com/user/repo/main/pack.json")
+# b1 >> play(K.K.K.K., amp=0.9)
+
+
+# ══ 6. PERFORMANCE ══════════════════════════════════════════════════════
 # p1.every(8, 'stutter', 4)
 # drop(14, 2)
 
-# ── section sequencer — put cursor on a #@ line, Ctrl+Enter to run ───
+
+# ══ 7. SECTION SEQUENCER — cursor on a #@ line, Ctrl+Enter ══════════════
+# sections auto-advance after their beat count | commented "# p1 >>" = stop
 #@#@ my_set
 
 #@intro(16)
@@ -345,14 +372,13 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 
 #@verse(32)
 # p1 >> dbass([0, -3, 5, 4], oct=3, amp=0.9)
-# p2 >> pluck([0, 4, 7], oct=4, amp=0.7)
+# p5 >> pads([0, 3, 5], oct=4, dur=4, reverb=0.4)
 # # b1 >>
 
 #@loop(8, verse:3, fill:1)
 
 #@fill(4, verse:1)
-# b1 >> play(<X.oX.> [XoX] X.X., amp=0.9)
-# # p2 >>
+# b1 >> play(<X.oX.> [XoX] X.X., crush=0.5, bits=4)
 
 #@end(8)
 `;

@@ -2,11 +2,17 @@
 
 let _manifest = {};
 let _loaded   = false;
+let _sc       = null;             // SuperSonic ref, set at boot for runtime loading
+
+// User/external samples get buffer IDs from 600 up (built-ins use 0–519).
+const USER_BUF_START = 600;
+let   _nextUserBuf   = USER_BUF_START;
 
 export function samplesLoaded() { return _loaded; }
 
 // Load manifest + all WAVs into SC buffers. Call once at boot.
 export async function loadSamples(sc, onProgress) {
+    _sc = sc;
     const resp = await fetch('./samples/manifest.json');
     _manifest  = await resp.json();
 
@@ -37,6 +43,63 @@ export function charToBufId(char, sampleIdx = 0) {
     const info = _manifest[char];
     if (!info || info.count === 0) return null;
     return info.bufStart + (((sampleIdx % info.count) + info.count) % info.count);
+}
+
+// ── External sample loading (runtime) ────────────────────────────────────────
+// Fetch a WAV from any CORS-friendly URL and assign it to a play() char.
+// GitHub raw (raw.githubusercontent.com) and release-asset URLs work directly.
+//
+//   loadsample("K", "https://raw.githubusercontent.com/u/repo/main/kick.wav")
+//   play("K.K.")            ← now uses the loaded sample
+//
+// Multiple URLs assign successive sample-index slots for one char:
+//   loadsample("K", [url0, url1])   → play("K", sample=1) picks url1
+export async function loadSampleFromURL(char, url) {
+    if (!_sc) { console.error('loadsample: audio not booted'); return false; }
+    const urls = Array.isArray(url) ? url : [url];
+    const bufStart = _nextUserBuf;
+    let count = 0;
+    for (const u of urls) {
+        try {
+            const r   = await fetch(u);
+            if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+            const buf = await r.arrayBuffer();
+            await _sc.loadSample(_nextUserBuf, buf);
+            _nextUserBuf++;
+            count++;
+        } catch (e) {
+            console.error(`loadsample "${char}" ${u}:`, e.message);
+        }
+    }
+    if (count === 0) return false;
+    // Register (or override) the char in the manifest
+    _manifest[char] = { urls, bufStart, count };
+    return true;
+}
+
+// Load a pack: a JSON manifest mapping chars → url or [urls].
+//   loadpack("https://raw.githubusercontent.com/u/repo/main/pack.json")
+// pack.json: { "K": "kick.wav", "S": ["snare0.wav","snare1.wav"] }
+// Relative URLs in the pack resolve against the pack's own location.
+export async function loadPackFromURL(url) {
+    if (!_sc) { console.error('loadpack: audio not booted'); return false; }
+    let pack;
+    try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        pack = await r.json();
+    } catch (e) {
+        console.error(`loadpack ${url}:`, e.message);
+        return false;
+    }
+    const base = url.slice(0, url.lastIndexOf('/') + 1);
+    let loaded = 0;
+    for (const [char, entry] of Object.entries(pack)) {
+        const urls = (Array.isArray(entry) ? entry : [entry])
+            .map(u => /^https?:\/\//.test(u) ? u : base + u);
+        if (await loadSampleFromURL(char, urls)) loaded++;
+    }
+    return loaded;
 }
 
 // ── Pattern parsing ────────────────────────────────────────────────────────────

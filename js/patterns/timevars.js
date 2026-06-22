@@ -71,3 +71,32 @@ export function _expvar(vals, durs) {
         return v0 * Math.pow(v1 / v0, frac);
     }};
 }
+
+// ── Parameter envelopes (Axis 3) ──────────────────────────────────────────────
+// Tagged objects evaluated per-note against beats-elapsed-since-trigger.
+// Used with a "_" suffix on an FX param name:  lpf_=fi(0.5, 400, 2000)
+// Signature: f*(dur, a, b) — dur in beats, a/b the endpoints.
+//   fi: fade in  a→b over dur, holds at b
+//   fo: fade out b→a over dur, holds at a
+//   fb: bounce   a↔b, looping every dur (triangle), runs for the note's sus
+export function _fi(dur, a, b) { return { __env: 'fi', dur, a, b }; }
+export function _fo(dur, a, b) { return { __env: 'fo', dur, a, b }; }
+export function _fb(dur, a, b) { return { __env: 'fb', dur, a, b }; }
+
+export function isEnv(v) {
+    return v != null && typeof v === 'object' && typeof v.__env === 'string';
+}
+
+// Evaluate an envelope at elapsedBeats since the note triggered.
+export function evalEnv(env, elapsedBeats) {
+    const { __env: kind, dur, a, b } = env;
+    const d = Math.max(0.001, dur);
+    if (kind === 'fb') {
+        const q = ((elapsedBeats / d) % 1 + 1) % 1;
+        return q < 0.5 ? a + (b - a) * (2 * q)
+                       : b - (b - a) * (2 * (q - 0.5));
+    }
+    const p = Math.min(1, Math.max(0, elapsedBeats / d));
+    if (kind === 'fo') return b - (b - a) * p;
+    return a + (b - a) * p; // fi
+}

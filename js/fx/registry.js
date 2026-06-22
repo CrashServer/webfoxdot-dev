@@ -17,6 +17,11 @@ export const FX_REGISTRY = {
     hpf:       { scParam: 'hpf',     default: 0,   desc: 'HPF cutoff Hz (0=off, e.g. 400)' },
     hpf_rq:    { scParam: 'hpf_rq',  default: 0.7, desc: 'HPF resonance' },
 
+    // Bitcrush — bit-depth quantize + sample-rate decimate
+    crush:      { scParam: 'crush',      default: 0,     desc: 'Bitcrush mix (0=off)' },
+    bits:       { scParam: 'crush_bits', default: 8,     desc: 'Quantization levels (lower=grittier, e.g. 4)' },
+    srate:      { scParam: 'crush_rate', default: 44100, desc: 'Downsample target Hz (lower=more aliasing)' },
+
     // Reverb
     reverb:    { scParam: 'reverb',   default: 0,    desc: 'Reverb mix' },
     room:      { scParam: 'rev_room', default: 0.6,  desc: 'Room size' },
