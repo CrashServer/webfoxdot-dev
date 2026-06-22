@@ -22,11 +22,14 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
 
     // ── Yjs document + WebSocket provider ─────────────────────────────────
-    const isLocal = ['localhost', '127.0.0.1', '192.168.1.186'].includes(window.location.hostname);
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // Derive WebSocket path from current page URL so any deployment path works.
+    // e.g. served at /webfoxDot/ → wsBase = wss://host/webfoxDot/ws
+    const basePath = window.location.pathname.replace(/\/?[^/]*$/, '');
     const wsBase  = isLocal
         ? 'ws://localhost:4444'
-        : `${wsProto}//${window.location.host}/webfoxDot/ws`;
+        : `${wsProto}//${window.location.host}${basePath}/ws`;
 
     const ydoc     = new Y.Doc();
     const provider = new WebsocketProvider(wsBase, sessionSlug, ydoc);
