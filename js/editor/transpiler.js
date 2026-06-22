@@ -20,12 +20,22 @@ export function transpile(code) {
         const ci = findCommentChar(line);
         if (ci !== -1) { main = line.slice(0, ci); tail = '  //' + line.slice(ci + 1); }
 
+        // Standalone . used as rest → null in array/argument positions
+        // dbass([0, ., 4]) → dbass([0, null, 4])
+        main = main.replace(/(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g, 'null');
+
         // >> operator: name >> synth(...)
         const m = main.match(/^(\s*)([a-zA-Z_]\w*)\s*>>\s*(.+)$/);
         if (m) {
             const [, indent, player, rhs] = m;
-            return `${indent}__p('${player}').__rshift__(${kwargify(rhs.trim())})${tail}`;
+            return `${indent}__p('${player}').__rshift__(${kwargify(autoQuotePlay(rhs.trim()))})${tail}`;
         }
+
+        // p1.method(...) → __p('p1').method(...)
+        main = main.replace(
+            /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop)\s*\(/g,
+            (_, name, method) => `__p('${name}').${method}(`
+        );
 
         return main + tail;
     }).join('\n');
@@ -89,6 +99,40 @@ function kwargify(expr) {
         i = closeIdx + 1;
     }
     return result;
+}
+
+// If play()'s first arg is unquoted, wrap it in double quotes.
+// play(X  o X  o, amp=0.9)  → play("X  o X  o", amp=0.9)
+// play(XoXo, amp=0.9)       → play("XoXo", amp=0.9)
+// play("X o", amp=0.9)      → unchanged
+function autoQuotePlay(rhs) {
+    const tag = 'play(';
+    const idx = rhs.indexOf(tag);
+    if (idx === -1) return rhs;
+    const start = idx + tag.length;
+    // Find matching close paren
+    let depth = 1, j = start;
+    while (j < rhs.length && depth > 0) {
+        const c = rhs[j];
+        if ('([{'.includes(c)) depth++;
+        else if (')]}'. includes(c)) depth--;
+        j++;
+    }
+    const inner = rhs.slice(start, j - 1);
+    // Extract first arg (before first comma at depth 0)
+    let d = 0, commaAt = -1;
+    for (let k = 0; k < inner.length; k++) {
+        const c = inner[k];
+        if ('([{'.includes(c)) d++;
+        else if (')]}'. includes(c)) d--;
+        else if (c === ',' && d === 0) { commaAt = k; break; }
+    }
+    const firstArg = (commaAt === -1 ? inner : inner.slice(0, commaAt)).trim();
+    const rest     = commaAt === -1 ? '' : inner.slice(commaAt);
+    // Already a string literal — leave it alone
+    const alreadyQuoted = firstArg.startsWith('"') || firstArg.startsWith("'") || firstArg.startsWith('`');
+    if (alreadyQuoted) return rhs;
+    return rhs.slice(0, idx) + 'play("' + firstArg + '"' + rest + ')' + rhs.slice(j);
 }
 
 function splitArgs(str) {

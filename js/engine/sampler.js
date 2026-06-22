@@ -46,28 +46,42 @@ export function charToBufId(char, sampleIdx = 0) {
 //   { sub: [c,...] }                 — subdivision: N chars each at dur/N
 //
 // "X  o"     → [{chars:['X']}, null, null, {chars:['o']}]
-// "(Xo)"     → [{chars:['X','o']}]      — fire both at once
+// "(Xo)"     → [{sim:['X','o']}]         — fire all simultaneously (chord-like)
 // "[XoXo]"   → [{sub:['X','o','X','o']}] — 4 equal subdivisions
+// "{Xo}"     → [{rand:['X','o']}]        — random pick each step
+// "<Xo>"     → [{alt:['X','o'],_idx:0}]  — cycle through on successive hits
 
 export function parsePattern(str) {
     const steps = [];
     let i = 0;
     while (i < str.length) {
         const c = str[i];
-        if (c === ' ') {
+        if (c === ' ' || c === '.') {
             steps.push(null);
             i++;
         } else if (c === '(') {
             const end = str.indexOf(')', i + 1);
             const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
             const chars = [...slice].filter(ch => ch !== ' ');
-            steps.push(chars.length ? { chars } : null);
+            steps.push(chars.length ? { sim: chars } : null);
             i = end === -1 ? str.length : end + 1;
         } else if (c === '[') {
             const end = str.indexOf(']', i + 1);
             const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
             const chars = [...slice].filter(ch => ch !== ' ');
             steps.push(chars.length ? { sub: chars } : null);
+            i = end === -1 ? str.length : end + 1;
+        } else if (c === '{') {
+            const end = str.indexOf('}', i + 1);
+            const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
+            const chars = [...slice].filter(ch => ch !== ' ');
+            steps.push(chars.length ? { rand: chars } : null);
+            i = end === -1 ? str.length : end + 1;
+        } else if (c === '<') {
+            const end = str.indexOf('>', i + 1);
+            const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
+            const chars = [...slice].filter(ch => ch !== ' ');
+            steps.push(chars.length ? { alt: chars, _idx: 0 } : null);
             i = end === -1 ? str.length : end + 1;
         } else {
             steps.push({ chars: [c] });

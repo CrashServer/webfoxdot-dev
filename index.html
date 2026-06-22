@@ -214,7 +214,9 @@
 
     // ── Boot ─────────────────────────────────────────────────────────────────
     const SYNTHDEFS_TO_LOAD = [
-        'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk', 'fd_sampler', 'fd_fx_chain',
+        'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
+        'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm',
+        'fd_sampler', 'fd_fx_chain',
     ];
 
     async function bootAudio() {
@@ -286,16 +288,30 @@ Clock.bpm = 120
 Scale.default = "minor"
 Root.default = 0
 
-p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, dur=1, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
+# ── drums  . = rest  () = simultaneous  [] = subdivide  {} = random  <> = alternate
+b1 >> play(X.oX.o, amp=0.9)
+# b2 >> play(<X.-> [oh] {X.}, amp=0.8)
 
-# b1 >> play("X  o X  o", amp=0.9, dur=0.5)
+# ── bass ──────────────────────────────────────────────────────────────
+p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
 
-# p2 >> saw([0, 4, 7, 4], oct=4, amp=0.6, dur=0.5, cutoff=2000, reverb=0.3)
+# ── pluck ─────────────────────────────────────────────────────────────
+# p2 >> pluck([0, 4, 7, .], oct=4, amp=0.8, dur=0.5, cutoff=4000)
 
-# p3 >> rsin([0, 0, 7, 5], oct=4, amp=0.5, cutoff=var([800, 2400], [4, 4]), rq=0.08)
+# ── pulse — width = duty cycle 0–1 ───────────────────────────────────
+# p3 >> pulse([0, 0, 7, 5], oct=4, amp=0.5, cutoff=var([800, 3000], [4, 4]), width=0.3)
 
-# p4 >> donk([0], oct=3, amp=0.9, dur=0.5)
+# ── blip — rate = harmonic count ─────────────────────────────────────
+# p4 >> blip([0, 3, 5, 7], oct=5, amp=0.6, dur=0.25, rate=8)
 
+# ── fm — ratio = mod/carrier  index = depth ──────────────────────────
+# p5 >> fm([0, 7, 5, 3], oct=4, amp=0.6, ratio=2, index=var([2, 9], [4, 4]))
+
+# ── saw + rsin ────────────────────────────────────────────────────────
+# p6 >> saw([0, 4, 7, 4], oct=4, amp=0.5, dur=0.5, cutoff=2000, reverb=0.3)
+# p7 >> rsin([0, 0, 7, 5], oct=4, amp=0.4, cutoff=var([800, 2400], [4, 4]), rq=0.08)
+
+# ── performance ───────────────────────────────────────────────────────
 # p1.every(8, 'stutter', 4)
 # drop(14, 2)
 `;

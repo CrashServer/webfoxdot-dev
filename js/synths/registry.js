@@ -37,6 +37,26 @@ export const SYNTH_DEFS = {
         extraParams: [],
         rawSus: true,  // sus = Ringz decay in seconds — pass dur*secPerBeat directly, no atk/rel subtraction
     },
+    pluck: {
+        scName: 'fd_pluck',
+        defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.3, cutoff: 8000, rq: 0.7 },
+        extraParams: ['cutoff', 'rq'],
+    },
+    pulse: {
+        scName: 'fd_pulse',
+        defaults: { oct: 4, amp: 0.5, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 6000, rq: 0.8, width: 0.5 },
+        extraParams: ['cutoff', 'rq', 'width'],
+    },
+    blip: {
+        scName: 'fd_blip',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.0001, release: 0.1, cutoff: 12000, rq: 0.6, rate: 4 },
+        extraParams: ['cutoff', 'rq', 'rate'],
+    },
+    fm: {
+        scName: 'fd_fm',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.2, ratio: 2, index: 5, cutoff: 8000, rq: 0.8 },
+        extraParams: ['ratio', 'index', 'cutoff', 'rq'],
+    },
 };
 
 export class SynthCall {

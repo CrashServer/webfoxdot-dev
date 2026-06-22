@@ -177,7 +177,7 @@ export class Player {
         if (!_sc || !this._pattern?.length) return;
         const opts     = this._playOpts;
         const step     = this._step;
-        const baseDur  = Math.max(0.0625, patGet(opts.dur ?? 0.5, step, 0.5));
+        const baseDur  = Math.max(0.0625, patGet(opts.dur ?? 1, step, 1));
         const amp      = patGet(opts.amp ?? 0.8, step, 0.8) * this._amplify;
         const pan      = patGet(opts.pan ?? 0, step, 0);
         const rate     = patGet(opts.rate ?? 1, step, 1);
@@ -188,7 +188,7 @@ export class Player {
 
         if (entry !== null) {
             if (entry.sub) {
-                // Subdivided: fire each in sequence at dur/N, queue them individually
+                // [Xo] — subdivide: fire each char in sequence at dur/N
                 const n    = entry.sub.length;
                 const subD = baseDur / n;
                 entry.sub.forEach((ch, i) => {
@@ -198,12 +198,28 @@ export class Player {
                         if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
                     }, beatOffset * 60000 / this._clock.bpm);
                 });
-            } else {
-                // Simultaneous (chars array, usually just 1)
-                for (const ch of entry.chars) {
+            } else if (entry.sim) {
+                // (Xo) — simultaneous: fire all chars at once, amp divided equally
+                const simAmp = amp / entry.sim.length;
+                for (const ch of entry.sim) {
                     const bufId = charToBufId(ch, sampleIdx);
-                    if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
+                    if (bufId !== null) this._triggerSample(bufId, simAmp, pan, rate);
                 }
+            } else if (entry.alt) {
+                // <Xo> — alternate: cycle through chars on successive hits of this step
+                const ch = entry.alt[entry._idx % entry.alt.length];
+                entry._idx++;
+                const bufId = charToBufId(ch, sampleIdx);
+                if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
+            } else if (entry.rand) {
+                // {Xo} — random pick: fire one random char from the set each step
+                const ch = entry.rand[Math.floor(Math.random() * entry.rand.length)];
+                const bufId = charToBufId(ch, sampleIdx);
+                if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
+            } else {
+                // Single char
+                const bufId = charToBufId(entry.chars[0], sampleIdx);
+                if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
             }
         }
 

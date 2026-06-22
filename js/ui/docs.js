@@ -64,7 +64,7 @@ const TIMEVARS = [
 ];
 
 const FUNCTIONS = [
-    { name: 'play(pattern, opts)',      desc: 'Drum/sample pattern. Chars: X=kick, o=snare, h=hihat, space=rest, [XoX]=subdivide, (Xo)=simultaneous. opts: amp, dur, pan, rate, sample' },
+    { name: 'play(pattern, opts)',      desc: 'Drum/sample pattern. Chars map to samples. space=rest, (Xo)=fire both at once, [XoX]=subdivide into sub-steps, {Xo}=random pick, &lt;Xo&gt;=alternate on successive hits. Quotes optional if pattern has spaces. opts: amp, dur (default 1), pan, rate, sample' },
     { name: 'drop(playTime, dropTime, nbloop)', desc: 'Silence a random subset of players for dropTime beats, then restore. Default: 14, 2, 1' },
     { name: 'unsolo()',                 desc: 'Restore all players muted by solo / Alt+S' },
     { name: 'rest()',                   desc: 'Silence for one step (use in degree list)' },

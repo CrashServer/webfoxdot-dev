@@ -6,7 +6,7 @@
     --border-1:    #30363d;
     --border-2:    #484f58;
     --text-1:      #c9d1d9;
-    --text-2:      #8b949e;
+    --text-2:      #9aa3ac;
     --green:       #3fb950;
     --green-dim:   rgba(63,185,80,0.15);
     --blue:        #58a6ff;
@@ -20,6 +20,11 @@
     --timevar-col: #ffa657;
     --keyword-col: #79c0ff;
     --cp-width:    240px;
+    /* CodeMirror token colors — theme-aware */
+    --cm-keyword:  #ff7b72;
+    --cm-number:   #79c0ff;
+    --cm-string:   #a5d6ff;
+    --cm-def:      #7ee787;
 }
 
 :root.cyberpunk {
@@ -29,7 +34,7 @@
     --border-1:    #ff2e97;
     --border-2:    #00f6ff;
     --text-1:      #00ff9f;
-    --text-2:      #ff2e97;
+    --text-2:      #cc6699;
     --green:       #00ff9f;
     --blue:        #00f6ff;
     --yellow:      #ffff00;
@@ -41,6 +46,10 @@
     --pattern-col: #ff2e97;
     --timevar-col: #ffff00;
     --keyword-col: #00f6ff;
+    --cm-keyword:  #ff2e97;
+    --cm-number:   #00f6ff;
+    --cm-string:   #00ff9f;
+    --cm-def:      #ffff00;
 }
 
 :root.synthwave {
@@ -62,6 +71,10 @@
     --pattern-col: #e040fb;
     --timevar-col: #fede5d;
     --keyword-col: #36f9f6;
+    --cm-keyword:  #fe4450;
+    --cm-number:   #36f9f6;
+    --cm-string:   #72f1b8;
+    --cm-def:      #fede5d;
 }
 
 /* ── Reset ────────────────────────────────────────────────────────────────── */
@@ -172,13 +185,13 @@ button#btn-boot.booted { background: #1a4731; border-color: var(--green); color:
 .CodeMirror-activeline-background { background: var(--bg-2) !important; }
 .CodeMirror-matchingbracket { color: var(--green) !important; background: var(--green-dim); font-weight: bold; }
 
-/* Python token colors */
-.cm-keyword  { color: #ff7b72; }
-.cm-number   { color: #79c0ff; }
-.cm-string   { color: #a5d6ff; }
+/* Python token colors — use CSS vars so themes apply */
+.cm-keyword  { color: var(--cm-keyword); }
+.cm-number   { color: var(--cm-number); }
+.cm-string   { color: var(--cm-string); }
 .cm-comment  { color: var(--text-2); font-style: italic; }
-.cm-operator { color: #ff7b72; }
-.cm-def      { color: #7ee787; }
+.cm-operator { color: var(--cm-keyword); }
+.cm-def      { color: var(--cm-def); }
 
 /* FoxDot overlay tokens */
 .cm-fd-synth    { color: var(--synth-col); font-weight: bold; }
