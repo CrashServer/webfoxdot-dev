@@ -114,6 +114,8 @@
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initDocs, toggleDocs }      from './js/ui/docs.js';
+    import { initSections, runSection, cancelSection } from './js/engine/sections.js';
+    import { initCollab }                from './js/collab/collab.js';
 
     // ── Log ──────────────────────────────────────────────────────────────────
     const logEl = document.getElementById('log');
@@ -146,7 +148,11 @@
 
     function __p(name) { return clock.getPlayer(name, Player); }
 
-    function runCode(raw) {
+    // Collab API — populated after initCollab() if ?session= is in the URL
+    let _collab = null;
+    let _remoteEval = false; // prevent re-broadcast of received evals
+
+    function runCode(raw, { fromRemote = false } = {}) {
         let js = transpile(raw.trim());
         js = applyRenames(js);
         log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');
@@ -156,6 +162,8 @@
             }),
             Scale: ScaleProxy,
             Root:  RootProxy,
+            __stopAll: () => { clock._players.forEach(p => p.stop()); },
+            cancelSection,
             __p,
             ...SYNTHS,
             PRand, PWhite, PWalk, PDur, PPing,
@@ -175,11 +183,24 @@
             log(`Error: ${e.message}`, 'error');
             console.error('transpiled:\n' + js, e);
         }
+        // Broadcast to peers (skip if this eval came from a peer)
+        if (!fromRemote && _collab) {
+            const user = JSON.parse(localStorage.getItem('wfd-user') || '{"name":"?","color":"#888"}');
+            _collab.broadcastEval(raw, [], user.name, user.color, clock.now());
+        }
     }
 
     // ── Block runner ──────────────────────────────────────────────────────────
     function runBlockAtCursor() {
         const cursor = editor.getCursor();
+        // #@ section headers — intercept before normal block logic
+        const cursorLine = editor.getLine(cursor.line).trim();
+        if (cursorLine.startsWith('#@#@')) return; // track header — fold only
+        if (cursorLine.startsWith('#@')) {
+            flashLines(cursor.line, cursor.line);
+            runSection(cursor.line);
+            return;
+        }
         let s = cursor.line, e = cursor.line;
         const n = editor.lineCount();
         while (s > 0 && editor.getLine(s - 1).trim()) s--;
@@ -314,6 +335,26 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 # ── performance ───────────────────────────────────────────────────────
 # p1.every(8, 'stutter', 4)
 # drop(14, 2)
+
+# ── section sequencer — put cursor on a #@ line, Ctrl+Enter to run ───
+#@#@ my_set
+
+#@intro(16)
+# p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9)
+# b1 >> play(X.oX.o, amp=0.9)
+
+#@verse(32)
+# p1 >> dbass([0, -3, 5, 4], oct=3, amp=0.9)
+# p2 >> pluck([0, 4, 7], oct=4, amp=0.7)
+# # b1 >>
+
+#@loop(8, verse:3, fill:1)
+
+#@fill(4, verse:1)
+# b1 >> play(<X.oX.> [XoX] X.X., amp=0.9)
+# # p2 >>
+
+#@end(8)
 `;
 
     const editor = CodeMirror(document.getElementById('editor-wrap'), {
@@ -356,6 +397,26 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
     initDocs();
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
+
+    // ── Section sequencer ─────────────────────────────────────────────────────
+    initSections(clock, runCode, editor);
+
+    // ── Multiplayer — init if ?session= is in the URL ─────────────────────────
+    const _sessionSlug = new URLSearchParams(location.search).get('session');
+    if (_sessionSlug) {
+        log(`Joining session: ${_sessionSlug}`, 'info');
+        initCollab(_sessionSlug, clock, editor, (msg) => {
+            // Peer eval received — flash lines and run without re-broadcasting
+            if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
+            log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
+            runCode(msg.code, { fromRemote: true });
+        }).then(collab => {
+            _collab = collab;
+            log(`Session ready. Share: ${location.href}`, 'ok');
+        }).catch(err => {
+            log(`Collab failed: ${err.message}`, 'error');
+        });
+    }
 
     log('WebFoxDot loaded. Click "boot" to start audio.', 'info');
   </script>

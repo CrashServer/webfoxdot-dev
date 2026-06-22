@@ -1,0 +1,16 @@
+{
+  "name": "webfoxdot-collab-server",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node collab-server.js",
+    "build-yjs": "esbuild yjs-entry.js --bundle --format=esm --outfile=../lib/yjs/yjs-bundle.js"
+  },
+  "dependencies": {
+    "ws": "^8.0.0",
+    "y-websocket": "^2.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "y-codemirror": "^3.0.1"
+  }
+}

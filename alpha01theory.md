@@ -263,7 +263,154 @@ are regular Axis 1/2 params — they update per step or per n beats, but the LFO
 
 ---
 
-## 4. Summary — the full language model
+## 4. Section sequencing — `#@` and `#@#@`
+
+Inspired by webTroop's section system, adapted for browser-native execution.
+
+### The problem it solves
+
+A live set has structure: intro → verse → drop → chorus → end. Without sections,
+you manage this entirely by hand — running blocks manually, remembering what to
+stop. `#@` makes the structure explicit and automatable without removing manual
+control.
+
+### `#@` — Section headers
+
+A section is a named block of code delimited by its `#@` line and the next `#@`
+(or EOF). Running a section:
+1. Cancels any pending auto-advance (`__sec_cancel()`)
+2. Evaluates the section's code through the normal transpile pipeline
+3. Optionally schedules an advance to the next section after N beats
+
+```python
+#@intro(16)
+p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9)
+b1 >> play(X.oX.o, amp=0.9)
+
+#@verse(32)
+p1 >> dbass([0, -3, 5, 4], oct=3, amp=0.9)
+p2 >> pluck([0, 4, 7], oct=4, amp=0.6)
+b1 >> play(X.oX.o, amp=0.9)
+# b2 >> play(.h.h, amp=0.7)          ← commented = stop b2 on entry
+
+#@chorus(16)
+p1 >> dbass([0, 5, 3, 4], oct=3)
+p3 >> fm([0, 7], oct=4, ratio=2)
+# p2 >>                              ← commented = stop p2
+
+#@end(8)
+```
+
+**Running `#@intro(16)`**: evaluates the block, then after 16 beats auto-fires
+`#@verse`. The chain continues until a section has no beat count or hits `#@end`.
+
+**Sections without a beat count** (`#@name`) play indefinitely — no auto-advance.
+Useful for open sections you want to leave manually.
+
+### Section types
+
+| syntax | behaviour |
+|--------|-----------|
+| `#@name(beats)` | run block, advance to next section after N beats |
+| `#@name` | run block, no auto-advance (open section) |
+| `#@loop(beats, a:2, b:1)` | after beats, jump to `a` or `b` — weighted random |
+| `#@end(beats)` | fade all players over N beats, then stop clock |
+| `#@endfade(beats)` | smoother fade with FX cleanup |
+| `#@clear` | immediate full stop (Clock.clear + all players) |
+
+### Commented players = stop on entry
+
+When entering a section, lines matching `# p1 >>` (commented-out player lines)
+are automatically converted to `p1.stop()`. This means you describe a section by
+what is **active** — players absent from the section just get commented out and
+they stop cleanly.
+
+```python
+#@drop(16)
+p1 >> dbass([0, -3], oct=3, amp=0.9)
+b1 >> play(X.oX.o, amp=0.9)
+# p2 >>           ← p2 was running — this becomes p2.stop()
+# p3 >>           ← same for p3
+```
+
+This is the key ergonomic insight: write the section as its full state, comment
+out what's not in it, and transitions are handled automatically.
+
+### `#@#@` — Track groupings
+
+`#@#@` is a higher-level header that groups related sections into a named track.
+It has no execution semantics — it's purely organisational.
+
+```python
+#@#@ intro_track
+
+#@intro(16)
+p1 >> dbass([0, -3, 0, 4], oct=3)
+b1 >> play(X.oX.o)
+
+#@intro_build(8)
+p2 >> pluck([0, 4, 7], oct=5)
+
+#@#@ main_track
+
+#@verse(32, chorus:2, bridge:1)
+...
+
+#@chorus(16)
+...
+```
+
+**Fold behaviour**: `#@#@ track` folds the entire track (all `#@` sections until
+the next `#@#@`). `#@section` folds just that one section. Both fold levels are
+implemented in the editor's fold helper.
+
+This gives a two-level document structure:
+- **Track** (`#@#@`): a named passage in the set (intro, main, outro)
+- **Section** (`#@`): a named state within a track, with timing
+
+### `#@loop` — non-linear jumps
+
+```python
+#@loop(8, verse:3, chorus:1)
+```
+
+After 8 beats, jump to `verse` 75% of the time, `chorus` 25% of the time (weights
+3:1). The decision is made fresh each loop, creating controlled variation.
+
+Combined with open sections this lets you build non-linear set structures:
+```python
+#@#@ main_loop
+
+#@groove(32, groove:4, fill:1)
+p1 >> dbass([0, -3, 0, 4], oct=3)
+b1 >> play(X.oX.o)
+
+#@fill(8, groove:1)
+b1 >> play(<X.oX.> [XoX] X.X., amp=0.9)
+```
+
+The groove runs 32 beats → 80% back to groove, 20% fill → fill runs 8 beats →
+always back to groove. Stable loop with occasional variation.
+
+### Implementation in WebFoxDot
+
+The section system lives entirely in the browser — no server-side scheduling
+needed (unlike webTroop where `_seq_schedule` called back to a Python process).
+
+```
+transpiler: #@ lines → section registry entries, not evaluated as code
+__sec_run(name)   — find section, transpile+eval its code, schedule next if beats set
+__sec_cancel()    — clear pending advance timeout
+__sec_schedule(beats, fn) — use Clock._schedule for beat-accurate timing
+```
+
+In multiplayer: `#@section` execution is an eval broadcast event — all clients
+transition simultaneously, beat-locked. Section state (which section is active)
+lives in the relay server's room state so late-joining clients know where the set is.
+
+---
+
+## 5. Summary — the full language model
 
 ```
 p1 >> saw([0, <0,4>, (0,7)], oct=4, cutoff=fb(8, 200, 2000), lpf_=sinvar([200, 4000], 2))

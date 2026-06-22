@@ -54,6 +54,14 @@
 
     const overlay = {
         token: function (stream) {
+            // #@#@ track-group header — consume the whole line
+            if (stream.sol() && stream.match(/^#@#@.*/)) {
+                return 'foxdot-track';
+            }
+            // #@ section header — consume the whole line
+            if (stream.sol() && stream.match(/^#@.*/)) {
+                return 'foxdot-section';
+            }
             // Player name before >> gets its own color
             if (stream.match(PLAYER_RE, false)) {
                 stream.match(WORD_RE);

@@ -6,3 +6,12 @@ log_sessions/
 
 # PID file
 .pids
+
+# Node deps (collab server) — restore with: cd server && npm install
+node_modules/
+
+# Agent worktrees / local Claude state
+.claude/
+
+# Editor / OS cruft
+.DS_Store
