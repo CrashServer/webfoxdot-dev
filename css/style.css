@@ -596,6 +596,18 @@ button#btn-boot.booted { background: #1a4731; border-color: var(--green); color:
     overflow-x: auto;
     white-space: pre;
     font-family: 'Courier New', monospace;
+    cursor: copy;
+    position: relative;
+    transition: background 0.2s;
+}
+.docs-code:hover { background: var(--bg-2); }
+.docs-code.copied { background: var(--green-dim); }
+.docs-code.copied::after {
+    content: "copied ✓";
+    position: absolute;
+    top: 4px; right: 8px;
+    font-size: 9px;
+    color: var(--green);
 }
 .docs-note {
     background: rgba(88,166,255,0.07);

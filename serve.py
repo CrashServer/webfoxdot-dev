@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-import http.server, os
+# Static dev server. Host/port come from config.json (static.*).
+import http.server, os, json
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(ROOT, 'config.json')) as f:
+    CFG = json.load(f)['static']
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -10,5 +16,7 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-http.server.HTTPServer(('127.0.0.1', 8765), NoCacheHandler).serve_forever()
+os.chdir(ROOT)
+host, port = CFG['host'], CFG['port']
+print(f"WebFoxDot static server → http://{host}:{port}")
+http.server.HTTPServer((host, port), NoCacheHandler).serve_forever()

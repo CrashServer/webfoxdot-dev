@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>WebFoxDot</title>
+  <link rel="icon" href="data:,">  <!-- suppress favicon.ico 404 -->
   <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
   <link rel="stylesheet" href="lib/codemirror/show-hint.css">
   <link rel="stylesheet" href="lib/codemirror/foldgutter.css">
@@ -33,7 +34,8 @@
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
     <div id="docs-panel" class="hidden">
       <div id="docs-header">
-        <button class="docs-tab active" data-tab="shortcuts">Shortcuts</button>
+        <button class="docs-tab active" data-tab="examples">Examples</button>
+        <button class="docs-tab" data-tab="shortcuts">Shortcuts</button>
         <button class="docs-tab" data-tab="synths">Synths</button>
         <button class="docs-tab" data-tab="fx">FX</button>
         <button class="docs-tab" data-tab="patterns">Patterns</button>
@@ -176,9 +178,11 @@
             rest:   () => null,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
             loadsample: (char, url) => loadSampleFromURL(char, url)
-                .then(ok => log(ok ? `sample "${char}" loaded` : `sample "${char}" failed`, ok ? 'ok' : 'error')),
-            loadpack: (url) => loadPackFromURL(url)
-                .then(n => log(n ? `pack loaded: ${n} samples` : `pack failed`, n ? 'ok' : 'error')),
+                .then(ok => log(ok ? `sample "${char}" loaded` : `sample "${char}": all URLs failed`, ok ? 'ok' : 'error'))
+                .catch(e => log(`loadsample "${char}": ${e.message}`, 'error')),
+            loadpack: (url) => { log(`loading pack…`); return loadPackFromURL(url)
+                .then(n => log(n ? `pack loaded: ${n} chars` : `pack loaded 0 chars (all failed)`, n ? 'ok' : 'error'))
+                .catch(e => log(`loadpack: ${e.message}`, 'error')); },
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop),
             unsolo: () => _unsoloFn(clock),
@@ -257,6 +261,7 @@
             const sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
+                maxNodes:        1024,  // matches node-tree-mirror cap; ample for live coding
             });
             await sc.init();
             log('scsynth started ✓', 'ok');

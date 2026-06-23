@@ -68,7 +68,7 @@ export function charToBufId(char, sampleIdx = 0) {
 // Multiple URLs assign successive sample-index slots for one char:
 //   loadsample("K", [url0, url1])   → play("K", sample=1) picks url1
 export async function loadSampleFromURL(char, url) {
-    if (!_sc) { console.error('loadsample: audio not booted'); return false; }
+    if (!_sc) throw new Error('audio not booted — click "boot" first');
     const urls = Array.isArray(url) ? url : [url];
     const bufStart = _nextUserBuf;
     let count = 0;
@@ -95,22 +95,25 @@ export async function loadSampleFromURL(char, url) {
 // pack.json: { "K": "kick.wav", "S": ["snare0.wav","snare1.wav"] }
 // Relative URLs in the pack resolve against the pack's own location.
 export async function loadPackFromURL(url) {
-    if (!_sc) { console.error('loadpack: audio not booted'); return false; }
+    if (!_sc) throw new Error('audio not booted — click "boot" first');
     let pack;
     try {
         const r = await fetch(url);
         if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
         pack = await r.json();
     } catch (e) {
-        console.error(`loadpack ${url}:`, e.message);
-        return false;
+        throw new Error(`could not fetch pack (${e.message})`);
     }
     const base = url.slice(0, url.lastIndexOf('/') + 1);
     let loaded = 0;
     for (const [char, entry] of Object.entries(pack)) {
         const urls = (Array.isArray(entry) ? entry : [entry])
             .map(u => /^https?:\/\//.test(u) ? u : base + u);
-        if (await loadSampleFromURL(char, urls)) loaded++;
+        try {
+            if (await loadSampleFromURL(char, urls)) loaded++;
+        } catch (e) {
+            console.error(`loadpack char "${char}":`, e.message);
+        }
     }
     return loaded;
 }

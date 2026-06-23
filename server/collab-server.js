@@ -1,8 +1,12 @@
 const { WebSocketServer, WebSocket } = require('ws');
 const { setupWSConnection }          = require('y-websocket/bin/utils');
 const http                           = require('http');
+const fs                             = require('fs');
+const path                           = require('path');
 
-const PORT = 4444;
+const CFG  = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8')).collab;
+const HOST = CFG.host;
+const PORT = CFG.port;
 
 // slug → Set<ws>
 const rooms = new Map();
@@ -42,21 +46,27 @@ const server = http.createServer();
 const wss    = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
+    const url  = new URL(req.url, 'ws://localhost');
     const slug = slugFromReq(req);
+    const isApp = url.searchParams.get('app') === '1';
+
+    // ── Yjs CRDT channel ──────────────────────────────────────────────────
+    // y-websocket owns this socket entirely. No app handler here, so JSON
+    // frames never reach the Yjs decoder.
+    if (!isApp) {
+        setupWSConnection(ws, req, { docName: slug });
+        console.log(`[+yjs] ${slug}`);
+        ws.on('close', () => console.log(`[-yjs] ${slug}`));
+        return;
+    }
+
+    // ── App channel — eval relay + clock sync (JSON only) ─────────────────
     const room = getRoom(slug);
     room.add(ws);
+    console.log(`[+app] ${slug} (${room.size} clients)`);
 
-    console.log(`[+] ${slug} (${room.size} clients)`);
-
-    // Hand to y-websocket for Yjs CRDT binary frames
-    setupWSConnection(ws, req, { docName: slug });
-
-    // App message handler — runs after y-websocket's listener
     ws.on('message', (data) => {
         const str = Buffer.isBuffer(data) ? data.toString() : data;
-        // Yjs binary frames start with a non-printable byte — skip them
-        if (typeof str === 'string' && str.charCodeAt(0) < 32) return;
-
         let msg;
         try { msg = JSON.parse(str); } catch { return; }
 
@@ -73,12 +83,12 @@ wss.on('connection', (ws, req) => {
 
     ws.on('close', () => {
         removeFromRoom(slug, ws);
-        console.log(`[-] ${slug} (${(rooms.get(slug) || new Set()).size} clients)`);
+        console.log(`[-app] ${slug} (${(rooms.get(slug) || new Set()).size} clients)`);
     });
 
     ws.on('error', (err) => console.error(`[!] ${slug}:`, err.message));
 });
 
-server.listen(PORT, () => {
-    console.log(`WebFoxDot collab server → ws://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+    console.log(`WebFoxDot collab server → ws://${HOST}:${PORT}`);
 });

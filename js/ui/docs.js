@@ -95,6 +95,125 @@ const PLAYER_PARAMS = [
 
 // ── HTML builders ──────────────────────────────────────────────────────────────
 
+// Overview / copy-paste examples of everything implemented.
+function buildExamples() {
+    // Auto-generate one line per registered synth so this never goes stale.
+    const synthLines = Object.entries(SYNTH_DEFS).map(([name, def], i) => {
+        const oct = def.defaults.oct ?? 4;
+        const extra = (def.extraParams ?? [])
+            .filter(p => p in def.defaults)
+            .map(p => `${p}=${def.defaults[p]}`)
+            .join(', ');
+        const tail = extra ? `, ${extra}` : '';
+        return `p${i + 1} >> ${name}([0, 4, 7, 4], oct=${oct}, amp=0.6${tail})`;
+    }).join('\n');
+
+    const start = section('Start here', `
+        ${note('Boot audio first (the <b>boot</b> button). Put the cursor in a block and press <b>Ctrl+Enter</b> to run it. Edit and re-run live. <b>Ctrl+;</b> stops everything. Click any code box below to copy it.')}
+        ${code(`Clock.bpm = 120
+Scale.default = "minor"
+Root.default = 0`)}
+    `);
+
+    const drums = section('Drums — play()', `
+        ${note('Chars map to samples. <code>.</code> or space = rest. Brackets: <code>(Xo)</code> together · <code>[Xo]</code> subdivide · <code>{Xo}</code> random · <code>&lt;Xo&gt;</code> alternate.')}
+        ${code(`b1 >> play(x.o.x.o., amp=0.9)              # kick / snare
+b2 >> play(x-o-, amp=0.9)                  # - = closed hihat
+b3 >> play(x.[oo]x.<o->, amp=0.8)          # subdivide + alternate
+b4 >> play((x*)..{o-}.., amp=0.8)          # together + random
+b5 >> play(x.o., dur=0.5, sample=1)        # sample-index slot`)}
+    `);
+
+    const synths = section('All synths', `
+        ${note('Degree arrays are scale steps. Each synth\\'s extra params are shown filled in with their defaults.')}
+        ${code(synthLines)}
+    `);
+
+    const axis1 = section('Axis 1 — degree brackets & chords', `
+        ${note('Same bracket meanings as play(), inside degree lists.')}
+        ${code(`p1 >> saw([0, (0,4,7), 2, <0,5>], oct=4)   # chord, then alternate
+p1 >> pluck([0, [2,4], 7, {0,3,5}], oct=4)  # subdivide, random
+p1 >> sine([0, ., 4, .], oct=5)             # . = rest`)}
+    `);
+
+    const axis2 = section('Axis 2 — time-varying values (var family)', `
+        ${note('Evolve a parameter over beats. <code>var</code> steps; <code>linvar/sinvar/expvar</code> interpolate. Args: (values, durations-in-beats).')}
+        ${code(`p1 >> dbass([0,-3,0,4], oct=3, cutoff=linvar([400, 4000], [8, 8]))
+p1 >> saw([0,4,7], cutoff=sinvar([500, 5000], [4]))
+p1 >> pulse([0,3], width=var([0.2, 0.5, 0.8], [2, 2, 4]))
+p1 >> fm([0,7], index=expvar([1, 12], [16]))`)}
+    `);
+
+    const axis3 = section('Axis 3 — parameter envelopes ( _ suffix )', `
+        ${note('A <code>_</code> suffix runs an envelope per note. <code>fi</code> fade in, <code>fo</code> fade out, <code>fb</code> bounce/wobble. Signature: <code>f(beats, from, to)</code>. <b>FX-chain params only</b> (lpf, hpf, reverb, echo, crush…).')}
+        ${code(`p1 >> saw([0,4], oct=4, dur=1, lpf_=fi(0.5, 400, 5000))   # filter opens
+p1 >> saw([0,3], oct=3, dur=1, lpf_=fo(1, 5000, 400))     # filter closes
+p1 >> saw([0,3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000))  # wobble`)}
+    `);
+
+    const fx = section('FX — append to any player', `
+        ${note('FX run on a persistent per-player chain. Combine freely.')}
+        ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
+p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
+p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
+p1 >> dbass([0,-3], crush=0.6, bits=4, srate=6000) # bitcrush
+p1 >> saw([0,4,7], tanh=0.5, drive=4)              # saturation`)}
+    `);
+
+    const samples = section('External samples', `
+        ${note('Load WAVs from any public URL into your buffers. In multiplayer everyone loads the same URL, so put a loadpack at the top of the shared doc.')}
+        ${code(`# default kit (the original FoxDot bank)
+loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
+b1 >> play(x-o-, amp=0.9)
+
+# a single sample → a char (or [urls] for sample-index slots)
+loadsample("K", "https://raw.githubusercontent.com/USER/REPO/main/kick.wav")
+b2 >> play(K.K.K.K.)`)}
+    `);
+
+    const patterns = section('Patterns', `
+        ${note('Pattern objects produce a new value each step. Drop them into any param.')}
+        ${code(`p1 >> saw([0,2,4,7], amp=PWhite(0.4, 0.9))      # random float
+p1 >> pluck([0,4,7], oct=PRand(4, 6))           # random int
+p1 >> sine(PRange(0, 7), dur=0.5)               # 0..7 ramp
+p1 >> saw([0,4,7], pan=PSine(-1, 1, 8))         # auto-pan
+b1 >> play(x-o-, amp=PEuclid(5, 8))             # euclidean accents`)}
+    `);
+
+    const perf = section('Performance', `
+        ${code(`p1.every(8, 'stutter', 4)     # every 8 beats, stutter x4
+p1.every(16, 'reverse')       # reverse the degree array
+p1.solo()                     # mute everyone else
+p1.soloDrop(8)                # solo 8 beats then restore
+drop(14, 2)                   # silence a random subset, then restore
+unsolo()                      # restore all`)}
+        ${note('Shortcuts: <b>Alt+S</b> solo · <b>Alt+O</b> soloDrop(8) · <b>Alt+X</b> comment+stop the player at the cursor.')}
+    `);
+
+    const sections = section('Section sequencer ( #@ )', `
+        ${note('Put the cursor on a <code>#@</code> line and Ctrl+Enter. Sections auto-advance after their beat count. A commented player line (<code># p1 >></code>) stops that player on entry. <code>#@#@</code> groups sections into a foldable track.')}
+        ${code(`#@#@ my_set
+
+#@intro(16)
+p1 >> dbass([0,-3,0,4], oct=3)
+b1 >> play(x.o.x.o.)
+
+#@verse(32)
+p1 >> dbass([0,-3,5,4], oct=3)
+p2 >> pads([0,3,5], oct=4, dur=4, reverb=0.4)
+# b1 >>
+
+#@loop(8, verse:3, fill:1)
+
+#@fill(4, verse:1)
+b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
+
+#@end(8)`)}
+    `);
+
+    return start + drums + synths + axis1 + axis2 + axis3 + fx + samples + patterns + perf + sections;
+}
+
 function buildShortcuts() {
     return `<table class="docs-table">
         <thead><tr><th>Key</th><th>Action</th></tr></thead>
@@ -338,6 +457,7 @@ export function initDocs() {
     const body  = panel.querySelector('#docs-body');
 
     const CONTENT = {
+        examples:  buildExamples,
         shortcuts: buildShortcuts,
         synths:    buildSynths,
         fx:        buildFX,
@@ -358,6 +478,16 @@ export function initDocs() {
 
     tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
+    // Click any code block to copy it to the clipboard
+    body.addEventListener('click', (e) => {
+        const pre = e.target.closest('.docs-code');
+        if (!pre) return;
+        navigator.clipboard?.writeText(pre.textContent).then(() => {
+            pre.classList.add('copied');
+            setTimeout(() => pre.classList.remove('copied'), 600);
+        });
+    });
+
     // Close button
     panel.querySelector('#docs-close').addEventListener('click', () => toggleDocs());
 
@@ -367,7 +497,7 @@ export function initDocs() {
     });
 
     // Open on first show
-    showTab('shortcuts');
+    showTab('examples');
 }
 
 export function toggleDocs() {

@@ -21,15 +21,22 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
 
-    // ── Yjs document + WebSocket provider ─────────────────────────────────
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // ── Resolve collab WebSocket base ──────────────────────────────────────
+    // https (deployed behind a proxy): derive a same-origin /ws path.
+    // http (local / LAN dev): connect directly to the collab port from config.json.
     const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Derive WebSocket path from current page URL so any deployment path works.
-    // e.g. served at /webfoxDot/ → wsBase = wss://host/webfoxDot/ws
-    const basePath = window.location.pathname.replace(/\/?[^/]*$/, '');
-    const wsBase  = isLocal
-        ? 'ws://localhost:4444'
-        : `${wsProto}//${window.location.host}${basePath}/ws`;
+    let wsBase;
+    if (window.location.protocol === 'https:') {
+        const basePath = window.location.pathname.replace(/\/?[^/]*$/, '');
+        wsBase = `${wsProto}//${window.location.host}${basePath}/ws`;
+    } else {
+        let collabPort = 4444;
+        try {
+            const cfg = await (await fetch('./config.json')).json();
+            collabPort = cfg.collab?.port ?? collabPort;
+        } catch { /* fall back to default port */ }
+        wsBase = `ws://${window.location.hostname}:${collabPort}`;
+    }
 
     const ydoc     = new Y.Doc();
     const provider = new WebsocketProvider(wsBase, sessionSlug, ydoc);
@@ -43,7 +50,9 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
     provider.awareness.setLocalStateField('user', user);
 
     // ── App-message WebSocket (eval relay + clock sync) ───────────────────
-    const ws = new WebSocket(`${wsBase}/${sessionSlug}`);
+    // Distinct ?app=1 path so the server keeps this OFF the Yjs channel —
+    // otherwise JSON frames reach the Yjs decoder ("Unexpected end of array").
+    const ws = new WebSocket(`${wsBase}/${sessionSlug}?app=1`);
 
     let clockOffset = 0; // ms offset from server time
     let beatMaster  = false;
