@@ -8,6 +8,23 @@ export function patGet(val, step, def) {
     return val;
 }
 
+// ── Groups / chords ──────────────────────────────────────────────────────────
+// (a, b, c) in a param position → a group: values fired SIMULTANEOUSLY (chord),
+// or zipped across layered voices when several params are groups. Distinct from
+// [a, b, c] which is a per-step sequence. Built by the transpiler as __group(...).
+export function _group(...items) { return { __group: items }; }
+export function isGroup(v) { return v != null && Array.isArray(v.__group); }
+
+// ── .sometimes() spec ─────────────────────────────────────────────────────────
+// .sometimes("stutter", 4)        → 50% chance per step, call stutter(4)
+// .sometimes(0.2, "reverse")      → 20% chance, call reverse()
+export function parseSometimes(args) {
+    let prob = 0.5, method, mArgs;
+    if (typeof args[0] === 'number') { prob = args[0]; method = args[1]; mArgs = args.slice(2); }
+    else                            { method = args[0]; mArgs = args.slice(1); }
+    return { prob, method, args: mArgs };
+}
+
 // ── Basic sequences ──────────────────────────────────────────────────────────
 
 // PRand(lo, hi) — random integer in [lo, hi). PRand([arr]) picks from array.

@@ -129,11 +129,19 @@ b5 >> play(x.o., dur=0.5, sample=1)        # sample-index slot`)}
         ${code(synthLines)}
     `);
 
-    const axis1 = section('Axis 1 — degree brackets & chords', `
-        ${note('Same bracket meanings as play(), inside degree lists.')}
-        ${code(`p1 >> saw([0, (0,4,7), 2, <0,5>], oct=4)   # chord, then alternate
-p1 >> pluck([0, [2,4], 7, {0,3,5}], oct=4)  # subdivide, random
-p1 >> sine([0, ., 4, .], oct=5)             # . = rest`)}
+    const axis1 = section('Axis 1 — sequences, chords & groups', `
+        ${note('<code>[a,b,c]</code> = a per-step sequence. <code>(a,b,c)</code> = a chord/group fired together — also works on any param (zipped across voices). <code>.</code> = rest.')}
+        ${code(`p1 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4)   # chord on steps 2 & 4
+p1 >> dbass((0,4,7), oct=3)                  # a held chord
+p1 >> saw([0,4,7], pan=(-1,1), amp=(0.6,0.3)) # grouped params zip into voices
+p1 >> sine([0, ., 4, .], oct=5)              # . = rest`)}
+    `);
+
+    const sometimes = section('Probabilistic — .sometimes()', `
+        ${note('<code>.sometimes(method, ...args)</code> rolls each step (50% by default) and applies a player method. <code>.sometimes(p, method, ...)</code> sets the probability.')}
+        ${code(`p1 >> saw([0,4,7,5], oct=4).sometimes("stutter", 4)
+p1 >> dbass([0,-3], oct=3).sometimes(0.2, "reverse")
+b1 >> play(x-o-).sometimes("stutter", 2)`)}
     `);
 
     const axis2 = section('Axis 2 — time-varying values (var family)', `
@@ -211,7 +219,7 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `);
 
-    return start + drums + synths + axis1 + axis2 + axis3 + fx + samples + patterns + perf + sections;
+    return start + drums + synths + axis1 + sometimes + axis2 + axis3 + fx + samples + patterns + perf + sections;
 }
 
 function buildShortcuts() {

@@ -1,11 +1,28 @@
 // Player — one per named variable (p1, p2, ...).
 // Handles note scheduling, FX chain management, and player methods.
 
-import { buildParams, SynthCall } from '../synths/registry.js';
+import { buildParams, SynthCall, SYNTH_DEFS } from '../synths/registry.js';
 import { FX_KEYS }               from '../fx/registry.js';
 import { FXChain }               from '../fx/chain.js';
-import { patGet }                 from '../patterns/sequences.js';
+import { patGet, isGroup }        from '../patterns/sequences.js';
 import { isEnv, evalEnv }         from '../patterns/timevars.js';
+
+// ── Unknown-param safety warnings ─────────────────────────────────────────────
+const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release']);
+let   _warn   = null;            // log hook, set from index.html
+const _warned = new Set();       // dedupe: only warn once per synth.param
+export function setWarn(fn) { _warn = fn; }
+
+function knownParams(synthName) {
+    const s   = new Set(COMMON_PARAMS);
+    const def = SYNTH_DEFS[synthName];
+    if (def) {
+        Object.keys(def.defaults ?? {}).forEach(k => s.add(k));
+        (def.extraParams ?? []).forEach(k => s.add(k));
+    }
+    FX_KEYS.forEach(k => s.add(k));
+    return s;
+}
 import { toMidi }                 from './scale.js';
 import { PlayStringCall, parsePattern, charToBufId } from './sampler.js';
 
@@ -37,6 +54,11 @@ function splitArgs(r) {
         (FX_KEYS.has(k) ? fx : synth)[k] = v;
     }
     return { synth, fx };
+}
+
+// Collapse a group to its first element (for contexts that can't layer)
+function ungroup(v, step) {
+    return isGroup(v) ? patGet(v.__group[0], step) : v;
 }
 
 // Restore all players' amplitude (undo a solo)
@@ -91,6 +113,8 @@ export class Player {
         this._playOpts = {};
         // Axis-3 parameter-envelope scheduler
         this._envTimer = null;
+        // .sometimes() probabilistic modifier spec
+        this._sometimes = null;
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
@@ -98,9 +122,10 @@ export class Player {
         if (synthCall === null || synthCall === undefined) { this.stop(); return this; }
 
         if (synthCall instanceof PlayStringCall) {
-            this._mode     = 'sample';
-            this._pattern  = parsePattern(synthCall.pattern);
-            this._playOpts = { ...synthCall.opts };
+            this._mode      = 'sample';
+            this._pattern   = parsePattern(synthCall.pattern);
+            this._playOpts  = { ...synthCall.opts };
+            this._sometimes = synthCall._sometimes ?? null;
             if (!this._active) {
                 this._active   = true;
                 this._step     = 0;
@@ -116,9 +141,11 @@ export class Player {
             return this;
         }
         const wasActive = this._active;
-        this._mode  = 'synth';
-        this._synth = synthCall.name;
-        this._args  = { ...synthCall.args };
+        this._mode      = 'synth';
+        this._synth     = synthCall.name;
+        this._args      = { ...synthCall.args };
+        this._sometimes = synthCall._sometimes ?? null;
+        this._warnUnknown();
 
         if (!wasActive) {
             this._active   = true;
@@ -133,6 +160,7 @@ export class Player {
 
     _fire() {
         if (!this._active) return;
+        this._applySometimes();
         if (this._mode === 'sample') { this._fireSample(); return; }
 
         const step = this._step;
@@ -150,35 +178,42 @@ export class Player {
         }
 
         const { synth: sArgs, fx: fxArgs } = splitArgs(r);
-        const dur  = Math.max(0.0625, r.dur ?? 1);
-        const oct  = r.oct ?? 5;
-        const deg  = r.degree ?? 0;
-        const amp  = r.amp ?? 0.8;
+        const dur  = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
 
         // Lazy FX chain init (if boot happened after first >> call)
         if (!this._fxChain && _sc) {
             this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
         }
 
-        // Update FX params every step (handles TimeVars on FX params)
+        // Update FX params every step (groups collapse to their first value —
+        // the FX chain is a single node and can't be layered)
         if (this._fxChain && Object.keys(fxArgs).length > 0) {
-            this._fxChain.update(fxArgs, _sc);
+            const fxFlat = {};
+            for (const [k, v] of Object.entries(fxArgs)) fxFlat[k] = ungroup(v, step);
+            this._fxChain.update(fxFlat, _sc);
         }
 
         // Start Axis-3 envelopes (sub-beat modulation of FX params via n_set)
         if (Object.keys(envs).length > 0) {
-            const susBeats = r.sus ?? r.dur ?? 1;
+            const susBeats = ungroup(r.sus, step) ?? ungroup(r.dur, step) ?? 1;
             this._startEnvelopes(envs, susBeats);
         }
 
-        // Trigger note(s)
-        const degrees  = Array.isArray(deg) ? deg : [deg];
-        const ampEach  = (amp * this._amplify) / Math.max(1, degrees.length);
-        for (const d of degrees) {
-            if (d === null) continue;
-            const midi = toMidi(d, oct);
+        // Group/chord expansion — voices = longest group among synth params.
+        // Each voice picks its element from any grouped param (zipped/cycled).
+        let voices = 1;
+        for (const v of Object.values(sArgs)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
+        for (let vi = 0; vi < voices; vi++) {
+            const va = {};
+            for (const [k, v] of Object.entries(sArgs)) {
+                va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
+            }
+            const deg = va.degree ?? 0;
+            if (deg === null) continue;
+            const oct = va.oct ?? 5;
+            const midi = toMidi(deg, oct);
             if (midi === null || midi < 0 || midi > 127) continue;
-            this._trigger(midi, { ...sArgs, amp: ampEach });
+            this._trigger(midi, { ...va, amp: (va.amp ?? 0.8) * this._amplify });
         }
 
         // Tick .every() handlers
@@ -198,55 +233,56 @@ export class Player {
         if (!_sc || !this._pattern?.length) return;
         const opts     = this._playOpts;
         const step     = this._step;
-        const baseDur  = Math.max(0.0625, patGet(opts.dur ?? 1, step, 1));
-        const amp      = patGet(opts.amp ?? 0.8, step, 0.8) * this._amplify;
-        const pan      = patGet(opts.pan ?? 0, step, 0);
-        const rate     = patGet(opts.rate ?? 1, step, 1);
-        const sampleIdx = Math.round(patGet(opts.sample ?? 0, step, 0));
+        // In sample mode a group param varies per pattern step (it can't layer).
+        const opt = (v, def) => {
+            if (isGroup(v)) { const g = v.__group; return patGet(g[((step % g.length) + g.length) % g.length], step, def); }
+            return patGet(v, step, def);
+        };
+        const baseDur  = Math.max(0.0625, opt(opts.dur, 1));
+        const amp      = opt(opts.amp, 0.8) * this._amplify;
+        const pan      = opt(opts.pan, 0);
+        const rate     = opt(opts.rate, 1);
+        const sampleIdx = Math.round(opt(opts.sample, 0));
 
-        const pat  = this._pattern;
-        const entry = pat[((step % pat.length) + pat.length) % pat.length];
-
-        if (entry !== null) {
-            if (entry.sub) {
-                // [Xo] — subdivide: fire each char in sequence at dur/N
-                const n    = entry.sub.length;
-                const subD = baseDur / n;
-                entry.sub.forEach((ch, i) => {
-                    const beatOffset = i * subD;
-                    setTimeout(() => {
-                        const bufId = charToBufId(ch, sampleIdx);
-                        if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
-                    }, beatOffset * 60000 / this._clock.bpm);
-                });
-            } else if (entry.sim) {
-                // (Xo) — simultaneous: fire all chars at once, amp divided equally
-                const simAmp = amp / entry.sim.length;
-                for (const ch of entry.sim) {
-                    const bufId = charToBufId(ch, sampleIdx);
-                    if (bufId !== null) this._triggerSample(bufId, simAmp, pan, rate);
-                }
-            } else if (entry.alt) {
-                // <Xo> — alternate: cycle through chars on successive hits of this step
-                const ch = entry.alt[entry._idx % entry.alt.length];
-                entry._idx++;
-                const bufId = charToBufId(ch, sampleIdx);
-                if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
-            } else if (entry.rand) {
-                // {Xo} — random pick: fire one random char from the set each step
-                const ch = entry.rand[Math.floor(Math.random() * entry.rand.length)];
-                const bufId = charToBufId(ch, sampleIdx);
-                if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
-            } else {
-                // Single char
-                const bufId = charToBufId(entry.chars[0], sampleIdx);
-                if (bufId !== null) this._triggerSample(bufId, amp, pan, rate);
-            }
-        }
+        const pat   = this._pattern;
+        const token = pat[((step % pat.length) + pat.length) % pat.length];
+        this._renderToken(token, 0, baseDur, { sampleIdx, amp, pan, rate });
 
         this._step++;
         this._nextBeat += baseDur;
         this._clock._schedule(this._nextBeat, () => this._fire());
+    }
+
+    // Recursively render one play() token over a beat slot [offset, offset+slot].
+    // Brackets nest: (sim) layers · [sub] subdivides · {rand}/<alt> pick one child.
+    _renderToken(token, beatOffset, slotBeats, p) {
+        if (!token || token.rest) return;
+
+        if (token.char !== undefined) {
+            const bufId = charToBufId(token.char, p.sampleIdx);
+            if (bufId === null) return;
+            const ms = Math.max(0, beatOffset * 60000 / this._clock.bpm);
+            setTimeout(() => this._triggerSample(bufId, p.amp, p.pan, p.rate), ms);
+            return;
+        }
+
+        const kids = token.children;
+        switch (token.type) {
+            case 'sub': {                       // [..] subdivide the slot
+                const subD = slotBeats / kids.length;
+                kids.forEach((k, i) => this._renderToken(k, beatOffset + i * subD, subD, p));
+                break;
+            }
+            case 'sim':                          // (..) all at once
+                for (const k of kids) this._renderToken(k, beatOffset, slotBeats, p);
+                break;
+            case 'rand':                         // {..} pick one at random
+                this._renderToken(kids[Math.floor(Math.random() * kids.length)], beatOffset, slotBeats, p);
+                break;
+            case 'alt':                          // <..> cycle on successive hits
+                this._renderToken(kids[token._idx++ % kids.length], beatOffset, slotBeats, p);
+                break;
+        }
     }
 
     _triggerSample(bufId, amp, pan, rate) {
@@ -254,6 +290,27 @@ export class Player {
         const id = _sc.nextNodeId();
         _sc.send('/s_new', 'fd_sampler', id, 0, PLAYER_GROUP,
             'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
+    }
+
+    // .sometimes(prob, method, ...args) — roll each step, maybe apply a method
+    _applySometimes() {
+        const s = this._sometimes;
+        if (!s || !s.method || Math.random() >= s.prob) return;
+        const args = s.args.map(a => patGet(a, this._step, a));
+        try { this[s.method]?.(...args); } catch (_) {}
+    }
+
+    // Warn (once) when a declared param isn't recognised by this synth or the FX set
+    _warnUnknown() {
+        const known = knownParams(this._synth);
+        for (const k of Object.keys(this._args)) {
+            const base = k.endsWith('_') ? k.slice(0, -1) : k;   // lpf_ envelope → lpf
+            if (known.has(k) || known.has(base)) continue;
+            const id = `${this._synth}.${k}`;
+            if (_warned.has(id)) continue;
+            _warned.add(id);
+            if (_warn) _warn(`${this._synth}: unknown param "${k}" — ignored`);
+        }
     }
 
     // Run parameter envelopes on the FX chain via n_set at ~60fps.

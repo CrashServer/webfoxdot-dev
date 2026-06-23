@@ -67,25 +67,28 @@ export function charToBufId(char, sampleIdx = 0) {
 //
 // Multiple URLs assign successive sample-index slots for one char:
 //   loadsample("K", [url0, url1])   → play("K", sample=1) picks url1
+// Fetch one WAV into a given SC buffer id. Throws on failure.
+async function fetchToBuffer(bufId, url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    const buf = await r.arrayBuffer();
+    await _sc.loadSample(bufId, buf);
+}
+
+// Yield to the event loop so the browser can paint between batches.
+const _yield = () => new Promise(res => setTimeout(res, 0));
+
 export async function loadSampleFromURL(char, url) {
     if (!_sc) throw new Error('audio not booted — click "boot" first');
     const urls = Array.isArray(url) ? url : [url];
     const bufStart = _nextUserBuf;
+    _nextUserBuf += urls.length;          // reserve a contiguous block up front
     let count = 0;
-    for (const u of urls) {
-        try {
-            const r   = await fetch(u);
-            if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-            const buf = await r.arrayBuffer();
-            await _sc.loadSample(_nextUserBuf, buf);
-            _nextUserBuf++;
-            count++;
-        } catch (e) {
-            console.error(`loadsample "${char}" ${u}:`, e.message);
-        }
+    for (let i = 0; i < urls.length; i++) {
+        try { await fetchToBuffer(bufStart + i, urls[i]); count++; }
+        catch (e) { console.error(`loadsample "${char}" ${urls[i]}:`, e.message); }
     }
     if (count === 0) return false;
-    // Register (or override) the char in the manifest
     _manifest[char] = { urls, bufStart, count };
     return true;
 }
@@ -104,80 +107,85 @@ export async function loadPackFromURL(url, onProgress) {
     } catch (e) {
         throw new Error(`could not fetch pack (${e.message})`);
     }
-    const base  = url.slice(0, url.lastIndexOf('/') + 1);
-    const chars = Object.entries(pack);
-    const total = chars.length;
-    let loaded  = 0;
-    for (const [char, entry] of chars) {
+    const base = url.slice(0, url.lastIndexOf('/') + 1);
+
+    // Pre-allocate buffer ids per char (no races), then flatten to jobs.
+    const entries = [];   // { char, urls, bufStart }
+    const jobs    = [];   // { bufId, url }
+    for (const [char, entry] of Object.entries(pack)) {
         const urls = (Array.isArray(entry) ? entry : [entry])
             .map(u => /^https?:\/\//.test(u) ? u : base + u);
-        try {
-            if (await loadSampleFromURL(char, urls)) loaded++;
-        } catch (e) {
-            console.error(`loadpack char "${char}":`, e.message);
-        }
-        if (onProgress) onProgress(loaded, total, char);
+        const bufStart = _nextUserBuf;
+        _nextUserBuf += urls.length;
+        entries.push({ char, urls, bufStart });
+        urls.forEach((u, i) => jobs.push({ bufId: bufStart + i, url: u }));
     }
-    return loaded;
+
+    // Register chars now so patterns work as buffers arrive.
+    for (const e of entries) _manifest[e.char] = { urls: e.urls, bufStart: e.bufStart, count: e.urls.length };
+
+    // Load in concurrent batches, yielding between them to keep the UI live.
+    const BATCH = 8;
+    let done = 0;
+    for (let i = 0; i < jobs.length; i += BATCH) {
+        await Promise.all(jobs.slice(i, i + BATCH).map(async (j) => {
+            try { await fetchToBuffer(j.bufId, j.url); }
+            catch (e) { console.error(`loadpack ${j.url}:`, e.message); }
+            if (onProgress) onProgress(++done, jobs.length);
+        }));
+        await _yield();
+    }
+    return entries.length;
 }
 
-// ── Pattern parsing ────────────────────────────────────────────────────────────
-// Returns array of steps. Each step is one of:
-//   null              — rest
-//   { chars: [c,...], dur_mult: 1 }  — fire these chars simultaneously, full step
-//   { sub: [c,...] }                 — subdivision: N chars each at dur/N
+// ── Pattern parsing (recursive — brackets nest arbitrarily) ──────────────────
+// parsePattern returns an array of STEP tokens, one per beat-slot. A token is:
+//   { rest: true }                    — silence
+//   { char: 'x' }                     — a single sample char
+//   { type, children, _idx }          — a bracket group; children are tokens too
 //
-// "X  o"     → [{chars:['X']}, null, null, {chars:['o']}]
-// "(Xo)"     → [{sim:['X','o']}]         — fire all simultaneously (chord-like)
-// "[XoXo]"   → [{sub:['X','o','X','o']}] — 4 equal subdivisions
-// "{Xo}"     → [{rand:['X','o']}]        — random pick each step
-// "<Xo>"     → [{alt:['X','o'],_idx:0}]  — cycle through on successive hits
+// Bracket types:  (sim) together · [sub] subdivide · {rand} random · <alt> cycle
+// Brackets nest:  "<x.><[--]>"  →  alt( seq, sub('-','-') )
+import { parseSometimes } from '../patterns/sequences.js';
+
+const OPENERS = {
+    '(': { type: 'sim',  close: ')' },
+    '[': { type: 'sub',  close: ']' },
+    '{': { type: 'rand', close: '}' },
+    '<': { type: 'alt',  close: '>' },
+};
+
+function parseTokens(str, st, closeChar) {
+    const tokens = [];
+    while (st.i < str.length) {
+        const c = str[st.i];
+        if (closeChar && c === closeChar) { st.i++; return tokens; }
+        if (c === ' ' || c === '.') { tokens.push({ rest: true }); st.i++; continue; }
+        const op = OPENERS[c];
+        if (op) {
+            st.i++; // consume opener
+            const children = parseTokens(str, st, op.close);
+            tokens.push(children.length ? { type: op.type, children, _idx: 0 } : { rest: true });
+            continue;
+        }
+        tokens.push({ char: c });
+        st.i++;
+    }
+    return tokens;
+}
 
 export function parsePattern(str) {
-    const steps = [];
-    let i = 0;
-    while (i < str.length) {
-        const c = str[i];
-        if (c === ' ' || c === '.') {
-            steps.push(null);
-            i++;
-        } else if (c === '(') {
-            const end = str.indexOf(')', i + 1);
-            const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
-            const chars = [...slice].filter(ch => ch !== ' ');
-            steps.push(chars.length ? { sim: chars } : null);
-            i = end === -1 ? str.length : end + 1;
-        } else if (c === '[') {
-            const end = str.indexOf(']', i + 1);
-            const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
-            const chars = [...slice].filter(ch => ch !== ' ');
-            steps.push(chars.length ? { sub: chars } : null);
-            i = end === -1 ? str.length : end + 1;
-        } else if (c === '{') {
-            const end = str.indexOf('}', i + 1);
-            const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
-            const chars = [...slice].filter(ch => ch !== ' ');
-            steps.push(chars.length ? { rand: chars } : null);
-            i = end === -1 ? str.length : end + 1;
-        } else if (c === '<') {
-            const end = str.indexOf('>', i + 1);
-            const slice = end === -1 ? str.slice(i + 1) : str.slice(i + 1, end);
-            const chars = [...slice].filter(ch => ch !== ' ');
-            steps.push(chars.length ? { alt: chars, _idx: 0 } : null);
-            i = end === -1 ? str.length : end + 1;
-        } else {
-            steps.push({ chars: [c] });
-            i++;
-        }
-    }
-    return steps;
+    return parseTokens(str, { i: 0 }, null);
 }
 
 // ── PlayStringCall — returned by play(), detected in Player.__rshift__ ────────
 
 export class PlayStringCall {
     constructor(pattern, opts) {
-        this.pattern = pattern;
-        this.opts    = opts;
+        this.pattern    = pattern;
+        this.opts       = opts;
+        this._sometimes = null;
     }
+    // b1 >> play("x-o-").sometimes("stutter", 2)
+    sometimes(...a) { this._sometimes = parseSometimes(a); return this; }
 }

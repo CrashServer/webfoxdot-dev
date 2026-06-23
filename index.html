@@ -100,14 +100,14 @@
   <script type="module">
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
-    import { Player, setSuperSonic, PLAYER_GROUP, FX_GROUP,
+    import { Player, setSuperSonic, setWarn, PLAYER_GROUP, FX_GROUP,
              drop as _dropFn, unsolo as _unsoloFn } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PRange, PStep, PSine, PTri,
-             PChain, PMarkov } from './js/patterns/sequences.js';
+             PChain, PMarkov, _group } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
@@ -151,6 +151,7 @@
         log(`Clock.bpm = ${bpm}`, 'ok');
     };
     setClockRef(clock);
+    setWarn((msg) => log(msg, 'warn'));
 
     // ── Eval context ──────────────────────────────────────────────────────────
     const SYNTHS = Object.fromEntries(Object.keys(SYNTH_DEFS).map(n => [n, makeSynth(n)]));
@@ -188,6 +189,7 @@
             PChain, PMarkov,
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
+            __group: _group,
             rest:   () => null,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
             loadsample: (char, url) => loadSampleFromURL(char, url)
@@ -195,10 +197,10 @@
                 .catch(e => log(`loadsample "${char}": ${e.message}`, 'error')),
             loadpack: (url) => {
                 const update = logLive('loadpack: fetching…');
-                return loadPackFromURL(url, (done, total, char) => {
-                    update(`loadpack: ${done}/${total}  [${char}]`);
+                return loadPackFromURL(url, (done, total) => {
+                    update(`loadpack: ${done}/${total} samples…`);
                 })
-                .then(n => update(n ? `loadpack: ${n}/${n} done ✓` : 'loadpack: 0 chars loaded (all failed)', n ? 'ok' : 'error'))
+                .then(n => update(n ? `loadpack: ${n} chars loaded ✓` : 'loadpack: 0 chars loaded (all failed)', n ? 'ok' : 'error'))
                 .catch(e => update(`loadpack: ${e.message}`, 'error'));
             },
             print:  (...a) => log(a.join(' ')),

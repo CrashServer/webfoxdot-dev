@@ -63,6 +63,10 @@ function findCommentChar(line) {
 
 // Convert Python kwargs inside function call parens to trailing JS object
 // bleep([0,2], oct=5, amp=0.7)  →  bleep([0,2], {oct:5, amp:0.7})
+//
+// A bare parenthesised comma-list that is NOT a function call — e.g. (0,4,7)
+// or pan=(0,0,x,0) — is a group/chord. In plain JS those collapse via the
+// comma operator to the last value, so they're rewritten to __group(...).
 function kwargify(expr) {
     let result = '', i = 0;
     while (i < expr.length) {
@@ -71,7 +75,12 @@ function kwargify(expr) {
             if (expr[j] === '(') { parenIdx = j; break; }
         }
         if (parenIdx === -1) { result += expr.slice(i); break; }
-        result += expr.slice(i, parenIdx + 1);
+
+        // Is this '(' a function call (preceded by identifier/`)`/`]`) or a
+        // grouping/tuple paren?
+        const prevChar = parenIdx > 0 ? expr[parenIdx - 1] : '';
+        const isCall   = /[A-Za-z0-9_$\])]/.test(prevChar);
+        result += expr.slice(i, parenIdx);  // everything up to (but not incl) '('
 
         // Find matching close paren
         let depth = 1, j = parenIdx + 1;
@@ -95,7 +104,10 @@ function kwargify(expr) {
         const all = [...pos];
         const keys = Object.keys(kw);
         if (keys.length) all.push('{' + keys.map(k => `${k}: ${kw[k]}`).join(', ') + '}');
-        result += all.join(', ') + expr[closeIdx];
+
+        // Grouping paren with ≥2 comma-separated values and no kwargs → __group()
+        const isGroup = !isCall && keys.length === 0 && pos.length >= 2;
+        result += (isGroup ? '__group(' : '(') + all.join(', ') + ')';
         i = closeIdx + 1;
     }
     return result;

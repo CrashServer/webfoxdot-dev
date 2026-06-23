@@ -69,8 +69,12 @@ export const SYNTH_DEFS = {
     },
 };
 
+import { parseSometimes, isGroup } from '../patterns/sequences.js';
+
 export class SynthCall {
-    constructor(name, args) { this.name = name; this.args = args; }
+    constructor(name, args) { this.name = name; this.args = args; this._sometimes = null; }
+    // p1 >> saw([0,4]).sometimes("stutter", 4)
+    sometimes(...a) { this._sometimes = parseSometimes(a); return this; }
 }
 
 // Generic param builder — works for any entry in SYNTH_DEFS.
@@ -111,9 +115,11 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
 // Factory: returns a callable synth function (for use in eval context)
 export function makeSynth(name) {
     return function(degree, opts = {}) {
-        // Support makeSynth('dbass')([0,2], {oct:3}) or makeSynth('dbass')({degree:[0,2], oct:3})
+        // Support makeSynth('dbass')([0,2], {oct:3}) or makeSynth('dbass')({degree:[0,2], oct:3}).
+        // A group (chord) or pattern object is a degree, not an opts dict.
         if (degree !== null && typeof degree === 'object'
                 && !Array.isArray(degree)
+                && !isGroup(degree)
                 && typeof degree.get !== 'function') {
             opts = degree;
             degree = opts.degree ?? 0;
