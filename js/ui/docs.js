@@ -125,7 +125,7 @@ b5 >> play(x.o., dur=0.5, sample=1)        # sample-index slot`)}
     `);
 
     const synths = section('All synths', `
-        ${note('Degree arrays are scale steps. Each synth\\'s extra params are shown filled in with their defaults.')}
+        ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults.')}
         ${code(synthLines)}
     `);
 

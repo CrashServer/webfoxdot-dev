@@ -129,6 +129,19 @@
         logEl.appendChild(d);
         logEl.scrollTop = logEl.scrollHeight;
     }
+    // Returns an updater fn that edits the same log line in place.
+    function logLive(msg, type = 'info') {
+        const d = document.createElement('div');
+        d.className = 'log-' + type;
+        d.textContent = `[${new Date().toLocaleTimeString('fr-FR')}] ${msg}`;
+        logEl.appendChild(d);
+        logEl.scrollTop = logEl.scrollHeight;
+        return (newMsg, newType) => {
+            if (newType) d.className = 'log-' + newType;
+            d.textContent = `[${new Date().toLocaleTimeString('fr-FR')}] ${newMsg}`;
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+    }
 
     // ── Clock + TimeVar ───────────────────────────────────────────────────────
     const clock = new Clock();
@@ -180,9 +193,14 @@
             loadsample: (char, url) => loadSampleFromURL(char, url)
                 .then(ok => log(ok ? `sample "${char}" loaded` : `sample "${char}": all URLs failed`, ok ? 'ok' : 'error'))
                 .catch(e => log(`loadsample "${char}": ${e.message}`, 'error')),
-            loadpack: (url) => { log(`loading pack…`); return loadPackFromURL(url)
-                .then(n => log(n ? `pack loaded: ${n} chars` : `pack loaded 0 chars (all failed)`, n ? 'ok' : 'error'))
-                .catch(e => log(`loadpack: ${e.message}`, 'error')); },
+            loadpack: (url) => {
+                const update = logLive('loadpack: fetching…');
+                return loadPackFromURL(url, (done, total, char) => {
+                    update(`loadpack: ${done}/${total}  [${char}]`);
+                })
+                .then(n => update(n ? `loadpack: ${n}/${n} done ✓` : 'loadpack: 0 chars loaded (all failed)', n ? 'ok' : 'error'))
+                .catch(e => update(`loadpack: ${e.message}`, 'error'));
+            },
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop),
             unsolo: () => _unsoloFn(clock),

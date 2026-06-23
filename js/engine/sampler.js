@@ -94,7 +94,7 @@ export async function loadSampleFromURL(char, url) {
 //   loadpack("https://raw.githubusercontent.com/u/repo/main/pack.json")
 // pack.json: { "K": "kick.wav", "S": ["snare0.wav","snare1.wav"] }
 // Relative URLs in the pack resolve against the pack's own location.
-export async function loadPackFromURL(url) {
+export async function loadPackFromURL(url, onProgress) {
     if (!_sc) throw new Error('audio not booted — click "boot" first');
     let pack;
     try {
@@ -104,9 +104,11 @@ export async function loadPackFromURL(url) {
     } catch (e) {
         throw new Error(`could not fetch pack (${e.message})`);
     }
-    const base = url.slice(0, url.lastIndexOf('/') + 1);
-    let loaded = 0;
-    for (const [char, entry] of Object.entries(pack)) {
+    const base  = url.slice(0, url.lastIndexOf('/') + 1);
+    const chars = Object.entries(pack);
+    const total = chars.length;
+    let loaded  = 0;
+    for (const [char, entry] of chars) {
         const urls = (Array.isArray(entry) ? entry : [entry])
             .map(u => /^https?:\/\//.test(u) ? u : base + u);
         try {
@@ -114,6 +116,7 @@ export async function loadPackFromURL(url) {
         } catch (e) {
             console.error(`loadpack char "${char}":`, e.message);
         }
+        if (onProgress) onProgress(loaded, total, char);
     }
     return loaded;
 }
