@@ -119,6 +119,8 @@
     import { initDocs, toggleDocs }      from './js/ui/docs.js';
     import { initSections, runSection, cancelSection } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
+    import * as UGENS                    from './js/scsynth/ugens.js';
+    import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
 
     // ── Log ──────────────────────────────────────────────────────────────────
     const logEl = document.getElementById('log');
@@ -190,6 +192,9 @@
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
             __group: _group,
+            ...UGENS,            // SinOsc, Saw, RLPF, Out, EnvGen, Env, Pan2, …
+            ...userSynths,       // synths defined live via defsynth()
+            defsynth,
             rest:   () => null,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
             loadsample: (char, url) => loadSampleFromURL(char, url)
@@ -282,6 +287,14 @@
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
                 maxNodes:        1024,  // matches node-tree-mirror cap; ample for live coding
+                // Firefox crashes on shared-memory WebAssembly.Memory.grow(), which
+                // SuperSonic calls when the sample buffer pool needs to expand.
+                // Set the pool's initial size == maximum so it's allocated once at
+                // boot and never grows. 128MB holds a full pack + lazy built-ins.
+                memory: {
+                    bufferPoolSize:    128 * 1024 * 1024,
+                    maxBufferPoolSize: 128 * 1024 * 1024,
+                },
             });
             await sc.init();
             log('scsynth started ✓', 'ok');
@@ -303,23 +316,22 @@
                     console.error(`loadSynthDef ${name}:`, e);
                 }
             }
-            synthStatus.textContent = 'loading samples…';
+            synthStatus.textContent = 'reading sample manifest…';
             try {
-                const sampleCount = await loadSamples(sc, (done, total) => {
-                    synthStatus.textContent = `samples ${done}/${total}…`;
-                });
-                if (sampleCount > 0) {
-                    log(`  samples loaded ✓ (${sampleCount})`, 'ok');
+                const charCount = await loadSamples(sc);
+                if (charCount > 0) {
+                    log(`  sample bank ready ✓ (${charCount} chars, lazy-loaded on first use)`, 'ok');
                 } else {
-                    log('  samples skipped — run setup_samples.py to configure sample bank', 'warn');
+                    log('  no sample bank — run setup_samples.py to configure one', 'warn');
                 }
             } catch (e) {
-                log(`  samples FAILED: ${e.message}`, 'error');
+                log(`  sample manifest FAILED: ${e.message}`, 'error');
                 console.error('loadSamples:', e);
             }
             synthStatus.textContent = '';
 
             setSuperSonic(sc);
+            initDefsynth(sc, (name) => log(`synth "${name}" defined ✓`, 'ok'));
             clock.start();
 
             dot.className = 'ready';

@@ -10,51 +10,56 @@ let   _nextUserBuf   = USER_BUF_START;
 
 export function samplesLoaded() { return _loaded; }
 
-// Load manifest + all WAVs into SC buffers. Call once at boot.
-// Returns number of samples actually loaded, or 0 if sample files are unreachable.
-export async function loadSamples(sc, onProgress) {
+// Read the manifest at boot — but do NOT fetch any WAVs. Buffer ids are
+// pre-assigned (manifest.bufStart), so each char's samples load lazily the
+// first time a pattern uses that char. This keeps boot instant and memory
+// proportional to what's actually played — essential for large banks and for
+// Firefox, which struggles to bulk-copy hundreds of MB into shared WASM memory.
+// Returns the number of chars available (0 if the bank is unreachable).
+export async function loadSamples(sc /*, onProgress */) {
     _sc = sc;
-    const resp = await fetch('./samples/manifest.json');
-    _manifest  = await resp.json();
-
-    const allEntries = [];
-    for (const [, info] of Object.entries(_manifest)) {
-        for (let i = 0; i < info.count; i++) {
-            allEntries.push({ url: info.urls[i], bufId: info.bufStart + i });
-        }
-    }
-
-    if (allEntries.length === 0) { _loaded = true; return 0; }
-
-    // Probe first entry before loading all — skip if files are not reachable
     try {
-        const probe = await fetch(allEntries[0].url, { method: 'HEAD' });
-        if (!probe.ok) throw new Error();
+        const resp = await fetch('./samples/manifest.json');
+        _manifest  = await resp.json();
     } catch {
-        console.warn('loadSamples: sample files unreachable — run setup_samples.py to configure your sample bank.');
+        console.warn('loadSamples: no manifest — run setup_samples.py to configure your sample bank.');
+        _loaded = true;
         return 0;
     }
-
-    let done = 0;
-    const BATCH = 8;
-    for (let i = 0; i < allEntries.length; i += BATCH) {
-        await Promise.all(allEntries.slice(i, i + BATCH).map(async ({ url, bufId }) => {
-            try {
-                const r   = await fetch(url);
-                const buf = await r.arrayBuffer();
-                await sc.loadSample(bufId, buf);
-            } catch (_) {}
-            if (onProgress) onProgress(++done, allEntries.length);
-        }));
+    const chars = Object.keys(_manifest);
+    // Probe one file so we can warn early if the bank is misconfigured.
+    const first = chars.map(c => _manifest[c]).find(i => i.count > 0);
+    if (first) {
+        try { const r = await fetch(first.urls[0], { method: 'HEAD' }); if (!r.ok) throw 0; }
+        catch { console.warn('loadSamples: sample files unreachable — check samples/manifest.json paths.'); }
     }
     _loaded = true;
-    return done;
+    return chars.length;
 }
 
-// char + sampleIndex → SC buffer ID
+// Lazily fetch one char's WAVs into its pre-assigned buffer range (once).
+async function ensureLoaded(char) {
+    const info = _manifest[char];
+    if (!info || !_sc || info._loaded || info._loading) return;
+    info._loading = true;
+    await Promise.all(info.urls.map(async (url, i) => {
+        try {
+            const r   = await fetch(url);
+            const buf = await r.arrayBuffer();
+            await _sc.loadSample(info.bufStart + i, buf);
+        } catch (e) { console.error(`sample "${char}" ${url}:`, e.message); }
+    }));
+    info._loaded = true;
+    info._loading = false;
+}
+
+// char + sampleIndex → SC buffer ID.
+// On the first use of a char its buffers load asynchronously and the call
+// returns null (one silent hit); subsequent hits play.
 export function charToBufId(char, sampleIdx = 0) {
     const info = _manifest[char];
     if (!info || info.count === 0) return null;
+    if (!info._loaded) { ensureLoaded(char); return null; }
     return info.bufStart + (((sampleIdx % info.count) + info.count) % info.count);
 }
 
@@ -89,7 +94,7 @@ export async function loadSampleFromURL(char, url) {
         catch (e) { console.error(`loadsample "${char}" ${urls[i]}:`, e.message); }
     }
     if (count === 0) return false;
-    _manifest[char] = { urls, bufStart, count };
+    _manifest[char] = { urls, bufStart, count, _loaded: true };
     return true;
 }
 
@@ -121,8 +126,8 @@ export async function loadPackFromURL(url, onProgress) {
         urls.forEach((u, i) => jobs.push({ bufId: bufStart + i, url: u }));
     }
 
-    // Register chars now so patterns work as buffers arrive.
-    for (const e of entries) _manifest[e.char] = { urls: e.urls, bufStart: e.bufStart, count: e.urls.length };
+    // Register chars; mark _loading so the lazy path won't double-fetch them.
+    for (const e of entries) _manifest[e.char] = { urls: e.urls, bufStart: e.bufStart, count: e.urls.length, _loading: true };
 
     // Load in concurrent batches, yielding between them to keep the UI live.
     const BATCH = 8;
@@ -135,6 +140,7 @@ export async function loadPackFromURL(url, onProgress) {
         }));
         await _yield();
     }
+    for (const e of entries) { _manifest[e.char]._loaded = true; _manifest[e.char]._loading = false; }
     return entries.length;
 }
 

@@ -159,6 +159,19 @@ p1 >> saw([0,3], oct=3, dur=1, lpf_=fo(1, 5000, 400))     # filter closes
 p1 >> saw([0,3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000))  # wobble`)}
     `);
 
+    const defsynthEx = section('Define synths live — defsynth()', `
+        ${note('Build a SynthDef in the browser (no SuperCollider needed) and play it like a built-in. The build fn gets the standard controls (out, note, amp, sus, pan, attack, release) + your extras, each a UGen. Convert pitch with <code>note.midicps()</code>; end with <code>Out.ar(out, …)</code>; use <code>doneAction:2</code> to free the voice. Run the defsynth block once, then play it.')}
+        ${code(`defsynth("mylead", { cutoff: 2000, rq: 0.4 }, ({ out, note, amp, sus, pan, attack, release, cutoff, rq }) => {
+  const freq = note.midicps()
+  const env  = EnvGen.ar(Env.linen(attack, sus, release), { doneAction: 2 })
+  const sig  = RLPF.ar(Saw.ar(freq), cutoff, rq).mul(env).mul(amp)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+
+p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
+        ${note('UGens available: SinOsc Saw LFSaw Pulse VarSaw LFTri Blip Impulse, WhiteNoise PinkNoise LFNoise0/1/2, RLPF RHPF LPF HPF BPF, Line XLine, Pan2, Out, EnvGen + Env.perc/linen/triangle. Math: .mul .add .sub .div .midicps() .abs() .neg()')}
+    `);
+
     const fx = section('FX — append to any player', `
         ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums.')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
@@ -220,7 +233,7 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `);
 
-    return start + drums + synths + axis1 + sometimes + axis2 + axis3 + fx + samples + patterns + perf + sections;
+    return start + drums + synths + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections;
 }
 
 function buildShortcuts() {
