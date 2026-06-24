@@ -15,14 +15,42 @@ export function patGet(val, step, def) {
 export function _group(...items) { return { __group: items }; }
 export function isGroup(v) { return v != null && Array.isArray(v.__group); }
 
-// ── .sometimes() spec ─────────────────────────────────────────────────────────
-// .sometimes("stutter", 4)        → 50% chance per step, call stutter(4)
-// .sometimes(0.2, "reverse")      → 20% chance, call reverse()
-export function parseSometimes(args) {
-    let prob = 0.5, method, mArgs;
-    if (typeof args[0] === 'number') { prob = args[0]; method = args[1]; mArgs = args.slice(2); }
-    else                            { method = args[0]; mArgs = args.slice(1); }
-    return { prob, method, args: mArgs };
+// ── Probability modifiers ─────────────────────────────────────────────────────
+// .sometimes("stutter", 4)                  → 50% chance per step, call stutter(4)
+// .often(0.8, "reverse")                     → override probability
+// .rarely("stutter", 2, rate=2, amp=0.5)     → trailing kwargs temporarily
+//                                              override params for that trigger
+// Aliases and their default probabilities (FoxDot-style):
+export const PROB = {
+    always: 1, almostAlways: 0.9, often: 0.7, sometimes: 0.5,
+    rarely: 0.25, almostNever: 0.1, never: 0,
+};
+
+// Build one modifier spec from a method-call's args.
+export function parseModifier(defaultProb, rawArgs) {
+    const args = [...rawArgs];
+    let prob = defaultProb;
+    if (typeof args[0] === 'number') prob = args.shift();
+    const method = args.shift();
+    // A trailing plain object (from kwargs) = temporary param overrides.
+    let kwargs = null;
+    const last = args[args.length - 1];
+    if (last && typeof last === 'object' && !Array.isArray(last)
+            && !last.__group && typeof last.get !== 'function') {
+        kwargs = args.pop();
+    }
+    return { prob, method, args, kwargs };
+}
+
+// Mix the probability-alias methods onto a call class (SynthCall / PlayStringCall).
+// Each appends to _modifiers so several can be chained.
+export function attachModifiers(cls) {
+    for (const [name, p] of Object.entries(PROB)) {
+        cls.prototype[name] = function (...a) {
+            (this._modifiers ??= []).push(parseModifier(p, a));
+            return this;
+        };
+    }
 }
 
 // ── Basic sequences ──────────────────────────────────────────────────────────

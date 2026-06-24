@@ -69,13 +69,13 @@ export const SYNTH_DEFS = {
     },
 };
 
-import { parseSometimes, isGroup } from '../patterns/sequences.js';
+import { attachModifiers, isGroup } from '../patterns/sequences.js';
 
 export class SynthCall {
-    constructor(name, args) { this.name = name; this.args = args; this._sometimes = null; }
-    // p1 >> saw([0,4]).sometimes("stutter", 4)
-    sometimes(...a) { this._sometimes = parseSometimes(a); return this; }
+    constructor(name, args) { this.name = name; this.args = args; this._modifiers = null; }
 }
+// .sometimes / .often / .rarely / .always / … — chainable probability modifiers
+attachModifiers(SynthCall);
 
 // Generic param builder — works for any entry in SYNTH_DEFS.
 // outBus: player's private audio bus (0 = direct to output, no FX)

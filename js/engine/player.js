@@ -114,8 +114,8 @@ export class Player {
         this._playOpts = {};
         // Axis-3 parameter-envelope scheduler
         this._envTimer = null;
-        // .sometimes() probabilistic modifier spec
-        this._sometimes = null;
+        // probability modifiers (.sometimes/.often/…) — array of specs
+        this._modifiers = null;
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
@@ -126,7 +126,7 @@ export class Player {
             this._mode      = 'sample';
             this._pattern   = parsePattern(synthCall.pattern);
             this._playOpts  = { ...synthCall.opts };
-            this._sometimes = synthCall._sometimes ?? null;
+            this._modifiers = synthCall._modifiers ?? null;
             this._warnUnknownPlay();
             if (!this._active) {
                 this._active   = true;
@@ -148,7 +148,7 @@ export class Player {
         this._mode      = 'synth';
         this._synth     = synthCall.name;
         this._args      = { ...synthCall.args };
-        this._sometimes = synthCall._sometimes ?? null;
+        this._modifiers = synthCall._modifiers ?? null;
         this._warnUnknown();
 
         if (!wasActive) {
@@ -164,7 +164,7 @@ export class Player {
 
     _fire() {
         if (!this._active) return;
-        this._applySometimes();
+        this._applyModifiers();
         if (this._mode === 'sample') { this._fireSample(); return; }
 
         const step = this._step;
@@ -310,12 +310,34 @@ export class Player {
             'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
     }
 
-    // .sometimes(prob, method, ...args) — roll each step, maybe apply a method
-    _applySometimes() {
-        const s = this._sometimes;
-        if (!s || !s.method || Math.random() >= s.prob) return;
-        const args = s.args.map(a => patGet(a, this._step, a));
-        try { this[s.method]?.(...args); } catch (_) {}
+    // Probability modifiers (.sometimes/.often/…): roll each per step. On a hit,
+    // optionally apply kwarg overrides for that trigger, then call the method.
+    _applyModifiers() {
+        if (!this._modifiers?.length) return;
+        const target = this._mode === 'sample' ? this._playOpts : this._args;
+        for (const m of this._modifiers) {
+            if (Math.random() >= m.prob) continue;
+            const args = m.args.map(a => patGet(a, this._step, a));
+
+            if (m.kwargs) {
+                // temporarily override params for this trigger, restore after a step
+                const saved = {};
+                for (const k of Object.keys(m.kwargs)) {
+                    saved[k] = Object.prototype.hasOwnProperty.call(target, k) ? target[k] : undefined;
+                    target[k] = m.kwargs[k];
+                }
+                if (m.method) { try { this[m.method]?.(...args); } catch (_) {} }
+                const ms = (target.dur ?? this._args.dur ?? 1) * 60000 / this._clock.bpm;
+                setTimeout(() => {
+                    for (const k of Object.keys(saved)) {
+                        if (saved[k] === undefined) delete target[k];
+                        else target[k] = saved[k];
+                    }
+                }, ms);
+            } else if (m.method) {
+                try { this[m.method]?.(...args); } catch (_) {}
+            }
+        }
     }
 
     // Warn (once) when a declared param isn't recognised by this synth or the FX set

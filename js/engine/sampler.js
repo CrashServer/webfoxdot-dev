@@ -152,7 +152,7 @@ export async function loadPackFromURL(url, onProgress) {
 //
 // Bracket types:  (sim) together · [sub] subdivide · {rand} random · <alt> cycle
 // Brackets nest:  "<x.><[--]>"  →  alt( seq, sub('-','-') )
-import { parseSometimes } from '../patterns/sequences.js';
+import { attachModifiers } from '../patterns/sequences.js';
 
 const OPENERS = {
     '(': { type: 'sim',  close: ')' },
@@ -190,8 +190,8 @@ export class PlayStringCall {
     constructor(pattern, opts) {
         this.pattern    = pattern;
         this.opts       = opts;
-        this._sometimes = null;
+        this._modifiers = null;
     }
-    // b1 >> play("x-o-").sometimes("stutter", 2)
-    sometimes(...a) { this._sometimes = parseSometimes(a); return this; }
 }
+// .sometimes / .often / .rarely / .always / … — chainable probability modifiers
+attachModifiers(PlayStringCall);

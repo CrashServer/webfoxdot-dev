@@ -96,10 +96,15 @@ const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha07';
+export const VERSION = 'alpha08';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha08', title: 'Probability family', items: [
+        { t: 'Probability aliases: .always .almostAlways .often .sometimes .rarely .almostNever .never — each a sensible default chance, overridable with a leading number', ex: 'sometimes' },
+        { t: 'Keyword overrides: .sometimes("stutter", rate=2, amp=0.5) temporarily changes params for that trigger', ex: 'sometimes' },
+        { t: 'Chain several modifiers on one player — each rolls independently per step', ex: 'sometimes' },
+    ]},
     { v: 'alpha07', title: 'In-browser synths · lazy samples', items: [
         { t: 'defsynth() — define SynthDefs live in the browser, no SuperCollider or server (in-browser .scsyndef compilation, validated against sclang)', ex: 'defsynth' },
         { t: 'UGen DSL: oscillators, noise, filters, Pan2, Out, EnvGen + Env.perc/linen/triangle', ex: 'defsynth' },
@@ -205,11 +210,12 @@ p1 >> saw([0,4,7], pan=(-1,1), amp=(0.6,0.3)) # grouped params zip into voices
 p1 >> sine([0, ., 4, .], oct=5)              # . = rest`)}
     `, 'axis1');
 
-    const sometimes = section('Probabilistic — .sometimes()', `
-        ${note('<code>.sometimes(method, ...args)</code> rolls each step (50% by default) and applies a player method. <code>.sometimes(p, method, ...)</code> sets the probability.')}
+    const sometimes = section('Probability modifiers', `
+        ${note('Roll a chance each step and apply a player method. Aliases by likelihood: <code>always</code>(1) · <code>almostAlways</code>(.9) · <code>often</code>(.7) · <code>sometimes</code>(.5) · <code>rarely</code>(.25) · <code>almostNever</code>(.1) · <code>never</code>(0). A leading number overrides the chance. Trailing kwargs temporarily change params for that trigger. Chain several — each rolls on its own.')}
         ${code(`p1 >> saw([0,4,7,5], oct=4).sometimes("stutter", 4)
-p1 >> dbass([0,-3], oct=3).sometimes(0.2, "reverse")
-b1 >> play(x-o-).sometimes("stutter", 2)`)}
+p1 >> dbass([0,-3], oct=3).often(0.8, "reverse")
+b1 >> play(x-o-).rarely("stutter", 2, rate=2, amp=0.6)   # kwargs override
+b1 >> play(x.o.).often("stutter", 2).sometimes("stutter", 8)  # chained`)}
     `, 'sometimes');
 
     const axis2 = section('Axis 2 — time-varying values (var family)', `
