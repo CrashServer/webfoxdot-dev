@@ -9,6 +9,7 @@ import { isEnv, evalEnv }         from '../patterns/timevars.js';
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
 const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release']);
+const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus']);
 let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
 export function setWarn(fn) { _warn = fn; }
@@ -126,9 +127,12 @@ export class Player {
             this._pattern   = parsePattern(synthCall.pattern);
             this._playOpts  = { ...synthCall.opts };
             this._sometimes = synthCall._sometimes ?? null;
+            this._warnUnknownPlay();
             if (!this._active) {
                 this._active   = true;
                 this._step     = 0;
+                // play() routes through the FX chain too (samples → private bus → FX → out)
+                this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
                 const now      = this._clock.now();
                 this._nextBeat = Math.ceil(now + 0.001);
                 this._clock._schedule(this._nextBeat, () => this._fire());
@@ -244,6 +248,18 @@ export class Player {
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
 
+        // Lazy FX chain init (if boot happened after first >> call)
+        if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
+
+        // Apply FX params each step (samples flow through the chain via the bus)
+        if (this._fxChain) {
+            const fxFlat = {};
+            for (const [k, v] of Object.entries(opts)) {
+                if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
+            }
+            if (Object.keys(fxFlat).length > 0) this._fxChain.update(fxFlat, _sc);
+        }
+
         const pat   = this._pattern;
         const token = pat[((step % pat.length) + pat.length) % pat.length];
         this._renderToken(token, 0, baseDur, { sampleIdx, amp, pan, rate });
@@ -287,9 +303,11 @@ export class Player {
 
     _triggerSample(bufId, amp, pan, rate) {
         if (!_sc) return;
-        const id = _sc.nextNodeId();
+        const id  = _sc.nextNodeId();
+        // Route through the player's private bus → FX chain (falls back to main out)
+        const out = this._fxChain ? this._bus : 0;
         _sc.send('/s_new', 'fd_sampler', id, 0, PLAYER_GROUP,
-            'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
+            'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
     }
 
     // .sometimes(prob, method, ...args) — roll each step, maybe apply a method
@@ -310,6 +328,18 @@ export class Player {
             if (_warned.has(id)) continue;
             _warned.add(id);
             if (_warn) _warn(`${this._synth}: unknown param "${k}" — ignored`);
+        }
+    }
+
+    // Same, for play() — known = sample params + FX keys
+    _warnUnknownPlay() {
+        for (const k of Object.keys(this._playOpts)) {
+            const base = k.endsWith('_') ? k.slice(0, -1) : k;
+            if (SAMPLE_PARAMS.has(k) || SAMPLE_PARAMS.has(base) || FX_KEYS.has(base)) continue;
+            const id = `play.${k}`;
+            if (_warned.has(id)) continue;
+            _warned.add(id);
+            if (_warn) _warn(`play: unknown param "${k}" — ignored`);
         }
     }
 

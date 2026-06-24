@@ -160,12 +160,13 @@ p1 >> saw([0,3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000))  # wobble`)}
     `);
 
     const fx = section('FX — append to any player', `
-        ${note('FX run on a persistent per-player chain. Combine freely.')}
+        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums.')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
 p1 >> dbass([0,-3], crush=0.6, bits=4, srate=6000) # bitcrush
-p1 >> saw([0,4,7], tanh=0.5, drive=4)              # saturation`)}
+b1 >> play(x-o-, lpf=1500, reverb=0.3)             # FX on drums too
+b2 >> play(x.o., echo=0.4, crush=0.5, bits=4)`)}
     `);
 
     const samples = section('External samples', `
