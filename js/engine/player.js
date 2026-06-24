@@ -8,8 +8,8 @@ import { patGet, isGroup }        from '../patterns/sequences.js';
 import { isEnv, evalEnv }         from '../patterns/timevars.js';
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
-const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release']);
-const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus']);
+const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify']);
+const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify']);
 let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
 export function setWarn(fn) { _warn = fn; }
@@ -155,6 +155,7 @@ export class Player {
             this._pattern   = parsePattern(synthCall.pattern);
             this._playOpts  = applyAliases({ ...synthCall.opts });
             this._modifiers = synthCall._modifiers ?? null;
+            this._unison    = synthCall._unison ?? null;
             this._scheduleAfter(synthCall._after);
             this._warnUnknownPlay();
             if (!this._active) {
@@ -257,9 +258,12 @@ export class Player {
                 const deg = va.degree ?? 0;
                 if (deg === null) continue;
                 const oct = va.oct ?? 5;
-                const midi = toMidi(deg, oct);
+                let midi = toMidi(deg, oct);
                 if (midi === null || midi < 0 || midi > 127) continue;
-                this._trigger(midi, { ...va, dur: repDur, amp: (va.amp ?? 0.8) * this._amplify });
+                midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
+                const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
+                const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
+                this._trigger(midi, { ...synthA, dur: repDur, amp });
             }
         };
         for (let i = 0; i < reps; i++) {
@@ -290,7 +294,7 @@ export class Player {
             return patGet(v, step, def);
         };
         const baseDur  = Math.max(0.0625, opt(opts.dur, 1));
-        const amp      = opt(opts.amp, 0.8) * this._amplify;
+        const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify;
         const pan      = opt(opts.pan, 0);
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
@@ -314,9 +318,20 @@ export class Player {
         const reps   = Math.max(1, this._stutterN || 1);
         this._stutterN = 0;
         const repDur = baseDur / reps;
-        for (let i = 0; i < reps; i++) {
-            this._renderToken(token, i * repDur, repDur, { sampleIdx, amp, pan, rate });
-        }
+        // unison: layer the sample, detuned via playback rate (2^(pshift/12)) + pan spread
+        const renderAt = (off, slot) => {
+            if (this._unison) {
+                const { pan: pans, pshift: shifts } = this._unison;
+                const ampEach = amp / pans.length;
+                for (let v = 0; v < pans.length; v++) {
+                    this._renderToken(token, off, slot,
+                        { sampleIdx, amp: ampEach, pan: pans[v], rate: rate * Math.pow(2, shifts[v] / 12) });
+                }
+            } else {
+                this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate });
+            }
+        };
+        for (let i = 0; i < reps; i++) renderAt(i * repDur, repDur);
 
         this._step++;
         this._nextBeat += baseDur;

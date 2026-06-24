@@ -206,3 +206,105 @@ export function PChain(mapping) {
 }
 
 export const PMarkov = PChain;
+
+// ── Grooves & generative (CrashServer patterns) ──────────────────────────────
+const cyc = (arr) => ({ get: (s) => arr[(((s | 0) % arr.length) + arr.length) % arr.length] });
+
+// Pacc(ptype, steps, intensity) — accent pattern for amp/amplify.
+// ptype: 0-6 or name (backbeat fourfloor offbeat ghost synco tresillo halftime).
+const _ACCENT = {
+    0: [0.6,0.4,0.4,0.4,1.0,0.4,0.4,0.4, 0.6,0.4,0.4,0.4,1.0,0.4,0.4,0.4],
+    1: [1.0,0.4,0.4,0.4,1.0,0.4,0.4,0.4, 1.0,0.4,0.4,0.4,1.0,0.4,0.4,0.4],
+    2: [0.4,0.4,1.0,0.4,0.4,0.4,1.0,0.4, 0.4,0.4,1.0,0.4,0.4,0.4,1.0,0.4],
+    3: [1.0,0.25,0.3,0.25,0.7,0.25,0.3,0.25, 1.0,0.25,0.3,0.25,0.7,0.25,0.3,0.25],
+    4: [0.4,0.4,1.0,0.4,0.4,1.0,0.4,0.4, 1.0,0.4,0.4,0.4,1.0,0.4,0.4,1.0],
+    5: [1.0,0.3,0.3,1.0,0.3,0.3,1.0,0.3, 1.0,0.3,0.3,1.0,0.3,0.3,1.0,0.3],
+    6: [1.0,0.3,0.5,0.3,0.7,0.3,0.5,0.3, 0.5,0.3,0.4,0.3,0.6,0.3,0.4,0.3],
+};
+const _ACCENT_NAMES = { backbeat:0, fourfloor:1, offbeat:2, ghost:3, synco:4, tresillo:5, halftime:6 };
+export function Pacc(ptype = 0, steps = 16, intensity = 1.0) {
+    if (typeof ptype === 'string') ptype = _ACCENT_NAMES[ptype.toLowerCase()] ?? 0;
+    const tpl = _ACCENT[ptype] ?? _ACCENT[0];
+    const data = [];
+    for (let i = 0; i < steps; i++) {
+        const v = tpl[i % tpl.length];
+        data.push(intensity >= 1 ? v : 0.7 + (v - 0.7) * intensity);
+    }
+    return cyc(data);
+}
+
+// PSwing(amount, steps) — on-beats 1.0, off-beats (1 - amount*variation)
+export function PSwing(amount = 0.1, steps = 8) {
+    const data = [], variation = [1.0, 0.85, 0.95, 0.75];
+    for (let i = 0; i < Math.floor(steps / 2); i++) { const v = amount * variation[i % 4]; data.push(1.0, 1.0 - v); }
+    return cyc(data.length ? data : [1]);
+}
+
+// PBin(number) — binary digits of number (random if 0): PBin(8) → [1,0,0,0]
+export function PBin(number = 0) {
+    if (!number) number = Math.floor(Math.random() * 999990) + 10;
+    return cyc((number >>> 0).toString(2).split('').map(Number));
+}
+
+// PFDur((n,k), …) — layered Euclidean density: 1 where any layer hits
+export function PFDur(...pairs) {
+    if (!pairs.length) return cyc([0]);
+    const k = Math.max(...pairs.map(p => p[1]));
+    const layers = pairs.map(([n, kk]) => _euclid(kk, n));   // n pulses in kk steps
+    const result = [];
+    for (let i = 0; i < k; i++) result.push(Math.max(...layers.map(L => L[i % L.length])));
+    return cyc(result);
+}
+
+// PLife(chaos, low, high, steps) — elementary cellular-automaton values in [low,high]
+export function PLife(chaos = 0, low = 0, high = 1, steps = 16) {
+    const useInt = Number.isInteger(low) && Number.isInteger(high);
+    const rule = (() => {
+        const r = [[0,0],[0.15,254],[0.3,90],[0.5,110],[0.7,150],[0.85,30],[1,30]];
+        for (let i = 0; i < r.length - 1; i++) {
+            if (chaos <= r[i+1][0]) { const mid = (r[i][0] + r[i+1][0]) / 2; return chaos <= mid ? r[i][1] : r[i+1][1]; }
+        }
+        return 30;
+    })();
+    const ruleMap = {};
+    for (let i = 0; i < 8; i++) ruleMap[`${(i>>2)&1}${(i>>1)&1}${i&1}`] = (rule >> i) & 1;
+    let row = Array(steps).fill(0); row[steps >> 1] = 1;
+    const grid = [row.slice()];
+    const grow = (n) => {
+        while (grid.length < n) {
+            const last = grid[grid.length - 1], nr = Array(steps).fill(0);
+            for (let j = 0; j < steps; j++) {
+                const l = last[(j-1+steps)%steps], c = last[j], rt = last[(j+1)%steps];
+                nr[j] = ruleMap[`${l}${c}${rt}`];
+            }
+            grid.push(nr);
+        }
+    };
+    grow(300);
+    return { get(index) {
+        index = index | 0;
+        const r = Math.floor(index / steps), c = ((index % steps) + steps) % steps;
+        if (chaos <= 0) return high;
+        const radius = 2;
+        if (r + radius + 1 >= grid.length) grow(r + radius + 256);
+        let total = 0, count = 0;
+        for (let dr = -radius; dr <= radius; dr++) {
+            const ri = r + dr; if (ri < 0) continue;
+            for (let dc = -radius; dc <= radius; dc++) { total += grid[ri][((c+dc)%steps+steps)%steps]; count++; }
+        }
+        const density = total / count;
+        const floor = low + (high - low) * (1 - chaos);
+        const val = floor + (high - floor) * density;
+        return useInt ? Math.round(val) : val;
+    }};
+}
+
+// unison(n, detune) spread — pan positions + semitone pshift offsets (FoxDot formula)
+export function unisonSpread(n, detune) {
+    const pan = [], pshift = [];
+    const uni = (n % 2 === 0) ? n : n - 1;
+    for (let i = 1; i <= Math.floor(uni / 2); i++) { pan.push(2*i/uni); pan.unshift(-2*i/uni); }
+    for (let i = 1; i <= Math.floor(uni / 2); i++) { pshift.push(detune*(i/(uni/2))); pshift.unshift(detune*-(i/(uni/2))); }
+    if (n % 2 !== 0 && n > 1) { pan.splice(Math.floor(pan.length/2), 0, 0); pshift.splice(Math.floor(pan.length/2), 0, 0); }
+    return { pan, pshift };
+}

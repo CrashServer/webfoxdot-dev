@@ -54,6 +54,11 @@ const PATTERNS = [
     { name: 'PTri(lo, hi, len)',        desc: 'Triangle-shaped sweep over len steps' },
     { name: 'PChain(dict)',             desc: 'Markov chain from {state: [next,...]} dict' },
     { name: 'PMarkov(arr)',             desc: 'First-order Markov from value array' },
+    { name: 'Pacc(type, steps, int)',   desc: 'Accent pattern for amp/amplify. type 0-6 or name (backbeat fourfloor offbeat ghost synco tresillo halftime)' },
+    { name: 'PSwing(amount, steps)',    desc: 'Swing: on-beats 1.0, off-beats softer/later by amount' },
+    { name: 'PBin(n)',                  desc: 'Binary digits of n (random if 0): PBin(8)→[1,0,0,0]' },
+    { name: 'PFDur((n,k), …)',          desc: 'Layered Euclidean density — 1 where any layer hits' },
+    { name: 'PLife(chaos, lo, hi, n)',  desc: 'Cellular-automaton values in [lo,hi]; chaos 0=steady .. 1=chaotic' },
 ];
 
 const TIMEVARS = [
@@ -107,7 +112,12 @@ const CHANGELOG = [
         'P patterns: P*[a,b,c] → random pick, P[a,b,c] → cyclic list, P(a,b,c) → chord',
         'TimeVars accept patterns inside them: var([PRand([4,16,32]), 1/4])',
         'Player transposition: synth(...) + N or + (a,b,c) adds to the degree (a chord)',
+        '.unison(n, detune) — n detuned + stereo-spread voices (synths and samples)',
         '.after(beats, method) — one-shot delayed action (e.g. play(...).after(4, "stop"))',
+        'Patterns: Pacc (accents), PSwing, PBin, PFDur, PLife (cellular automaton)',
+        'amplify param — per-step amp multiplier (e.g. amp=Pacc("ghost"))',
+        'FX: resonbank (resonator), rgate (rhythmic gate), mverb + cheapverb (reverbs), chorus, tremolo',
+        'Synths: bass, prophet',
         'Param aliases: atk→attack, rel→release',
         'Editor: solo-mode autosave across refresh; clear / examples toolbar buttons; dbass default octave 3→4',
     ]},
@@ -268,13 +278,16 @@ p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
     `, 'defsynth');
 
     const fx = section('FX — append to any player', `
-        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums.')}
+        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo.')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
 p1 >> dbass([0,-3], crush=0.6, bits=4, srate=6000) # bitcrush
-b1 >> play(x-o-, lpf=1500, reverb=0.3)             # FX on drums too
-b2 >> play(x.o., echo=0.4, crush=0.5, bits=4)`)}
+p1 >> prophet([0,4,7], chorus=0.6, chorus_rate=0.5)# chorus
+b1 >> play(x.o., resonbank=0.3, rbfreq=[47,50,62]) # resonator bank
+b2 >> play(x-o-, rgate=0.8, rgaterate=8)           # rhythmic gate
+b3 >> play(x.o., mverb=0.6, mverbfreeze=1)         # frozen reverb
+b4 >> play(x-o-, tremolo=0.8, trem_rate=8)         # tremolo`)}
     `, 'fx');
 
     const samples = section('External samples', `
@@ -297,7 +310,9 @@ p1 >> saw([0, 3, 5, P*[7,10,5]], oct=4)         # P*[...] = random pick
 p1 >> saw([0,4,7], dur=var([P*[1,2], 1/4]))     # pattern inside a var
 p1 >> saw([0,4,7], oct=4) + 7                    # transpose up
 p1 >> dbass([0,3,5]) + (0,3,7)                   # + a group = chord
-b1 >> play(x-o-, amp=PEuclid(5, 8))             # euclidean accents`)}
+p1 >> saw([0,4,7], oct=4).unison(4, 0.4)         # 4 detuned voices, spread
+b1 >> play(x.x.x.x., amp=Pacc("ghost"))         # accent pattern
+b2 >> play(x-o-, amplify=PLife(0.5))            # cellular-automaton amp`)}
     `, 'patterns');
 
     const perf = section('Performance', `

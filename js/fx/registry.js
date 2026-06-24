@@ -22,6 +22,39 @@ export const FX_REGISTRY = {
     bits:       { scParam: 'crush_bits', default: 8,     desc: 'Quantization levels (lower=grittier, e.g. 4)' },
     srate:      { scParam: 'crush_rate', default: 44100, desc: 'Downsample target Hz (lower=more aliasing)' },
 
+    // Resonator bank — rings the input at rbfreq
+    resonbank:  { scParam: 'resonbank', default: 0,   desc: 'Resonator mix (0=off)' },
+    rbfreq:     { scParam: 'rbfreq',    default: 60,  desc: 'Resonance pitch (MIDI note)' },
+    rbdecay:    { scParam: 'rbdecay',   default: 0.5, desc: 'Ring time in seconds' },
+    rbspread:   { scParam: 'rbspread',  default: 1,   desc: 'Stereo detune %' },
+
+    // Rhythmic gate
+    rgate:      { scParam: 'rgate',     default: 0, desc: 'Gate mix (0=off)' },
+    rgaterate:  { scParam: 'rgaterate', default: 4, desc: 'Gate rate (cycles/sec)' },
+    rgatewave:  { scParam: 'rgatewave', default: 0, desc: 'Gate shape: 0=pulse, 1=sine' },
+
+    // mverb — denser reverb
+    mverb:      { scParam: 'mverb',       default: 0,   desc: 'mverb mix (0=off)' },
+    mverbmix:   { scParam: 'mverbmix',    default: 0.5, desc: 'Internal wet/dry' },
+    mverbdamp:  { scParam: 'mverbdamp',   default: 0.5, desc: 'High-freq damping' },
+    mverbdiff:  { scParam: 'mverbdiff',   default: 0.5, desc: 'Diffusion / size' },
+    mverbfreeze:{ scParam: 'mverbfreeze', default: 0,   desc: 'Freeze (infinite tail)' },
+
+    // cheapverb — short comb reverb
+    cheapverb:  { scParam: 'cheapverb', default: 0,   desc: 'Cheap reverb mix (0=off)' },
+    cvdecay:    { scParam: 'cvdecay',   default: 1.5, desc: 'Decay seconds' },
+    cvdamp:     { scParam: 'cvdamp',    default: 0.5, desc: 'High-freq damping' },
+
+    // Chorus — modulated stereo delay
+    chorus:        { scParam: 'chorus',       default: 0,     desc: 'Chorus mix (0=off)' },
+    chorus_rate:   { scParam: 'chorus_rate',  default: 0.6,   desc: 'LFO rate Hz' },
+    chorus_depth:  { scParam: 'chorus_depth', default: 0.004, desc: 'Mod depth seconds' },
+
+    // Tremolo — smooth amplitude LFO
+    tremolo:    { scParam: 'tremolo',   default: 0, desc: 'Tremolo mix (0=off)' },
+    trem_rate:  { scParam: 'trem_rate', default: 4, desc: 'LFO rate Hz' },
+    trem_depth: { scParam: 'trem_depth',default: 0.6, desc: 'Depth 0-1' },
+
     // Reverb
     reverb:    { scParam: 'reverb',   default: 0,    desc: 'Reverb mix' },
     room:      { scParam: 'rev_room', default: 0.6,  desc: 'Room size' },

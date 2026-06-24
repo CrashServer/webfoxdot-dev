@@ -152,7 +152,7 @@ export async function loadPackFromURL(url, onProgress) {
 //
 // Bracket types:  (sim) together · [sub] subdivide · {rand} random · <alt> cycle
 // Brackets nest:  "<x.><[--]>"  →  alt( seq, sub('-','-') )
-import { attachModifiers } from '../patterns/sequences.js';
+import { attachModifiers, unisonSpread } from '../patterns/sequences.js';
 
 const OPENERS = {
     '(': { type: 'sim',  close: ')' },
@@ -192,11 +192,14 @@ export class PlayStringCall {
         this.opts       = opts;
         this._modifiers = null;
         this._after     = null;
+        this._unison    = null;
     }
     // .after(beats, method, ...args) — one-shot: call a player method after N beats
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
     // play() has no degree to transpose — accept `+` as a no-op so it can't crash
     __add__() { return this; }
+    // unison on samples: n layers detuned via playback rate (2^(pshift/12)) + pan spread
+    unison(n = 2, detune = 0.125) { this._unison = n ? unisonSpread(n, detune) : null; return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);

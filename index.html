@@ -111,7 +111,8 @@
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PRange, PStep, PSine, PTri,
-             PChain, PMarkov, _group } from './js/patterns/sequences.js';
+             PChain, PMarkov, _group,
+             Pacc, PSwing, PBin, PFDur, PLife } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
@@ -192,7 +193,7 @@
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,
             PEuclid, PRange, PStep, PSine, PTri,
-            PChain, PMarkov,
+            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife,
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
             __group: _group,
@@ -276,6 +277,7 @@
     const SYNTHDEFS_TO_LOAD = [
         'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
         'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm', 'fd_bell', 'fd_pads',
+        'fd_bass', 'fd_prophet',
         'fd_sampler', 'fd_fx_chain',
     ];
 
@@ -377,7 +379,7 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 # p2 >> pluck([0, (0,4,7), 4, 7], oct=4, dur=0.5, pan=(-1,1))
 # p3 >> fm([0, 7, 5, 3], oct=4, ratio=2, index=var([2, 9], [4, 4]))
 
-# bell · pads · pulse(width) · blip(rate) · saw · sine · rsin · donk
+# bell · pads · bass · prophet · pulse(width) · blip(rate) · saw · sine · rsin · donk
 # p4 >> bell([0, 4, 7], oct=5, rate=2, amp=0.5)
 # p5 >> pads([0, 3, 5], oct=4, dur=4, amp=0.5, reverb=0.4)
 

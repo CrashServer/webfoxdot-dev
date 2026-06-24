@@ -67,9 +67,19 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.6, dur: 2, pan: 0, attack: 0.1, release: 0.4, cutoff: 1200, rq: 0.6 },
         extraParams: ['cutoff', 'rq'],
     },
+    bass: {
+        scName: 'fd_bass',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 2000, rq: 0.6 },
+        extraParams: ['cutoff', 'rq'],
+    },
+    prophet: {
+        scName: 'fd_prophet',
+        defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.02, release: 0.2, cutoff: 3000, rq: 0.4 },
+        extraParams: ['cutoff', 'rq'],
+    },
 };
 
-import { attachModifiers, isGroup } from '../patterns/sequences.js';
+import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
 
 export class SynthCall {
     constructor(name, args) {
@@ -80,6 +90,16 @@ export class SynthCall {
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
     // p >> synth(...) + N / + (a,b,c) — transpose the degree (chainable)
     __add__(x) { (this._degreeAdds ??= []).push(x); return this; }
+    // .unison(n, detune) — n detuned + stereo-spread voices (FoxDot formula).
+    // Sets pan and pshift (semitone detune) groups; the group→voice machinery
+    // does the rest. unison(4, 0.5) → pan=(-1,-0.5,0.5,1), pshift=(-0.5,-0.25,0.25,0.5)
+    unison(n = 2, detune = 0.125) {
+        if (!n) { this.args.pan = 0; this.args.pshift = 0; return this; }
+        const { pan, pshift } = unisonSpread(n, detune);
+        this.args.pan    = _group(...pan);
+        this.args.pshift = _group(...pshift);
+        return this;
+    }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);
