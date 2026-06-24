@@ -13,8 +13,21 @@
 let _clock = null;
 export function setClockRef(c) { _clock = c; }
 
+// Resolve a value that may be a pattern object or array into a number,
+// so var/linvar can hold patterns: var([PRand([4,16,32]), 1/4]).
+function rv(v) {
+    if (v == null) return v;
+    if (typeof v.get === 'function') return v.get(_clock ? Math.floor(_clock.now()) : 0);
+    if (Array.isArray(v)) {
+        const step = _clock ? Math.floor(_clock.now()) : 0;
+        return rv(v[((step % v.length) + v.length) % v.length]);
+    }
+    return v;
+}
+
 function normDurs(vals, durs) {
     if (!Array.isArray(vals)) vals = [vals];
+    if (durs && typeof durs.get === 'function') durs = durs.get(0);   // pattern dur → number
     const d = Array.isArray(durs) ? durs
             : typeof durs === 'number' ? vals.map(() => durs)
             : vals.map(() => 4);
@@ -34,7 +47,7 @@ export function _var(vals, durs) {
     const { vals: vs, durs: ds, total } = normDurs(vals, durs);
     return { isTimeVar: true, get(_) {
         const { idx } = tpos(ds, total);
-        return vs[idx % vs.length];
+        return rv(vs[idx % vs.length]);
     }};
 }
 
@@ -44,7 +57,7 @@ export function _linvar(vals, durs) {
     return { isTimeVar: true, get(_) {
         const { idx, t } = tpos(ds, total);
         const frac = Math.min(1, t / Math.max(0.001, ds[idx]));
-        const v0 = vs[idx % vs.length], v1 = vs[(idx + 1) % vs.length];
+        const v0 = rv(vs[idx % vs.length]), v1 = rv(vs[(idx + 1) % vs.length]);
         return v0 + (v1 - v0) * frac;
     }};
 }
@@ -55,7 +68,7 @@ export function _sinvar(vals, durs) {
     return { isTimeVar: true, get(_) {
         const { idx, t } = tpos(ds, total);
         const frac = (1 - Math.cos(Math.min(1, t / Math.max(0.001, ds[idx])) * Math.PI)) / 2;
-        const v0 = vs[idx % vs.length], v1 = vs[(idx + 1) % vs.length];
+        const v0 = rv(vs[idx % vs.length]), v1 = rv(vs[(idx + 1) % vs.length]);
         return v0 + (v1 - v0) * frac;
     }};
 }
@@ -66,8 +79,8 @@ export function _expvar(vals, durs) {
     return { isTimeVar: true, get(_) {
         const { idx, t } = tpos(ds, total);
         const frac = Math.min(1, t / Math.max(0.001, ds[idx]));
-        const v0 = Math.max(0.0001, vs[idx % vs.length]);
-        const v1 = Math.max(0.0001, vs[(idx + 1) % vs.length]);
+        const v0 = Math.max(0.0001, rv(vs[idx % vs.length]));
+        const v1 = Math.max(0.0001, rv(vs[(idx + 1) % vs.length]));
         return v0 * Math.pow(v1 / v0, frac);
     }};
 }

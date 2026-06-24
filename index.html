@@ -23,6 +23,8 @@
       <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
+      <button id="btn-examples" title="load the example tour into the editor">examples</button>
+      <button id="btn-clear" title="empty the editor">clear</button>
       <select id="theme-select">
         <option value="dark">Dark</option>
         <option value="cyberpunk">Cyberpunk</option>
@@ -118,7 +120,7 @@
     import { incrementValue, stopPlayerAtCursor,
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
-    import { initDocs, toggleDocs, openDocs, VERSION } from './js/ui/docs.js';
+    import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
@@ -369,7 +371,7 @@ b1 >> play(x.o.x.o., amp=0.9)
 
 
 # ══ 2. SYNTHS — [seq]  (chord)  per-param groups ════════════════════════
-p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
+p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
 
 # (a,b,c) = chord ;  grouped params zip across voices
 # p2 >> pluck([0, (0,4,7), 4, 7], oct=4, dur=0.5, pan=(-1,1))
@@ -388,7 +390,7 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 
 # ══ 4. FX — append to any player (lpf hpf reverb echo tanh crush) ═══════
 # crush = bitcrush (bits=levels, srate=downsample Hz)
-# p1 >> dbass([0,-3,0,4], oct=3, crush=0.6, bits=4, echo=0.3, echo_time=0.375)
+# p1 >> dbass([0,-3,0,4], oct=4, crush=0.6, bits=4, echo=0.3, echo_time=0.375)
 
 
 # ══ 5. DEFINE A SYNTH LIVE — defsynth() (no SuperCollider needed) ═══════
@@ -418,11 +420,11 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 #@#@ my_set
 
 #@intro(16)
-# p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9)
+# p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9)
 # b1 >> play(X.oX.o, amp=0.9)
 
 #@verse(32)
-# p1 >> dbass([0, -3, 5, 4], oct=3, amp=0.9)
+# p1 >> dbass([0, -3, 5, 4], oct=4, amp=0.9)
 # p5 >> pads([0, 3, 5], oct=4, dur=4, reverb=0.4)
 # # b1 >>
 
@@ -434,8 +436,14 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 #@end(8)
 `;
 
+    // Session mode (?session=) is persisted by Yjs. In solo mode, autosave the
+    // buffer to localStorage so edits survive a page refresh.
+    const _sessionSlug = new URLSearchParams(location.search).get('session');
+    const SOLO_KEY = 'wfd-buffer';
+    const _startValue = (!_sessionSlug && localStorage.getItem(SOLO_KEY)) || INITIAL_CODE;
+
     const editor = CodeMirror(document.getElementById('editor-wrap'), {
-        value:            INITIAL_CODE,
+        value:            _startValue,
         mode:             'foxdot',
         lineNumbers:      true,
         tabSize:          2,
@@ -461,11 +469,32 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
         },
     });
 
+    // Solo-mode autosave — debounced write of the buffer to localStorage
+    if (!_sessionSlug) {
+        let _saveTimer = null;
+        editor.on('change', () => {
+            clearTimeout(_saveTimer);
+            _saveTimer = setTimeout(() => {
+                try { localStorage.setItem(SOLO_KEY, editor.getValue()); } catch (_) {}
+            }, 400);
+        });
+    }
+
     // ── UI wiring ─────────────────────────────────────────────────────────────
     document.getElementById('btn-boot').onclick  = bootAudio;
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => clock.clear();
     document.getElementById('bpm-input').oninput = (e) => { clock.bpm = Number(e.target.value); };
+
+    // Replace the whole buffer as one undoable edit (Ctrl+Z restores).
+    function setEditorContent(text) {
+        const last = editor.lastLine();
+        editor.replaceRange(text, { line: 0, ch: 0 }, { line: last, ch: editor.getLine(last).length });
+        editor.setCursor({ line: 0, ch: 0 });
+        editor.focus();
+    }
+    document.getElementById('btn-examples').onclick = () => setEditorContent(examplesAsCode());
+    document.getElementById('btn-clear').onclick    = () => setEditorContent('');
 
     // ── Crashpanel ────────────────────────────────────────────────────────────
     initCrashPanel(clock);
@@ -485,7 +514,6 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
     initSections(clock, runCode, editor);
 
     // ── Multiplayer — init if ?session= is in the URL ─────────────────────────
-    const _sessionSlug = new URLSearchParams(location.search).get('session');
     if (_sessionSlug) {
         log(`Joining session: ${_sessionSlug}`, 'info');
         initCollab(_sessionSlug, clock, editor, (msg) => {

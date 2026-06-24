@@ -13,7 +13,7 @@
 export const SYNTH_DEFS = {
     dbass: {
         scName: 'fd_dbass',
-        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.02, release: 0.12, cutoff: 2000, rq: 0.5, phase: 0.9 },
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.02, release: 0.12, cutoff: 2000, rq: 0.5, phase: 0.9 },
         extraParams: ['cutoff', 'rq', 'phase'],
     },
     saw: {
@@ -72,7 +72,14 @@ export const SYNTH_DEFS = {
 import { attachModifiers, isGroup } from '../patterns/sequences.js';
 
 export class SynthCall {
-    constructor(name, args) { this.name = name; this.args = args; this._modifiers = null; }
+    constructor(name, args) {
+        this.name = name; this.args = args;
+        this._modifiers = null; this._after = null; this._degreeAdds = null;
+    }
+    // .after(beats, method, ...args) — one-shot: call a player method after N beats
+    after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
+    // p >> synth(...) + N / + (a,b,c) — transpose the degree (chainable)
+    __add__(x) { (this._degreeAdds ??= []).push(x); return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);

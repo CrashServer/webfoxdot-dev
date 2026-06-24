@@ -191,7 +191,12 @@ export class PlayStringCall {
         this.pattern    = pattern;
         this.opts       = opts;
         this._modifiers = null;
+        this._after     = null;
     }
+    // .after(beats, method, ...args) — one-shot: call a player method after N beats
+    after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
+    // play() has no degree to transpose — accept `+` as a no-op so it can't crash
+    __add__() { return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);

@@ -20,15 +20,29 @@ export function transpile(code) {
         const ci = findCommentChar(line);
         if (ci !== -1) { main = line.slice(0, ci); tail = '  //' + line.slice(ci + 1); }
 
+        // FoxDot P object (no JS operator overloading, so rewrite the syntax):
+        //   P*[a,b,c] → PRand([a,b,c])   (random pick from the list)
+        //   P[a,b,c]  → [a,b,c]          (plain cyclic pattern)
+        //   P(a,b,c)  → __group(a,b,c)   (simultaneous group)
+        main = main.replace(/\bP\s*\*\s*\[([^\]]*)\]/g, 'PRand([$1])');
+        main = main.replace(/\bP\s*\[([^\]]*)\]/g, '[$1]');
+        main = main.replace(/\bP\s*\(([^)]*)\)/g, '__group($1)');
+
         // Standalone . used as rest → null in array/argument positions
         // dbass([0, ., 4]) → dbass([0, null, 4])
         main = main.replace(/(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g, 'null');
 
-        // >> operator: name >> synth(...)
+        // >> operator: name >> synth(...)  [+ transpose ...]
         const m = main.match(/^(\s*)([a-zA-Z_]\w*)\s*>>\s*(.+)$/);
         if (m) {
             const [, indent, player, rhs] = m;
-            return `${indent}__p('${player}').__rshift__(${kwargify(autoQuotePlay(rhs.trim()))})${tail}`;
+            // Player arithmetic: synth(...) + N / + (a,b,c) adds to the degree.
+            const parts = splitTopLevelPlus(rhs.trim());
+            let expr = kwargify(autoQuotePlay(parts[0].trim()));
+            for (let i = 1; i < parts.length; i++) {
+                expr = `(${expr}).__add__(${kwargify(parts[i].trim())})`;
+            }
+            return `${indent}__p('${player}').__rshift__(${expr})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
@@ -145,6 +159,22 @@ function autoQuotePlay(rhs) {
     const alreadyQuoted = firstArg.startsWith('"') || firstArg.startsWith("'") || firstArg.startsWith('`');
     if (alreadyQuoted) return rhs;
     return rhs.slice(0, idx) + 'play("' + firstArg + '"' + rest + ')' + rhs.slice(j);
+}
+
+// Split on '+' only at bracket depth 0 (player transposition operator).
+// '+' inside (...)/[...] (args, groups) stays put.
+function splitTopLevelPlus(s) {
+    const parts = [];
+    let depth = 0, cur = '';
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if ('([{'.includes(c)) depth++;
+        else if (')]}'.includes(c)) depth--;
+        if (c === '+' && depth === 0) { parts.push(cur); cur = ''; continue; }
+        cur += c;
+    }
+    parts.push(cur);
+    return parts;
 }
 
 function splitArgs(str) {

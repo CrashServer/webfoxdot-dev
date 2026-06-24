@@ -77,7 +77,8 @@ const FUNCTIONS = [
     { name: 'p1.solo()',               desc: 'Mute all other players (they keep running)' },
     { name: 'p1.soloDrop(beats)',      desc: 'Solo for N beats, then restore. Default: 8' },
     { name: 'p1.every(beats, fn)',     desc: 'Call fn(player) every N beats. fn can be a string: "stutter", "reverse", "shuffle"' },
-    { name: 'p1.stutter(n)',           desc: 'Temporarily halve dur to repeat notes n times' },
+    { name: '...after(beats, method)', desc: 'One-shot: call a player method after N beats. e.g. play("xGx").after(4, "stop")' },
+    { name: 'p1.stutter(n)',           desc: 'Roll the current step n times within its duration (n = number of rapid repeats). Sequence carries on normally' },
     { name: 'p1.reverse()',            desc: 'Reverse degree array for one cycle' },
     { name: 'p1.shuffle()',            desc: 'Shuffle degree array for one cycle' },
 ];
@@ -100,10 +101,15 @@ export const VERSION = 'alpha08';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha08', title: 'Probability family', items: [
-        { t: 'Probability aliases: .always .almostAlways .often .sometimes .rarely .almostNever .never — each a sensible default chance, overridable with a leading number', ex: 'sometimes' },
-        { t: 'Keyword overrides: .sometimes("stutter", rate=2, amp=0.5) temporarily changes params for that trigger', ex: 'sometimes' },
-        { t: 'Chain several modifiers on one player — each rolls independently per step', ex: 'sometimes' },
+    { v: 'alpha08', title: 'Probability · P patterns · .after · editor', items: [
+        { t: 'Probability family: .always .almostAlways .often .sometimes .rarely .almostNever .never — default chance overridable with a leading number; trailing kwargs temporarily override params; chainable; rolls once per cycle', ex: 'sometimes' },
+        'stutter() rewritten: rolls the current step n times within its duration (n = repeats), no longer mangles dur',
+        'P patterns: P*[a,b,c] → random pick, P[a,b,c] → cyclic list, P(a,b,c) → chord',
+        'TimeVars accept patterns inside them: var([PRand([4,16,32]), 1/4])',
+        'Player transposition: synth(...) + N or + (a,b,c) adds to the degree (a chord)',
+        '.after(beats, method) — one-shot delayed action (e.g. play(...).after(4, "stop"))',
+        'Param aliases: atk→attack, rel→release',
+        'Editor: solo-mode autosave across refresh; clear / examples toolbar buttons; dbass default octave 3→4',
     ]},
     { v: 'alpha07', title: 'In-browser synths · lazy samples', items: [
         { t: 'defsynth() — define SynthDefs live in the browser, no SuperCollider or server (in-browser .scsyndef compilation, validated against sclang)', ex: 'defsynth' },
@@ -151,6 +157,21 @@ const CHANGELOG = [
 ];
 
 // ── HTML builders ──────────────────────────────────────────────────────────────
+
+// Extract every Examples code block as runnable editor text (same source as the
+// Examples tab, so they never drift). Section titles become comment headers.
+export function examplesAsCode() {
+    const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
+    const out = ['# WebFoxDot examples — run a block with Ctrl+Enter (blocks are separated by blank lines)', ''];
+    doc.querySelectorAll('.docs-section').forEach(sec => {
+        const title = sec.querySelector('.docs-section-title')?.textContent.trim();
+        sec.querySelectorAll('.docs-code').forEach(pre => {
+            if (title) out.push('# ══ ' + title + ' ══');
+            out.push(pre.textContent.replace(/\s+$/, ''), '');
+        });
+    });
+    return out.join('\n');
+}
 
 function buildChangelog() {
     const li = (item) => {
@@ -205,7 +226,7 @@ b7 >> play(x-o-).sometimes("stutter", 2)   # probabilistic`)}
     const axis1 = section('Axis 1 — sequences, chords & groups', `
         ${note('<code>[a,b,c]</code> = a per-step sequence. <code>(a,b,c)</code> = a chord/group fired together — also works on any param (zipped across voices). <code>.</code> = rest.')}
         ${code(`p1 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4)   # chord on steps 2 & 4
-p1 >> dbass((0,4,7), oct=3)                  # a held chord
+p1 >> dbass((0,4,7), oct=4)                  # a held chord
 p1 >> saw([0,4,7], pan=(-1,1), amp=(0.6,0.3)) # grouped params zip into voices
 p1 >> sine([0, ., 4, .], oct=5)              # . = rest`)}
     `, 'axis1');
@@ -213,14 +234,14 @@ p1 >> sine([0, ., 4, .], oct=5)              # . = rest`)}
     const sometimes = section('Probability modifiers', `
         ${note('Roll a chance each step and apply a player method. Aliases by likelihood: <code>always</code>(1) · <code>almostAlways</code>(.9) · <code>often</code>(.7) · <code>sometimes</code>(.5) · <code>rarely</code>(.25) · <code>almostNever</code>(.1) · <code>never</code>(0). A leading number overrides the chance. Trailing kwargs temporarily change params for that trigger. Chain several — each rolls on its own.')}
         ${code(`p1 >> saw([0,4,7,5], oct=4).sometimes("stutter", 4)
-p1 >> dbass([0,-3], oct=3).often(0.8, "reverse")
+p1 >> dbass([0,-3], oct=4).often(0.8, "reverse")
 b1 >> play(x-o-).rarely("stutter", 2, rate=2, amp=0.6)   # kwargs override
 b1 >> play(x.o.).often("stutter", 2).sometimes("stutter", 8)  # chained`)}
     `, 'sometimes');
 
     const axis2 = section('Axis 2 — time-varying values (var family)', `
         ${note('Evolve a parameter over beats. <code>var</code> steps; <code>linvar/sinvar/expvar</code> interpolate. Args: (values, durations-in-beats).')}
-        ${code(`p1 >> dbass([0,-3,0,4], oct=3, cutoff=linvar([400, 4000], [8, 8]))
+        ${code(`p1 >> dbass([0,-3,0,4], oct=4, cutoff=linvar([400, 4000], [8, 8]))
 p1 >> saw([0,4,7], cutoff=sinvar([500, 5000], [4]))
 p1 >> pulse([0,3], width=var([0.2, 0.5, 0.8], [2, 2, 4]))
 p1 >> fm([0,7], index=expvar([1, 12], [16]))`)}
@@ -268,13 +289,16 @@ b2 >> play(K.K.K.K.)`)}
     `, 'samples');
 
     const patterns = section('Patterns', `
-        ${note('Pattern objects produce a new value each step. Drop them into any param.')}
+        ${note('Pattern objects produce a new value each step. P shorthands: <code>P*[a,b,c]</code> random pick · <code>P[a,b,c]</code> cyclic list · <code>P(a,b,c)</code> chord. TimeVars can hold patterns.')}
         ${code(`p1 >> saw([0,2,4,7], amp=PWhite(0.4, 0.9))      # random float
 p1 >> pluck([0,4,7], oct=PRand(4, 6))           # random int
 p1 >> sine(PRange(0, 7), dur=0.5)               # 0..7 ramp
-p1 >> saw([0,4,7], pan=PSine(-1, 1, 8))         # auto-pan
+p1 >> saw([0, 3, 5, P*[7,10,5]], oct=4)         # P*[...] = random pick
+p1 >> saw([0,4,7], dur=var([P*[1,2], 1/4]))     # pattern inside a var
+p1 >> saw([0,4,7], oct=4) + 7                    # transpose up
+p1 >> dbass([0,3,5]) + (0,3,7)                   # + a group = chord
 b1 >> play(x-o-, amp=PEuclid(5, 8))             # euclidean accents`)}
-    `);
+    `, 'patterns');
 
     const perf = section('Performance', `
         ${code(`p1.every(8, 'stutter', 4)     # every 8 beats, stutter x4
@@ -291,11 +315,11 @@ unsolo()                      # restore all`)}
         ${code(`#@#@ my_set
 
 #@intro(16)
-p1 >> dbass([0,-3,0,4], oct=3)
+p1 >> dbass([0,-3,0,4], oct=4)
 b1 >> play(x.o.x.o.)
 
 #@verse(32)
-p1 >> dbass([0,-3,5,4], oct=3)
+p1 >> dbass([0,-3,5,4], oct=4)
 p2 >> pads([0,3,5], oct=4, dur=4, reverb=0.4)
 # b1 >>
 

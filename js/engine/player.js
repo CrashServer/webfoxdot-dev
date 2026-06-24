@@ -62,6 +62,32 @@ function ungroup(v, step) {
     return isGroup(v) ? patGet(v.__group[0], step) : v;
 }
 
+// degree + addend (player `+` transposition). Scalars sum; a group addend makes
+// a chord; group+group broadcasts. Pattern elements are resolved at `step`.
+function addDegree(base, add, step) {
+    const r = (x) => patGet(x, step, x);
+    const baseArr = isGroup(base) ? base.__group : [base];
+    const addArr  = isGroup(add)  ? add.__group  : [add];
+    const n = Math.max(baseArr.length, addArr.length);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const b = r(baseArr[i % baseArr.length]);
+        const a = r(addArr[i % addArr.length]);
+        if (b === null || b === undefined) { out.push(null); continue; }
+        out.push((b ?? 0) + (a ?? 0));
+    }
+    return out.length === 1 ? out[0] : { __group: out };
+}
+
+// FoxDot param shorthands → canonical names
+const PARAM_ALIASES = { atk: 'attack', rel: 'release' };
+function applyAliases(obj) {
+    for (const [a, canon] of Object.entries(PARAM_ALIASES)) {
+        if (a in obj && !(canon in obj)) { obj[canon] = obj[a]; delete obj[a]; }
+    }
+    return obj;
+}
+
 // Restore all players' amplitude (undo a solo)
 export function unsolo(clock) {
     clock._players.forEach(p => { p._amplify = 1; });
@@ -116,6 +142,8 @@ export class Player {
         this._envTimer = null;
         // probability modifiers (.sometimes/.often/…) — array of specs
         this._modifiers = null;
+        this._stutterN = 0;   // one-shot: repeat the next fired step N times
+        this._degreeAdds = null;  // player `+` transposition addends
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
@@ -125,8 +153,9 @@ export class Player {
         if (synthCall instanceof PlayStringCall) {
             this._mode      = 'sample';
             this._pattern   = parsePattern(synthCall.pattern);
-            this._playOpts  = { ...synthCall.opts };
+            this._playOpts  = applyAliases({ ...synthCall.opts });
             this._modifiers = synthCall._modifiers ?? null;
+            this._scheduleAfter(synthCall._after);
             this._warnUnknownPlay();
             if (!this._active) {
                 this._active   = true;
@@ -147,8 +176,10 @@ export class Player {
         const wasActive = this._active;
         this._mode      = 'synth';
         this._synth     = synthCall.name;
-        this._args      = { ...synthCall.args };
-        this._modifiers = synthCall._modifiers ?? null;
+        this._args       = applyAliases({ ...synthCall.args });
+        this._modifiers  = synthCall._modifiers ?? null;
+        this._degreeAdds = synthCall._degreeAdds ?? null;
+        this._scheduleAfter(synthCall._after);
         this._warnUnknown();
 
         if (!wasActive) {
@@ -169,6 +200,11 @@ export class Player {
 
         const step = this._step;
         const r    = resolveArgs(this._args, step);
+
+        // Player `+` transposition — add each addend to the degree.
+        if (this._degreeAdds) {
+            for (const a of this._degreeAdds) r.degree = addDegree(r.degree ?? 0, a, step);
+        }
 
         // Extract Axis-3 envelopes: keys ending in "_" whose value is an envelope.
         // Only FX-chain params can be modulated mid-note (persistent node + n_set).
@@ -207,17 +243,28 @@ export class Player {
         // Each voice picks its element from any grouped param (zipped/cycled).
         let voices = 1;
         for (const v of Object.values(sArgs)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
-        for (let vi = 0; vi < voices; vi++) {
-            const va = {};
-            for (const [k, v] of Object.entries(sArgs)) {
-                va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
+
+        // stutter: fire this step `reps` times within its duration (roll)
+        const reps    = Math.max(1, this._stutterN || 1);
+        this._stutterN = 0;
+        const repDur  = dur / reps;
+        const fireVoices = () => {
+            for (let vi = 0; vi < voices; vi++) {
+                const va = {};
+                for (const [k, v] of Object.entries(sArgs)) {
+                    va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
+                }
+                const deg = va.degree ?? 0;
+                if (deg === null) continue;
+                const oct = va.oct ?? 5;
+                const midi = toMidi(deg, oct);
+                if (midi === null || midi < 0 || midi > 127) continue;
+                this._trigger(midi, { ...va, dur: repDur, amp: (va.amp ?? 0.8) * this._amplify });
             }
-            const deg = va.degree ?? 0;
-            if (deg === null) continue;
-            const oct = va.oct ?? 5;
-            const midi = toMidi(deg, oct);
-            if (midi === null || midi < 0 || midi > 127) continue;
-            this._trigger(midi, { ...va, amp: (va.amp ?? 0.8) * this._amplify });
+        };
+        for (let i = 0; i < reps; i++) {
+            if (i === 0) fireVoices();
+            else setTimeout(fireVoices, i * repDur * 60000 / this._clock.bpm);
         }
 
         // Tick .every() handlers
@@ -262,7 +309,14 @@ export class Player {
 
         const pat   = this._pattern;
         const token = pat[((step % pat.length) + pat.length) % pat.length];
-        this._renderToken(token, 0, baseDur, { sampleIdx, amp, pan, rate });
+
+        // stutter: render this step `reps` times within its duration (roll)
+        const reps   = Math.max(1, this._stutterN || 1);
+        this._stutterN = 0;
+        const repDur = baseDur / reps;
+        for (let i = 0; i < reps; i++) {
+            this._renderToken(token, i * repDur, repDur, { sampleIdx, amp, pan, rate });
+        }
 
         this._step++;
         this._nextBeat += baseDur;
@@ -310,10 +364,24 @@ export class Player {
             'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
     }
 
-    // Probability modifiers (.sometimes/.often/…): roll each per step. On a hit,
-    // optionally apply kwarg overrides for that trigger, then call the method.
+    // .after(beats, method, ...args) — one-shot delayed player method call
+    _scheduleAfter(spec) {
+        if (!spec || !spec.method) return;
+        const ms = Math.max(0, spec.beats) * 60000 / this._clock.bpm;
+        setTimeout(() => {
+            if (this._active) { try { this[spec.method]?.(...spec.args); } catch (_) {} }
+        }, ms);
+    }
+
+    // Probability modifiers (.sometimes/.often/…): roll once per cycle (a full
+    // pass of the pattern / degree array), not every step — otherwise a 50%
+    // chance on a 4-step pattern fires on ~half of all steps and feels constant.
     _applyModifiers() {
         if (!this._modifiers?.length) return;
+        const cycleLen = this._mode === 'sample'
+            ? (this._pattern?.length || 1)
+            : (Array.isArray(this._args.degree) ? this._args.degree.length : 1);
+        if (this._step % cycleLen !== 0) return;     // only at a cycle boundary
         const target = this._mode === 'sample' ? this._playOpts : this._args;
         for (const m of this._modifiers) {
             if (Math.random() >= m.prob) continue;
@@ -442,12 +510,11 @@ export class Player {
         return this;
     }
 
-    // Stutter: temporarily shorten dur to repeat current notes rapidly
+    // Stutter: play the next fired step n times within its own duration
+    // (a one-shot roll). n = number of rapid repeats. Does NOT change the
+    // player's dur — the sequence carries on normally. Consumed by _fire.
     stutter(n = 2) {
-        const origDur = this._args.dur ?? 1;
-        this._args.dur = origDur / n;
-        setTimeout(() => { if (this._active) this._args.dur = origDur; },
-            n * (origDur / n) * (60000 / this._clock.bpm) + 50);
+        this._stutterN = Math.max(1, Math.floor(n) || 2);
         return this;
     }
 
