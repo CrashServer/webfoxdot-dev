@@ -16,6 +16,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
+      <span id="version-tag" class="version-tag" title="changelog">α07</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -41,6 +42,7 @@
         <button class="docs-tab" data-tab="patterns">Patterns</button>
         <button class="docs-tab" data-tab="functions">Functions</button>
         <button class="docs-tab" data-tab="guide">Guide</button>
+        <button class="docs-tab" data-tab="changelog">Changelog</button>
         <button id="docs-close">✕</button>
       </div>
       <div id="docs-body"></div>
@@ -116,7 +118,7 @@
     import { incrementValue, stopPlayerAtCursor,
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
-    import { initDocs, toggleDocs }      from './js/ui/docs.js';
+    import { initDocs, toggleDocs, openDocs, VERSION } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
@@ -358,27 +360,24 @@ Scale.default = "minor"
 Root.default = 0
 
 
-# ══ 1. DRUMS — play() patterns ══════════════════════════════════════════
-# chars map to samples | . = rest | spaces optional
-#   (Xo) simultaneous   [Xo] subdivide   {Xo} random   <Xo> alternate
-b1 >> play(X.oX.o, amp=0.9)
-# b2 >> play(X.[oo]X.<o->, amp=0.8)
-# b3 >> play((Xs).h.{ox}.h, amp=0.7)
+# ══ 1. DRUMS — play()  ( . = rest, brackets nest ) ══════════════════════
+#   (xo) together   [xo] subdivide   {xo} random   <xo> alternate
+b1 >> play(x.o.x.o., amp=0.9)
+# b2 >> play(x-o-, lpf=1500, reverb=0.3)        # FX work on drums
+# b3 >> play(<x.><[--]><x.>, amp=0.8)           # brackets nest
+# b4 >> play(x-o-).sometimes("stutter", 2)       # probabilistic
 
 
-# ══ 2. SYNTHS — degree arrays + per-step brackets ═══════════════════════
+# ══ 2. SYNTHS — [seq]  (chord)  per-param groups ════════════════════════
 p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
 
-# pluck — Karplus string          fm — ratio/index FM
-# p2 >> pluck([0, 4, 7, .], oct=4, dur=0.5, cutoff=4000)
+# (a,b,c) = chord ;  grouped params zip across voices
+# p2 >> pluck([0, (0,4,7), 4, 7], oct=4, dur=0.5, pan=(-1,1))
 # p3 >> fm([0, 7, 5, 3], oct=4, ratio=2, index=var([2, 9], [4, 4]))
 
-# bell — metallic Klank           pads — lush sustained
-# p4 >> bell([0, 4, 7], oct=5, dur=1, rate=2, amp=0.5)
+# bell · pads · pulse(width) · blip(rate) · saw · sine · rsin · donk
+# p4 >> bell([0, 4, 7], oct=5, rate=2, amp=0.5)
 # p5 >> pads([0, 3, 5], oct=4, dur=4, amp=0.5, reverb=0.4)
-
-# pulse (width) · blip (rate) · saw · sine · rsin · donk all available
-# p6 >> pulse([0,0,7,5], oct=4, width=0.3, amp=0.5)
 
 
 # ══ 3. f* PARAMETER ENVELOPES — "_" suffix, per-note, FX params only ════
@@ -392,18 +391,29 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 # p1 >> dbass([0,-3,0,4], oct=3, crush=0.6, bits=4, echo=0.3, echo_time=0.375)
 
 
-# ══ 5. EXTERNAL SAMPLES — load from any CORS-friendly URL ═══════════════
+# ══ 5. DEFINE A SYNTH LIVE — defsynth() (no SuperCollider needed) ═══════
+# Run this block once, then play "mylead" like any built-in.
+# defsynth("mylead", { cutoff: 2000, rq: 0.4 }, ({ out, note, amp, sus, pan, attack, release, cutoff, rq }) => {
+#   const freq = note.midicps()
+#   const env  = EnvGen.ar(Env.linen(attack, sus, release), { doneAction: 2 })
+#   const sig  = RLPF.ar(Saw.ar(freq), cutoff, rq).mul(env).mul(amp)
+#   Out.ar(out, Pan2.ar(sig, pan))
+# })
+# p2 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)
+
+
+# ══ 6. EXTERNAL SAMPLES — load from any CORS-friendly URL ═══════════════
+# loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 # loadsample("K", "https://raw.githubusercontent.com/user/repo/main/kick.wav")
-# loadpack("https://raw.githubusercontent.com/user/repo/main/pack.json")
 # b1 >> play(K.K.K.K., amp=0.9)
 
 
-# ══ 6. PERFORMANCE ══════════════════════════════════════════════════════
+# ══ 7. PERFORMANCE ══════════════════════════════════════════════════════
 # p1.every(8, 'stutter', 4)
 # drop(14, 2)
 
 
-# ══ 7. SECTION SEQUENCER — cursor on a #@ line, Ctrl+Enter ══════════════
+# ══ 8. SECTION SEQUENCER — cursor on a #@ line, Ctrl+Enter ══════════════
 # sections auto-advance after their beat count | commented "# p1 >>" = stop
 #@#@ my_set
 
@@ -464,6 +474,12 @@ p1 >> dbass([0, -3, 0, 4], oct=3, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
     initDocs();
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
+
+    // Version label → derived from docs VERSION; click opens the changelog
+    const vtag = document.getElementById('version-tag');
+    vtag.textContent = 'α' + VERSION.replace(/[^0-9]/g, '');   // "alpha07" → "α07"
+    vtag.title = VERSION + ' — changelog';
+    vtag.onclick = () => openDocs('changelog');
 
     // ── Section sequencer ─────────────────────────────────────────────────────
     initSections(clock, runCode, editor);

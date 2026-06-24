@@ -8,8 +8,8 @@ import { FX_REGISTRY } from '../fx/registry.js';
 function h(tag, cls, html) {
     return `<${tag}${cls ? ` class="${cls}"` : ''}>${html}</${tag}>`;
 }
-function section(title, body) {
-    return `<div class="docs-section">
+function section(title, body, id) {
+    return `<div class="docs-section"${id ? ` id="ex-${id}"` : ''}>
         <div class="docs-section-title">${title}</div>
         ${body}
     </div>`;
@@ -93,7 +93,73 @@ const PLAYER_PARAMS = [
     { name: 'release',  desc: 'Envelope release in seconds' },
 ];
 
+// ── Changelog ────────────────────────────────────────────────────────────────
+// Keep this updated with every alpha. Newest first. The version shown next to
+// the title in the toolbar should match the top entry's `v`.
+export const VERSION = 'alpha07';
+
+// items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
+const CHANGELOG = [
+    { v: 'alpha07', title: 'In-browser synths · lazy samples', items: [
+        { t: 'defsynth() — define SynthDefs live in the browser, no SuperCollider or server (in-browser .scsyndef compilation, validated against sclang)', ex: 'defsynth' },
+        { t: 'UGen DSL: oscillators, noise, filters, Pan2, Out, EnvGen + Env.perc/linen/triangle', ex: 'defsynth' },
+        { t: 'Lazy sample loading — boot reads the manifest only; each char loads on first use (instant boot, memory scales with use)', ex: 'samples' },
+        'Firefox stability — buffer pool allocated once at boot so shared-memory grow() (a Firefox crash trigger) is never called',
+    ]},
+    { v: 'alpha06', title: 'Groups · probability · nested brackets · drum FX', items: [
+        { t: 'Group/chord params: (0,4,7) plays a chord; grouped params like pan=(-1,1) zip across simultaneous voices', ex: 'axis1' },
+        { t: '.sometimes(method, …) / .sometimes(prob, method, …) — probabilistic per-step modifiers', ex: 'sometimes' },
+        { t: 'Nested play() brackets via a recursive parser: &lt;x.&gt;&lt;[--]&gt;&lt;x.&gt;', ex: 'drums' },
+        { t: 'play() now routes through the FX chain — lpf/hpf/reverb/echo/crush work on drums', ex: 'fx' },
+        'Unknown-param safety warnings in the log (synths and play)',
+        'Async pack loading — concurrent batches + yields, no UI freeze on large packs',
+    ]},
+    { v: 'alpha05', title: 'Config · examples · collab fix', items: [
+        'config.json — one source of truth for hosts/ports (static server, collab server, browser)',
+        'Examples docs tab — copy-paste overview of everything (click to copy)',
+        'Multiplayer: separated Yjs and app-message channels (fixed "Unexpected end of array")',
+        'loadpack progress in the log + clearer sample error reporting',
+    ]},
+    { v: 'alpha04', title: 'Deploy routing · mobile · resilience', items: [
+        'Multiplayer WebSocket URL derived from the page (works behind a reverse proxy)',
+        'Mobile / responsive layout fixes',
+        'Graceful skip when the sample bank is unreachable',
+    ]},
+    { v: 'alpha03', title: 'Multiplayer · sections · samples · envelopes', items: [
+        'Multiplayer (opt-in via ?session=slug): Yjs collaborative editing, shared cursors, eval broadcast, clock sync',
+        { t: 'Section sequencer: #@ sections + #@#@ tracks, auto-advance, weighted loop, end/clear', ex: 'sections' },
+        { t: 'External samples: loadsample / loadpack from any public URL (+ the webfoxdot-kit default pack)', ex: 'samples' },
+        { t: 'Axis-3 parameter envelopes (fi/fo/fb via the _ suffix) on FX params', ex: 'axis3' },
+        { t: 'New synths: bell, pads · new FX: crush (bitcrush)', ex: 'synths' },
+    ]},
+    { v: 'alpha02', title: 'Unified language · more synths', items: [
+        { t: 'Unified bracket system across synths and play(): () simultaneous · [] subdivide · {} random · &lt;&gt; alternate', ex: 'axis1' },
+        { t: 'New synths: pluck, pulse, blip, fm', ex: 'synths' },
+        '. = universal rest · play() quotes optional · p1.method() supported',
+        'Theme-aware editor token colours · dur default unified to 1',
+    ]},
+    { v: 'alpha01', title: 'Foundation', items: [
+        'Browser-native FoxDot: scsynth compiled to WebAssembly (SuperSonic)',
+        'JS transpiler for FoxDot-style syntax · pattern + time-var layer · per-player FX chain',
+        'Crashpanel, in-app docs, themes, live nudge/solo/drop performance tools',
+    ]},
+];
+
 // ── HTML builders ──────────────────────────────────────────────────────────────
+
+function buildChangelog() {
+    const li = (item) => {
+        if (typeof item === 'string') return `<li>${item}</li>`;
+        const link = item.ex
+            ? ` <a class="docs-link" data-anchor="ex-${item.ex}">→ example</a>` : '';
+        return `<li>${item.t}${link}</li>`;
+    };
+    return CHANGELOG.map(rel => `
+        <div class="docs-section">
+            <div class="docs-section-title">${rel.v}${rel.title ? ' — ' + rel.title : ''}</div>
+            <ul class="docs-changelog">${rel.items.map(li).join('')}</ul>
+        </div>`).join('');
+}
 
 // Overview / copy-paste examples of everything implemented.
 function buildExamples() {
@@ -121,13 +187,15 @@ Root.default = 0`)}
 b2 >> play(x-o-, amp=0.9)                  # - = closed hihat
 b3 >> play(x.[oo]x.<o->, amp=0.8)          # subdivide + alternate
 b4 >> play((x*)..{o-}.., amp=0.8)          # together + random
-b5 >> play(x.o., dur=0.5, sample=1)        # sample-index slot`)}
-    `);
+b5 >> play(<x.><[--]><x.>, amp=0.8)        # brackets nest
+b6 >> play(x-o-, lpf=1500, reverb=0.3)     # FX work on drums
+b7 >> play(x-o-).sometimes("stutter", 2)   # probabilistic`)}
+    `, 'drums');
 
     const synths = section('All synths', `
         ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults.')}
         ${code(synthLines)}
-    `);
+    `, 'synths');
 
     const axis1 = section('Axis 1 — sequences, chords & groups', `
         ${note('<code>[a,b,c]</code> = a per-step sequence. <code>(a,b,c)</code> = a chord/group fired together — also works on any param (zipped across voices). <code>.</code> = rest.')}
@@ -135,14 +203,14 @@ b5 >> play(x.o., dur=0.5, sample=1)        # sample-index slot`)}
 p1 >> dbass((0,4,7), oct=3)                  # a held chord
 p1 >> saw([0,4,7], pan=(-1,1), amp=(0.6,0.3)) # grouped params zip into voices
 p1 >> sine([0, ., 4, .], oct=5)              # . = rest`)}
-    `);
+    `, 'axis1');
 
     const sometimes = section('Probabilistic — .sometimes()', `
         ${note('<code>.sometimes(method, ...args)</code> rolls each step (50% by default) and applies a player method. <code>.sometimes(p, method, ...)</code> sets the probability.')}
         ${code(`p1 >> saw([0,4,7,5], oct=4).sometimes("stutter", 4)
 p1 >> dbass([0,-3], oct=3).sometimes(0.2, "reverse")
 b1 >> play(x-o-).sometimes("stutter", 2)`)}
-    `);
+    `, 'sometimes');
 
     const axis2 = section('Axis 2 — time-varying values (var family)', `
         ${note('Evolve a parameter over beats. <code>var</code> steps; <code>linvar/sinvar/expvar</code> interpolate. Args: (values, durations-in-beats).')}
@@ -157,7 +225,7 @@ p1 >> fm([0,7], index=expvar([1, 12], [16]))`)}
         ${code(`p1 >> saw([0,4], oct=4, dur=1, lpf_=fi(0.5, 400, 5000))   # filter opens
 p1 >> saw([0,3], oct=3, dur=1, lpf_=fo(1, 5000, 400))     # filter closes
 p1 >> saw([0,3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000))  # wobble`)}
-    `);
+    `, 'axis3');
 
     const defsynthEx = section('Define synths live — defsynth()', `
         ${note('Build a SynthDef in the browser (no SuperCollider needed) and play it like a built-in. The build fn gets the standard controls (out, note, amp, sus, pan, attack, release) + your extras, each a UGen. Convert pitch with <code>note.midicps()</code>; end with <code>Out.ar(out, …)</code>; use <code>doneAction:2</code> to free the voice. Run the defsynth block once, then play it.')}
@@ -170,7 +238,7 @@ p1 >> saw([0,3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000))  # wobble`)}
 
 p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
         ${note('UGens available: SinOsc Saw LFSaw Pulse VarSaw LFTri Blip Impulse, WhiteNoise PinkNoise LFNoise0/1/2, RLPF RHPF LPF HPF BPF, Line XLine, Pan2, Out, EnvGen + Env.perc/linen/triangle. Math: .mul .add .sub .div .midicps() .abs() .neg()')}
-    `);
+    `, 'defsynth');
 
     const fx = section('FX — append to any player', `
         ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums.')}
@@ -180,7 +248,7 @@ p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
 p1 >> dbass([0,-3], crush=0.6, bits=4, srate=6000) # bitcrush
 b1 >> play(x-o-, lpf=1500, reverb=0.3)             # FX on drums too
 b2 >> play(x.o., echo=0.4, crush=0.5, bits=4)`)}
-    `);
+    `, 'fx');
 
     const samples = section('External samples', `
         ${note('Load WAVs from any public URL into your buffers. In multiplayer everyone loads the same URL, so put a loadpack at the top of the shared doc.')}
@@ -191,7 +259,7 @@ b1 >> play(x-o-, amp=0.9)
 # a single sample → a char (or [urls] for sample-index slots)
 loadsample("K", "https://raw.githubusercontent.com/USER/REPO/main/kick.wav")
 b2 >> play(K.K.K.K.)`)}
-    `);
+    `, 'samples');
 
     const patterns = section('Patterns', `
         ${note('Pattern objects produce a new value each step. Drop them into any param.')}
@@ -231,7 +299,7 @@ p2 >> pads([0,3,5], oct=4, dur=4, reverb=0.4)
 b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 
 #@end(8)`)}
-    `);
+    `, 'sections');
 
     return start + drums + synths + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections;
 }
@@ -486,6 +554,7 @@ export function initDocs() {
         patterns:  buildPatterns,
         functions: buildFunctions,
         guide:     buildGuide,
+        changelog: buildChangelog,
     };
 
     // Cache rendered content so we don't rebuild on every switch
@@ -497,11 +566,21 @@ export function initDocs() {
         body.innerHTML = cache[name];
         body.scrollTop = 0;
     }
+    _showTab = showTab;
 
     tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
-    // Click any code block to copy it to the clipboard
     body.addEventListener('click', (e) => {
+        // Changelog "→ example" link: jump to the Examples tab + scroll to anchor
+        const link = e.target.closest('.docs-link');
+        if (link) {
+            const anchor = link.dataset.anchor;
+            showTab('examples');
+            const el = body.querySelector('#' + anchor);
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('ex-flash'); setTimeout(() => el.classList.remove('ex-flash'), 1200); }
+            return;
+        }
+        // Click any code block to copy it to the clipboard
         const pre = e.target.closest('.docs-code');
         if (!pre) return;
         navigator.clipboard?.writeText(pre.textContent).then(() => {
@@ -522,6 +601,15 @@ export function initDocs() {
     showTab('examples');
 }
 
+let _showTab = null;
+
 export function toggleDocs() {
     document.getElementById('docs-panel').classList.toggle('hidden');
+}
+
+// Open the docs panel directly on a given tab (e.g. from the version label).
+export function openDocs(tab) {
+    const panel = document.getElementById('docs-panel');
+    panel.classList.remove('hidden');
+    if (tab && _showTab) _showTab(tab);
 }

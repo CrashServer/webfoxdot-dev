@@ -630,6 +630,37 @@ button#btn-boot.booted { background: #1a4731; border-color: var(--green); color:
 .cm-foxdot-track   { color: var(--orange); font-weight: bold; }
 .cm-foxdot-section { color: var(--yellow); font-weight: bold; }
 
+/* Changelog list */
+.docs-changelog { margin: 4px 0 0 0; padding-left: 18px; }
+.docs-changelog li { font-size: 11px; line-height: 1.6; color: var(--text-1); margin-bottom: 3px; }
+.docs-link {
+    color: var(--blue);
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: bold;
+}
+.docs-link:hover { text-decoration: underline; }
+
+/* Brief highlight when an example is jumped to from the changelog */
+.ex-flash { animation: ex-flash-anim 1.2s ease; }
+@keyframes ex-flash-anim {
+    0%   { background: var(--flash-col); }
+    100% { background: transparent; }
+}
+
+/* Version label next to the title — clickable, opens the changelog */
+.version-tag {
+    font-size: 10px;
+    color: var(--text-2);
+    border: 1px solid var(--border-1);
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-left: -2px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.version-tag:hover { color: var(--green); border-color: var(--green); }
+
 /* Multiplayer cursors (Yjs awareness) */
 .remote-caret {
     position: absolute;
