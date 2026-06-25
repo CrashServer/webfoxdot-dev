@@ -130,6 +130,7 @@ const CHANGELOG = [
         'Fix: .every() now fires on play() too (it was synth-only); it also honours a trailing kwarg, e.g. .every(4, "stutter", mverb=0.5)',
         'Load meter in the toolbar — scheduler lag (ms) + active voice count; green/amber/red as the main thread keeps up or struggles',
         { t: 'New FX: fbdelay — stereo feedback delay with filtered feedback (fbtime/fbfeed/fbcutoff/fbspread)', ex: 'fx' },
+        { t: 'New synth: plaits — multi-engine macro-oscillator (engine 0-7: VA/FM/fold/harmonic/wavetable/noise/string/modal) with timbre/harm/morph', ex: 'synths' },
         'More from the bank coming next: PArp, PMorse, the leg/chop/shape/dist/multicrush FX, and the Master/Server.addFx global bus',
     ]},
     { v: 'alpha12', title: 'Set your name & cursor colour (multiplayer)', items: [
@@ -324,9 +325,13 @@ b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid as play chars`)}
     `, 'grooves');
 
     const synths = section('All synths', `
-        ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults. Newest: bass, prophet.')}
+        ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults. Newest: plaits.')}
         ${note('A playing player <b>inherits</b> its params on re-run — <code>p1 >> saw([0,4], dur=4)</code> then <code>p1 >> saw([0,4], oct=6)</code> keeps <code>dur=4</code>. Prefix <code>~</code> to reset to defaults: <code>~p1 >> saw([0,4])</code>.')}
         ${code(synthLines)}
+        ${note('<b>plaits</b> — a multi-engine macro-oscillator (stock-UGen take on Mutable\'s Plaits). <code>engine</code> 0-7 picks the model: 0 virtual-analog · 1 FM · 2 wavefold · 3 harmonic · 4 wavetable · 5 noise · 6 string · 7 modal. <code>timbre</code>/<code>harm</code>/<code>morph</code> are the three voice controls. Morph the engine live with a var.')}
+        ${code(`p1 >> plaits([0,4,7], oct=4, engine=0, timbre=0.6)        # virtual analog
+p1 >> plaits([0,4,7], oct=5, engine=1, harm=0.3, timbre=0.7)  # FM
+p1 >> plaits([0,4,7], oct=4, engine=var([0,1,4,6], 8), timbre=sinvar([0.2,0.9],[8]))  # morph engines`)}
     `, 'synths');
 
     const tweak = section('Live tweaking — try these', `

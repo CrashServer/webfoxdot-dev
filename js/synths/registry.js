@@ -77,6 +77,12 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.02, release: 0.2, cutoff: 3000, rq: 0.4 },
         extraParams: ['cutoff', 'rq'],
     },
+    plaits: {
+        scName: 'fd_plaits',
+        defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.01, release: 0.2,
+                    engine: 0, timbre: 0.5, harm: 0.5, morph: 0.5, cutoff: 6000, rq: 0.6 },
+        extraParams: ['engine', 'timbre', 'harm', 'morph', 'cutoff', 'rq'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
