@@ -630,6 +630,83 @@ button#btn-boot.booted { background: #1a4731; border-color: var(--green); color:
 .cm-foxdot-track   { color: var(--orange); font-weight: bold; }
 .cm-foxdot-section { color: var(--yellow); font-weight: bold; }
 
+/* Active #@ section — persistent highlight + a blink when it (re)evaluates */
+.section-active { box-shadow: inset 3px 0 0 var(--green); background: rgba(63,185,80,0.10); }
+.section-blink  { animation: section-blink-anim 0.65s ease; }
+@keyframes section-blink-anim {
+    0%   { background: rgba(63,185,80,0.5); }
+    100% { background: rgba(63,185,80,0.10); }
+}
+
+/* Composition parts panel */
+#cp-parts { display: flex; flex-direction: column; gap: 2px; }
+.cp-part {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cp-part:hover { background: var(--bg-3); color: var(--text-1); }
+.cp-part.track { color: var(--orange); font-weight: bold; margin-top: 4px; cursor: default; }
+.cp-part.track:hover { background: none; }
+.cp-part.active { color: var(--green); background: var(--green-dim); font-weight: bold; }
+.cp-part .cp-part-beats { color: var(--text-2); font-size: 9px; margin-left: 4px; }
+#cp-autoplay { font-size: 9px; color: var(--text-2); margin: 2px 0 4px; }
+#cp-autoplay.on { color: var(--green); }
+
+/* Rec button — blinks red while recording */
+#btn-rec.recording {
+    color: var(--red);
+    border-color: var(--red);
+    animation: rec-blink 1s steps(1) infinite;
+}
+@keyframes rec-blink { 50% { opacity: 0.45; } }
+
+/* Alt+I inspector tooltip */
+.wfd-tip {
+    position: absolute;
+    z-index: 9999;
+    max-width: 420px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-2);
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--text-1);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    pointer-events: none;
+    line-height: 1.5;
+}
+.wfd-tip-kind {
+    display: inline-block;
+    font-size: 9px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-right: 6px;
+    background: var(--bg-3);
+    color: var(--text-2);
+}
+.wfd-kind-synth    { color: var(--green); }
+.wfd-kind-fx       { color: var(--orange); }
+.wfd-kind-pattern  { color: var(--purple); }
+.wfd-kind-timevar  { color: var(--orange); }
+.wfd-kind-function { color: var(--blue); }
+.wfd-tip-sig  { color: var(--green); font-weight: bold; }
+.wfd-tip-desc { margin-top: 5px; color: var(--text-2); }
+.wfd-tip-val  {
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid var(--border-1);
+    color: var(--blue);
+    word-break: break-all;
+}
+
 /* Changelog list */
 .docs-changelog { margin: 4px 0 0 0; padding-left: 18px; }
 .docs-changelog li { font-size: 11px; line-height: 1.6; color: var(--text-1); margin-bottom: 3px; }

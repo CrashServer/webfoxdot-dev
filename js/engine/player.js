@@ -93,32 +93,50 @@ export function unsolo(clock) {
     clock._players.forEach(p => { p._amplify = 1; });
 }
 
-// ── drop() — silence a random subset of players, restore after playTime beats
-// drop(clock, playTime=14, dropTime=2, nbloop=1)
-export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1) {
-    const allPlayers = [...clock._players.values()].filter(p => p._active);
-    const n = allPlayers.length;
-    if (n === 0) return;
+// Next beat that is a multiple of `mod` — for bar-aligned scheduling.
+function nextMod(clock, mod) {
+    return Math.ceil((clock.now() + 0.001) / mod) * mod;
+}
 
-    for (let loop = 0; loop < nbloop; loop++) {
-        const loopOffset = loop * (playTime + dropTime);
-        // Pick a random non-empty subset to silence
-        const subsetSize = nbloop === 1
-            ? Math.floor(Math.random() * n) + 1
-            : Math.max(1, Math.floor(Math.random() * n));
-        const shuffled = [...allPlayers].sort(() => Math.random() - 0.5);
-        const toSilence = shuffled.slice(0, subsetSize);
+// ── drop() — silence a random subset, restore, repeat — on the BAR grid ──────
+// drop(clock, playTime=14, dropTime=2, nbloop=1). Aligned to the next bar so
+// drops land musically (beat-scheduled, not wall-clock).
+export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null) {
+    const total = playTime + dropTime;
+    const start = nextMod(clock, 4);              // align to the next bar (4 beats)
+    const runLoop = (loop, base) => {
+        if (loop <= 0) return;
+        const active = [...clock._players.values()].filter(p => p._active);
+        if (active.length === 0) return;
+        const size = loop === 1
+            ? active.length                       // final loop drops everyone
+            : Math.max(1, Math.floor(Math.random() * active.length));
+        const subset = [...active].sort(() => Math.random() - 0.5).slice(0, size);
+        const names = subset.map(p => p.name).join(' ');
+        clock._schedule(base + playTime, () => {
+            subset.forEach(p => p._amplify = 0);
+            if (log) log(loop === 1 ? `drop: FINAL — ${names}` : `drop: ${names}  (${loop - 1} left)`);
+        });
+        clock._schedule(base + total, () => {
+            subset.forEach(p => p._amplify = 1);
+            runLoop(loop - 1, base + total);
+        });
+    };
+    runLoop(nbloop, start);
+}
 
-        const secPerBeat = 60 / clock.bpm;
-
-        setTimeout(() => {
-            for (const p of toSilence) p._amplify = 0;
-        }, loopOffset * secPerBeat * 1000);
-
-        setTimeout(() => {
-            for (const p of toSilence) p._amplify = 1;
-        }, (loopOffset + playTime) * secPerBeat * 1000);
-    }
+// ── soloRnd(time=8) — solo a random active player on the next `time` boundary,
+// unsolo `time` beats later (beat-aligned). ──────────────────────────────────
+export function soloRnd(clock, time = 8, log = null) {
+    const active = [...clock._players.values()].filter(p => p._active);
+    if (active.length === 0) return;
+    const pick = active[Math.floor(Math.random() * active.length)];
+    const startBeat = nextMod(clock, time);
+    clock._schedule(startBeat, () => {
+        clock._players.forEach((q) => { if (q !== pick) q._amplify = 0; });
+        if (log) log(`soloRnd: ${pick.name} for ${time} beats`);
+    });
+    clock._schedule(startBeat + time, () => clock._players.forEach(q => { q._amplify = 1; }));
 }
 
 export class Player {
@@ -167,6 +185,7 @@ export class Player {
                 this._nextBeat = Math.ceil(now + 0.001);
                 this._clock._schedule(this._nextBeat, () => this._fire());
             }
+            this._applyEverys(synthCall);
             return this;
         }
 
@@ -191,7 +210,16 @@ export class Player {
             this._nextBeat = Math.ceil(now + 0.001);
             this._clock._schedule(this._nextBeat, () => this._fire());
         }
+        this._applyEverys(synthCall);
         return this;
+    }
+
+    // Register call-level .every() specs into the every-handler array.
+    // Only resets when the call has specs (preserves imperative p1.every()).
+    _applyEverys(call) {
+        if (!call._everys) return;
+        this._every = [];
+        for (const e of call._everys) this.every(e.beats, e.method, ...e.args);
     }
 
     _fire() {
@@ -489,7 +517,9 @@ export class Player {
 
     // ── Player methods ──────────────────────────────────────────────────────
 
-    stop() {
+    // stop() now, or stop(beats) after N beats (beat-aligned)
+    stop(beats) {
+        if (beats) { this._clock._schedule(this._clock.now() + beats, () => this.stop()); return this; }
         this._active = false;
         this._every  = [];
         if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
@@ -499,23 +529,18 @@ export class Player {
         }
     }
 
-    // Mute all other players (keeps them running so unsolo can restore them)
-    solo() {
-        this._clock._players.forEach((p, k) => {
-            if (k !== this.name) p._amplify = 0;
-        });
+    // solo() — mute all others indefinitely. solo(beats) — restore after N beats.
+    solo(beats) {
+        this._clock._players.forEach((p, k) => { if (k !== this.name) p._amplify = 0; });
+        if (beats) {
+            this._clock._schedule(this._clock.now() + beats,
+                () => this._clock._players.forEach(p => { p._amplify = 1; }));
+        }
         return this;
     }
 
-    // Solo for N beats then restore all
-    soloDrop(beats = 8) {
-        this.solo();
-        const ms = beats * (60000 / this._clock.bpm);
-        setTimeout(() => {
-            this._clock._players.forEach(p => { p._amplify = 1; });
-        }, ms);
-        return this;
-    }
+    // Solo for N beats then restore (alias of solo(beats))
+    soloDrop(beats = 8) { return this.solo(beats); }
 
     // every(beats, fn) — call fn(player) every n beats
     // fn can be a string method name: 'stutter', 'reverse', 'shuffle'

@@ -88,6 +88,8 @@ export class SynthCall {
     }
     // .after(beats, method, ...args) — one-shot: call a player method after N beats
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
+    // .every(beats, method, ...args) — call a player method every N beats (chainable)
+    every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
     // p >> synth(...) + N / + (a,b,c) — transpose the degree (chainable)
     __add__(x) { (this._degreeAdds ??= []).push(x); return this; }
     // .unison(n, detune) — n detuned + stereo-spread voices (FoxDot formula).

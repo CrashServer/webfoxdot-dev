@@ -16,13 +16,14 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α08</span>
+      <span id="version-tag" class="version-tag" title="changelog">α09</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
       <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
+      <button id="btn-rec" title="record your set into a #@ composition">rec</button>
       <button id="btn-examples" title="load the example tour into the editor">examples</button>
       <button id="btn-clear" title="empty the editor">clear</button>
       <select id="theme-select">
@@ -82,6 +83,12 @@
       <select class="cp-select" id="cp-root-sel"></select>
     </div>
 
+    <div class="cp-section">
+      <h3>Composition</h3>
+      <div id="cp-autoplay">autoplay: off</div>
+      <div id="cp-parts"></div>
+    </div>
+
     <div class="cp-section" style="flex:1;overflow-y:auto;min-height:0">
       <h3>Players</h3>
       <div id="cp-players"></div>
@@ -105,7 +112,7 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
@@ -118,11 +125,13 @@
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { transpile, applyRenames }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
+    import { inspect, initInspect }      from './js/editor/inspect.js';
     import { incrementValue, stopPlayerAtCursor,
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
-    import { initSections, runSection, cancelSection } from './js/engine/sections.js';
+    import { initSections, runSection, cancelSection,
+             getSections, jumpToActive, isAutoplaying } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
@@ -176,11 +185,8 @@
     let _collab = null;
     let _remoteEval = false; // prevent re-broadcast of received evals
 
-    function runCode(raw, { fromRemote = false } = {}) {
-        let js = transpile(raw.trim());
-        js = applyRenames(js);
-        log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');
-        const ctx = {
+    function buildCtx() {
+        return {
             Clock: new Proxy(clock, {
                 set(t, k, v) { if (k === 'bpm') t.bpm = v; else t[k] = v; return true; }
             }),
@@ -214,9 +220,17 @@
                 .catch(e => update(`loadpack: ${e.message}`, 'error'));
             },
             print:  (...a) => log(a.join(' ')),
-            drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop),
+            drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop, (m) => log(m, 'info')),
             unsolo: () => _unsoloFn(clock),
+            soloRnd: (time = 8) => _soloRndFn(clock, time, (m) => log(m, 'info')),
         };
+    }
+
+    function runCode(raw, { fromRemote = false } = {}) {
+        let js = transpile(raw.trim());
+        js = applyRenames(js);
+        log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');
+        const ctx = buildCtx();
         try {
             new Function(...Object.keys(ctx), js)(...Object.values(ctx));
         } catch (e) {
@@ -249,6 +263,7 @@
         if (block) {
             flashLines(s, e);
             runCode(block);
+            recCapture(block);
         }
     }
 
@@ -259,8 +274,55 @@
             const to   = editor.getCursor('to');
             flashLines(from.line, to.line);
             runCode(sel);
+            recCapture(sel);
         } else {
             runBlockAtCursor();
+        }
+    }
+
+    // ── Composition recording ─────────────────────────────────────────────────
+    // Capture each user eval with its beat offset; on stop, generate a #@ set.
+    let _rec = { on: false, startBeat: 0, events: [] };
+    function recCapture(code) {
+        if (_rec.on) _rec.events.push({ beat: clock.now() - _rec.startBeat, code });
+    }
+    function buildComposition(events, bpm) {
+        if (!events.length) return null;
+        const GAP = 4;                                   // beats of silence → new section
+        const names = ['intro', 'build', 'peak', 'break', 'drop', 'outro'];
+        const snap = (d) => Math.max(4, Math.round(d / 4) * 4);
+        const sections = [];
+        let cur = { codes: [events[0].code], start: events[0].beat }, ci = 0;
+        for (let i = 1; i < events.length; i++) {
+            if (events[i].beat - events[i - 1].beat > GAP) {
+                cur.dur  = snap(events[i].beat - cur.start);
+                cur.name = ci < names.length ? names[ci] : 'part' + (ci + 1);
+                sections.push(cur); ci++;
+                cur = { codes: [], start: events[i].beat };
+            }
+            cur.codes.push(events[i].code);
+        }
+        cur.dur = 16; cur.name = ci < names.length ? names[ci] : 'part' + (ci + 1);
+        sections.push(cur);
+        let s = '#@#@ recorded\n\n';
+        for (const sec of sections) s += `#@${sec.name}(${sec.dur})\n${sec.codes.join('\n')}\n\n`;
+        return s + '#@end(16)\n';
+    }
+    function toggleRec() {
+        const btn = document.getElementById('btn-rec');
+        if (!_rec.on) {
+            _rec = { on: true, startBeat: clock.now(), events: [] };
+            btn.classList.add('recording'); btn.textContent = '● rec';
+            log('recording composition — play your set, then press rec again', 'warn');
+        } else {
+            _rec.on = false;
+            btn.classList.remove('recording'); btn.textContent = 'rec';
+            const compo = buildComposition(_rec.events, clock.bpm);
+            if (!compo) { log('recording empty — nothing captured', 'warn'); return; }
+            const last = editor.lastLine();
+            editor.replaceRange('\n\n# ══ recorded composition (run the #@ parts) ══\n' + compo,
+                { line: last, ch: editor.getLine(last).length });
+            log(`composition recorded — ${_rec.events.length} evals → appended to the buffer`, 'ok');
         }
     }
 
@@ -366,10 +428,12 @@ Root.default = 0
 
 # ══ 1. DRUMS — play()  ( . = rest, brackets nest ) ══════════════════════
 #   (xo) together   [xo] subdivide   {xo} random   <xo> alternate
-b1 >> play(x.o.x.o., amp=0.9)
+b1 >> play(x.o., amp=0.9)
 # b2 >> play(x-o-, lpf=1500, reverb=0.3)        # FX work on drums
 # b3 >> play(<x.><[--]><x.>, amp=0.8)           # brackets nest
 # b4 >> play(x-o-).sometimes("stutter", 2)       # probabilistic
+# b5 >> play(x., amp=Pacc("tresillo"))     # accent groove
+# b6 >> play(x-o-, amplify=PSwing(0.3))          # swing feel
 
 
 # ══ 2. SYNTHS — [seq]  (chord)  per-param groups ════════════════════════
@@ -414,7 +478,8 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
 
 # ══ 7. PERFORMANCE ══════════════════════════════════════════════════════
 # p1.every(8, 'stutter', 4)
-# drop(14, 2)
+# p1.solo(8)        # solo 8 beats then restore   |   soloRnd(8)
+# drop(14, 2)       # bar-aligned drop   (Alt+S solo · Ctrl+Alt+S unsolo)
 
 
 # ══ 8. SECTION SEQUENCER — cursor on a #@ line, Ctrl+Enter ══════════════
@@ -459,14 +524,18 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
             'Ctrl-Enter':     () => runSelected(),
             'Cmd-Enter':      () => runSelected(),
             'Ctrl-Space':     (cm) => triggerAutocomplete(cm),
+            'Alt-I':          (cm) => inspect(cm),
             'Alt-Up':         (cm) => incrementValue(cm,  1,  runBlockAtCursor),
             'Alt-Down':       (cm) => incrementValue(cm, -1,  runBlockAtCursor),
             'Shift-Alt-Up':   (cm) => incrementValue(cm,  10, runBlockAtCursor),
             'Shift-Alt-Down': (cm) => incrementValue(cm, -10, runBlockAtCursor),
             'Alt-X':          (cm) => stopPlayerAtCursor(cm, clock, runBlockAtCursor),
             'Alt-S':          (cm) => soloPlayerAtCursor(cm, clock),
+            'Ctrl-Alt-S':     ()   => _unsoloFn(clock),
             'Alt-O':          (cm) => soloDropAtCursor(cm, clock, 8),
             'Ctrl-;':         ()   => clock.clear(),
+            'Ctrl-Alt-;':     ()   => { cancelSection(); log('autoplay stopped — players keep running', 'warn'); },
+            'Ctrl-Alt-P':     ()   => { if (!jumpToActive()) log('no active part', 'info'); },
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
         },
     });
@@ -495,6 +564,7 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
         editor.setCursor({ line: 0, ch: 0 });
         editor.focus();
     }
+    document.getElementById('btn-rec').onclick      = toggleRec;
     document.getElementById('btn-examples').onclick = () => setEditorContent(examplesAsCode());
     document.getElementById('btn-clear').onclick    = () => setEditorContent('');
 
@@ -512,8 +582,55 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
     vtag.title = VERSION + ' — changelog';
     vtag.onclick = () => openDocs('changelog');
 
+    // ── Inspector (Alt+I) — give it a way to evaluate a pattern expression ────
+    function evalSnippet(expr) {
+        let js = expr
+            .replace(/\bP\s*\*\s*\[([^\]]*)\]/g, 'PRand([$1])')
+            .replace(/\bP\s*\[([^\]]*)\]/g, '[$1]');
+        js = applyRenames(js);
+        const ctx = buildCtx();
+        return new Function(...Object.keys(ctx), 'return (' + js + ')')(...Object.values(ctx));
+    }
+    initInspect(evalSnippet);
+
     // ── Section sequencer ─────────────────────────────────────────────────────
-    initSections(clock, runCode, editor);
+    // Side-panel parts list — click a part to jump there; active part highlighted.
+    function renderParts() {
+        const el = document.getElementById('cp-parts');
+        if (!el) return;
+        el.innerHTML = '';
+        const secs = getSections();
+        if (secs.length === 0) {
+            el.innerHTML = '<div style="font-size:10px;color:var(--text-2)">no #@ parts</div>';
+        }
+        for (const s of secs) {
+            const d = document.createElement('div');
+            if (s.track !== undefined) {
+                d.className = 'cp-part track';
+                d.textContent = '▸ ' + (s.track || 'track');
+            } else {
+                d.className = 'cp-part' + (s.active ? ' active' : '');
+                const beats = s.beats != null ? `<span class="cp-part-beats">${s.beats}b</span>` : '';
+                d.innerHTML = `${s.name}${beats}`;
+                d.onclick = () => {
+                    editor.setCursor({ line: s.line, ch: 0 });
+                    editor.scrollIntoView({ line: s.line, ch: 0 }, 120);
+                    editor.focus();
+                };
+            }
+            el.appendChild(d);
+        }
+        const ap = document.getElementById('cp-autoplay');
+        if (ap) {
+            const on = isAutoplaying();
+            ap.textContent = 'autoplay: ' + (on ? 'on' : 'off');
+            ap.className = on ? 'on' : '';
+        }
+    }
+    initSections(clock, runCode, editor, renderParts);
+    renderParts();
+    let _partsTimer = null;
+    editor.on('change', () => { clearTimeout(_partsTimer); _partsTimer = setTimeout(renderParts, 300); });
 
     // ── Multiplayer — init if ?session= is in the URL ─────────────────────────
     if (_sessionSlug) {

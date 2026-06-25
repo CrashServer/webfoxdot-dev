@@ -27,16 +27,20 @@ function step(n, text) {
 const SHORTCUTS = [
     { key: 'Ctrl+Enter',         desc: 'Run block at cursor / selection' },
     { key: 'Alt+X',              desc: 'Toggle comment + stop / restart player' },
-    { key: 'Alt+S',              desc: 'Solo player — mute all others' },
+    { key: 'Alt+S',              desc: 'Solo player at cursor — mute all others' },
+    { key: 'Ctrl+Alt+S',         desc: 'Unsolo — restore all players' },
     { key: 'Alt+O',              desc: 'SoloDrop — solo 8 beats then restore all' },
     { key: 'Ctrl+;',             desc: 'Stop all players' },
-    { key: 'Ctrl+Space',         desc: 'Autocomplete' },
+    { key: 'Ctrl+Alt+;',         desc: 'Stop #@ autoplay (players keep running)' },
+    { key: 'Ctrl+Alt+P',         desc: 'Jump to the active #@ part' },
+    { key: 'Ctrl+Space',         desc: 'Autocomplete (synths, params, FX, patterns, full-call templates)' },
+    { key: 'Alt+I',              desc: 'Info on the symbol under the cursor (synth / FX / pattern / function)' },
     { key: 'Alt+↑ / Alt+↓',      desc: 'Nudge value under cursor ±1 or ±0.1' },
     { key: 'Shift+Alt+↑/↓',      desc: 'Nudge value ×10' },
     { key: 'Ctrl+/',             desc: 'Toggle line comment' },
 ];
 
-const PATTERNS = [
+export const PATTERNS = [
     { name: 'PRand(lo, hi)',            desc: 'Random integer between lo and hi each step' },
     { name: 'PWhite(lo, hi)',           desc: 'Uniform random float between lo and hi' },
     { name: 'PWalk(lo, hi, step)',      desc: 'Random walk — moves ±step, clamps to [lo,hi]' },
@@ -61,7 +65,7 @@ const PATTERNS = [
     { name: 'PLife(chaos, lo, hi, n)',  desc: 'Cellular-automaton values in [lo,hi]; chaos 0=steady .. 1=chaotic' },
 ];
 
-const TIMEVARS = [
+export const TIMEVARS = [
     { name: 'var(values, durs)',        desc: 'Step through values, hold each for dur beats' },
     { name: 'linvar(values, durs)',     desc: 'Linear interpolation between values over durs' },
     { name: 'sinvar(values, durs)',     desc: 'Sine-shaped interpolation between values' },
@@ -71,24 +75,27 @@ const TIMEVARS = [
     { name: 'fb(beats, a, b)',          desc: 'Envelope (_ suffix): bounce a↔b every beats (wobble). Loops within sus' },
 ];
 
-const FUNCTIONS = [
+export const FUNCTIONS = [
     { name: 'play(pattern, opts)',      desc: 'Drum/sample pattern. Chars map to samples. space=rest, (Xo)=fire both at once, [XoX]=subdivide into sub-steps, {Xo}=random pick, &lt;Xo&gt;=alternate on successive hits. Quotes optional if pattern has spaces. opts: amp, dur (default 1), pan, rate, sample' },
     { name: 'loadsample(char, url)',    desc: 'Load a WAV from a URL (or [urls]) and assign it to a play() char. GitHub raw / release URLs work. e.g. loadsample("K", "https://raw.githubusercontent.com/u/r/main/kick.wav")' },
     { name: 'loadpack(url)',            desc: 'Load a pack: JSON manifest {char: url | [urls]}. Relative URLs resolve against the pack location' },
-    { name: 'drop(playTime, dropTime, nbloop)', desc: 'Silence a random subset of players for dropTime beats, then restore. Default: 14, 2, 1' },
+    { name: 'drop(playTime, dropTime, nbloop)', desc: 'Silence a random subset of players for dropTime beats, then restore — bar-aligned. Default: 14, 2, 1' },
+    { name: 'soloRnd(time)',            desc: 'Solo a random active player for `time` beats, beat-aligned. Default: 8' },
     { name: 'unsolo()',                 desc: 'Restore all players muted by solo / Alt+S' },
+    { name: 'p1.solo(beats)',          desc: 'Mute others; with `beats`, restore after N beats (beat-aligned)' },
+    { name: 'p1.stop(beats)',          desc: 'Stop now, or after N beats with `beats`' },
     { name: 'rest()',                   desc: 'Silence for one step (use in degree list)' },
     { name: 'print(...args)',           desc: 'Print to the log panel' },
     { name: 'p1.solo()',               desc: 'Mute all other players (they keep running)' },
     { name: 'p1.soloDrop(beats)',      desc: 'Solo for N beats, then restore. Default: 8' },
-    { name: 'p1.every(beats, fn)',     desc: 'Call fn(player) every N beats. fn can be a string: "stutter", "reverse", "shuffle"' },
+    { name: '...every(beats, method)', desc: 'Call a player method every N beats — chainable on the call: p1 >> saw([0,4]).every(8, "reverse"). Also p1.every(8, "stutter", 4)' },
     { name: '...after(beats, method)', desc: 'One-shot: call a player method after N beats. e.g. play("xGx").after(4, "stop")' },
     { name: 'p1.stutter(n)',           desc: 'Roll the current step n times within its duration (n = number of rapid repeats). Sequence carries on normally' },
     { name: 'p1.reverse()',            desc: 'Reverse degree array for one cycle' },
     { name: 'p1.shuffle()',            desc: 'Shuffle degree array for one cycle' },
 ];
 
-const PLAYER_PARAMS = [
+export const PLAYER_PARAMS = [
     { name: 'degree',   desc: 'Scale degree. List for sequences, (a,b) for chords, null for rest' },
     { name: 'oct',      desc: 'Octave (default varies by synth, usually 4–5)' },
     { name: 'amp',      desc: 'Amplitude 0–1 (default 0.7–0.9)' },
@@ -102,22 +109,33 @@ const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha08';
+export const VERSION = 'alpha09';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha09', title: 'Editor inspector · solo/drop · anti-click', items: [
+        'Alt+I — info tooltip on the symbol under the cursor (synth, FX, pattern, function); for patterns/timevars it evaluates and shows the generated values',
+        'Autocomplete: full-call templates (synth with every param), FX on play() too, pattern/timevar value suggestions after "=", "⋯ all params" / "⋯ all fx" expansions',
+        { t: 'solo(beats) and stop(beats) — auto-restore/stop after N beats; soloRnd(time) solos a random player; all beat-aligned', ex: 'perf' },
+        { t: 'drop() now lands on the bar grid (beat-scheduled, not wall-clock)', ex: 'perf' },
+        'Ctrl+Alt+S — unsolo (restore all)',
+        'saw anti-click: sine-curve envelope + DC blocker + minimum edge times',
+        'Composition: active #@ part highlighted + blinks on (re)eval; Composition side-panel lists parts (click to jump); Ctrl+Alt+P jump to active part; Ctrl+Alt+; stop autoplay',
+        '.every(beats, method) now chainable on the call: p1 >> saw([0,4]).every(8, "reverse")',
+        'rec button — records your live evals and generates a #@ composition you can replay',
+    ]},
     { v: 'alpha08', title: 'Probability · P patterns · .after · editor', items: [
         { t: 'Probability family: .always .almostAlways .often .sometimes .rarely .almostNever .never — default chance overridable with a leading number; trailing kwargs temporarily override params; chainable; rolls once per cycle', ex: 'sometimes' },
         'stutter() rewritten: rolls the current step n times within its duration (n = repeats), no longer mangles dur',
-        'P patterns: P*[a,b,c] → random pick, P[a,b,c] → cyclic list, P(a,b,c) → chord',
-        'TimeVars accept patterns inside them: var([PRand([4,16,32]), 1/4])',
-        'Player transposition: synth(...) + N or + (a,b,c) adds to the degree (a chord)',
-        '.unison(n, detune) — n detuned + stereo-spread voices (synths and samples)',
+        { t: 'P patterns: P*[a,b,c] → random pick, P[a,b,c] → cyclic list, P(a,b,c) → chord', ex: 'patterns' },
+        { t: 'TimeVars accept patterns inside them: var([PRand([4,16,32]), 1/4])', ex: 'patterns' },
+        { t: 'Player transposition: synth(...) + N or + (a,b,c) adds to the degree (a chord)', ex: 'patterns' },
+        { t: '.unison(n, detune) — n detuned + stereo-spread voices (synths and samples)', ex: 'patterns' },
         '.after(beats, method) — one-shot delayed action (e.g. play(...).after(4, "stop"))',
-        'Patterns: Pacc (accents), PSwing, PBin, PFDur, PLife (cellular automaton)',
-        'amplify param — per-step amp multiplier (e.g. amp=Pacc("ghost"))',
-        'FX: resonbank (resonator), rgate (rhythmic gate), mverb + cheapverb (reverbs), chorus, tremolo',
-        'Synths: bass, prophet',
+        { t: 'Patterns: Pacc (accents), PSwing, PBin, PFDur, PLife (cellular automaton)', ex: 'grooves' },
+        { t: 'amplify param — per-step amp multiplier (e.g. amp=Pacc("ghost"))', ex: 'grooves' },
+        { t: 'FX: resonbank (resonator), rgate (rhythmic gate), mverb + cheapverb (reverbs), chorus, tremolo', ex: 'fx' },
+        { t: 'Synths: bass, prophet', ex: 'synths' },
         'Param aliases: atk→attack, rel→release',
         'Editor: solo-mode autosave across refresh; clear / examples toolbar buttons; dbass default octave 3→4',
     ]},
@@ -212,6 +230,7 @@ function buildExamples() {
 
     const start = section('Start here', `
         ${note('Boot audio first (the <b>boot</b> button). Put the cursor in a block and press <b>Ctrl+Enter</b> to run it. Edit and re-run live. <b>Ctrl+;</b> stops everything. Click any code box below to copy it.')}
+        ${note('<b>Ctrl+Space</b> autocompletes (synths, params, FX, patterns). <b>Alt+I</b> shows info on the symbol under the cursor — and for a pattern it evaluates and shows the values it makes.')}
         ${code(`Clock.bpm = 120
 Scale.default = "minor"
 Root.default = 0`)}
@@ -219,7 +238,7 @@ Root.default = 0`)}
 
     const drums = section('Drums — play()', `
         ${note('Chars map to samples. <code>.</code> or space = rest. Brackets: <code>(Xo)</code> together · <code>[Xo]</code> subdivide · <code>{Xo}</code> random · <code>&lt;Xo&gt;</code> alternate.')}
-        ${code(`b1 >> play(x.o.x.o., amp=0.9)              # kick / snare
+        ${code(`b1 >> play(x.o., amp=0.9)              # kick / snare
 b2 >> play(x-o-, amp=0.9)                  # - = closed hihat
 b3 >> play(x.[oo]x.<o->, amp=0.8)          # subdivide + alternate
 b4 >> play((x*)..{o-}.., amp=0.8)          # together + random
@@ -228,8 +247,17 @@ b6 >> play(x-o-, lpf=1500, reverb=0.3)     # FX work on drums
 b7 >> play(x-o-).sometimes("stutter", 2)   # probabilistic`)}
     `, 'drums');
 
+    const grooves = section('Grooves & accents', `
+        ${note('Accent / density patterns shape amp & feel. <code>Pacc</code> templates (ghost, tresillo, offbeat…), <code>PSwing</code> shuffle, <code>PFDur</code> Euclidean density, <code>PLife</code> generative. Drop them on <code>amp</code> or <code>amplify</code> (a per-step multiplier).')}
+        ${code(`b1 >> play(x., amp=Pacc("tresillo"))        # 3+3+2 accents
+b2 >> play(-, amp=Pacc("ghost", 8))         # ghost-note hats
+b3 >> play(x-o-, amplify=PSwing(0.3))              # swing feel
+b4 >> play(x..x..x., amplify=PFDur((3,8),(5,8)))   # layered density
+b5 >> play(o., amplify=PLife(0.6))           # generative accents`)}
+    `, 'grooves');
+
     const synths = section('All synths', `
-        ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults.')}
+        ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults. Newest: bass, prophet.')}
         ${code(synthLines)}
     `, 'synths');
 
@@ -311,19 +339,20 @@ p1 >> saw([0,4,7], dur=var([P*[1,2], 1/4]))     # pattern inside a var
 p1 >> saw([0,4,7], oct=4) + 7                    # transpose up
 p1 >> dbass([0,3,5]) + (0,3,7)                   # + a group = chord
 p1 >> saw([0,4,7], oct=4).unison(4, 0.4)         # 4 detuned voices, spread
-b1 >> play(x.x.x.x., amp=Pacc("ghost"))         # accent pattern
+b1 >> play(x., amp=Pacc("ghost"))         # accent pattern
 b2 >> play(x-o-, amplify=PLife(0.5))            # cellular-automaton amp`)}
     `, 'patterns');
 
     const perf = section('Performance', `
         ${code(`p1.every(8, 'stutter', 4)     # every 8 beats, stutter x4
 p1.every(16, 'reverse')       # reverse the degree array
-p1.solo()                     # mute everyone else
-p1.soloDrop(8)                # solo 8 beats then restore
-drop(14, 2)                   # silence a random subset, then restore
+p1.solo(8)                    # solo 8 beats then restore (beat-aligned)
+p1.stop(16)                   # stop after 16 beats
+soloRnd(8)                    # solo a random player for 8 beats
+drop(14, 2)                   # bar-aligned drop, then restore
 unsolo()                      # restore all`)}
-        ${note('Shortcuts: <b>Alt+S</b> solo · <b>Alt+O</b> soloDrop(8) · <b>Alt+X</b> comment+stop the player at the cursor.')}
-    `);
+        ${note('Shortcuts: <b>Alt+S</b> solo · <b>Ctrl+Alt+S</b> unsolo · <b>Alt+O</b> soloDrop(8) · <b>Alt+X</b> comment+stop the player at the cursor.')}
+    `, 'perf');
 
     const sections = section('Section sequencer ( #@ )', `
         ${note('Put the cursor on a <code>#@</code> line and Ctrl+Enter. Sections auto-advance after their beat count. A commented player line (<code># p1 >></code>) stops that player on entry. <code>#@#@</code> groups sections into a foldable track.')}
@@ -331,7 +360,7 @@ unsolo()                      # restore all`)}
 
 #@intro(16)
 p1 >> dbass([0,-3,0,4], oct=4)
-b1 >> play(x.o.x.o.)
+b1 >> play(x.o.)
 
 #@verse(32)
 p1 >> dbass([0,-3,5,4], oct=4)
@@ -346,7 +375,7 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `, 'sections');
 
-    return start + drums + synths + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections;
+    return start + drums + grooves + synths + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections;
 }
 
 function buildShortcuts() {

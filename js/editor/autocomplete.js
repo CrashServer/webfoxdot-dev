@@ -10,25 +10,83 @@ const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
     'stop()', 'solo()', 'soloDrop()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
+    'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
+    'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
 ];
 
+// Build a full synth call with every exposed param at its default.
+function fullSynthCall(name) {
+    const def = SYNTH_DEFS[name];
+    const params = Object.entries(def.defaults).map(([k, v]) => `${k}=${v}`).join(', ');
+    return `${name}([0], ${params})`;
+}
+
+// A synth completion that inserts the full call and selects the degree ([0]).
+function synthItem(name) {
+    const text = fullSynthCall(name);
+    const bracket = text.indexOf('[');
+    return {
+        text, displayText: name, className: 'hint-synth',
+        hint(cm, data) {
+            cm.replaceRange(text, data.from, data.to);
+            const ch = data.from.ch + bracket + 1;           // inside the first [ ]
+            cm.setSelection({ line: data.from.line, ch }, { line: data.from.line, ch: ch + 1 });
+        },
+    };
+}
+
+// play() completion — inserts play() with the cursor inside the parens.
+function playItem() {
+    return {
+        text: 'play()', displayText: 'play', className: 'hint-keyword',
+        hint(cm, data) {
+            cm.replaceRange('play()', data.from, data.to);
+            cm.setCursor({ line: data.from.line, ch: data.from.ch + 5 });
+        },
+    };
+}
+
 const COMMON_PARAMS = ['degree','oct','amp','dur','sus','pan','attack','release'];
+
+// FX grouped by effect — picking one inserts ALL its params (mix at `on`,
+// the rest at their registry defaults).
+const FX_GROUPS = [
+    { name: 'lpf',       on: 2000, params: ['lpf', 'lpf_rq'] },
+    { name: 'hpf',       on: 400,  params: ['hpf', 'hpf_rq'] },
+    { name: 'crush',     on: 0.6,  params: ['crush', 'bits', 'srate'] },
+    { name: 'resonbank', on: 0.3,  params: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'] },
+    { name: 'rgate',     on: 0.8,  params: ['rgate', 'rgaterate', 'rgatewave'] },
+    { name: 'reverb',    on: 0.4,  params: ['reverb', 'room', 'damp'] },
+    { name: 'mverb',     on: 0.5,  params: ['mverb', 'mverbmix', 'mverbdamp', 'mverbdiff', 'mverbfreeze'] },
+    { name: 'cheapverb', on: 0.5,  params: ['cheapverb', 'cvdecay', 'cvdamp'] },
+    { name: 'chorus',    on: 0.5,  params: ['chorus', 'chorus_rate', 'chorus_depth'] },
+    { name: 'tremolo',   on: 0.6,  params: ['tremolo', 'trem_rate', 'trem_depth'] },
+    { name: 'tanh',      on: 0.5,  params: ['tanh', 'drive'] },
+    { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
+];
+function fxItem(g) {
+    const parts = g.params.map((p, i) => `${p}=${i === 0 ? g.on : FX_REGISTRY[p].default}`);
+    return item(parts.join(', '), 'hint-fx', g.name + ' …');
+}
 
 const SCALE_NAMES = [
     'major','minor','dorian','phrygian','lydian','mixolydian',
     'pentatonic','minPentatonic','chromatic','diminished','bhairav',
 ];
 
+// Only patterns we actually implement (keeps suggestions runnable)
 const PATTERN_NAMES = [
-    'PRand','PWalk','PDur','PPing','PStutter','PBern','PEuclid','PAlt',
-    'PShuf','PStep','PRange','PSine','PTri','PChain','PMarkov',
-    'PWhite','PxRand','PwRand','PSq','PSum','PEuclid2','PBeat','PDelay',
-    'PStrum','PRhythm','PDrum',
+    'PRand','PWhite','PWalk','PDur','PPing','PStutter','PAlt','PShuf','PBern','PCoin',
+    'PEuclid','PRange','PStep','PSine','PTri','PChain','PMarkov',
+    'Pacc','PSwing','PBin','PFDur','PLife',
 ];
 
-const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar('];
+const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','fi(','fo(','fb('];
 
-const GLOBALS = ['Clock.bpm = ','Scale.default = ','Root.default = ','play(','drop(','unsolo()','rest()','print('];
+const GLOBALS = [
+    'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
+    'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
+];
 
 // ── Player name generation ───────────────────────────────────────────────────
 
@@ -76,6 +134,8 @@ function getContext(cm) {
     const synthM = before.match(/([a-zA-Z_]\w*)\s*\([^)]*$/);
     if (synthM) {
         const fn = synthM[1];
+        // value position: right after `param=` → suggest patterns/timevars
+        if (before.match(/[a-zA-Z_]\w*\s*=\s*[a-zA-Z_]*$/)) return { type: 'value', word };
         if (fn === 'play' || SYNTH_NAMES.includes(fn)) return { type: 'param', synth: fn, word };
         return { type: 'param', synth: null, word };
     }
@@ -95,6 +155,15 @@ function sep(label) {
 
 function item(text, cls, display) {
     return { text, displayText: display ?? text, className: cls };
+}
+
+// Remove category separators that have no items under them (after filtering).
+function dropEmptySeps(list) {
+    return list.filter((it, i) => {
+        if (it.className !== 'hint-sep') return true;
+        const next = list[i + 1];
+        return next && next.className !== 'hint-sep';
+    });
 }
 
 // ── Hint function ─────────────────────────────────────────────────────────────
@@ -150,23 +219,35 @@ function hintFn(cm) {
     let list = [];
 
     if (ctx.type === 'method') {
-        list = PLAYER_METHODS.map(m => item(m, 'hint-method'));
+        list = filter(PLAYER_METHODS.map(m => item(m, 'hint-method')));
     } else if (ctx.type === 'synth') {
-        list = [item('play(', 'hint-keyword', 'play'), ...SYNTH_NAMES.map(n => item(n, 'hint-synth'))];
+        // Picking a synth inserts the full call (all params); play() opens parens.
+        list = [playItem(), ...SYNTH_NAMES.map(synthItem)];
+        list = list.filter(it => filter([it]).length > 0);
     } else if (ctx.type === 'scale') {
-        list = SCALE_NAMES.map(n => item(`"${n}"`, 'hint-param', n));
+        list = filter(SCALE_NAMES.map(n => item(`"${n}"`, 'hint-param', n)));
+    } else if (ctx.type === 'value') {
+        // After `param=` — suggest pattern / timevar values
+        list = [
+            sep('— patterns —'),
+            ...PATTERN_NAMES.map(n => item(n + '(', 'hint-pattern', n)),
+            sep('— timevars —'),
+            ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
+        ];
+        list = dropEmptySeps(list.filter(it => it.className === "hint-sep" || filter([it]).length > 0));
     } else if (ctx.type === 'param') {
         let synthParams;
         if (ctx.synth === 'play') {
-            synthParams = ['amp=','dur=','pan=','rate=','sample='].map(p => item(p, 'hint-param'));
+            synthParams = ['amp=','dur=','pan=','rate=','sample=','amplify=','sus='].map(p => item(p, 'hint-param'));
         } else if (ctx.synth) {
             synthParams = Object.keys(SYNTH_DEFS[ctx.synth]?.defaults ?? {}).map(p => item(p + '=', 'hint-param'));
         } else {
             synthParams = COMMON_PARAMS.map(p => item(p + '=', 'hint-param'));
         }
-        const fxP = ctx.synth === 'play' ? [] : FX_PARAMS.map(p => item(p + '=', 'hint-fx'));
-        list = [sep('— params —'), ...synthParams, ...(fxP.length ? [sep('— fx —'), ...fxP] : [])];
-        list = list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0);
+        // FX as groups — picking one inserts all its params (FX work on play() too)
+        const fxItems = FX_GROUPS.map(fxItem);
+        list = [sep('— params —'), ...synthParams, sep('— fx (full) —'), ...fxItems];
+        list = dropEmptySeps(list.filter(it => it.className === "hint-sep" || filter([it]).length > 0));
     } else {
         list = [
             sep('— synths —'),
@@ -187,8 +268,7 @@ function hintFn(cm) {
         return { list, from, to };
     }
 
-    list = filter(list.filter(it => it.className !== 'hint-sep'));
-    return { list, from, to };
+    return { list: dropEmptySeps(list), from, to };
 }
 
 // Minimal hint function for showing just synth names (used after player name insert)
@@ -200,8 +280,8 @@ function synthHint(cm) {
     const word   = wordM ? wordM[1] : '';
     const from   = { line: cursor.line, ch: cursor.ch - word.length };
     const list   = [
-        ...(!word || 'play'.startsWith(word) ? [item('play(', 'hint-keyword', 'play')] : []),
-        ...SYNTH_NAMES.filter(n => !word || n.startsWith(word)).map(n => item(n, 'hint-synth')),
+        ...(!word || 'play'.startsWith(word) ? [playItem()] : []),
+        ...SYNTH_NAMES.filter(n => !word || n.startsWith(word)).map(synthItem),
     ];
     return { list, from, to: cursor };
 }

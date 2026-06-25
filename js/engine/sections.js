@@ -5,9 +5,14 @@
 let _clock  = null;
 let _evalFn = null;
 let _editor = null;
+let _onChange = null;      // fired when the active section / autoplay state changes
 
 // Symbol used as a sequence ID to prevent stale callbacks from firing.
 let _sequenceId = Symbol();
+
+// Currently-running section line, and whether an auto-advance is pending.
+let _activeLine = -1;
+let _autoplay   = false;
 
 // ── Parser ───────────────────────────────────────────────────────────────────
 
@@ -86,10 +91,54 @@ function parseSectionTag(lineText) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
-function initSections(clock, evalFn, cmEditor) {
-    _clock  = clock;
-    _evalFn = evalFn;
-    _editor = cmEditor;
+function initSections(clock, evalFn, cmEditor, onChange) {
+    _clock    = clock;
+    _evalFn   = evalFn;
+    _editor   = cmEditor;
+    _onChange = onChange || null;
+}
+
+// ── Active-section marking ─────────────────────────────────────────────────────
+
+// Mark `line` as the active section (persistent highlight + a brief blink).
+function setActive(line) {
+    if (_activeLine >= 0 && _activeLine < _editor.lineCount()) {
+        try { _editor.removeLineClass(_activeLine, 'background', 'section-active'); } catch (_) {}
+    }
+    _activeLine = line;
+    if (line >= 0) {
+        try {
+            _editor.addLineClass(line, 'background', 'section-active');
+            _editor.addLineClass(line, 'background', 'section-blink');
+            setTimeout(() => { try { _editor.removeLineClass(line, 'background', 'section-blink'); } catch (_) {} }, 650);
+        } catch (_) {}
+    }
+    if (_onChange) _onChange();
+}
+
+// All #@ sections + #@#@ tracks, in document order, with active flag.
+function getSections() {
+    if (!_editor) return [];
+    const out = [];
+    for (let i = 0; i < _editor.lineCount(); i++) {
+        const t = parseSectionTag(_editor.getLine(i));
+        if (!t) continue;
+        if (t.track !== undefined) out.push({ line: i, track: t.track });
+        else out.push({ line: i, name: t.name, beats: t.beats, type: t.type, active: i === _activeLine });
+    }
+    return out;
+}
+
+function isAutoplaying() { return _autoplay; }
+function getActiveLine() { return _activeLine; }
+
+// Move the cursor to the active section and reveal it.
+function jumpToActive() {
+    if (!_editor || _activeLine < 0) return false;
+    _editor.setCursor({ line: _activeLine, ch: 0 });
+    _editor.scrollIntoView({ line: _activeLine, ch: 0 }, 120);
+    _editor.focus();
+    return true;
 }
 
 // ── Section code extraction ───────────────────────────────────────────────────
@@ -152,9 +201,12 @@ function findSectionByName(name) {
 
 /**
  * Cancel any pending auto-advance by rotating the sequence symbol.
+ * The active section keeps playing — this only stops the autoplay chain.
  */
 function cancelSection() {
     _sequenceId = Symbol();
+    _autoplay = false;
+    if (_onChange) _onChange();
 }
 
 // ── Run ───────────────────────────────────────────────────────────────────────
@@ -187,8 +239,12 @@ function runSection(sectionLine) {
     if (type === 'clear') {
         // Immediate stop
         _evalFn('__stopAll()');
+        setActive(-1);
         return true;
     }
+
+    // Mark this as the active section (highlight + blink in the editor)
+    setActive(sectionLine);
 
     // Get and transform the code body
     const rawCode  = getSectionCode(sectionLine);
@@ -199,7 +255,8 @@ function runSection(sectionLine) {
         _evalFn(stoppedCode);
     }
 
-    if (!beats) return true; // no auto-advance
+    if (!beats) { _autoplay = false; if (_onChange) _onChange(); return true; } // no auto-advance
+    _autoplay = true;
 
     const targetBeat = _clock.now() + beats;
 
@@ -208,6 +265,9 @@ function runSection(sectionLine) {
         _clock._schedule(targetBeat, () => {
             if (_sequenceId !== myId) return; // stale
             _evalFn('__stopAll()');
+            setActive(-1);
+            _autoplay = false;
+            if (_onChange) _onChange();
         });
         return true;
     }
@@ -254,4 +314,5 @@ function runSection(sectionLine) {
 
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-export { initSections, runSection, cancelSection, parseSectionTag };
+export { initSections, runSection, cancelSection, parseSectionTag,
+         getSections, jumpToActive, getActiveLine, isAutoplaying };

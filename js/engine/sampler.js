@@ -196,6 +196,8 @@ export class PlayStringCall {
     }
     // .after(beats, method, ...args) — one-shot: call a player method after N beats
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
+    // .every(beats, method, ...args) — call a player method every N beats (chainable)
+    every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
     // play() has no degree to transpose — accept `+` as a no-op so it can't crash
     __add__() { return this; }
     // unison on samples: n layers detuned via playback rate (2^(pshift/12)) + pan spread
