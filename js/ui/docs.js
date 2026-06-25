@@ -321,7 +321,7 @@ b5 >> play(o., amplify=PLife(0.6))           # generative accents`)}
         ${code(`b1 >> play(x-o-, delay=[0, 0.04])          # push the off-beats late
 b2 >> play(x-o-).human(30, 8, 10)          # humanise: vel 30, jitter 8%, swing 10%
 p1 >> saw([0,4,7], dur=0.5).human(20, 6)   # human feel on a synth too
-b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid as play chars`)}
+b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid rhythm as play chars → "..x..x.x"`)}
     `, 'grooves');
 
     const synths = section('All synths', `

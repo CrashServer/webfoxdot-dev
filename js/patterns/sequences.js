@@ -171,7 +171,10 @@ function _euclid(n, k) {
 // `lo`/`hi` instead of 0/1. Great for play() char patterns:
 //   play(PEuclid2(3, 8, '.', 'x'))  → a kick on the 3-in-8 euclid grid
 export function PEuclid2(n, k, lo = 0, hi = 1) {
-    return cyc(_euclid(k, n).map(x => (x ? hi : lo)));
+    const arr = _euclid(k, n).map(x => (x ? hi : lo));
+    // Char fills → a ready-to-play string (play(PEuclid2(3,8,".","x")) → "..x..x.x")
+    if (typeof lo === 'string' && typeof hi === 'string') return arr.join('');
+    return cyc(arr);
 }
 
 // PFr(mapl, maph, seed, size) — fractal step pattern (FoxDot's simple PFrac),

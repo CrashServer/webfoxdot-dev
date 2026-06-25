@@ -157,9 +157,12 @@ function autoQuotePlay(rhs) {
     }
     const firstArg = (commaAt === -1 ? inner : inner.slice(0, commaAt)).trim();
     const rest     = commaAt === -1 ? '' : inner.slice(commaAt);
-    // Already a string literal — leave it alone
-    const alreadyQuoted = firstArg.startsWith('"') || firstArg.startsWith("'") || firstArg.startsWith('`');
-    if (alreadyQuoted) return rhs;
+    // Leave it unquoted when it's already a string literal or a function call
+    // (PEuclid2(...) / PRand(...) etc.). Play-string brackets like [--] / <x.>
+    // and bare tokens still get auto-quoted.
+    const isExpr = /^["'`]/.test(firstArg)             // already a string literal
+        || /^[A-Za-z_]\w+\s*\(/.test(firstArg);        // multi-char function call
+    if (isExpr) return rhs;
     return rhs.slice(0, idx) + 'play("' + firstArg + '"' + rest + ')' + rhs.slice(j);
 }
 

@@ -24,6 +24,15 @@ function knownParams(synthName) {
     FX_KEYS.forEach(k => s.add(k));
     return s;
 }
+
+// Every param recognised by SOME synth — a param valid elsewhere (e.g. `rate`
+// on dbass, which only saw/sine/blip use) is a deliberate cross-synth value,
+// not a typo, so it's accepted silently. Genuine typos (cuttoff) still warn.
+const ALL_SYNTH_PARAMS = new Set();
+for (const def of Object.values(SYNTH_DEFS)) {
+    Object.keys(def.defaults ?? {}).forEach(k => ALL_SYNTH_PARAMS.add(k));
+    (def.extraParams ?? []).forEach(k => ALL_SYNTH_PARAMS.add(k));
+}
 import { toMidi }                 from './scale.js';
 import { PlayStringCall, parsePattern, charToBufId } from './sampler.js';
 
@@ -517,6 +526,7 @@ export class Player {
         for (const k of Object.keys(userArgs)) {
             const base = k.endsWith('_') ? k.slice(0, -1) : k;   // lpf_ envelope → lpf
             if (known.has(k) || known.has(base)) continue;
+            if (ALL_SYNTH_PARAMS.has(base)) continue;            // valid on another synth → not a typo
             const id = `${this._synth}.${k}`;
             if (_warned.has(id)) continue;
             _warned.add(id);
