@@ -20,11 +20,18 @@ export class Clock {
     _tick() {
         if (!this._running) return;
         const now = performance.now();
-        const dt  = (now - this._lastMs) / 1000;
+        let dt    = (now - this._lastMs) / 1000;
         this._lastMs = now;
-        this._beat  += dt * this._bpm / 60;
+        // Clamp dt: a backgrounded tab or a main-thread stall makes this 10ms tick
+        // fire seconds late. Without clamping, the beat lurches forward and dumps a
+        // burst of overdue notes on resume. Capping keeps tempo steady and drains
+        // the backlog in order over the next ticks (the beat just shifts later by
+        // the stall — fine for a live instrument).
+        if (dt > 0.1) dt = 0.1;
+        this._beat += dt * this._bpm / 60;
 
-        const lookahead = (30 / 1000) * this._bpm / 60;
+        // ~80ms lookahead gives the note timers slack against jitter.
+        const lookahead = (80 / 1000) * this._bpm / 60;
         const horizon   = this._beat + lookahead;
 
         for (let i = this._events.length - 1; i >= 0; i--) {

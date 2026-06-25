@@ -118,10 +118,15 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha16';
+export const VERSION = 'alpha17';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha17', title: 'Clock robustness (WIP)', items: [
+        'Clock: clamp dt so a backgrounded tab / main-thread stall no longer lurches the beat or dumps a burst of overdue notes on resume — tempo stays steady',
+        'Bigger scheduling lookahead (30→80ms) for jitter tolerance',
+        'Next: timestamped (audio-clock) note scheduling so timing is sample-accurate and survives brief main-thread stalls',
+    ]},
     { v: 'alpha16', title: 'More synths, FX & patterns', items: [
         { t: 'New synths: organ (drawbar additive), ssaw (supersaw), karp (Karplus string), piano (FM electric piano)', ex: 'synths' },
         { t: 'New FX: ringmod, flanger, phaser, formant (vowel band-pass, 0/1/2 = ah/eh/oh)', ex: 'fx' },
