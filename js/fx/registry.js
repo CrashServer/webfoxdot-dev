@@ -68,6 +68,14 @@ export const FX_REGISTRY = {
     echo:      { scParam: 'echo',      default: 0,   desc: 'Echo mix' },
     echo_time: { scParam: 'echo_time', default: 0.25,desc: 'Echo delay in seconds' },
     echo_dec:  { scParam: 'echo_dec',  default: 0.5, desc: 'Echo decay/feedback' },
+
+    // Feedback delay — stereo ping with filtered feedback (FoxDot fbdelay)
+    fbdelay:   { scParam: 'fbdelay',   default: 0,    desc: 'Feedback-delay mix (0=off)' },
+    fbtime:    { scParam: 'fbtime',    default: 0.25, desc: 'Delay time × beat_dur (e.g. 0.25)' },
+    fbfeed:    { scParam: 'fbfeed',    default: 0.5,  desc: 'Feedback amount 0–0.98' },
+    fbcutoff:  { scParam: 'fbcutoff',  default: 3000, desc: 'Low-pass on the feedback path (Hz)' },
+    fbspread:  { scParam: 'fbspread',  default: 0.02, desc: 'Stereo time offset (ping-pong feel)' },
+    beat_dur:  { scParam: 'beat_dur',  default: 0.5,  desc: 'Seconds per beat for fbtime (60/bpm to tempo-lock)' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));

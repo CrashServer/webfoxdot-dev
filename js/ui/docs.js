@@ -127,6 +127,9 @@ const CHANGELOG = [
         'New "↻ reset" button (and softReload() in code) — stop everything & free stuck audio nodes without a page refresh',
         'Composition panel: live progress squares next to each part — watch the active section advance through its beats (mirrors to peers)',
         'Multiplayer: a Session panel lists connected peers (name + colour), updating live as people join/leave',
+        'Fix: .every() now fires on play() too (it was synth-only); it also honours a trailing kwarg, e.g. .every(4, "stutter", mverb=0.5)',
+        'Load meter in the toolbar — scheduler lag (ms) + active voice count; green/amber/red as the main thread keeps up or struggles',
+        { t: 'New FX: fbdelay — stereo feedback delay with filtered feedback (fbtime/fbfeed/fbcutoff/fbspread)', ex: 'fx' },
         'More from the bank coming next: PArp, PMorse, the leg/chop/shape/dist/multicrush FX, and the Master/Server.addFx global bus',
     ]},
     { v: 'alpha12', title: 'Set your name & cursor colour (multiplayer)', items: [
@@ -381,7 +384,7 @@ p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
     `, 'defsynth');
 
     const fx = section('FX — append to any player', `
-        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo.')}
+        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay.')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
@@ -390,7 +393,8 @@ p1 >> prophet([0,4,7], chorus=0.6, chorus_rate=0.5)# chorus
 b1 >> play(x.o., resonbank=0.3, rbfreq=[47,50,62]) # resonator bank
 b2 >> play(x-o-, rgate=0.8, rgaterate=8)           # rhythmic gate
 b3 >> play(x.o., mverb=0.6, mverbfreeze=1)         # frozen reverb
-b4 >> play(x-o-, tremolo=0.8, trem_rate=8)         # tremolo`)}
+b4 >> play(x-o-, tremolo=0.8, trem_rate=8)         # tremolo
+p1 >> blip([0,4,7], dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbspread=0.3)  # ping-pong feedback delay`)}
     `, 'fx');
 
     const samples = section('External samples — the webfoxdot-kit pack', `

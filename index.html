@@ -25,6 +25,7 @@
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
       <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
+      <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
       <div id="user-box" title="your name &amp; colour — shown to others in this session">
         <input type="color" id="user-color" title="your cursor colour">
@@ -858,6 +859,25 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
             log(`Collab failed: ${err.message}`, 'error');
         });
     }
+
+    // ── Load / latency meter ──────────────────────────────────────────────────
+    // The note scheduler runs on the main thread, so event-loop lag = late notes.
+    // We measure how late a fixed-interval timer fires (event-loop delay) and show
+    // it alongside the active voice count.
+    (function loadMeter() {
+        const el = document.getElementById('load-meter');
+        if (!el) return;
+        const PERIOD = 500;
+        let last = performance.now();
+        setInterval(() => {
+            const now = performance.now();
+            const lag = Math.max(0, now - last - PERIOD);
+            last = now;
+            const voices = clock._players ? [...clock._players.values()].filter(p => p._active).length : 0;
+            el.textContent = `load ${lag.toFixed(0)}ms · ${voices}v`;
+            el.className = lag > 30 ? 'hi' : (lag > 10 ? 'mid' : 'ok');
+        }, PERIOD);
+    })();
 
     log('WebFoxDot loaded. Click "boot" to start audio.', 'info');
   </script>

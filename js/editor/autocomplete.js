@@ -62,6 +62,7 @@ const FX_GROUPS = [
     { name: 'chorus',    on: 0.5,  params: ['chorus', 'chorus_rate', 'chorus_depth'] },
     { name: 'tremolo',   on: 0.6,  params: ['tremolo', 'trem_rate', 'trem_depth'] },
     { name: 'tanh',      on: 0.5,  params: ['tanh', 'drive'] },
+    { name: 'fbdelay',   on: 0.5,  params: ['fbdelay', 'fbtime', 'fbfeed', 'fbcutoff', 'fbspread'] },
     { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
 ];
 function fxItem(g) {

@@ -30,9 +30,10 @@ SynthDef(\fd_fx_chain, {
      chorus=0, chorus_rate=0.6, chorus_depth=0.004,
      tremolo=0, trem_rate=4, trem_depth=0.6,
      tanh=0, tanh_drive=2,
-     echo=0, echo_time=0.25, echo_dec=0.5|
+     echo=0, echo_time=0.25, echo_dec=0.5,
+     fbdelay=0, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, beat_dur=0.5|
 
-    var sig, wet;
+    var sig, wet, fbDelTime, fb, fbL, fbR;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -102,6 +103,19 @@ SynthDef(\fd_fx_chain, {
     // ── Echo (CombL delay) ────────────────────────────────────────────────
     wet = sig + CombL.ar(sig, 2.0, echo_time.clip(0.001, 2.0), echo_dec.clip(0, 8));
     sig = XFade2.ar(sig, wet, echo * 2 - 1);
+
+    // ── Feedback delay (stereo ping, filtered feedback) ───────────────────
+    // delay time = fbtime * beat_dur (set beat_dur = 60/bpm for tempo-lock).
+    fbDelTime = (fbtime * beat_dur).clip(0.001, 2);
+    fb = LocalIn.ar(2) * fbfeed.clip(0, 0.98);
+    fb = HPF.ar(fb, 80);
+    fb = LPF.ar(fb, fbcutoff.clip(80, 18000));
+    fb = (fb * 1.1).softclip;
+    fbL = DelayC.ar(sig[0] + fb[1], 2, fbDelTime);
+    fbR = DelayC.ar(sig[1] + fb[0], 2, (fbDelTime * (1 + fbspread)).clip(0.001, 2));
+    LocalOut.ar([fbL, fbR]);
+    wet = sig + ([fbL, fbR] * 0.7);
+    sig = XFade2.ar(sig, wet, fbdelay * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);

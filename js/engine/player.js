@@ -410,6 +410,14 @@ export class Player {
         };
         for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
 
+        // Tick .every() handlers (play() mode — was previously synth-only)
+        for (const h of this._every) {
+            if (this._nextBeat >= h.nextBeat) {
+                h.fn(this);
+                h.nextBeat += h.beats;
+            }
+        }
+
         this._step++;
         this._nextBeat += baseDur;
         this._clock._schedule(this._nextBeat, () => this._fire());
@@ -594,10 +602,32 @@ export class Player {
     // Solo for N beats then restore (alias of solo(beats))
     soloDrop(beats = 8) { return this.solo(beats); }
 
-    // every(beats, fn) — call fn(player) every n beats
-    // fn can be a string method name: 'stutter', 'reverse', 'shuffle'
+    // every(beats, fn, ...args [, {kwargs}]) — call fn(player) every n beats.
+    // fn can be a string method name ('stutter', 'reverse', 'shuffle'). A trailing
+    // plain-object is treated as kwargs: those params are applied for the trigger
+    // and restored a step later (e.g. .every(4, "stutter", mverb=0.5)).
     every(beats, fn, ...args) {
-        const method = typeof fn === 'string' ? (p) => p[fn]?.(...args) : fn;
+        let kwargs = null;
+        const last = args[args.length - 1];
+        if (last && typeof last === 'object' && !Array.isArray(last)
+            && typeof last.get !== 'function' && !isGroup(last)) {
+            kwargs = args.pop();
+        }
+        const method = typeof fn !== 'string' ? fn : (p) => {
+            const target = p._mode === 'sample' ? p._playOpts : p._args;
+            let saved = null;
+            if (kwargs) {
+                saved = {};
+                for (const k of Object.keys(kwargs)) { saved[k] = target[k]; target[k] = kwargs[k]; }
+                const ms = (target.dur ?? 1) * 60000 / p._clock.bpm;
+                setTimeout(() => {
+                    for (const k of Object.keys(saved)) {
+                        if (saved[k] === undefined) delete target[k]; else target[k] = saved[k];
+                    }
+                }, ms + 50);
+            }
+            try { p[fn]?.(...args); } catch (_) {}
+        };
         this._every.push({ beats, nextBeat: this._nextBeat + beats, fn: method });
         return this;
     }
