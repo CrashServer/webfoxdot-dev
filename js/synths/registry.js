@@ -119,6 +119,34 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.002, release: 0.3, tone: 0.5 },
         extraParams: ['tone'],
     },
+    // electric bass — Klank stiff-string model (ported from FoxDot ebass)
+    ebass: {
+        scName: 'fd_ebass',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.18,
+                    pick: 0.414, rq: 0.5, cutoff: 250, decay: 0.01 },
+        extraParams: ['pick', 'rq', 'cutoff', 'decay'],
+    },
+    // stacked-FM guitar voice (ported from FoxDot faim)
+    faim: {
+        scName: 'fd_faim',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.01,
+                    decay: 0.01, beef: 0, rate: 0.01, level: 0.8, peak: 1 },
+        extraParams: ['decay', 'beef', 'rate', 'level', 'peak', 'fmod'],
+    },
+    // Plaits-engine guitar (ported from FoxDot guit — uses MiPlaits)
+    guit: {
+        scName: 'fd_guit',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.0001, release: 0.01,
+                    decay: 0.01, detune: 0.01, tone: 0.7, beef: 0.7, fdecay: 1, mod: 0.2 },
+        extraParams: ['decay', 'detune', 'tone', 'beef', 'fdecay', 'mod', 'level', 'peak'],
+    },
+    // Karplus/Pluck "rabbit" guitar (ported from FoxDot lapin)
+    lapin: {
+        scName: 'fd_lapin',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.01,
+                    decay: 0.01, rate: 1, level: 0.8, peak: 1 },
+        extraParams: ['decay', 'rate', 'level', 'peak', 'fmod'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
