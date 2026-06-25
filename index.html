@@ -343,6 +343,7 @@
         const block = editor.getRange({ line: s, ch: 0 }, { line: e, ch: editor.getLine(e).length }).trim();
         if (block) {
             flashLines(s, e);
+            recordSourceLines(s, e);
             runCode(block);
             recCapture(block);
         }
@@ -354,6 +355,7 @@
             const from = editor.getCursor('from');
             const to   = editor.getCursor('to');
             flashLines(from.line, to.line);
+            recordSourceLines(from.line, to.line);
             runCode(sel);
             recCapture(sel);
         } else {
@@ -375,6 +377,7 @@
             return;
         }
         flashLines(cursor.line, cursor.line);
+        recordSourceLines(cursor.line, cursor.line);
         runCode(lineText);
         recCapture(lineText);
     }
@@ -847,6 +850,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _progressRAF = requestAnimationFrame(progressLoop);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
+        // Record the active section's player lines so the live highlight lands on
+        // the section that's actually sounding.
+        if (line >= 0) {
+            let end = editor.lineCount();
+            for (let i = line + 1; i < editor.lineCount(); i++) {
+                if (editor.getLine(i).trim().startsWith('#@')) { end = i; break; }
+            }
+            recordSourceLines(line + 1, end - 1);
+        }
         // Mirror the active section + autoplay state to peers (cosmetic; the
         // section code itself rides the eval broadcast).
         broadcastAction('section', { line, autoplay });
@@ -861,7 +873,26 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // the occurrence inside the currently-active #@ section.
     const _degMarks = new Map();      // playerName → CodeMirror TextMarker
     const _spanCache = new Map();     // lineText → [[s,e],…] | null
+    const _srcLine  = new Map();      // name → line that last (re)defined it
     const _NAME_RE = /^\s*~?\s*([a-zA-Z_]\w*)\s*>>/;
+
+    // Remember which editor line evaluated each player, so the highlight lands on
+    // the line that's actually sounding (a name can recur across sections).
+    function recordSourceLines(from, to) {
+        const lo = Math.max(0, from), hi = Math.min(editor.lineCount() - 1, to);
+        for (let i = lo; i <= hi; i++) {
+            const m = editor.getLine(i).match(_NAME_RE);
+            if (m) _srcLine.set(m[1], i);
+        }
+    }
+    function resolveLine(name) {
+        const rec = _srcLine.get(name);
+        if (rec != null && rec < editor.lineCount()) {
+            const m = editor.getLine(rec).match(_NAME_RE);
+            if (m && m[1] === name) return rec;   // still valid
+        }
+        return findPlayerLine(name);
+    }
 
     function findPlayerLine(name) {
         const active = isAutoplaying() ? getActiveInfo().line : -1;
@@ -941,7 +972,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     function highlightStep(name, step) {
         if (step < 0) { clearDegMark(name); return; }
-        const line = findPlayerLine(name);
+        const line = resolveLine(name);
         if (line < 0 || line >= editor.lineCount()) { clearDegMark(name); return; }
         const spans = spansFor(editor.getLine(line));
         if (!spans) { clearDegMark(name); return; }
