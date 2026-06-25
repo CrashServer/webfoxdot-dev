@@ -67,6 +67,7 @@ export const PATTERNS = [
     { name: 'PLife(chaos, lo, hi, n)',  desc: 'Cellular-automaton values in [lo,hi]; chaos 0=steady .. 1=chaotic' },
     { name: 'PFr(lo, hi, seed, size)',  desc: 'Fractal step pattern, deterministic from seed, mapped into [lo,hi]' },
     { name: 'PGauss(mean, deviation)',  desc: 'Gaussian-distributed random per step (int mean → ints)' },
+    { name: 'PArp(seq, 0-9)',           desc: 'BlueARP arpeggiator: seq=[k1,k2,k3,k4] degrees, index picks an arp shape. e.g. PArp([0,4,7], 5)' },
 ];
 
 export const TIMEVARS = [
@@ -113,10 +114,18 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha14';
+export const VERSION = 'alpha15';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha15', title: 'Live-tweak attrs · Master FX bus · feel-FX · tb303 · PArp', items: [
+        'Attribute assignment: p1.lpf = linvar(...) / p1.dur = 1/2 — tweak one attr of a running player without re-stating the line (the bank\'s core idiom)',
+        'Master / global FX bus: Server.addFx(lpf=…, mverb=…, echo=…, tanh=…, lofi=…) over the whole mix, Server.clearFx(), and Master().lpf = 800 — runs on the master limiter node',
+        { t: 'Feel FX: leg (legato note length), shape & dist2 (wavefold/saturation), multicrush (3-band drive), chop (rhythmic gate, slices per beat)', ex: 'fx' },
+        { t: 'New synth tb303 — classic acid bass (resonant filter + env-mod sweep + drive); pairs with PArp', ex: 'synths' },
+        { t: 'PArp(seq, 0-9) — BlueARP arpeggiator shapes (ported from FoxDot)', ex: 'patterns' },
+        'Bonus: kwargs now work in any call, e.g. p1.every(4, "stutter", mverb=0.5) outside a >> line',
+    ]},
     { v: 'alpha14', title: 'Live degree highlight · player age · richer intro', items: [
         'Live degree highlight — the array element a synth player is currently sounding lights up in the editor (parse-once + one moving marker, so it stays cheap)',
         'Players panel: stopped players drop out of the list; each active player shows its age, colour-shifting green → red the longer it runs (FoxDot/webTroop-style)',
@@ -348,6 +357,15 @@ p1 >> plaits([0,4,7], oct=4, engine=var([0,1,4,6], 8), timbre=sinvar([0.2,0.9],[
         ${note('Re-run a player and only change one thing — the rest is kept. Run the first line, then the second: the lpf stays.')}
         ${code(`p2 >> bass([0,-3], oct=3, lpf=900)
 p2 >> bass([0,-3,5,4])`)}
+        ${note('Or tweak <b>one attribute of a running player</b> without re-stating the line — <code>player.attr = value</code> (the bank\'s core live-coding move):')}
+        ${code(`p2 >> tb303([0,3,5,7], oct=3, cutoff=400, rq=0.2, env=3).every(8, "reverse")
+p2.cutoff = linvar([300, 4000], 16)        # sweep the filter live
+p2.dur = 1/4                               # tighten the rhythm
+p2.env = PArp([0,3,7], 5)`)}
+        ${note('<b>Master / global FX</b> over the whole mix — for live drops & risers. <code>Server.clearFx()</code> resets it.')}
+        ${code(`Server.addFx(lpf=600, mverb=0.4)          # global filter + space
+Master().lpf = 4000                        # ride it back open
+Server.clearFx()`)}
     `, 'tweak');
 
     const axis1 = section('Axis 1 — sequences, chords & groups', `
@@ -395,7 +413,7 @@ p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
     `, 'defsynth');
 
     const fx = section('FX — append to any player', `
-        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay.')}
+        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay

@@ -8,7 +8,7 @@ import { patGet, isGroup }        from '../patterns/sequences.js';
 import { isEnv, evalEnv }         from '../patterns/timevars.js';
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
-const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay']);
+const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);
 const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify', 'delay']);
 let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
@@ -258,6 +258,15 @@ export class Player {
             this._clock._schedule(this._nextBeat, () => this._fire());
         }
         this._applyEverys(synthCall);
+        return this;
+    }
+
+    // Live-tweak one attribute of a running player: p1.lpf = linvar(...).
+    // Applies on the next step (synth or sample mode), like a re-eval of one arg.
+    setAttr(attr, value) {
+        const aliased = PARAM_ALIASES[attr] ?? attr;
+        const target  = this._mode === 'sample' ? this._playOpts : this._args;
+        target[aliased] = value;
         return this;
     }
 

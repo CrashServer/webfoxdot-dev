@@ -83,6 +83,12 @@ export const SYNTH_DEFS = {
                     engine: 0, timbre: 0.5, harm: 0.5, morph: 0.5, cutoff: 6000, rq: 0.6 },
         extraParams: ['engine', 'timbre', 'harm', 'morph', 'cutoff', 'rq'],
     },
+    tb303: {
+        scName: 'fd_tb303',
+        defaults: { oct: 3, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.08,
+                    cutoff: 500, rq: 0.3, env: 2, wave: 0, dist: 0 },
+        extraParams: ['cutoff', 'rq', 'env', 'wave', 'dist'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
@@ -117,7 +123,9 @@ attachModifiers(SynthCall);
 export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     const def = SYNTH_DEFS[synthName];
     if (!def) return null;
-    const sus   = r.sus ?? r.dur ?? 1;
+    // leg (legato) scales the note length relative to the step: 1 fills the step,
+    // >1 overlaps (pad-like), <1 staccato.
+    const sus   = (r.sus ?? r.dur ?? 1) * (r.leg ?? 1);
     const atkS  = r.attack  ?? def.defaults.attack  ?? 0.01;
     const relS  = r.release ?? Math.min(0.3, sus * secPerBeat * 0.3);
 

@@ -63,6 +63,10 @@ const FX_GROUPS = [
     { name: 'tremolo',   on: 0.6,  params: ['tremolo', 'trem_rate', 'trem_depth'] },
     { name: 'tanh',      on: 0.5,  params: ['tanh', 'drive'] },
     { name: 'fbdelay',   on: 0.5,  params: ['fbdelay', 'fbtime', 'fbfeed', 'fbcutoff', 'fbspread'] },
+    { name: 'shape',     on: 0.5,  params: ['shape'] },
+    { name: 'dist2',     on: 0.6,  params: ['dist2', 'dist2shape'] },
+    { name: 'chop',      on: 4,    params: ['chop'] },
+    { name: 'multicrush',on: 0.6,  params: ['multicrush', 'mclowdrive', 'mcmiddrive', 'mchighdrive', 'mclofreq', 'mchifreq'] },
     { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
 ];
 function fxItem(g) {

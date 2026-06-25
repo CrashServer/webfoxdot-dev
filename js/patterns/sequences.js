@@ -190,6 +190,29 @@ export function PFr(mapl = 0, maph = 1, seed = 1664, size = 16) {
     return cyc(data);
 }
 
+// PArp(seq, index=0) — BlueARP-style arpeggiator (FoxDot Extensions/PArp). seq is
+// up to 4 degrees [k1,k2,k3,k4]; index 0-9 picks a built-in 3K arp shape. Octave
+// offsets add a diatonic octave (7 scale steps). e.g. PArp([0,4,7], 5)
+export function PArp(seq, index = 0) {
+    const s  = Array.isArray(seq) ? seq : [seq];
+    const k1 = s[0], k2 = s[1] ?? s[0], k3 = s[2] ?? s[0];
+    const OC = 7;   // diatonic octave (degrees); fine for 7-note scales
+    const dict = [
+        [[k1,k2,k3,k1, k2,k3,k1,k2, k3,k1,k2,k3, k1,k2,k3,k2], [0]],
+        [[k3,k2,k1,k3, k2,k1,k3,k2, k1,k3,k2,k1, k3,k2,k1,k2], [0]],
+        [[k1,k2,k3,k2, k1,k2,k3,k2, k1,k2,k3,k2, k1,k3,k1,k2], [0]],
+        [[k3,k2,k1,k2, k3,k2,k1,k2, k3,k2,k1,k2, k3,k2,k3,k1], [0]],
+        [[k2,k3,k1,k3, k2,k3,k1,k3], [0,-1,0,-1, 0,-1,0,-1]],
+        [[k1,k3,k2,k1, k1,k1,k2,k3], [-1,0,0,-1, 0,-1,0,0]],
+        [[k1,k1,k3,k1, k1,k2,k1,k3], [-1,-5,0,-1, 0,0,-1,0]],
+        [[k3,k1,k2,k1, k3,k1,k2,k1], [0]],
+        [[k3,k2,k1,k3, k2,k1,k3,k2], [0]],
+        [[k1,k1,k1,k2, k1,k1,k1,k3], [-1,1,0,0, -1,1,0,0]],
+    ];
+    const [notes, octs] = dict[((index % dict.length) + dict.length) % dict.length];
+    return cyc(notes.map((n, i) => n + octs[i % octs.length] * OC));
+}
+
 // PGauss(mean=0, deviation=1) — Gaussian-distributed random per step (Box–Muller).
 // Integer mean → rounded ints, like FoxDot. e.g. pan=PGauss(0, 0.3)
 export function PGauss(mean = 0, deviation = 1) {

@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α14</span>
+      <span id="version-tag" class="version-tag" title="changelog">α15</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -137,7 +137,7 @@
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
              PChain, PMarkov, _group,
-             Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss } from './js/patterns/sequences.js';
+             Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
@@ -240,6 +240,29 @@
         } catch (e) { log('soft reload failed: ' + e.message + ' (try a page refresh)', 'error'); }
     }
 
+    // ── Master / global FX bus — n_set the master limiter node (Server.addFx /
+    // Master().attr = …). Values are static snapshots (patterns resolve to now).
+    let _scRef = null;
+    const MASTER_PARAMS = {
+        gain: 'gain', ceiling: 'ceiling', lpf: 'lpf', lpf_rq: 'lpf_rq', hpf: 'hpf', hpf_rq: 'hpf_rq',
+        mverb: 'mverb', echo: 'echo', echo_time: 'echo_time', echo_dec: 'echo_dec',
+        tanh: 'tanh', drive: 'tanh_drive', lofi: 'lofi',
+    };
+    function masterSet(opts) {
+        const params = [];
+        for (const [k, v] of Object.entries(opts || {})) {
+            const sp = MASTER_PARAMS[k];
+            if (!sp) continue;
+            const val = (v && typeof v.get === 'function') ? v.get(0) : v;   // snapshot patterns/timevars
+            params.push(sp, Number(val));
+        }
+        if (params.length && _scRef) _scRef.send('/n_set', MASTER_NODE, ...params);
+    }
+    function masterClear() {
+        masterSet({ gain: 1, lpf: 0, hpf: 0, mverb: 0, echo: 0, tanh: 0, lofi: 0 });
+        log('master FX cleared', 'info');
+    }
+
     function buildCtx() {
         return {
             Clock: new Proxy(clock, {
@@ -254,7 +277,7 @@
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,
             PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
-            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss,
+            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp,
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
             __group: _group,
@@ -277,6 +300,8 @@
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop, (m) => log(m, 'info')),
             softReload: () => softReload(),
+            Server: { addFx: (opts = {}) => masterSet(opts), clearFx: () => masterClear() },
+            Master: () => new Proxy({}, { set(_t, k, v) { masterSet({ [String(k)]: v }); return true; }, get() { return undefined; } }),
             unsolo: () => _unsoloFn(clock),
             soloRnd: (time = 8) => _soloRndFn(clock, time, (m) => log(m, 'info')),
         };
@@ -456,7 +481,7 @@
     const SYNTHDEFS_TO_LOAD = [
         'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
         'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm', 'fd_bell', 'fd_pads',
-        'fd_bass', 'fd_prophet', 'fd_plaits',
+        'fd_bass', 'fd_prophet', 'fd_plaits', 'fd_tb303',
         'fd_sampler', 'fd_fx_chain', 'fd_master',
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
@@ -522,6 +547,7 @@
             synthStatus.textContent = '';
 
             setSuperSonic(sc);
+            _scRef = sc;
             initDefsynth(sc, (name) => log(`synth "${name}" defined ✓`, 'ok'));
             clock.start();
 

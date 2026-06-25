@@ -75,7 +75,23 @@ export const FX_REGISTRY = {
     fbfeed:    { scParam: 'fbfeed',    default: 0.5,  desc: 'Feedback amount 0–0.98' },
     fbcutoff:  { scParam: 'fbcutoff',  default: 3000, desc: 'Low-pass on the feedback path (Hz)' },
     fbspread:  { scParam: 'fbspread',  default: 0.02, desc: 'Stereo time offset (ping-pong feel)' },
-    beat_dur:  { scParam: 'beat_dur',  default: 0.5,  desc: 'Seconds per beat for fbtime (60/bpm to tempo-lock)' },
+    beat_dur:  { scParam: 'beat_dur',  default: 0.5,  desc: 'Seconds per beat for fbtime/chop (60/bpm to tempo-lock)' },
+
+    // Distortion / shaping
+    shape:      { scParam: 'shape',       default: 0, desc: 'Sine-wavefolder distortion (0=off; drive scales up)' },
+    dist2:      { scParam: 'dist2',       default: 0, desc: 'Fold + tanh saturation (0=off)' },
+    dist2shape: { scParam: 'dist2shape',  default: 1, desc: 'dist2 fold threshold (0.05 hard .. 1 soft)' },
+
+    // Rhythmic chop — gate the signal `chop` times per beat (uses beat_dur)
+    chop:       { scParam: 'chop',        default: 0, desc: 'Rhythmic gate: slices per beat (0=off)' },
+
+    // multicrush — 3-band drive (low/mid/high) with crossovers
+    multicrush:  { scParam: 'multicrush',  default: 0,    desc: 'Multiband drive mix (0=off)' },
+    mclowdrive:  { scParam: 'mclowdrive',  default: 2,    desc: 'Low-band drive (softclip)' },
+    mcmiddrive:  { scParam: 'mcmiddrive',  default: 2,    desc: 'Mid-band drive (fold)' },
+    mchighdrive: { scParam: 'mchighdrive', default: 2,    desc: 'High-band drive (tanh)' },
+    mclofreq:    { scParam: 'mclofreq',    default: 300,  desc: 'Low/mid crossover Hz' },
+    mchifreq:    { scParam: 'mchifreq',    default: 2500, desc: 'Mid/high crossover Hz' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));

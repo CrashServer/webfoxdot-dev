@@ -31,9 +31,11 @@ SynthDef(\fd_fx_chain, {
      tremolo=0, trem_rate=4, trem_depth=0.6,
      tanh=0, tanh_drive=2,
      echo=0, echo_time=0.25, echo_dec=0.5,
-     fbdelay=0, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, beat_dur=0.5|
+     fbdelay=0, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, beat_dur=0.5,
+     shape=0, dist2=0, dist2shape=1, chop=0,
+     multicrush=0, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500|
 
-    var sig, wet, fbDelTime, fb, fbL, fbR;
+    var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -116,6 +118,28 @@ SynthDef(\fd_fx_chain, {
     LocalOut.ar([fbL, fbR]);
     wet = sig + ([fbL, fbR] * 0.7);
     sig = XFade2.ar(sig, wet, fbdelay * 2 - 1);
+
+    // ── shape — sine wavefolder distortion (drive scales with shape) ──────
+    wet = (sig * (shape * 20 + 1)).fold2(1).distort * 0.6;
+    sig = XFade2.ar(sig, wet, shape.clip(0, 1) * 2 - 1);
+
+    // ── dist2 — fold + tanh saturation with a tilt ────────────────────────
+    wet = Fold.ar(sig, dist2shape.clip(0.05, 1).neg, dist2shape.clip(0.05, 1));
+    wet = (wet * (dist2 * 8 + 1)).tanh;
+    wet = LPF.ar(wet, 9000);
+    sig = XFade2.ar(sig, wet, dist2.clip(0, 1) * 2 - 1);
+
+    // ── multicrush — 3-band drive (low softclip / mid fold / high tanh) ───
+    mcLow  = (LPF.ar(sig, mclofreq) * mclowdrive).softclip;
+    mcMid  = HPF.ar(LPF.ar(sig, mchifreq), mclofreq) * mcmiddrive;
+    mcMid  = (mcMid + (mcMid.cubed * 0.2)).fold(-0.9, 0.9);
+    mcHigh = LPF.ar((HPF.ar(sig, mchifreq) * mchighdrive).tanh, 12000);
+    wet    = Limiter.ar(LeakDC.ar(mcLow + mcMid + mcHigh) * 0.7, 0.95, 0.001);
+    sig    = XFade2.ar(sig, wet, multicrush.clip(0, 1) * 2 - 1);
+
+    // ── chop — rhythmic gate, `chop` slices per beat (uses beat_dur) ──────
+    wet = sig * LFPulse.kr((chop / beat_dur).clip(0.1, 200), 0, 0.5).range(0.02, 1);
+    sig = XFade2.ar(sig, wet, (chop > 0) * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);

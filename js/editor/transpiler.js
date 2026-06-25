@@ -47,13 +47,23 @@ export function transpile(code) {
             return `${indent}__p('${player}').__rshift__(${expr}${resetArg})${tail}`;
         }
 
+        // Player attribute assignment: p1.lpf = linvar(...)  (live-tweak one attr
+        // of a running player). Not Clock/Scale/Root/Master/Server, not == .
+        const am = main.match(/^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/);
+        if (am && !/^(Clock|Scale|Root|Master|Server)$/.test(am[2])) {
+            const [, indent, player, attr, value] = am;
+            return `${indent}__p('${player}').setAttr('${attr}', ${kwargify(value.trim())})${tail}`;
+        }
+
         // p1.method(...) → __p('p1').method(...)
         main = main.replace(
             /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop)\s*\(/g,
             (_, name, method) => `__p('${name}').${method}(`
         );
 
-        return main + tail;
+        // kwargify the rest too, so kwargs in any call work — Server.addFx(lpf=800),
+        // p1.every(4, "stutter", mverb=0.5), drop(...), etc.
+        return kwargify(main) + tail;
     }).join('\n');
 }
 
