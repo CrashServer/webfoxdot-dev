@@ -28,9 +28,12 @@ function rv(v) {
 function normDurs(vals, durs) {
     if (!Array.isArray(vals)) vals = [vals];
     if (durs && typeof durs.get === 'function') durs = durs.get(0);   // pattern dur → number
-    const d = Array.isArray(durs) ? durs
+    let d = Array.isArray(durs) ? durs
             : typeof durs === 'number' ? vals.map(() => durs)
             : vals.map(() => 4);
+    // durs may themselves be patterns: var([0,0.6], [PRand(6,12), PRand(3,8)]).
+    // Resolve each to a number (fixed at creation) so totals/positions are numeric.
+    d = d.map(x => { const n = rv(x); return typeof n === 'number' && isFinite(n) ? n : 4; });
     return { vals, durs: d, total: d.reduce((a, b) => a + b, 0) };
 }
 
@@ -73,6 +76,24 @@ export function _sinvar(vals, durs) {
     }};
 }
 
+// fperlin(period, lo, hi) — smooth value-noise LFO: wanders randomly between lo
+// and hi, a new random target roughly every `period` beats, smoothstep-eased
+// (so it's continuous, unlike PWhite). Clock-synced like the *var family.
+export function _fperlin(period = 8, lo = 0, hi = 1) {
+    const seed = Math.random() * 1000;
+    const hash = (i) => { const x = Math.sin((i + seed) * 12.9898) * 43758.5453; return x - Math.floor(x); };
+    const noise = (t) => {
+        const i = Math.floor(t), f = t - i;
+        const u = f * f * (3 - 2 * f);                 // smoothstep ease
+        return hash(i) * (1 - u) + hash(i + 1) * u;
+    };
+    const p = Math.max(0.001, period);
+    return { isTimeVar: true, get() {
+        const beat = _clock ? _clock.now() : 0;
+        return lo + (hi - lo) * noise(beat / p);
+    }};
+}
+
 // Exponential interpolation (good for cutoff and frequency sweeps)
 export function _expvar(vals, durs) {
     const { vals: vs, durs: ds, total } = normDurs(vals, durs);
@@ -98,6 +119,13 @@ export function _fb(dur, a, b) { return { __env: 'fb', dur, a, b }; }
 
 export function isEnv(v) {
     return v != null && typeof v === 'object' && typeof v.__env === 'string';
+}
+
+// Evaluate an envelope as a *plain, clock-synced value* — i.e. when fb/fi/fo is
+// used directly on a param (lpf=fb(24,1200,5800)) rather than as a per-note "_"
+// envelope. fb bounces over `dur` beats of clock time; fi/fo ramp then hold.
+export function envValue(env) {
+    return evalEnv(env, _clock ? _clock.now() : 0);
 }
 
 // Evaluate an envelope at elapsedBeats since the note triggered.

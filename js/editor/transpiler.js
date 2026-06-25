@@ -46,7 +46,7 @@ export function transpile(code) {
                 expr = `(${expr}).__add__(${kwargify(convertAlt(parts[i].trim()))})`;
             }
             const resetArg = tilde ? ', true' : '';
-            return `${indent}__p('${player}').__rshift__(${expr}${resetArg})${tail}`;
+            return `${indent}__p('${player}').__rshift__(${convertPlayerRefs(expr)}${resetArg})${tail}`;
         }
 
         // Player attribute assignment: p1.lpf = linvar(...)  (live-tweak one attr
@@ -103,6 +103,28 @@ function convertAlt(s) {
             }
         }
         out += c; i++;
+    }
+    return out;
+}
+
+// Cross-player attribute read on a player RHS: another player's live value, e.g.
+//   i9 >> faim(b1.degree, …)   →   faim(__p('b1').getAttr('degree'), …)
+// Only a read (not a method call .x( or assignment .x=), only known attrs, and
+// skips quoted strings. Player names start lowercase, so Clock/Scale/Root are safe.
+const READABLE_ATTRS = /\b([a-z][a-zA-Z0-9]*)\.(degree|amp|dur|oct|sus|pan|rate|amplify|cutoff)\b(?!\s*[(=])/g;
+function convertPlayerRefs(s) {
+    let out = '', i = 0;
+    while (i < s.length) {
+        const c = s[i];
+        if (c === '"' || c === "'") {                 // copy quoted region verbatim
+            const q = c; out += c; i++;
+            while (i < s.length && s[i] !== q) out += s[i++];
+            if (i < s.length) out += s[i++];
+            continue;
+        }
+        let run = '';
+        while (i < s.length && s[i] !== '"' && s[i] !== "'") run += s[i++];
+        out += run.replace(READABLE_ATTRS, (_, n, a) => `__p('${n}').getAttr('${a}')`);
     }
     return out;
 }

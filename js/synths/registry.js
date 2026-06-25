@@ -137,13 +137,17 @@ export class SynthCall {
     // .unison(n, detune) — n detuned + stereo-spread voices (FoxDot formula).
     // Sets pan and pshift (semitone detune) groups; the group→voice machinery
     // does the rest. unison(4, 0.5) → pan=(-1,-0.5,0.5,1), pshift=(-0.5,-0.25,0.25,0.5)
-    unison(n = 2, detune = 0.125) {
+    unison(n = 2, detune = 0.125, spread = 100) {
         if (!n) { this.args.pan = 0; this.args.pshift = 0; return this; }
-        const { pan, pshift } = unisonSpread(n, detune);
+        const { pan, pshift } = unisonSpread(n, detune, spread);
         this.args.pan    = _group(...pan);
         this.args.pshift = _group(...pshift);
         return this;
     }
+    // .degrade(prob) — randomly silence prob (0–1) of steps (default 0.5)
+    degrade(prob = 0.5) { this._degrade = prob; return this; }
+    // .penta() — constrain degrees to the (minor) pentatonic scale for this player
+    penta() { this._penta = true; return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);

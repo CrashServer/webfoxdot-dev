@@ -25,15 +25,32 @@ export const Scale = {
     get names() { return Object.keys(SCALE_MAP); },
 };
 
+// Note name → semitone (C=0 … B=11), with optional #/b accidental.
+const NOTE_SEMI = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+export function noteToSemitone(v) {
+    const m = String(v).trim().toLowerCase().match(/^([a-g])(#|s|b|♯|♭)?$/);
+    if (!m) return null;
+    const acc = (m[2] === '#' || m[2] === 's' || m[2] === '♯') ? 1
+              : (m[2] === 'b' || m[2] === '♭') ? -1 : 0;
+    return ((NOTE_SEMI[m[1]] + acc) % 12 + 12) % 12;
+}
+
 export const Root = {
     _v: 0,
     get default() { return this._v; },
-    set default(v) { this._v = Number(v); },
+    // Accepts a number (0–11 semitone) OR a note name: Root.default = "E"
+    set default(v) {
+        if (typeof v === 'string') {
+            const s = noteToSemitone(v);
+            this._v = s !== null ? s : (Number(v) || 0);
+        } else { this._v = Number(v) || 0; }
+    },
 };
 
-export function toMidi(degree, oct) {
+// scaleOverride: optional per-player scale array (e.g. from .penta()).
+export function toMidi(degree, oct, scaleOverride) {
     if (degree === null || degree === undefined) return null;
-    const scale = Scale.default;
+    const scale = scaleOverride || Scale.default;
     const n     = scale.length;
     const d     = Math.round(degree);
     const scaleDeg  = ((d % n) + n) % n;

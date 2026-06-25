@@ -201,7 +201,9 @@ export class PlayStringCall {
     // play() has no degree to transpose — accept `+` as a no-op so it can't crash
     __add__() { return this; }
     // unison on samples: n layers detuned via playback rate (2^(pshift/12)) + pan spread
-    unison(n = 2, detune = 0.125) { this._unison = n ? unisonSpread(n, detune) : null; return this; }
+    unison(n = 2, detune = 0.125, spread = 100) { this._unison = n ? unisonSpread(n, detune, spread) : null; return this; }
+    // .degrade(prob) — randomly silence prob (0–1) of steps (default 0.5)
+    degrade(prob = 0.5) { this._degrade = prob; return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);

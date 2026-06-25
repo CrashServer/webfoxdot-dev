@@ -5,7 +5,7 @@ import { buildParams, SynthCall, SYNTH_DEFS } from '../synths/registry.js';
 import { FX_KEYS }               from '../fx/registry.js';
 import { FXChain }               from '../fx/chain.js';
 import { patGet, isGroup }        from '../patterns/sequences.js';
-import { isEnv, evalEnv }         from '../patterns/timevars.js';
+import { isEnv, evalEnv, envValue } from '../patterns/timevars.js';
 import { LOOKAHEAD_S }            from './clock.js';
 import { osc }                    from '../../lib/dist/supersonic.js';
 
@@ -35,7 +35,7 @@ for (const def of Object.values(SYNTH_DEFS)) {
     Object.keys(def.defaults ?? {}).forEach(k => ALL_SYNTH_PARAMS.add(k));
     (def.extraParams ?? []).forEach(k => ALL_SYNTH_PARAMS.add(k));
 }
-import { toMidi }                 from './scale.js';
+import { toMidi, SCALE_MAP }      from './scale.js';
 import { PlayStringCall, parsePattern, charToBufId } from './sampler.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
@@ -205,6 +205,8 @@ export class Player {
         this._modifiers = null;
         this._stutterN = 0;   // one-shot: repeat the next fired step N times
         this._degreeAdds = null;  // player `+` transposition addends
+        this._degrade  = 0;       // .degrade(prob): chance to silence a step
+        this._scale    = null;    // per-player scale override (.penta())
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
@@ -227,6 +229,7 @@ export class Player {
             this._playOpts  = fresh ? userOpts : { ...this._playOpts, ...userOpts };
             this._modifiers = synthCall._modifiers ?? null;
             this._unison    = synthCall._unison ?? null;
+            this._degrade   = synthCall._degrade ?? 0;
             this._scheduleAfter(synthCall._after);
             this._warnUnknownPlay(userOpts);
             if (!this._active) {
@@ -258,6 +261,8 @@ export class Player {
                                  : { ...this._args, ...userArgs };
         this._modifiers  = synthCall._modifiers ?? null;
         this._degreeAdds = synthCall._degreeAdds ?? null;
+        this._degrade    = synthCall._degrade ?? 0;
+        this._scale      = synthCall._penta ? SCALE_MAP.minPentatonic : null;
         this._scheduleAfter(synthCall._after);
         this._warnUnknown(userArgs);
 
@@ -325,6 +330,8 @@ export class Player {
                 delete r[k];
             }
         }
+        // fb/fi/fo used directly on a param (lpf=fb(...), no "_") → clock-synced value
+        for (const k of Object.keys(r)) if (isEnv(r[k])) r[k] = envValue(r[k]);
 
         // delay — per-note timing offset in beats (player-side, not a synth control)
         const delayBeats = Math.max(0, ungroup(r.delay, step) ?? 0);
@@ -370,7 +377,7 @@ export class Player {
                 const deg = va.degree ?? 0;
                 if (deg === null) continue;
                 const oct = va.oct ?? 5;
-                let midi = toMidi(deg, oct);
+                let midi = toMidi(deg, oct, this._scale);
                 if (midi === null || midi < 0 || midi > 127) continue;
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
@@ -380,13 +387,16 @@ export class Player {
         };
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
         // bundle, not a setTimeout, carries the precise sub-beat timing to scsynth.
+        // .degrade(prob): randomly drop this step's note (bookkeeping still advances)
+        const degraded = this._degrade > 0 && Math.random() < this._degrade;
         const onsetNTP = this._clock.beatToNTP(this._nextBeat);
         const secPerBeat = 60 / this._clock.bpm;
-        for (let i = 0; i < reps; i++) {
-            fireVoices(onsetNTP + (delayBeats + i * repDur) * secPerBeat);
+        if (!degraded) {
+            for (let i = 0; i < reps; i++) {
+                fireVoices(onsetNTP + (delayBeats + i * repDur) * secPerBeat);
+            }
+            emitStep(this.name, step);   // editor degree highlight
         }
-
-        emitStep(this.name, step);   // editor degree highlight
 
         // Tick .every() handlers
         for (const h of this._every) {
@@ -407,8 +417,10 @@ export class Player {
         const step     = this._step;
         // In sample mode a group param varies per pattern step (it can't layer).
         const opt = (v, def) => {
-            if (isGroup(v)) { const g = v.__group; return patGet(g[((step % g.length) + g.length) % g.length], step, def); }
-            return patGet(v, step, def);
+            const out = isGroup(v)
+                ? patGet(v.__group[((step % v.__group.length) + v.__group.length) % v.__group.length], step, def)
+                : patGet(v, step, def);
+            return isEnv(out) ? envValue(out) : out;   // lpf=fb(...) etc. on samples
         };
         const baseDur  = Math.max(0.0625, opt(opts.dur, 1));
         const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify;
@@ -450,9 +462,11 @@ export class Player {
                 this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate }, onsetNTP);
             }
         };
-        for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
-
-        emitStep(this.name, step);   // editor highlight (play strings)
+        // .degrade(prob): randomly drop this step (bookkeeping still advances below)
+        if (!(this._degrade > 0 && Math.random() < this._degrade)) {
+            for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
+            emitStep(this.name, step);   // editor highlight (play strings)
+        }
 
         // Tick .every() handlers (play() mode — was previously synth-only)
         for (const h of this._every) {
@@ -723,5 +737,18 @@ export class Player {
             setTimeout(() => { if (this._active) this._args.degree = orig; }, durMs + 50);
         }
         return this;
+    }
+
+    // .degrade(prob) — randomly silence prob (0–1) of steps. degrade(0) clears it.
+    degrade(prob = 0.5) { this._degrade = prob; return this; }
+
+    // .penta() — constrain degrees to the minor pentatonic scale for this player.
+    penta() { this._scale = SCALE_MAP.minPentatonic; return this; }
+
+    // Read another player's current value of an attr as a live pattern:
+    //   i9 >> faim(b1.degree, …)   reads b1's degree each step.
+    getAttr(attr) {
+        const target = () => (this._mode === 'sample' ? this._playOpts : this._args)[attr];
+        return { get: (step) => patGet(target(), step) };
     }
 }

@@ -427,11 +427,13 @@ export function PLife(chaos = 0, low = 0, high = 1, steps = 16) {
     }};
 }
 
-// unison(n, detune) spread — pan positions + semitone pshift offsets (FoxDot formula)
-export function unisonSpread(n, detune) {
+// unison(n, detune, spread) — pan positions + semitone pshift offsets (FoxDot
+// formula). spread (0–100, default 100) scales the stereo width of the voices.
+export function unisonSpread(n, detune, spread = 100) {
     const pan = [], pshift = [];
     const uni = (n % 2 === 0) ? n : n - 1;
-    for (let i = 1; i <= Math.floor(uni / 2); i++) { pan.push(2*i/uni); pan.unshift(-2*i/uni); }
+    const w = spread / 100;
+    for (let i = 1; i <= Math.floor(uni / 2); i++) { pan.push(w*2*i/uni); pan.unshift(-w*2*i/uni); }
     for (let i = 1; i <= Math.floor(uni / 2); i++) { pshift.push(detune*(i/(uni/2))); pshift.unshift(detune*-(i/(uni/2))); }
     if (n % 2 !== 0 && n > 1) { pan.splice(Math.floor(pan.length/2), 0, 0); pshift.splice(Math.floor(pan.length/2), 0, 0); }
     return { pan, pshift };
