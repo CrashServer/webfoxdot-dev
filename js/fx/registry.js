@@ -114,6 +114,22 @@ export const FX_REGISTRY = {
     // Formant — vowel band-pass bank (0/1/2 = ah/eh/oh)
     formant:       { scParam: 'formant',       default: 0, desc: 'Vowel-formant mix (0=off)' },
     formant_vowel: { scParam: 'formant_vowel', default: 0, desc: 'Vowel: 0 ah · 1 eh · 2 oh' },
+
+    // octclean — clean octaver (PitchShift sub -1oct + up +1oct), CrashServer port
+    octclean: { scParam: 'octclean', default: 0,   desc: 'Octaver mix (0=off)' },
+    ocsub:    { scParam: 'ocsub',    default: 0.5, desc: 'Sub (-1 oct) amount' },
+    ocup:     { scParam: 'ocup',     default: 0.3, desc: 'Up (+1 oct) amount' },
+
+    // fold — wavefolder distortion (CrashServer port, built-in fold2)
+    fold:     { scParam: 'fold',     default: 0, desc: 'Wavefold mix/drive (0=off)' },
+    symetry:  { scParam: 'symetry',  default: 1, desc: 'Fold symmetry / DC offset (0..1)' },
+
+    // csweep — resonant comb sweep (moving metallic resonance), CrashServer port
+    csweep:   { scParam: 'csweep',   default: 0,   desc: 'Comb-sweep mix (0=off)' },
+    cswfreq:  { scParam: 'cswfreq',  default: 200, desc: 'Comb pitch Hz' },
+    cswdepth: { scParam: 'cswdepth', default: 0.3, desc: 'Sweep depth' },
+    cswrate:  { scParam: 'cswrate',  default: 0.5, desc: 'Sweep LFO rate Hz' },
+    cswdecay: { scParam: 'cswdecay', default: 0.5, desc: 'Comb resonance/decay' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));

@@ -36,10 +36,14 @@ SynthDef(\fd_fx_chain, {
      multicrush=0, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500,
      vibrato=0, vib_rate=5, vib_depth=0.008,
      ringmod=0, ringmod_freq=200, flanger=0, flanger_rate=0.5, flanger_depth=0.004,
-     phaser=0, phaser_rate=0.5, formant=0, formant_vowel=0|
+     phaser=0, phaser_rate=0.5, formant=0, formant_vowel=0,
+     octclean=0, ocsub=0.5, ocup=0.3,
+     fold=0, symetry=1,
+     csweep=0, cswfreq=200, cswdepth=0.3, cswrate=0.5, cswdecay=0.5|
 
     var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT,
-        flT, phWet, phMod, ff1, ff2, ff3;
+        flT, phWet, phMod, ff1, ff2, ff3,
+        ocSub, ocUp, foldGain, cswDel, cswLfo;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -171,6 +175,24 @@ SynthDef(\fd_fx_chain, {
     ff3 = Select.kr(formant_vowel.clip(0, 2), [2440, 2480, 2410]);
     wet = BPF.ar(sig, ff1, 0.1, 3) + BPF.ar(sig, ff2, 0.1, 2) + BPF.ar(sig, ff3, 0.12, 1.5);
     sig = XFade2.ar(sig, wet, formant.clip(0, 1) * 2 - 1);
+
+    // ── octclean — clean octaver: PitchShift sub (-1oct) + up (+1oct) ─────
+    ocSub = PitchShift.ar(sig, 0.1,  0.5, 0, 0.004);
+    ocUp  = PitchShift.ar(sig, 0.05, 2.0, 0, 0.004);
+    wet   = sig + (ocSub * ocsub.clip(0, 1)) + (ocUp * ocup.clip(0, 1));
+    sig   = XFade2.ar(sig, LeakDC.ar(wet), octclean.clip(0, 1) * 2 - 1);
+
+    // ── fold — wavefolder (built-in fold2 ~ CrashServer SmoothFoldS) ──────
+    foldGain = LinLin.kr(fold.clip(0, 1), 0, 1, 1, 20);
+    wet = ((sig + LinLin.kr(symetry.clip(0, 1), 0, 1, 1, 0)) * foldGain).fold2(1);
+    wet = LeakDC.ar(wet * max(foldGain * 0.75, 1).reciprocal);
+    sig = XFade2.ar(sig, wet, fold.clip(0, 1) * 2 - 1);
+
+    // ── csweep — resonant comb sweep (moving metallic resonance) ──────────
+    cswDel = cswfreq.clip(20, 8000).reciprocal;
+    cswLfo = SinOsc.kr(cswrate.clip(0.01, 20)).range(1 - cswdepth, 1 + cswdepth);
+    wet = CombC.ar(sig, 0.05, (cswDel * cswLfo).clip(0.00005, 0.05), cswdecay.clip(0, 4));
+    sig = XFade2.ar(sig, LeakDC.ar(wet), csweep.clip(0, 1) * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);
