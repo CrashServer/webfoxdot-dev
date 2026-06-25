@@ -147,6 +147,35 @@ export const SYNTH_DEFS = {
                     decay: 0.01, rate: 1, level: 0.8, peak: 1 },
         extraParams: ['decay', 'rate', 'level', 'peak', 'fmod'],
     },
+    // TB-303 acid bass (ported from FoxDot acidbass)
+    acidbass: {
+        scName: 'fd_acidbass',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.3,
+                    decay: 0.4, rate: 4, width: 0.51, rq: 0.4 },
+        extraParams: ['decay', 'rate', 'width', 'rq', 'fmod'],
+    },
+    // rave hoover stab (ported from FoxDot hoover)
+    hoover: {
+        scName: 'fd_hoover',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.01,
+                    decay: 0.2, level: 0.8, peak: 1, porta: 1, portadur: 0.125 },
+        extraParams: ['decay', 'level', 'peak', 'porta', 'portadur', 'fmod'],
+    },
+    // CS-80 / Vangelis lead (ported from FoxDot cs80)
+    cs80: {
+        scName: 'fd_cs80',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.3, release: 1.0,
+                    fatk: 0.75, fdec: 0.5, fsus: 0.8, frel: 1.0, cutoff: 2200, detune: 0.002,
+                    vibspeed: 4, vibdepth: 0.015 },
+        extraParams: ['fatk', 'fdec', 'fsus', 'frel', 'cutoff', 'detune', 'vibspeed', 'vibdepth', 'fmod'],
+    },
+    // Karplus pluck → Moog ladder (ported from FoxDot moogpluck)
+    moogpluck: {
+        scName: 'fd_moogpluck',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.1,
+                    pluck_filter: 4, pluck_mix: 0.8, rate: 1 },
+        extraParams: ['pluck_filter', 'pluck_mix', 'rate', 'fmod'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
