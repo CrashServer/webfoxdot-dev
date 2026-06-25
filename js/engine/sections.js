@@ -303,6 +303,11 @@ function runSection(sectionLine) {
     // Mark this as the active section (highlight + blink in the editor)
     setActive(sectionLine);
 
+    // Track this section across edits: a line handle survives inserts/deletes
+    // above it, so a scheduled advance still finds the right section if the
+    // buffer is edited while autoplay runs.
+    const lineHandle = _editor.getLineHandle ? _editor.getLineHandle(sectionLine) : null;
+
     // Get and transform the code body
     const rawCode  = getSectionCode(sectionLine);
     const stoppedCode = applyPlayerStop(rawCode);
@@ -336,7 +341,7 @@ function runSection(sectionLine) {
         // After beats: weighted-jump to a target, or loop this section if none.
         _clock._schedule(targetBeat, () => {
             if (_sequenceId !== myId) return;
-            if (targets.length === 0) { runSection(sectionLine); return; }
+            if (targets.length === 0) { runSection(liveLine(lineHandle, sectionLine)); return; }
             jumpToTarget(targets);
         });
         return true;
@@ -346,10 +351,17 @@ function runSection(sectionLine) {
     // (Probabilistic routing is done with explicit #@goto nodes, not inline args.)
     _clock._schedule(targetBeat, () => {
         if (_sequenceId !== myId) return;
-        advanceToNext(sectionLine);
+        advanceToNext(liveLine(lineHandle, sectionLine));
     });
 
     return true;
+}
+
+// Resolve a line handle to its current line number (tracks edits); -1 if removed.
+function liveLine(handle, fallback) {
+    if (!handle) return fallback;
+    const n = _editor.getLineNumber(handle);
+    return n == null ? -1 : n;
 }
 
 // Advance to the next #@ section after `sectionLine` in document order.
