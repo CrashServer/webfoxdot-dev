@@ -18,7 +18,7 @@ function randomColor() {
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -45,17 +45,33 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     const ytext    = ydoc.getText('code');
     const binding  = new CodemirrorBinding(ytext, editor, provider.awareness);
 
-    // User identity — persisted across reloads
+    // User identity — persisted across reloads. A stable `id` (separate from the
+    // per-connection Yjs clientID) survives refreshes, so peers de-dupe on it and
+    // a reload doesn't spawn a ghost copy of you.
     const user = JSON.parse(localStorage.getItem('wfd-user') || 'null')
         || { name: 'user' + Math.floor(Math.random() * 99), color: randomColor() };
+    if (!user.id) user.id = 'u' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
     localStorage.setItem('wfd-user', JSON.stringify(user));
     provider.awareness.setLocalStateField('user', user);
 
+    // Clear our awareness on unload so the ghost vanishes immediately (not after
+    // the ~30s awareness timeout).
+    window.addEventListener('beforeunload', () => { try { provider.awareness.setLocalState(null); } catch (_) {} });
+
     // Update identity live — peers see the new name/colour on your cursor at once.
     function setUser(u) {
+        if (!u.id) u.id = user.id;
         localStorage.setItem('wfd-user', JSON.stringify(u));
         provider.awareness.setLocalStateField('user', u);
     }
+
+    // ── Persistent session chat (lives in the Yjs doc → history survives joins/reloads)
+    const ychat = ydoc.getArray('chat');
+    function sendChat(msg) { ychat.push([msg]); }
+    // Fires for the synced backlog on connect AND for every new message after.
+    ychat.observe(event => {
+        event.changes.added.forEach(item => item.content.getContent().forEach(m => onChat?.(m)));
+    });
 
     // ── App-message WebSocket (eval relay + clock sync) ───────────────────
     // Distinct ?app=1 path so the server keeps this OFF the Yjs channel —
@@ -153,10 +169,17 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // Connected-peer list, keyed by the stable Yjs client id so a rename updates
     // the same entry instead of looking like a new user. isSelf marks you.
     function getPeers() {
-        const me = provider.awareness.clientID;
         const out = [];
-        provider.awareness.getStates().forEach((state, id) => {
-            if (state.user) out.push({ id, name: state.user.name, color: state.user.color, isSelf: id === me });
+        provider.awareness.getStates().forEach((state, clientId) => {
+            if (!state.user) return;
+            // Key on the stable user id so a refresh (new clientID, same id) doesn't
+            // double you up; fall back to clientID for older clients without an id.
+            out.push({
+                id:     state.user.id || ('c' + clientId),
+                name:   state.user.name,
+                color:  state.user.color,
+                isSelf: (state.user.id && state.user.id === user.id) || clientId === provider.awareness.clientID,
+            });
         });
         return out;
     }
@@ -202,5 +225,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setUser, getPeers, getClockOffset, destroy };
+    return { broadcastEval, broadcastAction, setUser, getPeers, sendChat, getClockOffset, destroy };
 }

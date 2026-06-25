@@ -220,7 +220,6 @@
                 case 'soloDrop': clock._players.get(msg.name)?.soloDrop(msg.beats); break;
                 case 'section':  applyRemoteSection(msg.line, msg.autoplay);       break;
                 case 'cancel':   cancelSection();                                  break;
-                case 'chat':     appendChat(msg);                                  break;
             }
         } finally { _applyingRemote = false; }
     }
@@ -907,10 +906,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     function getUser() {
         let u = null;
         try { u = JSON.parse(localStorage.getItem('wfd-user') || 'null'); } catch (_) {}
-        if (!u || !u.name) {
-            u = { name: 'user' + Math.floor(Math.random() * 99), color: userRandomColor() };
-            localStorage.setItem('wfd-user', JSON.stringify(u));
-        }
+        if (!u || !u.name) u = { name: 'user' + Math.floor(Math.random() * 99), color: userRandomColor() };
+        // Stable id survives refreshes so peers don't double you up on reload.
+        if (!u.id) u.id = 'u' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+        localStorage.setItem('wfd-user', JSON.stringify(u));
         return u;
     }
     // <input type=color> needs #rrggbb — normalise any CSS colour (e.g. hsl()) via canvas.
@@ -930,7 +929,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         colI.value  = toHexColor(user.color);
         box.classList.add('active');
         const save = () => {
-            const u = { name: nameI.value.trim() || 'anon', color: colI.value };
+            const u = { ...getUser(), name: nameI.value.trim() || 'anon', color: colI.value };
             localStorage.setItem('wfd-user', JSON.stringify(u));
             if (_collab) _collab.setUser(u);   // live-update peers' cursors
         };
@@ -981,8 +980,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (!text) return;
         inp.value = '';
         const u = getUser();
-        appendChat({ name: u.name, color: u.color, text });   // show our own message
-        broadcastAction('chat', { name: u.name, color: u.color, text });
+        const msg = { name: u.name, color: u.color, text, t: Date.now() };
+        // Persist in the Yjs doc → history survives reloads/late joins. The chat
+        // observer renders it (incl. our own), so no local append here.
+        if (_collab) _collab.sendChat(msg);
+        else appendChat(msg);
     }
     document.getElementById('cp-chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
@@ -999,7 +1001,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             runCode(msg.code, { fromRemote: true });
-        }, applyAction, renderPeers).then(collab => {
+        }, applyAction, renderPeers, appendChat).then(collab => {
             _collab = collab;
             log(`Session ready. Share: ${location.href}`, 'ok');
         }).catch(err => {

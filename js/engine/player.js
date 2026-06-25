@@ -614,7 +614,9 @@ export class Player {
 
     // solo() — mute all others indefinitely. solo(beats) — restore after N beats.
     solo(beats) {
-        this._clock._players.forEach((p, k) => { if (k !== this.name) p._amplify = 0; });
+        // Un-mute self, mute everyone else (self may already be muted from a
+        // previous solo/drop — without this, soloing it would silence everything).
+        this._clock._players.forEach((p, k) => { p._amplify = (k === this.name) ? 1 : 0; });
         if (beats) {
             this._clock._schedule(this._clock.now() + beats,
                 () => this._clock._players.forEach(p => { p._amplify = 1; }));
