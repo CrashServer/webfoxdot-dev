@@ -92,6 +92,11 @@ export const FX_REGISTRY = {
     mchighdrive: { scParam: 'mchighdrive', default: 2,    desc: 'High-band drive (tanh)' },
     mclofreq:    { scParam: 'mclofreq',    default: 300,  desc: 'Low/mid crossover Hz' },
     mchifreq:    { scParam: 'mchifreq',    default: 2500, desc: 'Mid/high crossover Hz' },
+
+    // Vibrato — pitch wobble via an LFO-modulated delay
+    vibrato:    { scParam: 'vibrato',    default: 0,     desc: 'Vibrato mix (0=off)' },
+    vib_rate:   { scParam: 'vib_rate',   default: 5,     desc: 'Vibrato LFO rate Hz' },
+    vib_depth:  { scParam: 'vib_depth',  default: 0.008, desc: 'Vibrato depth (delay mod seconds)' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));

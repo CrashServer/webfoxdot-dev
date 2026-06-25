@@ -89,6 +89,16 @@ export const SYNTH_DEFS = {
                     cutoff: 500, rq: 0.3, env: 2, wave: 0, dist: 0 },
         extraParams: ['cutoff', 'rq', 'env', 'wave', 'dist'],
     },
+    choir: {
+        scName: 'fd_choir',
+        defaults: { oct: 4, amp: 0.6, dur: 2, pan: 0, attack: 0.3, release: 0.4, vowel: 0, lpf: 4000 },
+        extraParams: ['vowel', 'lpf'],
+    },
+    brass: {
+        scName: 'fd_brass',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.05, release: 0.15, cutoff: 2000, rq: 0.4, bright: 0.5 },
+        extraParams: ['cutoff', 'rq', 'bright'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';

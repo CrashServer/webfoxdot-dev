@@ -33,9 +33,10 @@ SynthDef(\fd_fx_chain, {
      echo=0, echo_time=0.25, echo_dec=0.5,
      fbdelay=0, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, beat_dur=0.5,
      shape=0, dist2=0, dist2shape=1, chop=0,
-     multicrush=0, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500|
+     multicrush=0, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500,
+     vibrato=0, vib_rate=5, vib_depth=0.008|
 
-    var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh;
+    var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -140,6 +141,11 @@ SynthDef(\fd_fx_chain, {
     // ── chop — rhythmic gate, `chop` slices per beat (uses beat_dur) ──────
     wet = sig * LFPulse.kr((chop / beat_dur).clip(0.1, 200), 0, 0.5).range(0.02, 1);
     sig = XFade2.ar(sig, wet, (chop > 0) * 2 - 1);
+
+    // ── vibrato — pitch wobble via an LFO-modulated delay line ────────────
+    vibT = (0.02 + (SinOsc.kr(vib_rate.clip(0.1, 14)) * vib_depth.clip(0, 0.02))).clip(0.001, 0.05);
+    wet  = DelayC.ar(sig, 0.05, vibT);
+    sig  = XFade2.ar(sig, wet, vibrato.clip(0, 1) * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);

@@ -67,6 +67,7 @@ const FX_GROUPS = [
     { name: 'dist2',     on: 0.6,  params: ['dist2', 'dist2shape'] },
     { name: 'chop',      on: 4,    params: ['chop'] },
     { name: 'multicrush',on: 0.6,  params: ['multicrush', 'mclowdrive', 'mcmiddrive', 'mchighdrive', 'mclofreq', 'mchifreq'] },
+    { name: 'vibrato',   on: 0.6,  params: ['vibrato', 'vib_rate', 'vib_depth'] },
     { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
 ];
 function fxItem(g) {

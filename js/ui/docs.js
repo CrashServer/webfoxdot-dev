@@ -125,6 +125,8 @@ const CHANGELOG = [
         { t: 'New synth tb303 — classic acid bass (resonant filter + env-mod sweep + drive); pairs with PArp', ex: 'synths' },
         { t: 'PArp(seq, 0-9) — BlueARP arpeggiator shapes (ported from FoxDot)', ex: 'patterns' },
         'Bonus: kwargs now work in any call, e.g. p1.every(4, "stutter", mverb=0.5) outside a >> line',
+        { t: 'New synths choir (formant vowel pad, vowel 0-2) & brass (filtered saw + env, bright); new FX vibrato (vib_rate/vib_depth)', ex: 'synths' },
+        'Fix: raised numAudioBusChannels 128→2048 — players ran out of private buses after ~32 names and went silent (the cap is scsynthOptions, not worldOptions). Buses now recycle on stop; master Sanitizes NaN; toolbar shows bus usage.',
     ]},
     { v: 'alpha14', title: 'Live degree highlight · player age · richer intro', items: [
         'Live degree highlight — the array element a synth player is currently sounding lights up in the editor (parse-once + one moving marker, so it stays cheap)',
@@ -466,7 +468,7 @@ p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
     `, 'defsynth');
 
     const fx = section('FX — append to any player', `
-        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
+        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush vibrato. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
