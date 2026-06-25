@@ -500,7 +500,13 @@
             const sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
-                maxNodes:        1024,  // matches node-tree-mirror cap; ample for live coding
+                // Raise the node ceiling 1024 → 8192. The server cap is read from
+                // worldOptions.maxNodes (top-level maxNodes was ignored, so we'd been
+                // stuck at the 1024 default — new players went silent once full). The
+                // node-tree mirror cap must match or it warns and stops tracking.
+                maxNodes:                   8192,
+                worldOptions:               { maxNodes: 8192 },
+                NODE_TREE_MIRROR_MAX_NODES:  8192,
                 // Firefox crashes on shared-memory WebAssembly.Memory.grow(), which
                 // SuperSonic calls when the sample buffer pool needs to expand.
                 // Set the pool's initial size == maximum so it's allocated once at
