@@ -39,9 +39,11 @@ export function transpile(code) {
             const [, indent, tilde, player, rhs] = m;
             // Player arithmetic: synth(...) + N / + (a,b,c) adds to the degree.
             const parts = splitTopLevelPlus(rhs.trim());
-            let expr = kwargify(autoQuotePlay(parts[0].trim()));
+            // convertAlt after autoQuotePlay (so play strings are already quoted &
+            // skipped) but before kwargify (so dur=<1 2> → {dur:_alt(1,2)} parses).
+            let expr = kwargify(convertAlt(autoQuotePlay(parts[0].trim())));
             for (let i = 1; i < parts.length; i++) {
-                expr = `(${expr}).__add__(${kwargify(parts[i].trim())})`;
+                expr = `(${expr}).__add__(${kwargify(convertAlt(parts[i].trim()))})`;
             }
             const resetArg = tilde ? ', true' : '';
             return `${indent}__p('${player}').__rshift__(${expr}${resetArg})${tail}`;
@@ -52,7 +54,7 @@ export function transpile(code) {
         const am = main.match(/^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/);
         if (am && !/^(Clock|Scale|Root|Master|Server)$/.test(am[2])) {
             const [, indent, player, attr, value] = am;
-            return `${indent}__p('${player}').setAttr('${attr}', ${kwargify(value.trim())})${tail}`;
+            return `${indent}__p('${player}').setAttr('${attr}', ${kwargify(convertAlt(value.trim()))})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
@@ -74,6 +76,51 @@ export function applyRenames(js) {
         .replace(/\blinvar\(/g, '_linvar(')
         .replace(/\bsinvar\(/g, '_sinvar(')
         .replace(/\bexpvar\(/g, '_expvar(');
+}
+
+// FoxDot alternation: <a b c> / <a, b, c> → _alt(a, b, c). Only run on a player's
+// RHS (and attr-assignment value), where <...> unambiguously means alternation —
+// never on whole lines (would clash with comparison / the >> operator). Skips
+// quoted strings so play("x.<o->") is left alone. Flat only (no nested <…<…>…>).
+function convertAlt(s) {
+    let out = '', i = 0;
+    while (i < s.length) {
+        const c = s[i];
+        if (c === '"' || c === "'") {                 // copy quoted region verbatim
+            const q = c; out += c; i++;
+            while (i < s.length && s[i] !== q) out += s[i++];
+            if (i < s.length) out += s[i++];
+            continue;
+        }
+        // a lone '<' (not <<, <=) opening a flat <…> with content → alternation
+        if (c === '<' && s[i + 1] !== '<' && s[i + 1] !== '=') {
+            const close = s.indexOf('>', i + 1);
+            const inner = close === -1 ? null : s.slice(i + 1, close);
+            if (inner !== null && !inner.includes('<') && inner.trim() !== '') {
+                out += '_alt(' + splitAltItems(inner).join(', ') + ')';
+                i = close + 1;
+                continue;
+            }
+        }
+        out += c; i++;
+    }
+    return out;
+}
+
+// Split <…> contents on top-level spaces/commas, respecting () [] {} so a nested
+// chord or sub-list stays one item: "<[0,2] 4>" → ["[0,2]", "4"].
+function splitAltItems(inner) {
+    const items = []; let depth = 0, cur = '';
+    for (const ch of inner) {
+        if ('([{'.includes(ch)) depth++;
+        else if (')]}'.includes(ch)) depth--;
+        if (depth === 0 && (ch === ',' || ch === ' ')) {
+            if (cur.trim()) items.push(cur.trim());
+            cur = '';
+        } else cur += ch;
+    }
+    if (cur.trim()) items.push(cur.trim());
+    return items;
 }
 
 function findCommentChar(line) {

@@ -127,6 +127,9 @@ const CHANGELOG = [
         'Result: a brief main-thread stall (GC, heavy re-eval, the live highlighter) no longer drops or lags notes — timing holds steady under load',
         'Sub-beat timing (strum, stutter rolls, play() subdivisions) rides the timetag too, instead of nested setTimeouts',
         'Stop / panic now flushes the scheduled-note queue, so it cuts instantly',
+        { t: 'Fixed: <a b c> alternation now works on synths & params too (saw(<0 4 7>), dur=<1 2>), not just play() strings — cycles each time it\'s reached', ex: 'axis1' },
+        'Global stop-all key: Ctrl/Cmd + . (works from anywhere, not just the editor)',
+        'Editor: readable colour for built-in tokens (was an unreadable dark purple on dark themes)',
     ]},
     { v: 'alpha17', title: 'Clock robustness', items: [
         'Clock: clamp dt so a backgrounded tab / main-thread stall no longer lurches the beat or dumps a burst of overdue notes on resume — tempo stays steady',
@@ -377,7 +380,7 @@ b1 >> play(x..., amp=0.6)
     `, 'welcome');
 
     const start = section('Start here', `
-        ${note('Boot audio first (the <b>boot</b> button). Put the cursor on a line and press <b>Ctrl+Enter</b> to run it; <b>Ctrl+Alt+Enter</b> runs the whole block. Edit and re-run live. <b>Ctrl+;</b> stops everything. Click any code box below to copy it.')}
+        ${note('Boot audio first (the <b>boot</b> button). Put the cursor on a line and press <b>Ctrl+Enter</b> to run it; <b>Ctrl+Alt+Enter</b> runs the whole block. Edit and re-run live. <b>Ctrl+;</b> stops everything (or <b>Ctrl/Cmd+.</b> from anywhere). Click any code box below to copy it.')}
         ${note('<b>Ctrl+Space</b> autocompletes (synths, params, FX, patterns). <b>Alt+I</b> shows info on the symbol under the cursor — and for a pattern it evaluates and shows the values it makes.')}
         ${code(`Clock.bpm = 120
 Scale.default = "minor"
@@ -451,7 +454,8 @@ Server.clearFx()`)}
         ${code(`p1 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4)   # chord on steps 2 & 4
 p1 >> dbass((0,4,7), oct=4)                  # a held chord
 p1 >> saw([0,4,7], pan=(-1,1), amp=(0.6,0.3)) # grouped params zip into voices
-p1 >> sine([0, ., 4, .], oct=5)              # . = rest`)}
+p1 >> sine([0, ., 4, .], oct=5)              # . = rest
+p1 >> saw(<0 4 7>, dur=<1 2>)                # <..> alternates each time it's reached`)}
     `, 'axis1');
 
     const sometimes = section('Probability modifiers', `

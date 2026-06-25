@@ -132,6 +132,15 @@ export function PAlt(...pats) {
     return { get: (step) => patGet(pats[step % pats.length], step) };
 }
 
+// _alt(a, b, c) — FoxDot <a b c> alternation. Advances once per *read* (not per
+// global step), so it cycles its items each time it's reached: top-level
+// saw(<0 4 7>) plays 0,4,7,0,…; a param dur=<1 2> alternates 1,2,1,…. The
+// transpiler turns <...> on a player line into this.
+export function _alt(...items) {
+    let i = 0;
+    return { get: () => { const v = items[i % items.length]; i++; return patGet(v, i - 1); } };
+}
+
 // PShuf(seq) — shuffle once at creation, cycle forever
 export function PShuf(seq) {
     const arr = [...(Array.isArray(seq) ? seq : [seq])];

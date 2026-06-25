@@ -136,7 +136,7 @@
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
-             PChain, PMarkov, _group,
+             PChain, PMarkov, _group, _alt,
              Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall,
@@ -281,6 +281,7 @@
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
             __group: _group,
+            _alt,
             ...UGENS,            // SinOsc, Saw, RLPF, Out, EnvGen, Env, Pan2, …
             ...userSynths,       // synths defined live via defsynth()
             defsynth,
@@ -774,6 +775,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     initDocs();
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
+    // Global stop-all — Ctrl/Cmd + . works regardless of focus (editor, panels, …)
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === '.' || e.code === 'Period')) {
+            e.preventDefault();
+            clock.clear();   // same as the "stop all" button (local, like the button)
+            log('stopped all', 'info');
+        }
+    });
 
     // Version label → derived from docs VERSION; click opens the changelog
     const vtag = document.getElementById('version-tag');
