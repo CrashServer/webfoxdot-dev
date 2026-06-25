@@ -1,4 +1,23 @@
-// Beat clock — drives all players. Runs at 10ms resolution with 30ms lookahead.
+// Beat clock — drives all players. Runs at 10ms resolution.
+//
+// Timing model: the beat advances from performance.now() (a JS main-thread
+// clock). But audio onsets are NOT fired from the main thread — each note is
+// sent to scsynth as a *timestamped OSC bundle* whose NTP timetag marks its
+// exact onset (see Player._trigger). scsynth's audio thread fires the bundle at
+// that timetag sample-accurately, so a main-thread stall (GC, heavy re-eval,
+// DOM work) no longer jitters the audio as long as the bundle was sent ahead of
+// its onset. Note events are therefore *dispatched early* by LOOKAHEAD_S (their
+// onset precision lives in the timetag); control events (solo, section, stop)
+// still fire at-beat via setTimeout.
+//
+// osc.ntpNow() is derived from performance.now() — the SAME clock as the beat —
+// so beat→timetag conversion is exact, with no audio-clock drift.
+
+import { osc } from '../../lib/dist/supersonic.js';
+
+// How far ahead audio events are dispatched. Must stay below SuperSonic's
+// bypassLookaheadS (0.5s) so bundles route straight to scsynth's scheduler.
+export const LOOKAHEAD_S = 0.12;
 
 export class Clock {
     constructor() {
@@ -22,6 +41,19 @@ export class Clock {
     // beat resumes cleanly rather than jumping.
     resync() { this._lastMs = performance.now(); }
 
+    // Current beat interpolated to *this instant* (the stored _beat is up to one
+    // tick — 10ms — stale). Used to convert a beat to a wall-clock timetag.
+    _beatNow() {
+        return this._beat + (performance.now() - this._lastMs) * this._bpm / 60000;
+    }
+
+    // NTP timetag (seconds since 1900) at which the given beat falls. ntpNow()
+    // and _beatNow() are both read from performance.now() at the same instant,
+    // so the conversion is exact.
+    beatToNTP(beat) {
+        return osc.ntpNow() + (beat - this._beatNow()) * 60 / this._bpm;
+    }
+
     _tick() {
         if (!this._running) return;
         const now = performance.now();
@@ -35,13 +67,22 @@ export class Clock {
         if (dt > 0.1) dt = 0.1;
         this._beat += dt * this._bpm / 60;
 
-        // ~80ms lookahead gives the note timers slack against jitter.
-        const lookahead = (80 / 1000) * this._bpm / 60;
-        const horizon   = this._beat + lookahead;
+        // ~80ms alignment window for at-beat (control) events.
+        const horizon = this._beat + (80 / 1000) * this._bpm / 60;
 
         for (let i = this._events.length - 1; i >= 0; i--) {
-            if (this._events[i].beat <= horizon) {
-                const evt     = this._events.splice(i, 1)[0];
+            const evt = this._events[i];
+            if (evt.lead) {
+                // Audio event: dispatch once we're within its lead window, so the
+                // timestamped bundle reaches scsynth ahead of its onset. The exact
+                // onset is carried by the bundle's NTP timetag, not by when fn runs.
+                const leadBeats = evt.lead * this._bpm / 60;
+                if (evt.beat - leadBeats <= this._beat) {
+                    this._events.splice(i, 1);
+                    evt.fn();
+                }
+            } else if (evt.beat <= horizon) {
+                this._events.splice(i, 1);
                 const delayMs = Math.max(0, (evt.beat - this._beat) * 60000 / this._bpm);
                 setTimeout(evt.fn, delayMs);
             }
@@ -49,8 +90,9 @@ export class Clock {
         setTimeout(() => this._tick(), 10);
     }
 
-    now()            { return this._beat; }
-    _schedule(b, fn) { this._events.push({ beat: b, fn }); }
+    now()                      { return this._beat; }
+    // lead (seconds): dispatch fn this far before `b`, for timestamped audio events.
+    _schedule(b, fn, lead = 0) { this._events.push({ beat: b, fn, lead }); }
 
     get bpm()  { return this._bpm; }
     set bpm(v) {

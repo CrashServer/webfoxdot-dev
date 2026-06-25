@@ -6,6 +6,8 @@ import { FX_KEYS }               from '../fx/registry.js';
 import { FXChain }               from '../fx/chain.js';
 import { patGet, isGroup }        from '../patterns/sequences.js';
 import { isEnv, evalEnv }         from '../patterns/timevars.js';
+import { LOOKAHEAD_S }            from './clock.js';
+import { osc }                    from '../../lib/dist/supersonic.js';
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
 const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);
@@ -124,6 +126,11 @@ export function panic(clock) {
         p._fxChain = null;            // drop FX node ref — recreated on next eval
     });
     if (_sc) {
+        // Flush both schedulers first — notes are now sent up to LOOKAHEAD_S ahead
+        // as timestamped bundles, so without this a short tail of already-queued
+        // notes would still fire after the freeAll. purge() clears the JS
+        // prescheduler and the WASM scheduler (the build remaps /clearSched to it).
+        try { _sc.purge(); } catch (_) {}
         try { _sc.send('/g_freeAll', PLAYER_GROUP); } catch (_) {}
         try { _sc.send('/g_freeAll', FX_GROUP); } catch (_) {}
     }
@@ -230,7 +237,7 @@ export class Player {
                 this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
                 const now      = this._clock.now();
                 this._nextBeat = Math.ceil(now + 0.001);
-                this._clock._schedule(this._nextBeat, () => this._fire());
+                this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
             this._applyEverys(synthCall);
             return this;
@@ -261,7 +268,7 @@ export class Player {
             this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
             const now      = this._clock.now();
             this._nextBeat = Math.ceil(now + 0.001);
-            this._clock._schedule(this._nextBeat, () => this._fire());
+            this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
         }
         this._applyEverys(synthCall);
         return this;
@@ -354,7 +361,7 @@ export class Player {
         const reps    = Math.max(1, this._stutterN || 1);
         this._stutterN = 0;
         const repDur  = dur / reps;
-        const fireVoices = () => {
+        const fireVoices = (whenNTP) => {
             for (let vi = 0; vi < voices; vi++) {
                 const va = {};
                 for (const [k, v] of Object.entries(sArgs)) {
@@ -368,15 +375,15 @@ export class Player {
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
-                this._trigger(midi, { ...synthA, dur: repDur, amp });
+                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP);
             }
         };
-        const msPerBeat = 60000 / this._clock.bpm;
-        const delayMs   = delayBeats * msPerBeat;
+        // Each rep/strum onset is an NTP timetag offset from the step's beat — the
+        // bundle, not a setTimeout, carries the precise sub-beat timing to scsynth.
+        const onsetNTP = this._clock.beatToNTP(this._nextBeat);
+        const secPerBeat = 60 / this._clock.bpm;
         for (let i = 0; i < reps; i++) {
-            const t = delayMs + i * repDur * msPerBeat;
-            if (t <= 0) fireVoices();
-            else setTimeout(fireVoices, t);
+            fireVoices(onsetNTP + (delayBeats + i * repDur) * secPerBeat);
         }
 
         emitStep(this.name, step);   // editor degree highlight
@@ -391,7 +398,7 @@ export class Player {
 
         this._step++;
         this._nextBeat += dur;
-        this._clock._schedule(this._nextBeat, () => this._fire());
+        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
     }
 
     _fireSample() {
@@ -430,16 +437,17 @@ export class Player {
         this._stutterN = 0;
         const repDur = baseDur / reps;
         // unison: layer the sample, detuned via playback rate (2^(pshift/12)) + pan spread
+        const onsetNTP = this._clock.beatToNTP(this._nextBeat);
         const renderAt = (off, slot) => {
             if (this._unison) {
                 const { pan: pans, pshift: shifts } = this._unison;
                 const ampEach = amp / pans.length;
                 for (let v = 0; v < pans.length; v++) {
                     this._renderToken(token, off, slot,
-                        { sampleIdx, amp: ampEach, pan: pans[v], rate: rate * Math.pow(2, shifts[v] / 12) });
+                        { sampleIdx, amp: ampEach, pan: pans[v], rate: rate * Math.pow(2, shifts[v] / 12) }, onsetNTP);
                 }
             } else {
-                this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate });
+                this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate }, onsetNTP);
             }
         };
         for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
@@ -456,19 +464,19 @@ export class Player {
 
         this._step++;
         this._nextBeat += baseDur;
-        this._clock._schedule(this._nextBeat, () => this._fire());
+        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
     }
 
     // Recursively render one play() token over a beat slot [offset, offset+slot].
     // Brackets nest: (sim) layers · [sub] subdivides · {rand}/<alt> pick one child.
-    _renderToken(token, beatOffset, slotBeats, p) {
+    _renderToken(token, beatOffset, slotBeats, p, onsetNTP) {
         if (!token || token.rest) return;
 
         if (token.char !== undefined) {
             const bufId = charToBufId(token.char, p.sampleIdx);
             if (bufId === null) return;
-            const ms = Math.max(0, beatOffset * 60000 / this._clock.bpm);
-            setTimeout(() => this._triggerSample(bufId, p.amp, p.pan, p.rate), ms);
+            const whenNTP = onsetNTP + beatOffset * 60 / this._clock.bpm;
+            this._triggerSample(bufId, p.amp, p.pan, p.rate, whenNTP);
             return;
         }
 
@@ -476,28 +484,31 @@ export class Player {
         switch (token.type) {
             case 'sub': {                       // [..] subdivide the slot
                 const subD = slotBeats / kids.length;
-                kids.forEach((k, i) => this._renderToken(k, beatOffset + i * subD, subD, p));
+                kids.forEach((k, i) => this._renderToken(k, beatOffset + i * subD, subD, p, onsetNTP));
                 break;
             }
             case 'sim':                          // (..) all at once
-                for (const k of kids) this._renderToken(k, beatOffset, slotBeats, p);
+                for (const k of kids) this._renderToken(k, beatOffset, slotBeats, p, onsetNTP);
                 break;
             case 'rand':                         // {..} pick one at random
-                this._renderToken(kids[Math.floor(Math.random() * kids.length)], beatOffset, slotBeats, p);
+                this._renderToken(kids[Math.floor(Math.random() * kids.length)], beatOffset, slotBeats, p, onsetNTP);
                 break;
             case 'alt':                          // <..> cycle on successive hits
-                this._renderToken(kids[token._idx++ % kids.length], beatOffset, slotBeats, p);
+                this._renderToken(kids[token._idx++ % kids.length], beatOffset, slotBeats, p, onsetNTP);
                 break;
         }
     }
 
-    _triggerSample(bufId, amp, pan, rate) {
+    _triggerSample(bufId, amp, pan, rate, whenNTP) {
         if (!_sc) return;
         const id  = _sc.nextNodeId();
         // Route through the player's private bus → FX chain (falls back to main out)
         const out = this._fxChain ? this._bus : 0;
-        _sc.send('/s_new', 'fd_sampler', id, 0, PLAYER_GROUP,
-            'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate);
+        try {
+            _sc.sendOSC(osc.encodeSingleBundle(whenNTP, '/s_new',
+                ['fd_sampler', id, 0, PLAYER_GROUP,
+                 'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate]));
+        } catch (_) {}
     }
 
     // .after(beats, method, ...args) — one-shot delayed player method call
@@ -596,20 +607,29 @@ export class Player {
         this._envTimer = setInterval(tick, 16);
     }
 
-    _trigger(midi, r) {
+    // whenNTP: NTP timetag for the note's onset. /s_new goes as a timestamped
+    // bundle so scsynth fires it on its audio thread at the exact time, immune to
+    // main-thread jitter once dispatched. The /n_free is a plain immediate timer
+    // (node freeing needs no sample accuracy) — keeping it out of scsynth's timed
+    // queue avoids piling up ~1s-lived future bundles per note, which with many
+    // players choked the scheduler and silenced voices.
+    _trigger(midi, r, whenNTP) {
         if (!_sc || this._bus == null) return;   // bus freed (player stopped)
         const secPerBeat = 60 / this._clock.bpm;
         const result     = buildParams(this._synth, midi, r, secPerBeat, this._bus);
         if (!result) { console.error(`Unknown synth: ${this._synth}`); return; }
 
         const id = _sc.nextNodeId();
-        _sc.send('/s_new', result.scName, id, 0, PLAYER_GROUP, ...result.params);
+        try {
+            _sc.sendOSC(osc.encodeSingleBundle(whenNTP, '/s_new',
+                [result.scName, id, 0, PLAYER_GROUP, ...result.params]));
 
-        // Auto-free after envelope completes
-        const sus  = r.sus ?? r.dur ?? 1;
-        const relS = r.release ?? Math.min(0.5, sus * secPerBeat * 0.3);
-        setTimeout(() => { try { _sc.send('/n_free', id); } catch (_) {} },
-            (sus * secPerBeat + relS + 0.3) * 1000);
+            // Auto-free after the envelope completes (immediate send, off-clock).
+            const sus  = r.sus ?? r.dur ?? 1;
+            const relS = r.release ?? Math.min(0.5, sus * secPerBeat * 0.3);
+            setTimeout(() => { try { _sc.send('/n_free', id); } catch (_) {} },
+                (sus * secPerBeat + relS + 0.3) * 1000);
+        } catch (_) {}
     }
 
     // ── Player methods ──────────────────────────────────────────────────────

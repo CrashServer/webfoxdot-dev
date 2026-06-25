@@ -118,14 +118,20 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha17';
+export const VERSION = 'alpha18';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha17', title: 'Clock robustness (WIP)', items: [
+    { v: 'alpha18', title: 'Sample-accurate clock', items: [
+        'Notes are now sent to the audio engine as timestamped OSC bundles — scsynth fires each note on its audio thread at the exact beat time (NTP timetag), not from a main-thread timer',
+        'Result: a brief main-thread stall (GC, heavy re-eval, the live highlighter) no longer drops or lags notes — timing holds steady under load',
+        'Sub-beat timing (strum, stutter rolls, play() subdivisions) rides the timetag too, instead of nested setTimeouts',
+        'Stop / panic now flushes the scheduled-note queue, so it cuts instantly',
+    ]},
+    { v: 'alpha17', title: 'Clock robustness', items: [
         'Clock: clamp dt so a backgrounded tab / main-thread stall no longer lurches the beat or dumps a burst of overdue notes on resume — tempo stays steady',
         'Bigger scheduling lookahead (30→80ms) for jitter tolerance',
-        'Next: timestamped (audio-clock) note scheduling so timing is sample-accurate and survives brief main-thread stalls',
+        'Re-anchor the beat on tab refocus; throttle the live degree highlighter',
     ]},
     { v: 'alpha16', title: 'More synths, FX & patterns', items: [
         { t: 'New synths: organ (drawbar additive), ssaw (supersaw), karp (Karplus string), piano (FM electric piano)', ex: 'synths' },
