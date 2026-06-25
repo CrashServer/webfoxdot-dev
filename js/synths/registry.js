@@ -141,19 +141,19 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     return { scName: def.scName, params: [...base, ...extras] };
 }
 
-// Factory: returns a callable synth function (for use in eval context)
+// Factory: returns a callable synth function (for use in eval context).
+// The SynthCall carries ONLY the args the user explicitly wrote — the player
+// merges synth defaults (fresh) or the previous args (inherited) at >> time.
 export function makeSynth(name) {
-    return function(degree, opts = {}) {
-        // Support makeSynth('dbass')([0,2], {oct:3}) or makeSynth('dbass')({degree:[0,2], oct:3}).
-        // A group (chord) or pattern object is a degree, not an opts dict.
-        if (degree !== null && typeof degree === 'object'
-                && !Array.isArray(degree)
-                && !isGroup(degree)
-                && typeof degree.get !== 'function') {
-            opts = degree;
-            degree = opts.degree ?? 0;
-        }
-        const def = SYNTH_DEFS[name];
-        return new SynthCall(name, { ...(def?.defaults ?? {}), degree, ...opts });
+    return function(degreeArg, opts = {}) {
+        // A plain object as the first arg is the opts dict (degree(opts) form);
+        // a group/array/pattern is a degree.
+        const isOptsObj = degreeArg !== null && typeof degreeArg === 'object'
+                && !Array.isArray(degreeArg)
+                && !isGroup(degreeArg)
+                && typeof degreeArg.get !== 'function';
+        const userArgs = isOptsObj ? { ...degreeArg } : { ...opts };
+        if (!isOptsObj && degreeArg !== undefined) userArgs.degree = degreeArg;
+        return new SynthCall(name, userArgs);
     };
 }

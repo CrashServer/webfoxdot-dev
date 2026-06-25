@@ -165,13 +165,17 @@ export class Player {
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
-    __rshift__(synthCall) {
+    // reset=true (from ~p1 >> …) starts the player fresh; otherwise an already-
+    // active player INHERITS its previous params and only overrides what's given.
+    __rshift__(synthCall, reset = false) {
         if (synthCall === null || synthCall === undefined) { this.stop(); return this; }
 
         if (synthCall instanceof PlayStringCall) {
+            const fresh     = reset || !this._active;
             this._mode      = 'sample';
             this._pattern   = parsePattern(synthCall.pattern);
-            this._playOpts  = applyAliases({ ...synthCall.opts });
+            const userOpts  = applyAliases({ ...synthCall.opts });
+            this._playOpts  = fresh ? userOpts : { ...this._playOpts, ...userOpts };
             this._modifiers = synthCall._modifiers ?? null;
             this._unison    = synthCall._unison ?? null;
             this._scheduleAfter(synthCall._after);
@@ -194,9 +198,14 @@ export class Player {
             return this;
         }
         const wasActive = this._active;
+        const fresh     = reset || !wasActive;
+        const userArgs  = applyAliases({ ...synthCall.args });
+        const def       = SYNTH_DEFS[synthCall.name];
         this._mode      = 'synth';
         this._synth     = synthCall.name;
-        this._args       = applyAliases({ ...synthCall.args });
+        // fresh → synth defaults + user args; inherit → keep previous, override
+        this._args       = fresh ? { ...(def?.defaults ?? {}), ...userArgs }
+                                 : { ...this._args, ...userArgs };
         this._modifiers  = synthCall._modifiers ?? null;
         this._degreeAdds = synthCall._degreeAdds ?? null;
         this._scheduleAfter(synthCall._after);

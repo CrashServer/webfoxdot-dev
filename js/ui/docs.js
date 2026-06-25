@@ -109,10 +109,14 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha09';
+export const VERSION = 'alpha10';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha10', title: 'Persistent player attributes', items: [
+        'Re-assigning an active player inherits its previous params — p1 >> dbass(dur=4) then p1 >> dbass(oct=6) keeps dur=4',
+        '~p1 >> … resets the player to defaults (no inheritance), like FoxDot\'s tilde',
+    ]},
     { v: 'alpha09', title: 'Editor inspector · solo/drop · anti-click', items: [
         'Alt+I — info tooltip on the symbol under the cursor (synth, FX, pattern, function); for patterns/timevars it evaluates and shows the generated values',
         'Autocomplete: full-call templates (synth with every param), FX on play() too, pattern/timevar value suggestions after "=", "⋯ all params" / "⋯ all fx" expansions',
@@ -258,6 +262,7 @@ b5 >> play(o., amplify=PLife(0.6))           # generative accents`)}
 
     const synths = section('All synths', `
         ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults. Newest: bass, prophet.')}
+        ${note('A playing player <b>inherits</b> its params on re-run — <code>p1 >> saw([0,4], dur=4)</code> then <code>p1 >> saw([0,4], oct=6)</code> keeps <code>dur=4</code>. Prefix <code>~</code> to reset to defaults: <code>~p1 >> saw([0,4])</code>.')}
         ${code(synthLines)}
     `, 'synths');
 

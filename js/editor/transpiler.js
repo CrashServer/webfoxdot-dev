@@ -32,17 +32,19 @@ export function transpile(code) {
         // dbass([0, ., 4]) → dbass([0, null, 4])
         main = main.replace(/(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g, 'null');
 
-        // >> operator: name >> synth(...)  [+ transpose ...]
-        const m = main.match(/^(\s*)([a-zA-Z_]\w*)\s*>>\s*(.+)$/);
+        // >> operator: [~]name >> synth(...)  [+ transpose ...]
+        // A leading ~ resets the player to defaults (no attribute inheritance).
+        const m = main.match(/^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/);
         if (m) {
-            const [, indent, player, rhs] = m;
+            const [, indent, tilde, player, rhs] = m;
             // Player arithmetic: synth(...) + N / + (a,b,c) adds to the degree.
             const parts = splitTopLevelPlus(rhs.trim());
             let expr = kwargify(autoQuotePlay(parts[0].trim()));
             for (let i = 1; i < parts.length; i++) {
                 expr = `(${expr}).__add__(${kwargify(parts[i].trim())})`;
             }
-            return `${indent}__p('${player}').__rshift__(${expr})${tail}`;
+            const resetArg = tilde ? ', true' : '';
+            return `${indent}__p('${player}').__rshift__(${expr}${resetArg})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
