@@ -913,72 +913,84 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         return best >= 0 ? best : fallback;
     }
 
-    function parseSpans(lineText) {
-        const ge = lineText.indexOf('>>');
-        if (ge < 0) return null;
-        const isPlay = /^\s*~?\s*play\b/.test(lineText.slice(ge + 2));
-        const op = lineText.indexOf('(', ge);
-        if (op < 0) return null;
-        let i = op + 1;
-        while (i < lineText.length && /\s/.test(lineText[i])) i++;
-        if (isPlay) {
-            // First arg = play string. Highlight each char of a FLAT string only
-            // (nested brackets don't map 1:1 to steps).
-            let q = '';
-            if (lineText[i] === '"' || lineText[i] === "'") { q = lineText[i]; i++; }
-            const spans = [];
-            for (let k = i; k < lineText.length; k++) {
-                const c = lineText[k];
-                if (q ? c === q : (c === ',' || c === ')')) break;
-                if ('()[]{}<>'.includes(c)) return null;   // not flat — skip
-                if (c === ' ') continue;
-                spans.push([k, k + 1]);
-            }
-            return spans.length ? spans : null;
-        }
-        if (lineText[i] !== '[') return null;              // synth degree isn't a literal array
-        let depth = 0, j = i;
-        for (; j < lineText.length; j++) {
-            const c = lineText[j];
-            if (c === '[') depth++;
-            else if (c === ']') { depth--; if (depth === 0) break; }
-        }
-        if (j >= lineText.length) return null;
-        const spans = [];
-        let d = 0, start = i + 1;
-        for (let k = i + 1; k <= j; k++) {
-            const c = lineText[k];
+    // Element spans of one [...] array opening at `open`; returns {spans,end}.
+    function arraySpans(text, open) {
+        let depth = 0, j = open;
+        for (; j < text.length; j++) { const c = text[j]; if (c === '[') depth++; else if (c === ']') { depth--; if (depth === 0) break; } }
+        if (j >= text.length) return null;
+        const spans = []; let d = 0, start = open + 1;
+        for (let k = open + 1; k <= j; k++) {
+            const c = text[k];
             if (k === j || (c === ',' && d === 0)) {
                 let s = start, e = k;
-                while (s < e && /\s/.test(lineText[s])) s++;
-                while (e > s && /\s/.test(lineText[e - 1])) e--;
+                while (s < e && /\s/.test(text[s])) s++;
+                while (e > s && /\s/.test(text[e - 1])) e--;
                 if (e > s) spans.push([s, e]);
                 start = k + 1;
             } else if (c === '(' || c === '[' || c === '{') d++;
             else if (c === ')' || c === ']' || c === '}') d--;
         }
-        return spans.length ? spans : null;
+        return { spans, end: j };
     }
-    function spansFor(lineText) {
+    // All stepped arrays on a line: the degree + every direct param=[...] (and for
+    // play(), the chars of a flat string). Each is highlighted at step % its length.
+    function parseArrays(lineText) {
+        const ge = lineText.indexOf('>>');
+        if (ge < 0) return null;
+        const op = lineText.indexOf('(', ge);
+        if (op < 0) return null;
+        if (/^\s*~?\s*play\b/.test(lineText.slice(ge + 2))) {
+            let i = op + 1; while (i < lineText.length && /\s/.test(lineText[i])) i++;
+            let q = ''; if (lineText[i] === '"' || lineText[i] === "'") { q = lineText[i]; i++; }
+            const chars = [];
+            for (let k = i; k < lineText.length; k++) {
+                const c = lineText[k];
+                if (q ? c === q : (c === ',' || c === ')')) break;
+                if ('()[]{}<>'.includes(c)) return null;   // not a flat string
+                if (c === ' ') continue;
+                chars.push([k, k + 1]);
+            }
+            return chars.length ? [chars] : null;
+        }
+        // synth: capture every array that is a direct argument (paren depth 1)
+        const out = [];
+        let pdepth = 0;
+        for (let k = op; k < lineText.length; k++) {
+            const c = lineText[k];
+            if (c === '(') pdepth++;
+            else if (c === ')') { pdepth--; if (pdepth === 0) break; }
+            else if (c === '[' && pdepth === 1) {
+                const r = arraySpans(lineText, k);
+                if (r && r.spans.length) { out.push(r.spans); k = r.end; }
+            }
+        }
+        return out.length ? out : null;
+    }
+    function arraysFor(lineText) {
         if (_spanCache.has(lineText)) return _spanCache.get(lineText);
-        const spans = parseSpans(lineText);
+        const arrays = parseArrays(lineText);
         if (_spanCache.size > 300) _spanCache.clear();
-        _spanCache.set(lineText, spans);
-        return spans;
+        _spanCache.set(lineText, arrays);
+        return arrays;
     }
+    const _MARK_CSS = 'background:rgba(63,185,80,0.5);color:#fff;border-radius:2px';
     function clearDegMark(name) {
-        const m = _degMarks.get(name);
-        if (m) { m.clear(); _degMarks.delete(name); }
+        const ms = _degMarks.get(name);
+        if (ms) { ms.forEach(m => { try { m.clear(); } catch (_) {} }); _degMarks.delete(name); }
     }
     function highlightStep(name, step) {
         if (step < 0) { clearDegMark(name); return; }
         const line = resolveLine(name);
         if (line < 0 || line >= editor.lineCount()) { clearDegMark(name); return; }
-        const spans = spansFor(editor.getLine(line));
-        if (!spans) { clearDegMark(name); return; }
-        const [s, e] = spans[((step % spans.length) + spans.length) % spans.length];
+        const arrays = arraysFor(editor.getLine(line));
         clearDegMark(name);
-        _degMarks.set(name, editor.markText({ line, ch: s }, { line, ch: e }, { className: 'wfd-playing' }));
+        if (!arrays) return;
+        const marks = [];
+        for (const spans of arrays) {
+            const [s, e] = spans[((step % spans.length) + spans.length) % spans.length];
+            marks.push(editor.markText({ line, ch: s }, { line, ch: e }, { className: 'wfd-playing', css: _MARK_CSS }));
+        }
+        _degMarks.set(name, marks);
     }
     _setStepListener(highlightStep);
 
