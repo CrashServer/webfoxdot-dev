@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α13</span>
+      <span id="version-tag" class="version-tag" title="changelog">α14</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -129,7 +129,7 @@
   <script type="module">
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
-    import { Player, setSuperSonic, setWarn, PLAYER_GROUP, FX_GROUP,
+    import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, PLAYER_GROUP, FX_GROUP,
              drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
@@ -560,28 +560,67 @@ Clock.bpm = 124
 Scale.default = "minor"
 Root.default = 0
 
-# ── a little starter set — put the cursor on #@intro(16) and Ctrl+Enter ───
+# ── a generative starter set — put the cursor on #@intro(16) and Ctrl+Enter.
+#    #@goto(part, prob) nodes branch it, so it never plays the same way twice.
 #@#@ welcome_set
 
 #@intro(16)
-p1 >> pads([0, (0,4,7), 5, (2,5,9)], oct=4, dur=4, attack=0.5, lpf=linvar([400, 4000], [16]), reverb=0.5, amp=0.5)
-b1 >> play(x...x...x...x..., amp=0.6)
+# ethereal pads + sparse sub, filter slowly opening
+p1 >> pads([0, (0,4,7), 5, (2,5,9)], oct=4, dur=4, attack=0.5, lpf=linvar([300, 3500], [16]), mverb=0.5, amp=0.45)
+b1 >> play(x...x...x...x..., amp=0.5)
 
-#@groove(32)
-p1 >> dbass([0, -3, 0, 4], oct=4, mverb=0.3, tanh=0.4, drive=3, amp=0.8)
-b1 >> play(x.x.x.x., amp=0.8).sometimes("stutter", 2)
-h1 >> play(-.-.-.-., hpf=5000, amp=Pacc("ghost"))
-p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000], [8]), amp=0.4).every(8, "reverse")
+#@goto(intro, 0.25)   # 25% linger on the intro, else move on
 
-#@goto(groove, 0.5)   # 50% loop the groove again, else resolve to the outro
+#@pulse(16)
+# a plaits FM pulse (engine 1) + offbeat hats
+p2 >> plaits([0, 4, 7], oct=5, engine=1, harm=0.3, timbre=0.6, dur=1/2, lpf=sinvar([800, 5000], [8]), amp=0.3).every(8, "reverse")
+h1 >> play(-.-.-.-., hpf=6000, amp=Pacc("offbeat"))
+
+#@build(16)
+# driven sub-bass enters; the kick sometimes stutters
+p3 >> dbass([0, -3, 0, 4], oct=4, mverb=0.2, tanh=0.4, drive=3, amp=0.75)
+b1 >> play(x.x.x.x., amp=0.7).sometimes("stutter", 2)
+
+#@goto(pulse, 0.3)   # 30% fall back to the pulse, else drop in
+
+#@drop(24)
+# full: bass + wavetable arp (engine 4, morphing) + euclid kick + ping-pong blip
+p3 >> dbass([0, -3, 0, 4], oct=4, tanh=0.5, drive=4, amp=0.8)
+p2 >> plaits([0, (0,4,7), 4, 7], oct=5, engine=4, morph=sinvar([0,1],[8]), dur=1/2, chorus=0.5, amp=0.3).every(8, "reverse")
+p4 >> blip([0,4,7,5,7,4], oct=6, dur=1/4, fbdelay=0.4, fbtime=0.25, fbfeed=0.6, amp=0.22).sometimes("stutter", 4)
+b1 >> play(X.[xx]X.x., amplify=PFDur((3,8),(5,8)), amp=0.85)
+h1 >> play(<-.><-o>, hpf=6500, amp=Pacc("offbeat"))
+
+#@goto(break, 0.35)   # 35% breakdown, else a variation
+
+#@drop2(16)
+# variation: swap the lead engine (2 = wavefold) + a bell counter-melody
+p2 >> plaits([0, 4, 7, 11], oct=5, engine=2, timbre=0.7, dur=1/2, amp=0.3).every(8, "reverse")
+p5 >> bell([0, 7, 4, 11], oct=6, dur=1, mverb=0.6, amp=linvar([0,0.4],[8]))
+
+#@goto(drop, 0.4)   # 40% back into the drop, else resolve
 
 #@outro(16)
-~p1 >> bell([0, 4, 7, 11], oct=5, dur=1, reverb=0.6, amp=linvar([0.5, 0], [16]))
+# ~p1 resets the slot to a slow plaits pad; everything fades on a closing filter
+~p1 >> plaits([0, 4, 7, 11], oct=5, engine=0, timbre=0.4, dur=2, mverb=0.7, lpf=linvar([4000, 500], [16]), amp=linvar([0.45, 0], [16]))
+# p2 >>
+# p3 >>
+# p4 >>
+# p5 >>
 # b1 >>
 # h1 >>
-# p2 >>
 
 #@end(8)
+
+#@break(12)
+# breakdown — drums out, a frozen-reverb plaits chord (engine 7 modal) + ping blip
+# b1 >>
+# p3 >>
+# p4 >>
+p2 >> plaits((0,4,7), oct=4, engine=7, morph=0.7, dur=2, mverb=0.85, mverbfreeze=1, amp=0.35)
+b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
+
+#@goto(drop, 1)   # the break always drops back in
 
 
 # ════════ CHEATSHEET — everything below is reference; edit & run freely ════
@@ -784,6 +823,78 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
     renderParts();
     let _partsTimer = null;
     editor.on('change', () => { clearTimeout(_partsTimer); _partsTimer = setTimeout(renderParts, 300); });
+
+    // ── Live degree highlight ─────────────────────────────────────────────────
+    // Mark the array element a synth player is currently sounding. Cheap: spans
+    // are parsed once per line text (cached), and only one marker moves per step.
+    const _degMarks = new Map();      // playerName → CodeMirror TextMarker
+    const _spanCache = new Map();     // lineText → [[s,e],…] | null
+    let   _playerLineMap = null;      // name → line, rebuilt lazily after edits
+
+    function parseDegreeSpans(lineText) {
+        const ge = lineText.indexOf('>>');
+        if (ge < 0) return null;
+        if (/^\s*~?\s*play\b/.test(lineText.slice(ge + 2))) return null;  // play strings: skip
+        const op = lineText.indexOf('(', ge);
+        if (op < 0) return null;
+        let i = op + 1;
+        while (i < lineText.length && /\s/.test(lineText[i])) i++;
+        if (lineText[i] !== '[') return null;            // degree (first arg) isn't a literal array
+        let depth = 0, j = i;
+        for (; j < lineText.length; j++) {
+            const c = lineText[j];
+            if (c === '[') depth++;
+            else if (c === ']') { depth--; if (depth === 0) break; }
+        }
+        if (j >= lineText.length) return null;
+        const spans = [];
+        let d = 0, start = i + 1;
+        for (let k = i + 1; k <= j; k++) {
+            const c = lineText[k];
+            if (k === j || (c === ',' && d === 0)) {
+                let s = start, e = k;
+                while (s < e && /\s/.test(lineText[s])) s++;
+                while (e > s && /\s/.test(lineText[e - 1])) e--;
+                if (e > s) spans.push([s, e]);
+                start = k + 1;
+            } else if (c === '(' || c === '[' || c === '{') d++;
+            else if (c === ')' || c === ']' || c === '}') d--;
+        }
+        return spans.length ? spans : null;
+    }
+    function degreeSpans(lineText) {
+        if (_spanCache.has(lineText)) return _spanCache.get(lineText);
+        const spans = parseDegreeSpans(lineText);
+        if (_spanCache.size > 300) _spanCache.clear();
+        _spanCache.set(lineText, spans);
+        return spans;
+    }
+    function clearDegMark(name) {
+        const m = _degMarks.get(name);
+        if (m) { m.clear(); _degMarks.delete(name); }
+    }
+    function highlightStep(name, step) {
+        if (step < 0) { clearDegMark(name); return; }
+        if (!_playerLineMap) {
+            _playerLineMap = new Map();
+            for (let i = 0; i < editor.lineCount(); i++) {
+                const m = editor.getLine(i).match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
+                if (m) _playerLineMap.set(m[1], i);
+            }
+        }
+        const line = _playerLineMap.get(name);
+        if (line == null || line >= editor.lineCount()) { clearDegMark(name); return; }
+        const lineText = editor.getLine(line);
+        const nm = lineText.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
+        if (!nm || nm[1] !== name) { _playerLineMap = null; clearDegMark(name); return; }
+        const spans = degreeSpans(lineText);
+        if (!spans) { clearDegMark(name); return; }
+        const [s, e] = spans[((step % spans.length) + spans.length) % spans.length];
+        clearDegMark(name);
+        _degMarks.set(name, editor.markText({ line, ch: s }, { line, ch: e }, { className: 'wfd-playing' }));
+    }
+    _setStepListener(highlightStep);
+    editor.on('change', () => { _playerLineMap = null; });
 
     // ── User identity (multiplayer) — name + cursor colour ────────────────────
     function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }

@@ -50,6 +50,10 @@ function allocBus() { return FIRST_BUS + _nextSlot++ * STRIDE; }
 let _sc = null;
 export function setSuperSonic(sc) { _sc = sc; }
 
+// Per-step UI signal: (playerName, step). step < 0 means "stopped — clear".
+let _onStep = null;
+export function setStepListener(fn) { _onStep = fn; }
+
 // Resolve all pattern args at the current step
 function resolveArgs(args, step) {
     const out = {};
@@ -212,6 +216,7 @@ export class Player {
             this._warnUnknownPlay(userOpts);
             if (!this._active) {
                 this._active   = true;
+                this._activeSince = Date.now();
                 this._step     = 0;
                 // play() routes through the FX chain too (samples → private bus → FX → out)
                 this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
@@ -243,6 +248,7 @@ export class Player {
 
         if (!wasActive) {
             this._active   = true;
+            this._activeSince = Date.now();
             this._step     = 0;
             this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
             const now      = this._clock.now();
@@ -356,6 +362,8 @@ export class Player {
             else setTimeout(fireVoices, t);
         }
 
+        if (_onStep) _onStep(this.name, step);   // editor degree highlight
+
         // Tick .every() handlers
         for (const h of this._every) {
             if (this._nextBeat >= h.nextBeat) {
@@ -418,6 +426,8 @@ export class Player {
             }
         };
         for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
+
+        if (_onStep) _onStep(this.name, step);   // editor highlight (play strings)
 
         // Tick .every() handlers (play() mode — was previously synth-only)
         for (const h of this._every) {
@@ -592,6 +602,7 @@ export class Player {
         if (beats) { this._clock._schedule(this._clock.now() + beats, () => this.stop()); return this; }
         this._active = false;
         this._every  = [];
+        if (_onStep) _onStep(this.name, -1);   // clear the editor highlight
         if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
         if (this._fxChain && _sc) {
             this._fxChain.free(_sc);

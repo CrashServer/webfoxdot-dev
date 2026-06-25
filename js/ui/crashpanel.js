@@ -49,30 +49,59 @@ function _updateBeat() {
 function _updatePlayers() {
     const container = document.getElementById('cp-players');
     if (!container || !_clock._players) return;
+    const now = Date.now();
 
-    const entries = [..._clock._players.entries()];
-    // Remove rows for gone players
+    // Stopped/gone players drop out of the list entirely.
     for (const row of [...container.querySelectorAll('.cp-player-row')]) {
-        if (!_clock._players.has(row.dataset.name)) row.remove();
+        const p = _clock._players.get(row.dataset.name);
+        if (!p || !p._active) row.remove();
     }
 
-    for (const [name, p] of entries) {
+    for (const [name, p] of _clock._players.entries()) {
+        if (!p._active) continue;
         let row = container.querySelector(`[data-name="${name}"]`);
         if (!row) {
             row = document.createElement('div');
-            row.className = 'cp-player-row';
+            row.className = 'cp-player-row active';
             row.dataset.name = name;
             row.innerHTML = `
                 <span class="cp-player-name">${name}</span>
                 <span class="cp-player-synth"></span>
+                <span class="cp-player-age"></span>
                 <button class="cp-player-stop" title="stop">■</button>`;
             row.querySelector('.cp-player-stop').onclick = () => p.stop();
             container.appendChild(row);
         }
-        row.classList.toggle('active', !!p._active);
         const synthEl = row.querySelector('.cp-player-synth');
         if (synthEl) synthEl.textContent = p._synth ?? '';
+        // Age: green when fresh → red the longer it has been playing (webTroop-style)
+        const ageEl = row.querySelector('.cp-player-age');
+        if (ageEl) {
+            const secs = Math.max(0, (now - (p._activeSince || now)) / 1000);
+            ageEl.textContent  = _fmtDuration(secs);
+            ageEl.style.color  = _durationColor(secs / 60);
+        }
     }
+}
+
+// MM:SS
+function _fmtDuration(secs) {
+    const m = Math.floor(secs / 60), s = Math.floor(secs % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+// green (≤1 min) → red (≥5 min), interpolated in between
+function _durationColor(totalMinutes) {
+    const green = '#3fb950', red = '#f85149';
+    if (totalMinutes <= 1) return green;
+    if (totalMinutes >= 5) return red;
+    return _lerpColor(green, red, (totalMinutes - 1) / 4);
+}
+function _lerpColor(c1, c2, f) {
+    const a = parseInt(c1.slice(1), 16), b = parseInt(c2.slice(1), 16);
+    const r = Math.round(((a >> 16) & 255) + f * (((b >> 16) & 255) - ((a >> 16) & 255)));
+    const g = Math.round(((a >> 8) & 255)  + f * (((b >> 8) & 255)  - ((a >> 8) & 255)));
+    const bl = Math.round((a & 255)        + f * ((b & 255)         - (a & 255)));
+    return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, '0')}`;
 }
 
 // ── Tap tempo ────────────────────────────────────────────────────────────────

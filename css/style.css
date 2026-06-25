@@ -237,6 +237,8 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .CodeMirror-selected    { background: rgba(88,166,255,0.15) !important; }
 .CodeMirror-activeline-background { background: var(--bg-2) !important; }
 .CodeMirror-matchingbracket { color: var(--green) !important; background: var(--green-dim); font-weight: bold; }
+/* Live degree highlight — the array element a player is currently sounding */
+.wfd-playing { background: var(--green-dim); border-radius: 2px; box-shadow: 0 0 4px var(--glow); color: var(--green) !important; }
 /* Hide the editor's horizontal scrollbar (the bar above the log). Long lines
    still scroll via cursor navigation / trackpad; the vertical bar stays. */
 .CodeMirror-hscrollbar { display: none !important; }
@@ -379,6 +381,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 }
 .cp-player-name { color: var(--blue); font-weight: bold; flex: 1; }
 .cp-player-synth { color: var(--text-2); font-size: 10px; flex: 1; text-align: center; }
+.cp-player-age { font-size: 10px; font-family: monospace; margin: 0 6px; min-width: 30px; text-align: right; }
 .cp-player-stop {
     background: none;
     border: none;

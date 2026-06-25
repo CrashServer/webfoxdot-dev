@@ -113,10 +113,16 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha13';
+export const VERSION = 'alpha14';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha14', title: 'Live degree highlight · player age · richer intro', items: [
+        'Live degree highlight — the array element a synth player is currently sounding lights up in the editor (parse-once + one moving marker, so it stays cheap)',
+        'Players panel: stopped players drop out of the list; each active player shows its age, colour-shifting green → red the longer it runs (FoxDot/webTroop-style)',
+        'Multiplayer: the chat + peer-rename fix from before',
+        'A richer generative intro track — more #@goto branching and varied sounds (plaits engines, fbdelay, bell, morphing arps)',
+    ]},
     { v: 'alpha13', title: 'Groove & feel + fixes — delay, .human(), patterns, reset', items: [
         'delay — per-note timing offset in beats (works on synths and play()); the groove building-block',
         '.human(velocity, humanize, swing) — humanise dynamics + micro-timing (ports FoxDot/CrashServer): sets a delay + amplify jitter',
