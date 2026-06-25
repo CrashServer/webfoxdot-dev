@@ -54,7 +54,7 @@ export function transpile(code) {
         const am = main.match(/^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/);
         if (am && !/^(Clock|Scale|Root|Master|Server)$/.test(am[2])) {
             const [, indent, player, attr, value] = am;
-            return `${indent}__p('${player}').setAttr('${attr}', ${kwargify(convertAlt(value.trim()))})${tail}`;
+            return `${indent}__p('${player}').setAttr('${attr}', ${patMath(kwargify(convertAlt(value.trim())))})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
@@ -162,6 +162,48 @@ function findCommentChar(line) {
 // A bare parenthesised comma-list that is NOT a function call — e.g. (0,4,7)
 // or pan=(0,0,x,0) — is a group/chord. In plain JS those collapse via the
 // comma operator to the last value, so they're rewritten to __group(...).
+// ── Pattern arithmetic ────────────────────────────────────────────────────────
+// linvar([1.4,0],32) * P[1,0,0.9] can't work as plain JS (object*array=NaN). When
+// an argument value involves a pattern (an array literal or a pattern/timevar
+// call) AND a top-level operator, rewrite it into Pmath(a,'op',b) (left-assoc,
+// +/- below */). Pure-scalar arithmetic (1/4, 2400/600) is left as native JS.
+const PATTERN_TOKEN = /\[|\b(P[A-Z]\w*|_alt|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb)\s*\(/;
+
+function patMath(s) {
+    return PATTERN_TOKEN.test(s) ? compilePatternMath(s) : s;
+}
+
+function compilePatternMath(s) {
+    s = s.trim();
+    for (const ops of ['+-', '*/']) {                 // lowest precedence first
+        const idx = findTopLevelBinaryOp(s, ops);
+        if (idx >= 0) {
+            return `Pmath(${compilePatternMath(s.slice(0, idx))}, '${s[idx]}', ${compilePatternMath(s.slice(idx + 1))})`;
+        }
+    }
+    return s;   // atom (call / array / literal) — kwargify already handled nesting
+}
+
+// Rightmost top-level binary +,-,*,/ in `opChars`, skipping bracketed/quoted
+// regions, unary +/-, and ** . Returns its index, or -1.
+function findTopLevelBinaryOp(s, opChars) {
+    let depth = 0, inStr = '', found = -1;
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (inStr) { if (c === inStr) inStr = ''; continue; }
+        if (c === '"' || c === "'") { inStr = c; continue; }
+        if ('([{'.includes(c)) { depth++; continue; }
+        if (')]}'.includes(c)) { depth--; continue; }
+        if (depth !== 0 || !opChars.includes(c)) continue;
+        if (c === '*' && s[i + 1] === '*') { i++; continue; }      // skip exponent
+        const prev = s.slice(0, i).trimEnd();
+        const pc = prev[prev.length - 1] ?? '';
+        if ((c === '+' || c === '-') && (pc === '' || '([{,*/+-=<>!&|%'.includes(pc))) continue;  // unary
+        found = i;
+    }
+    return found;
+}
+
 function kwargify(expr) {
     let result = '', i = 0;
     while (i < expr.length) {
@@ -193,8 +235,8 @@ function kwargify(expr) {
         for (const arg of args) {
             const t  = arg.trim();
             const km = t.match(/^([a-zA-Z_]\w*)\s*=(?![=<>!])\s*(.+)$/s);
-            if (km) kw[km[1]] = kwargify(km[2].trim());
-            else    pos.push(kwargify(t));
+            if (km) kw[km[1]] = patMath(kwargify(km[2].trim()));
+            else    pos.push(patMath(kwargify(t)));
         }
         const all = [...pos];
         const keys = Object.keys(kw);

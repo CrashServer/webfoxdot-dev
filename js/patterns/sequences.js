@@ -1,6 +1,8 @@
 // Pattern helpers — all patterns expose a .get(step) method.
 // patGet resolves any value: plain scalar, array, or pattern object.
 
+import { isEnv, envValue } from './timevars.js';
+
 export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
     if (typeof val?.get === 'function') return val.get(step);
@@ -139,6 +141,22 @@ export function PAlt(...pats) {
 export function _alt(...items) {
     let i = 0;
     return { get: () => { const v = items[i % items.length]; i++; return patGet(v, i - 1); } };
+}
+
+// Pattern arithmetic: linvar([1.4,0],32) * P[1,0,0.9], P[0,2,4] + 2, etc. JS can't
+// overload operators, so the transpiler rewrites arithmetic involving a pattern
+// into Pmath(a, op, b). If both operands are plain scalars it computes eagerly
+// (so 1/4 stays 0.25); otherwise it returns a lazy pattern resolved per step.
+const _OPS = { '+': (a, b) => a + b, '-': (a, b) => a - b, '*': (a, b) => a * b, '/': (a, b) => a / b };
+export function Pmath(a, op, b) {
+    const f = _OPS[op] ?? ((x) => x);
+    const lazy = (v) => v != null && (typeof v.get === 'function' || Array.isArray(v) || isGroup(v) || isEnv(v));
+    if (!lazy(a) && !lazy(b)) return f(a, b);
+    const resolve = (v, step) => {
+        let r = isGroup(v) ? patGet(v.__group[0], step) : patGet(v, step, v);
+        return isEnv(r) ? envValue(r) : r;
+    };
+    return { get: (step) => f(resolve(a, step), resolve(b, step)) };
 }
 
 // PShuf(seq) — shuffle once at creation, cycle forever
