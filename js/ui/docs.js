@@ -118,15 +118,14 @@ export const VERSION = 'alpha15';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha15', title: 'Live-tweak attrs · Master FX bus · feel-FX · tb303 · PArp', items: [
-        'Attribute assignment: p1.lpf = linvar(...) / p1.dur = 1/2 — tweak one attr of a running player without re-stating the line (the bank\'s core idiom)',
-        'Master / global FX bus: Server.addFx(lpf=…, mverb=…, echo=…, tanh=…, lofi=…) over the whole mix, Server.clearFx(), and Master().lpf = 800 — runs on the master limiter node',
-        { t: 'Feel FX: leg (legato note length), shape & dist2 (wavefold/saturation), multicrush (3-band drive), chop (rhythmic gate, slices per beat)', ex: 'fx' },
-        { t: 'New synth tb303 — classic acid bass (resonant filter + env-mod sweep + drive); pairs with PArp', ex: 'synths' },
+    { v: 'alpha15', title: 'Live-tweak attrs · Master bus · new synths & FX · bus fix', items: [
+        'Attribute assignment — p1.lpf = linvar(...) / p1.dur = 1/2: tweak one attr of a running player without re-stating the line (the bank\'s core live idiom)',
+        'Master / global FX bus — Server.addFx(lpf=…, hpf=…, mverb=…, echo=…, tanh=…, lofi=…) over the whole mix, Server.clearFx(), and Master().lpf = 800',
+        { t: 'New synths: tb303 (acid bass — env-mod filter + drive), choir (formant vowel pad, vowel 0-2), brass (filtered saw + "blat", bright)', ex: 'synths' },
+        { t: 'New FX: leg (legato length), shape & dist2 (wavefold/saturation), multicrush (3-band drive), chop (rhythmic gate), vibrato (pitch wobble)', ex: 'fx' },
         { t: 'PArp(seq, 0-9) — BlueARP arpeggiator shapes (ported from FoxDot)', ex: 'patterns' },
-        'Bonus: kwargs now work in any call, e.g. p1.every(4, "stutter", mverb=0.5) outside a >> line',
-        { t: 'New synths choir (formant vowel pad, vowel 0-2) & brass (filtered saw + env, bright); new FX vibrato (vib_rate/vib_depth)', ex: 'synths' },
-        'Fix: raised numAudioBusChannels 128→2048 — players ran out of private buses after ~32 names and went silent (the cap is scsynthOptions, not worldOptions). Buses now recycle on stop; master Sanitizes NaN; toolbar shows bus usage.',
+        'kwargs now work in any call (e.g. p1.every(4, "stutter", mverb=0.5) outside a >> line)',
+        'Fix (important): players went silent after ~32 names — numAudioBusChannels was stuck at 128 (the cap lives in scsynthOptions). Raised to 2048; private buses now recycle on stop; master Sanitizes NaN so one bad synth can\'t kill the output. Toolbar shows lag · voices · bus usage.',
     ]},
     { v: 'alpha14', title: 'Live degree highlight · player age · richer intro', items: [
         'Live degree highlight — the array element a synth player is currently sounding lights up in the editor (parse-once + one moving marker, so it stays cheap)',
@@ -402,6 +401,10 @@ p1 >> plaits([0,4,7], oct=4, engine=var([0,1,4,6], 8), timbre=sinvar([0.2,0.9],[
         ${code(`p1 >> tb303(PArp([0,3,7], 5), oct=3, cutoff=300, rq=0.15, env=4, dur=1/4, dist=0.3)
 p1.cutoff = linvar([200, 3000], 16)        # ride the filter live
 p1.env = PStep(8, 6, 2)`)}
+        ${note('<b>choir</b> — formant vowel pad (<code>vowel</code> 0/1/2 = ah/eh/oh). <b>brass</b> — filtered saw with a per-note "blat" (<code>bright</code> scales the sweep). Both love long chords + reverb; add <code>vibrato</code> for life.')}
+        ${code(`ch >> choir([(0,3,5),(6,1,3),(5,0,3)], oct=4, dur=4, attack=2, vowel=0, amp=0.4, reverb=0.9, room=0.95)
+br >> brass([0,3,5,7,5,3,7,5], oct=5, dur=1/2, bright=0.7, amp=0.4, reverb=0.5, room=0.6)
+vc >> prophet([0,5,3,4], oct=4, dur=2, vibrato=0.6, vib_rate=5, vib_depth=0.01, reverb=0.8, room=0.9)  # strings w/ vibrato`)}
     `, 'synths');
 
     const tweak = section('Live tweaking — try these', `
@@ -483,7 +486,8 @@ p1 >> saw([0,4,7], oct=3, shape=0.6)               # sine wavefolder
 p1 >> dbass([0,-3], oct=4, dist2=0.7, dist2shape=0.4)        # fold + tanh saturation
 p1 >> dbass([0,-3], oct=4, multicrush=0.7, mchighdrive=5)    # 3-band multiband drive
 p1 >> saw([0,4,7], dur=1/2, chop=4)                # rhythmic gate, 4 slices/beat
-p1 >> pads([0,4,7], oct=4, dur=1, leg=4)           # legato — notes overlap (pad)`)}
+p1 >> pads([0,4,7], oct=4, dur=1, leg=4)           # legato — notes overlap (pad)
+p1 >> prophet([0,4,7], dur=2, vibrato=0.6, vib_rate=5, vib_depth=0.01)  # pitch vibrato`)}
     `, 'fx');
 
     const samples = section('External samples — the webfoxdot-kit pack', `
