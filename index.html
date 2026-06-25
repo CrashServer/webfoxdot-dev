@@ -500,17 +500,15 @@
             const sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
-                // Server limits are read from worldOptions. Defaults are low:
-                //   maxNodes 1024, numAudioBusChannels 128. Each player grabs a
-                //   private stereo bus at 64+2N, so >~32 players ran out of buses
-                //   (writes wrapped onto the output bus → everything went silent).
-                // Raise both generously; the node-tree mirror cap must match maxNodes.
-                maxNodes:                   8192,
-                NODE_TREE_MIRROR_MAX_NODES:  8192,
-                worldOptions: {
-                    maxNodes:                   8192,
-                    numAudioBusChannels:        2048,
-                    NODE_TREE_MIRROR_MAX_NODES:  8192,
+                // Server limits — merged over SuperSonic's defaults as
+                // {...defaults, ...scsynthOptions}. The default numAudioBusChannels
+                // is only 128, and each player takes a private stereo bus at 64+2N,
+                // so >~32 players ran out → writes wrapped onto the output bus and
+                // everything went silent. Raise buses (and node/wire headroom).
+                scsynthOptions: {
+                    numAudioBusChannels: 2048,   // ~990 private stereo buses
+                    maxNodes:            8192,
+                    maxWireBufs:         256,    // headroom for the big FX-chain graph
                 },
                 // Firefox crashes on shared-memory WebAssembly.Memory.grow(), which
                 // SuperSonic calls when the sample buffer pool needs to expand.
