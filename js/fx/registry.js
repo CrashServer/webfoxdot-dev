@@ -154,6 +154,19 @@ export const FX_REGISTRY = {
     lofi:     { scParam: 'lofi',     default: 0,   desc: 'Lo-fi degrade mix (0=off)' },
     lofiwow:  { scParam: 'lofiwow',  default: 0.5, desc: 'Lo-fi tape wow amount' },
     lofiamp:  { scParam: 'lofiamp',  default: 0.5, desc: 'Lo-fi crush/compression intensity' },
+
+    // vowel — sweepable formant filter (vowelf 0..4 = a e i o u), CrashServer port
+    vowel:    { scParam: 'vowel',    default: 0, desc: 'Vowel-formant mix (0=off)' },
+    vowelf:   { scParam: 'vowelf',   default: 0, desc: 'Vowel sweep: 0 a · 1 e · 2 i · 3 o · 4 u' },
+    vowelq:   { scParam: 'vowelq',   default: 1, desc: 'Formant resonance' },
+
+    // feed — resonant feedback comb (CombN), CrashServer port
+    feed:     { scParam: 'feed',     default: 0,  desc: 'Feedback-comb amount (0=off)' },
+    feedfreq: { scParam: 'feedfreq', default: 50, desc: 'In-loop HPF cutoff Hz' },
+
+    // sbrk — stutter / beat-repeat (clocked RecordBuf/PlayBuf), CrashServer port
+    sbrk:     { scParam: 'sbrk',     default: 0,   desc: 'Stutter/beat-repeat mix (0=off)' },
+    sbrkdur:  { scParam: 'sbrkdur',  default: 0.5, desc: 'Stutter fragment length (s); smaller = faster' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));

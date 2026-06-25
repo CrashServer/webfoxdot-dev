@@ -43,12 +43,16 @@ SynthDef(\fd_fx_chain, {
      eb=0.5, ebfeed=0.5, ebmix=0, ebmode=0, ebwow=0.1, ebflutter=0.15, ebsat=0.3,
      tube=0, tubegain=1.5, tubewarm=0.6, tubebias=0.1,
      drcomp=0,
-     lofi=0, lofiwow=0.5, lofiamp=0.5|
+     lofi=0, lofiwow=0.5, lofiamp=0.5,
+     vowel=0, vowelf=0, vowelq=1,
+     feed=0, feedfreq=50,
+     sbrk=0, sbrkdur=0.5|
 
     var sig, wet, dry, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT,
         flT, phWet, phMod, ff1, ff2, ff3,
         ocSub, ocUp, foldGain, cswDel, cswLfo,
-        ebWow, ebFlut, ebDelT, sat, harm, loR, loT, loG, loRate, loDepth, loMul;
+        ebWow, ebFlut, ebDelT, sat, harm, loR, loT, loG, loRate, loDepth, loMul,
+        vf1, vf2, vf3, vb1, vb2, vb3, sbBuf, sbTrig, sbRate;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -240,6 +244,27 @@ SynthDef(\fd_fx_chain, {
     wet    = (wet * 1.5).tanh;
     wet    = HPF.ar(LPF.ar(wet, 5000), 60);
     sig    = XFade2.ar(sig, wet, lofi.clip(0, 1) * 2 - 1);
+
+    // ── vowel — formant filter; vowelf sweeps a0 e1 i2 o3 u4, vowelq=resonance ─
+    vf1 = Select.kr(vowelf.floor.clip(0, 3), [LinXFade2.kr(800, 400, vowelf.frac * 2 - 1), LinXFade2.kr(400, 350, (vowelf - 1).frac * 2 - 1), LinXFade2.kr(350, 450, (vowelf - 2).frac * 2 - 1), LinXFade2.kr(450, 325, (vowelf - 3).frac * 2 - 1)]);
+    vf2 = Select.kr(vowelf.floor.clip(0, 3), [LinXFade2.kr(1150, 1600, vowelf.frac * 2 - 1), LinXFade2.kr(1600, 2100, (vowelf - 1).frac * 2 - 1), LinXFade2.kr(2100, 800, (vowelf - 2).frac * 2 - 1), LinXFade2.kr(800, 700, (vowelf - 3).frac * 2 - 1)]);
+    vf3 = Select.kr(vowelf.floor.clip(0, 3), [LinXFade2.kr(2800, 2700, vowelf.frac * 2 - 1), LinXFade2.kr(2700, 3000, (vowelf - 1).frac * 2 - 1), LinXFade2.kr(3000, 2830, (vowelf - 2).frac * 2 - 1), LinXFade2.kr(2830, 2530, (vowelf - 3).frac * 2 - 1)]);
+    vb1 = (80 / vowelq).max(20); vb2 = (60 / vowelq).max(15); vb3 = (50 / vowelq).max(12);
+    wet = (BPF.ar(sig, vf1, vb1 / vf1) * 3) + (BPF.ar(sig, vf2, vb2 / vf2) * 2) + (BPF.ar(sig, vf3, vb3 / vf3) * 1.5);
+    sig = XFade2.ar(sig, LeakDC.ar(wet), vowel.clip(0, 1) * 2 - 1);
+
+    // ── feed — resonant feedback comb (CombN; Fb quark not in build) ──────
+    wet = CombN.ar(HPF.ar(sig, feedfreq.clip(20, 8000)), 0.5, 0.125, (feed.clip(0, 0.95) * 8) + 0.1).tanh;
+    sig = sig + (LeakDC.ar(wet) * feed.clip(0, 1) * 0.6);
+
+    // ── sbrk — stutter / beat-repeat: record a ring buffer, retrigger replays.
+    //    (CrashServer's uses Onsets+FFT; this is a simpler clocked stutter.) ──
+    sbBuf  = LocalBuf(44100 * 0.5, 2).clear;
+    RecordBuf.ar(sig, sbBuf, loop: 1, run: 1);
+    sbRate = sbrkdur.reciprocal.clip(1, 32);
+    sbTrig = Impulse.ar(sbRate);
+    wet    = PlayBuf.ar(2, sbBuf, BufRateScale.kr(sbBuf), trigger: sbTrig, loop: 1);
+    sig    = XFade2.ar(sig, wet, sbrk.clip(0, 1) * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);
