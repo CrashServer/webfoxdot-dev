@@ -66,22 +66,24 @@ export function stopPlayerAtCursor(cm, clock, runBlockFn) {
     }
 }
 
-// Alt+S — mute all other players (solo the one at cursor)
+// Alt+S — mute all other players (solo the one at cursor). Returns the name.
 export function soloPlayerAtCursor(cm, clock) {
     const line = cm.getLine(cm.getCursor().line);
     const name = playerNameFromLine(line);
     if (name) {
         const p = clock._players.get(name);
-        if (p) p.solo();
+        if (p) { p.solo(); return name; }
     }
+    return null;
 }
 
-// Alt+O — solo for 8 beats then restore all (soloDrop)
+// Alt+O — solo for 8 beats then restore all (soloDrop). Returns the name.
 export function soloDropAtCursor(cm, clock, beats = 8) {
     const line = cm.getLine(cm.getCursor().line);
     const name = playerNameFromLine(line);
     if (name) {
         const p = clock._players.get(name);
-        if (p) p.soloDrop(beats);
+        if (p) { p.soloDrop(beats); return name; }
     }
+    return null;
 }

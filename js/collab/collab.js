@@ -14,9 +14,11 @@ function randomColor() {
  * @param {object}   clock           - Clock object with .bpm and .now() → beat number
  * @param {object}   editor          - CodeMirror editor instance
  * @param {function} onEvalReceived  - Called with parsed eval message from peers
- * @returns {object} collab API: { broadcastEval, getClockOffset, destroy }
+ * @param {function} [onAction]      - Called with parsed action message from peers
+ *                                     (solo / unsolo / soloDrop / section / cancel)
+ * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -124,6 +126,9 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
             case 'eval':
                 onEvalReceived(msg);
                 break;
+            case 'action':
+                onAction?.(msg);
+                break;
             case 'beat_sync':
                 handleBeatSync(msg);
                 break;
@@ -154,6 +159,16 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
         ws.send(JSON.stringify({ type: 'eval', code, lines, author, color, beatTime }));
     }
 
+    /**
+     * Broadcast a non-eval action to all peers (solo, composition state, …).
+     * @param {string} action  - Action name ('solo' | 'unsolo' | 'soloDrop' | 'section' | 'cancel')
+     * @param {object} data    - Action payload (merged into the message)
+     */
+    function broadcastAction(action, data = {}) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: 'action', action, ...data }));
+    }
+
     /** Current clock offset vs. server (milliseconds). */
     function getClockOffset() {
         return clockOffset;
@@ -168,5 +183,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived) {
         ydoc.destroy();
     }
 
-    return { broadcastEval, getClockOffset, destroy };
+    return { broadcastEval, broadcastAction, getClockOffset, destroy };
 }

@@ -1,14 +1,15 @@
 /* ── CSS Custom Properties — Dark (default) ─────────────────────────────── */
 :root {
-    --bg-1:        #0d1117;
-    --bg-2:        #161b22;
-    --bg-3:        #21262d;
-    --border-1:    #30363d;
-    --border-2:    #484f58;
-    --text-1:      #c9d1d9;
-    --text-2:      #9aa3ac;
+    --bg-1:        #0a0c10;
+    --bg-2:        #11151c;
+    --bg-3:        #1a1f27;
+    --border-1:    #262c36;
+    --border-2:    #3d444d;
+    --text-1:      #cdd6e0;
+    --text-2:      #7d8794;
     --green:       #3fb950;
     --green-dim:   rgba(63,185,80,0.15);
+    --glow:        rgba(63,185,80,0.35);
     --blue:        #58a6ff;
     --yellow:      #d29922;
     --red:         #f85149;
@@ -36,6 +37,8 @@
     --text-1:      #00ff9f;
     --text-2:      #cc6699;
     --green:       #00ff9f;
+    --green-dim:   rgba(0,255,159,0.15);
+    --glow:        rgba(0,255,159,0.45);
     --blue:        #00f6ff;
     --yellow:      #ffff00;
     --red:         #ff0054;
@@ -61,6 +64,8 @@
     --text-1:      #f3e6ff;
     --text-2:      #c09de0;
     --green:       #72f1b8;
+    --green-dim:   rgba(114,241,184,0.15);
+    --glow:        rgba(114,241,184,0.4);
     --blue:        #36f9f6;
     --yellow:      #fede5d;
     --red:         #fe4450;
@@ -106,15 +111,23 @@ body {
 #toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 5px 10px;
-    background: var(--bg-1);
+    gap: 7px;
+    padding: 6px 12px;
+    background: linear-gradient(var(--bg-2), var(--bg-1));
     border-bottom: 1px solid var(--border-1);
     flex-shrink: 0;
     flex-wrap: wrap;
 }
 
-.title { color: var(--green); font-size: 13px; font-weight: bold; margin-right: 2px; }
+.title {
+    color: var(--green);
+    font-size: 13px;
+    font-weight: bold;
+    margin-right: 4px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 8px var(--glow);
+}
+.title::before { content: '▸ '; opacity: 0.7; }
 
 button {
     background: var(--bg-3);
@@ -122,15 +135,17 @@ button {
     border: 1px solid var(--border-1);
     padding: 3px 12px;
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: 4px;
     font-family: monospace;
     font-size: 11px;
-    transition: background 0.15s;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
     white-space: nowrap;
 }
-button:hover  { background: var(--border-1); }
-button:disabled { opacity: 0.35; cursor: default; }
-button#btn-boot.booted { background: #1a4731; border-color: var(--green); color: var(--green); }
+button:hover  { background: var(--bg-2); border-color: var(--border-2); color: #fff; }
+button:active { background: var(--green-dim); border-color: var(--green); }
+button:disabled { opacity: 0.3; cursor: default; }
+button:disabled:hover { background: var(--bg-3); border-color: var(--border-1); color: var(--text-1); }
+button#btn-boot.booted { background: var(--green-dim); border-color: var(--green); color: var(--green); text-shadow: 0 0 6px var(--glow); }
 
 #bpm-wrap { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-2); }
 #bpm-input {
@@ -141,13 +156,15 @@ button#btn-boot.booted { background: #1a4731; border-color: var(--green); color:
     padding: 2px 5px;
     font-family: monospace;
     font-size: 11px;
-    border-radius: 3px;
+    border-radius: 4px;
     text-align: center;
+    transition: border-color 0.12s, box-shadow 0.12s;
 }
+#bpm-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 2px var(--green-dim); }
 
-#status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-2); flex-shrink: 0; }
-#status-dot.booting { background: var(--yellow); }
-#status-dot.ready   { background: var(--green); animation: pulse 2s ease-in-out infinite; }
+#status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-2); flex-shrink: 0; transition: background 0.2s; }
+#status-dot.booting { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+#status-dot.ready   { background: var(--green); box-shadow: 0 0 6px var(--glow); animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
 #synth-status { font-size: 10px; color: var(--text-2); }
@@ -658,8 +675,12 @@ button#btn-boot.booted { background: #1a4731; border-color: var(--green); color:
 #cp-autoplay { font-size: 9px; color: var(--text-2); margin: 2px 0 4px; }
 #cp-autoplay.on { color: var(--green); }
 
-/* Rec button — blinks red while recording */
-#btn-rec.recording {
+#cp-stop-autoplay { width: 100%; padding: 4px; margin-bottom: 6px; font-size: 10px; }
+#cp-stop-autoplay:not(:disabled) { border-color: var(--red); color: var(--red); }
+#cp-stop-autoplay:not(:disabled):hover { background: rgba(248,81,73,0.12); }
+
+/* Rec buttons — blink red while recording */
+button.recording {
     color: var(--red);
     border-color: var(--red);
     animation: rec-blink 1s steps(1) infinite;

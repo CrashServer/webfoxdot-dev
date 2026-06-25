@@ -246,8 +246,10 @@ export function PBin(number = 0) {
     return cyc((number >>> 0).toString(2).split('').map(Number));
 }
 
-// PFDur((n,k), …) — layered Euclidean density: 1 where any layer hits
+// PFDur((n,k), …) — layered Euclidean density: 1 where any layer hits.
+// Pairs may be written as tuples (3,8) — which transpile to groups — or arrays [3,8].
 export function PFDur(...pairs) {
+    pairs = pairs.map(p => isGroup(p) ? p.__group : p).filter(p => Array.isArray(p) && p.length >= 2);
     if (!pairs.length) return cyc([0]);
     const k = Math.max(...pairs.map(p => p[1]));
     const layers = pairs.map(([n, kk]) => _euclid(kk, n));   // n pulses in kk steps

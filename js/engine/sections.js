@@ -1,11 +1,20 @@
 // Section sequencer — handles #@ section headers for live-set arrangement.
-// #@name(beats, target:weight, ...) — run section code then auto-advance
-// #@#@ track-name — fold marker only, no execution
+// #@name(beats)            — run code, then advance to the next section
+// #@goto(target, prob)     — zero-duration router: `prob` chance (default 0.5)
+//                            to jump to `target`, else fall through to the next
+//                            section. Chain several for a probabilistic set.
+// #@loop(beats, a:2, b:1)  — loop this section, or weighted-jump among targets
+// #@end(beats) / #@clear   — stop all after beats / immediately
+// #@#@ track-name          — fold marker only, no execution
+//
+// Note: jump targets are resolved by name to the FIRST matching section, so
+// keep part names unique.
 
 let _clock  = null;
 let _evalFn = null;
 let _editor = null;
-let _onChange = null;      // fired when the active section / autoplay state changes
+let _onChange = null;      // fired when the active section / autoplay state changes (local UI)
+let _onActive = null;      // fired when active section / autoplay changes (for multiplayer broadcast)
 
 // Symbol used as a sequence ID to prevent stale callbacks from firing.
 let _sequenceId = Symbol();
@@ -62,6 +71,16 @@ function parseSectionTag(lineText) {
     if (lname === 'end' || lname === 'endfade') type = 'end';
     else if (lname === 'loop') type = 'loop';
     else if (lname === 'clear') type = 'clear';
+    else if (lname === 'goto') type = 'goto';
+
+    // #@goto(target, prob) — a zero-duration routing node. `prob` chance (default
+    // 0.5) to jump to `target`, otherwise fall through to the next section.
+    if (type === 'goto') {
+        const parts = argStr.split(',').map(s => s.trim()).filter(Boolean);
+        const gotoTarget = parts[0] || null;
+        const gotoProb   = parts[1] != null && !isNaN(parseFloat(parts[1])) ? parseFloat(parts[1]) : 0.5;
+        return { name, type, gotoTarget, gotoProb, beats: 0, targets: [] };
+    }
 
     // Parse argStr: first token may be a bare number (beats), rest are name:weight pairs
     let beats = null;
@@ -91,12 +110,19 @@ function parseSectionTag(lineText) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
-function initSections(clock, evalFn, cmEditor, onChange) {
+function initSections(clock, evalFn, cmEditor, onChange, onActive) {
     _clock    = clock;
     _evalFn   = evalFn;
     _editor   = cmEditor;
     _onChange = onChange || null;
+    _onActive = onActive || null;
 }
+
+// Notify listeners (multiplayer) of the current active section + autoplay state.
+function notifyActive() { if (_onActive) _onActive(_activeLine, _autoplay); }
+
+// Set autoplay and notify, in one place so every change propagates to peers.
+function setAutoplay(v) { _autoplay = v; notifyActive(); }
 
 // ── Active-section marking ─────────────────────────────────────────────────────
 
@@ -114,6 +140,15 @@ function setActive(line) {
         } catch (_) {}
     }
     if (_onChange) _onChange();
+    notifyActive();
+}
+
+// Apply a section-active state received from a peer — highlight + panel only.
+// The section's CODE arrives separately via the eval broadcast, so this never
+// re-evaluates or schedules; it just mirrors the driver's visual state.
+function applyRemoteSection(line, autoplay) {
+    _autoplay = !!autoplay;
+    setActive(line);
 }
 
 // All #@ sections + #@#@ tracks, in document order, with active flag.
@@ -205,7 +240,7 @@ function findSectionByName(name) {
  */
 function cancelSection() {
     _sequenceId = Symbol();
-    _autoplay = false;
+    setAutoplay(false);
     if (_onChange) _onChange();
 }
 
@@ -243,6 +278,15 @@ function runSection(sectionLine) {
         return true;
     }
 
+    if (type === 'goto') {
+        // Zero-duration probabilistic router: no code, no highlight. Roll the
+        // dice — jump to the target part, or fall through to the next section.
+        const target = parsed.gotoTarget ? findSectionByName(parsed.gotoTarget) : null;
+        if (target && Math.random() < parsed.gotoProb) runSection(target.line);
+        else advanceToNext(sectionLine);
+        return true;
+    }
+
     // Mark this as the active section (highlight + blink in the editor)
     setActive(sectionLine);
 
@@ -255,8 +299,8 @@ function runSection(sectionLine) {
         _evalFn(stoppedCode);
     }
 
-    if (!beats) { _autoplay = false; if (_onChange) _onChange(); return true; } // no auto-advance
-    _autoplay = true;
+    if (!beats) { setAutoplay(false); if (_onChange) _onChange(); return true; } // no auto-advance
+    setAutoplay(true);
 
     const targetBeat = _clock.now() + beats;
 
@@ -266,53 +310,53 @@ function runSection(sectionLine) {
             if (_sequenceId !== myId) return; // stale
             _evalFn('__stopAll()');
             setActive(-1);
-            _autoplay = false;
+            setAutoplay(false);
             if (_onChange) _onChange();
         });
         return true;
     }
 
     if (type === 'loop') {
-        // After beats, weighted-random pick from targets, then run that section
-        if (targets.length === 0) {
-            // No targets: just loop this section
-            _clock._schedule(targetBeat, () => {
-                if (_sequenceId !== myId) return;
-                runSection(sectionLine);
-            });
-        } else {
-            _clock._schedule(targetBeat, () => {
-                if (_sequenceId !== myId) return;
-                const totalWeight = targets.reduce((acc, t) => acc + t.weight, 0);
-                let r = Math.random() * totalWeight;
-                let chosen = targets[targets.length - 1];
-                for (const t of targets) {
-                    r -= t.weight;
-                    if (r <= 0) { chosen = t; break; }
-                }
-                const target = findSectionByName(chosen.name);
-                if (target) {
-                    runSection(target.line);
-                }
-            });
-        }
+        // After beats: weighted-jump to a target, or loop this section if none.
+        _clock._schedule(targetBeat, () => {
+            if (_sequenceId !== myId) return;
+            if (targets.length === 0) { runSection(sectionLine); return; }
+            jumpToTarget(targets);
+        });
         return true;
     }
 
-    // Default section type: after beats, advance to next section in the editor
+    // Default section type: after beats, advance to the next section in the document.
+    // (Probabilistic routing is done with explicit #@goto nodes, not inline args.)
     _clock._schedule(targetBeat, () => {
         if (_sequenceId !== myId) return;
-        const sections = findAllSections();
-        const idx = sections.findIndex(s => s.line === sectionLine);
-        if (idx !== -1 && idx + 1 < sections.length) {
-            runSection(sections[idx + 1].line);
-        }
+        advanceToNext(sectionLine);
     });
 
     return true;
 }
 
+// Advance to the next #@ section after `sectionLine` in document order.
+function advanceToNext(sectionLine) {
+    const sections = findAllSections();
+    const idx = sections.findIndex(s => s.line === sectionLine);
+    if (idx !== -1 && idx + 1 < sections.length) runSection(sections[idx + 1].line);
+}
+
+// Weighted-random pick from [{name, weight}] and run that section.
+function jumpToTarget(targets) {
+    const totalWeight = targets.reduce((acc, t) => acc + t.weight, 0);
+    let r = Math.random() * totalWeight;
+    let chosen = targets[targets.length - 1];
+    for (const t of targets) {
+        r -= t.weight;
+        if (r <= 0) { chosen = t; break; }
+    }
+    const target = findSectionByName(chosen.name);
+    if (target) runSection(target.line);
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export { initSections, runSection, cancelSection, parseSectionTag,
-         getSections, jumpToActive, getActiveLine, isAutoplaying };
+         getSections, jumpToActive, getActiveLine, isAutoplaying, applyRemoteSection };

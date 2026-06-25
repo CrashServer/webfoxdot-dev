@@ -164,7 +164,7 @@ function _initToggle() {
 function _initTheme() {
     const sel = document.getElementById('theme-select');
     if (!sel) return;
-    const stored = localStorage.getItem('theme') ?? 'dark';
+    const stored = localStorage.getItem('theme') ?? 'cyberpunk';
     document.documentElement.className = stored === 'dark' ? '' : stored;
     sel.value = stored;
     sel.onchange = () => {

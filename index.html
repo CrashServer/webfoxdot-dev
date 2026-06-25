@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="lib/codemirror/show-hint.css">
   <link rel="stylesheet" href="lib/codemirror/foldgutter.css">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Apply the saved/default theme before first paint (default: cyberpunk) -->
+  <script>try{var t=localStorage.getItem('theme')||'cyberpunk';document.documentElement.className=(t==='dark')?'':t;}catch(e){document.documentElement.className='cyberpunk';}</script>
 </head>
 <body>
   <!-- ── Left: editor column ───────────────────────────────────────────── -->
@@ -16,14 +18,15 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α10</span>
+      <span id="version-tag" class="version-tag" title="changelog">α11</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
       <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
-      <button id="btn-rec" title="record your set into a #@ composition">rec</button>
+      <button id="btn-rec" title="record your evals into a #@ composition">rec code</button>
+      <button id="btn-rec-audio" title="record the audio output to a file">rec audio</button>
       <button id="btn-examples" title="load the example tour into the editor">examples</button>
       <button id="btn-clear" title="empty the editor">clear</button>
       <select id="theme-select">
@@ -39,6 +42,7 @@
     <div id="docs-panel" class="hidden">
       <div id="docs-header">
         <button class="docs-tab active" data-tab="examples">Examples</button>
+        <button class="docs-tab" data-tab="workflow">Workflow</button>
         <button class="docs-tab" data-tab="shortcuts">Shortcuts</button>
         <button class="docs-tab" data-tab="synths">Synths</button>
         <button class="docs-tab" data-tab="fx">FX</button>
@@ -86,6 +90,7 @@
     <div class="cp-section">
       <h3>Composition</h3>
       <div id="cp-autoplay">autoplay: off</div>
+      <button id="cp-stop-autoplay" class="cp-btn">■ stop autoplay</button>
       <div id="cp-parts"></div>
     </div>
 
@@ -131,7 +136,7 @@
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
-             getSections, jumpToActive, isAutoplaying } from './js/engine/sections.js';
+             getSections, jumpToActive, isAutoplaying, applyRemoteSection } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
@@ -184,6 +189,34 @@
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;
     let _remoteEval = false; // prevent re-broadcast of received evals
+    let _applyingRemote = false; // while replaying a peer action, suppress re-broadcast
+
+    // Broadcast a non-eval action (solo / composition state) to peers, if in a session.
+    function broadcastAction(action, data = {}) {
+        if (_collab && !_applyingRemote) _collab.broadcastAction(action, data);
+    }
+
+    // Replay an action received from a peer. Guarded so any UI hooks it triggers
+    // (e.g. the section-active notifier) don't echo the action back out.
+    function applyAction(msg) {
+        _applyingRemote = true;
+        try {
+            switch (msg.action) {
+                case 'solo':     clock._players.get(msg.name)?.solo();             break;
+                case 'unsolo':   _unsoloFn(clock);                                 break;
+                case 'soloDrop': clock._players.get(msg.name)?.soloDrop(msg.beats); break;
+                case 'section':  applyRemoteSection(msg.line, msg.autoplay);       break;
+                case 'cancel':   cancelSection();                                  break;
+            }
+        } finally { _applyingRemote = false; }
+    }
+
+    // Stop the auto-composition advance everywhere (players keep running).
+    function stopAutoplay() {
+        cancelSection();
+        broadcastAction('cancel');
+        log('autoplay stopped — players keep running', 'warn');
+    }
 
     function buildCtx() {
         return {
@@ -280,6 +313,24 @@
         }
     }
 
+    // Ctrl+Enter — evaluate just the current line (or the selection, if any).
+    function runLineAtCursor() {
+        if (editor.getSelection().trim()) return runSelected();
+        const cursor   = editor.getCursor();
+        const lineText = editor.getLine(cursor.line);
+        const trimmed  = lineText.trim();
+        if (!trimmed) return;
+        if (trimmed.startsWith('#@#@')) return;        // track header — fold only
+        if (trimmed.startsWith('#@')) {                // section header — run section
+            flashLines(cursor.line, cursor.line);
+            runSection(cursor.line);
+            return;
+        }
+        flashLines(cursor.line, cursor.line);
+        runCode(lineText);
+        recCapture(lineText);
+    }
+
     // ── Composition recording ─────────────────────────────────────────────────
     // Capture each user eval with its beat offset; on stop, generate a #@ set.
     let _rec = { on: false, startBeat: 0, events: [] };
@@ -308,6 +359,49 @@
         for (const sec of sections) s += `#@${sec.name}(${sec.dur})\n${sec.codes.join('\n')}\n\n`;
         return s + '#@end(16)\n';
     }
+    // ── Audio recording — captures this tab's audio output to a file ──────────
+    let _audioRec = { recorder: null, stream: null, chunks: [] };
+    async function toggleRecAudio() {
+        const btn = document.getElementById('btn-rec-audio');
+        if (_audioRec.recorder) {                 // stop
+            _audioRec.recorder.stop();
+            return;
+        }
+        try {
+            // getDisplayMedia is the only way to tap tab audio without engine access.
+            // The share dialog needs "share tab audio" enabled.
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            const audio = stream.getAudioTracks();
+            if (audio.length === 0) {
+                stream.getTracks().forEach(t => t.stop());
+                log('rec audio: no audio track — tick "share tab audio" in the dialog', 'error');
+                return;
+            }
+            const rec = new MediaRecorder(new MediaStream(audio), { mimeType: 'audio/webm' });
+            _audioRec = { recorder: rec, stream, chunks: [] };
+            rec.ondataavailable = (e) => { if (e.data.size) _audioRec.chunks.push(e.data); };
+            rec.onstop = () => {
+                const blob = new Blob(_audioRec.chunks, { type: 'audio/webm' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'webfoxdot-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.webm';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                _audioRec.stream.getTracks().forEach(t => t.stop());
+                _audioRec = { recorder: null, stream: null, chunks: [] };
+                btn.classList.remove('recording'); btn.textContent = 'rec audio';
+                log('audio recording saved (.webm)', 'ok');
+            };
+            // If the user stops sharing from the browser bar, finalise too.
+            stream.getVideoTracks().forEach(t => t.addEventListener('ended', () => { if (_audioRec.recorder) rec.stop(); }));
+            rec.start();
+            btn.classList.add('recording'); btn.textContent = '● audio';
+            log('recording audio output…', 'warn');
+        } catch (e) {
+            log('rec audio cancelled: ' + e.message, 'warn');
+        }
+    }
+
     function toggleRec() {
         const btn = document.getElementById('btn-rec');
         if (!_rec.on) {
@@ -418,8 +512,8 @@
     }
 
     // ── Editor ────────────────────────────────────────────────────────────────
-    const INITIAL_CODE = `# WebFoxDot  |  Ctrl+Enter: run block  |  Alt+X: comment+stop  |  Alt+S: solo  |  Ctrl+;: stop all  |  Alt+↑↓: nudge number
-# Run a block: put the cursor inside it and press Ctrl+Enter. Edit + re-run live.
+    const INITIAL_CODE = `# WebFoxDot  |  Ctrl+Enter: run line · Ctrl+Alt+Enter: run block  |  Alt+X: comment+stop  |  Alt+S: solo  |  Ctrl+;: stop all  |  Alt+↑↓: nudge number
+# Run a line: put the cursor on it and press Ctrl+Enter (Ctrl+Alt+Enter runs the whole block). Edit + re-run live.
 
 Clock.bpm = 120
 Scale.default = "minor"
@@ -521,8 +615,10 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
         autoCloseBrackets:true,
         styleActiveLine:  true,
         extraKeys: {
-            'Ctrl-Enter':     () => runSelected(),
-            'Cmd-Enter':      () => runSelected(),
+            'Ctrl-Enter':      () => runLineAtCursor(),
+            'Cmd-Enter':       () => runLineAtCursor(),
+            'Ctrl-Alt-Enter':  () => runSelected(),
+            'Cmd-Alt-Enter':   () => runSelected(),
             'Ctrl-Space':     (cm) => triggerAutocomplete(cm),
             'Alt-I':          (cm) => inspect(cm),
             'Alt-Up':         (cm) => incrementValue(cm,  1,  runBlockAtCursor),
@@ -530,11 +626,11 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
             'Shift-Alt-Up':   (cm) => incrementValue(cm,  10, runBlockAtCursor),
             'Shift-Alt-Down': (cm) => incrementValue(cm, -10, runBlockAtCursor),
             'Alt-X':          (cm) => stopPlayerAtCursor(cm, clock, runBlockAtCursor),
-            'Alt-S':          (cm) => soloPlayerAtCursor(cm, clock),
-            'Ctrl-Alt-S':     ()   => _unsoloFn(clock),
-            'Alt-O':          (cm) => soloDropAtCursor(cm, clock, 8),
+            'Alt-S':          (cm) => { const n = soloPlayerAtCursor(cm, clock); if (n) broadcastAction('solo', { name: n }); },
+            'Ctrl-Alt-S':     ()   => { _unsoloFn(clock); broadcastAction('unsolo'); },
+            'Alt-O':          (cm) => { const n = soloDropAtCursor(cm, clock, 8); if (n) broadcastAction('soloDrop', { name: n, beats: 8 }); },
             'Ctrl-;':         ()   => clock.clear(),
-            'Ctrl-Alt-;':     ()   => { cancelSection(); log('autoplay stopped — players keep running', 'warn'); },
+            'Ctrl-Alt-;':     ()   => stopAutoplay(),
             'Ctrl-Alt-P':     ()   => { if (!jumpToActive()) log('no active part', 'info'); },
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
         },
@@ -564,7 +660,9 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
         editor.setCursor({ line: 0, ch: 0 });
         editor.focus();
     }
-    document.getElementById('btn-rec').onclick      = toggleRec;
+    document.getElementById('btn-rec').onclick       = toggleRec;
+    document.getElementById('btn-rec-audio').onclick = toggleRecAudio;
+    document.getElementById('cp-stop-autoplay').onclick = stopAutoplay;
     document.getElementById('btn-examples').onclick = () => setEditorContent(examplesAsCode());
     document.getElementById('btn-clear').onclick    = () => setEditorContent('');
 
@@ -621,13 +719,19 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
             el.appendChild(d);
         }
         const ap = document.getElementById('cp-autoplay');
+        const on = isAutoplaying();
         if (ap) {
-            const on = isAutoplaying();
             ap.textContent = 'autoplay: ' + (on ? 'on' : 'off');
             ap.className = on ? 'on' : '';
         }
+        const stopBtn = document.getElementById('cp-stop-autoplay');
+        if (stopBtn) stopBtn.disabled = !on;
     }
-    initSections(clock, runCode, editor, renderParts);
+    initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
+        // Mirror the active section + autoplay state to peers (cosmetic; the
+        // section code itself rides the eval broadcast).
+        broadcastAction('section', { line, autoplay });
+    });
     renderParts();
     let _partsTimer = null;
     editor.on('change', () => { clearTimeout(_partsTimer); _partsTimer = setTimeout(renderParts, 300); });
@@ -640,7 +744,7 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             runCode(msg.code, { fromRemote: true });
-        }).then(collab => {
+        }, applyAction).then(collab => {
             _collab = collab;
             log(`Session ready. Share: ${location.href}`, 'ok');
         }).catch(err => {

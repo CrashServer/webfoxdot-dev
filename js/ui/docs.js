@@ -25,7 +25,8 @@ function step(n, text) {
 // ── Static content ─────────────────────────────────────────────────────────────
 
 const SHORTCUTS = [
-    { key: 'Ctrl+Enter',         desc: 'Run block at cursor / selection' },
+    { key: 'Ctrl+Enter',         desc: 'Run the current line (or the selection)' },
+    { key: 'Ctrl+Alt+Enter',     desc: 'Run the whole block at the cursor' },
     { key: 'Alt+X',              desc: 'Toggle comment + stop / restart player' },
     { key: 'Alt+S',              desc: 'Solo player at cursor — mute all others' },
     { key: 'Ctrl+Alt+S',         desc: 'Unsolo — restore all players' },
@@ -109,13 +110,25 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha10';
+export const VERSION = 'alpha11';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha10', title: 'Persistent player attributes', items: [
+    { v: 'alpha11', title: '#@goto chains · multiplayer sync · cyberpunk default · UI polish', items: [
+        { t: '#@goto(target, prob) — a zero-length probabilistic router: prob chance to jump to a part, else fall through. Chain them for a Markov-style set that never repeats', ex: 'sections' },
+        'Multiplayer: solo / unsolo / soloDrop now broadcast (solo mutes for everyone); the active #@ part highlight + autoplay state mirror to all peers',
+        'Composition panel: a "stop autoplay" button above the parts list (and Ctrl+Alt+;) halts the auto-advance for everyone, players keep running',
+        'Ctrl+Enter now runs the current line (or selection); Ctrl+Alt+Enter runs the whole block',
+        'Cyberpunk is the default theme; refreshed the default palette + subtle glow on title / boot / status (carried into all themes)',
+        { t: 'New "Full composition" example — a complete live set showing most features, wired with #@goto branching', ex: 'showcase' },
+        { t: 'webfoxdot-kit default pack: CDN + GitHub-raw loadpack URLs, with a Firefox caveat', ex: 'samples' },
+        'Fixes: PFDur((n,k),…) accepts (n,k) tuples (were rejected as groups); donk anti-click at low octaves (fade-in + LeakDC + freq floor)',
+    ]},
+    { v: 'alpha10', title: 'Persistent attributes · Workflow tab · audio rec', items: [
         'Re-assigning an active player inherits its previous params — p1 >> dbass(dur=4) then p1 >> dbass(oct=6) keeps dur=4',
         '~p1 >> … resets the player to defaults (no inheritance), like FoxDot\'s tilde',
+        'New Workflow docs tab — every shortcut, system and feature explained with examples',
+        'rec code (was "rec") + rec audio button — record the audio output to a .webm file',
     ]},
     { v: 'alpha09', title: 'Editor inspector · solo/drop · anti-click', items: [
         'Alt+I — info tooltip on the symbol under the cursor (synth, FX, pattern, function); for patterns/timevars it evaluates and shows the generated values',
@@ -190,17 +203,38 @@ const CHANGELOG = [
 
 // ── HTML builders ──────────────────────────────────────────────────────────────
 
-// Extract every Examples code block as runnable editor text (same source as the
-// Examples tab, so they never drift). Section titles become comment headers.
+// Turn the Examples tab into a self-documenting editor buffer: section titles
+// become headers, explanations (notes) become # comments, code stays runnable.
+// Same source as the docs tab, so they never drift.
 export function examplesAsCode() {
     const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
-    const out = ['# WebFoxDot examples — run a block with Ctrl+Enter (blocks are separated by blank lines)', ''];
+    const out = [
+        '# WebFoxDot examples — put the cursor on a line and press Ctrl+Enter to run it.',
+        '# Ctrl+Alt+Enter runs the whole block. Lines starting with # are notes.',
+        '',
+    ];
+    const wrap = (text, width = 78) => {
+        const words = text.replace(/\s+/g, ' ').trim().split(' ');
+        const lines = []; let cur = '';
+        for (const w of words) {
+            if (cur && (cur + ' ' + w).length > width) { lines.push(cur); cur = w; }
+            else cur = cur ? cur + ' ' + w : w;
+        }
+        if (cur) lines.push(cur);
+        return lines;
+    };
     doc.querySelectorAll('.docs-section').forEach(sec => {
         const title = sec.querySelector('.docs-section-title')?.textContent.trim();
-        sec.querySelectorAll('.docs-code').forEach(pre => {
-            if (title) out.push('# ══ ' + title + ' ══');
-            out.push(pre.textContent.replace(/\s+$/, ''), '');
+        if (title) out.push('# ══ ' + title + ' ══');
+        // notes and code blocks in document order
+        sec.querySelectorAll('.docs-note, .docs-code').forEach(el => {
+            if (el.classList.contains('docs-note')) {
+                wrap(el.textContent).forEach(l => out.push('# ' + l));
+            } else {
+                out.push(el.textContent.replace(/\s+$/, ''));
+            }
         });
+        out.push('');
     });
     return out.join('\n');
 }
@@ -233,7 +267,7 @@ function buildExamples() {
     }).join('\n');
 
     const start = section('Start here', `
-        ${note('Boot audio first (the <b>boot</b> button). Put the cursor in a block and press <b>Ctrl+Enter</b> to run it. Edit and re-run live. <b>Ctrl+;</b> stops everything. Click any code box below to copy it.')}
+        ${note('Boot audio first (the <b>boot</b> button). Put the cursor on a line and press <b>Ctrl+Enter</b> to run it; <b>Ctrl+Alt+Enter</b> runs the whole block. Edit and re-run live. <b>Ctrl+;</b> stops everything. Click any code box below to copy it.')}
         ${note('<b>Ctrl+Space</b> autocompletes (synths, params, FX, patterns). <b>Alt+I</b> shows info on the symbol under the cursor — and for a pattern it evaluates and shows the values it makes.')}
         ${code(`Clock.bpm = 120
 Scale.default = "minor"
@@ -265,6 +299,16 @@ b5 >> play(o., amplify=PLife(0.6))           # generative accents`)}
         ${note('A playing player <b>inherits</b> its params on re-run — <code>p1 >> saw([0,4], dur=4)</code> then <code>p1 >> saw([0,4], oct=6)</code> keeps <code>dur=4</code>. Prefix <code>~</code> to reset to defaults: <code>~p1 >> saw([0,4])</code>.')}
         ${code(synthLines)}
     `, 'synths');
+
+    const tweak = section('Live tweaking — try these', `
+        ${note('Run this, then put the cursor ON the 2000 and press Alt+Up / Alt+Down — cutoff changes live (±1, or ±0.1 on decimals; Shift+Alt for ×10). The block re-runs automatically so you hear it instantly.')}
+        ${code(`p1 >> saw([0,4,7], oct=4, cutoff=2000, amp=0.5)`)}
+        ${note('Alt+I on a name shows what it is — for a pattern it shows the values it makes. Try Alt+I on Pacc below. Ctrl+Space anywhere autocompletes (pick a synth = full call, pick an FX = all its params).')}
+        ${code(`b1 >> play(x.x.x.x., amp=Pacc("ghost"))`)}
+        ${note('Re-run a player and only change one thing — the rest is kept. Run the first line, then the second: the lpf stays.')}
+        ${code(`p2 >> bass([0,-3], oct=3, lpf=900)
+p2 >> bass([0,-3,5,4])`)}
+    `, 'tweak');
 
     const axis1 = section('Axis 1 — sequences, chords & groups', `
         ${note('<code>[a,b,c]</code> = a per-step sequence. <code>(a,b,c)</code> = a chord/group fired together — also works on any param (zipped across voices). <code>.</code> = rest.')}
@@ -323,15 +367,20 @@ b3 >> play(x.o., mverb=0.6, mverbfreeze=1)         # frozen reverb
 b4 >> play(x-o-, tremolo=0.8, trem_rate=8)         # tremolo`)}
     `, 'fx');
 
-    const samples = section('External samples', `
-        ${note('Load WAVs from any public URL into your buffers. In multiplayer everyone loads the same URL, so put a loadpack at the top of the shared doc.')}
-        ${code(`# default kit (the original FoxDot bank)
+    const samples = section('External samples — the webfoxdot-kit pack', `
+        ${note('Boot the default kit (the original FoxDot bank, hosted on our public <b>webfoxdot-kit</b> repo) with one <code>loadpack</code>. In multiplayer, put it at the <b>top of the shared doc</b> so every peer loads the same samples from the same URL.')}
+        ${note('⚠️ <b>Firefox:</b> sample loading can be unstable in Firefox (shared-memory WASM growth). Chrome / Chromium / Edge are recommended for sample-heavy or multiplayer sets.')}
+        ${code(`# default kit via CDN (jsDelivr — fast, cached)
 loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
-b1 >> play(x-o-, amp=0.9)
 
-# a single sample → a char (or [urls] for sample-index slots)
-loadsample("K", "https://raw.githubusercontent.com/USER/REPO/main/kick.wav")
-b2 >> play(K.K.K.K.)`)}
+# …or straight from GitHub (raw) if the CDN is cold:
+# loadpack("https://raw.githubusercontent.com/CrashServer/webfoxdot-kit/v1/pack.json")
+
+b1 >> play(x-o-, amp=0.9)
+b2 >> play(<X.><o.> [--], amp=0.7)`)}
+        ${note('Or load a single WAV from any public URL and bind it to a play() char (use <code>[urls]</code> for sample-index slots):')}
+        ${code(`loadsample("K", "https://raw.githubusercontent.com/USER/REPO/main/kick.wav")
+b3 >> play(K.K.K.K.)`)}
     `, 'samples');
 
     const patterns = section('Patterns', `
@@ -361,6 +410,7 @@ unsolo()                      # restore all`)}
 
     const sections = section('Section sequencer ( #@ )', `
         ${note('Put the cursor on a <code>#@</code> line and Ctrl+Enter. Sections auto-advance after their beat count. A commented player line (<code># p1 >></code>) stops that player on entry. <code>#@#@</code> groups sections into a foldable track.')}
+        ${note('<b>Branching:</b> <code>#@goto(target, prob)</code> is a zero-length router — <code>prob</code> chance (default 0.5) to jump to <code>target</code>, else fall through to the next section. Chain them for a probabilistic set that never repeats. (<code>#@loop(beats, a:2, b:1)</code> still does a timed weighted-jump.) Keep part names unique — jumps resolve to the first match.')}
         ${code(`#@#@ my_set
 
 #@intro(16)
@@ -372,15 +422,151 @@ p1 >> dbass([0,-3,5,4], oct=4)
 p2 >> pads([0,3,5], oct=4, dur=4, reverb=0.4)
 # b1 >>
 
-#@loop(8, verse:3, fill:1)
-
-#@fill(4, verse:1)
+#@fill(4)
 b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
+
+#@goto(verse, 0.6)   # 60% back to verse, else resolve
 
 #@end(8)`)}
     `, 'sections');
 
-    return start + drums + grooves + synths + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections;
+    const showcase = section('Full composition — most features in one set', `
+        ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
+        ${code(`#@#@ showcase_set
+
+#@intro(16)
+# pads fade in on an opening filter + sparse kick, then advance to build
+p1 >> pads([0, (0,4,7), 5, (2,5,9)], oct=4, dur=4, attack=0.5, lpf=linvar([400, 4500], [16]), reverb=0.5, room=0.85, amp=0.5)
+b1 >> play(x...x...x...x..., amp=0.6)
+
+#@build(16)
+# add driven sub-bass + ghosted hats; the kick sometimes stutters
+p1 >> dbass([0, -3, 0, 4], oct=4, mverb=0.3, tanh=0.4, drive=3, amp=0.8)
+b1 >> play(x.x.x.x., amp=0.7).sometimes("stutter", 2)
+h1 >> play(-.-.-.-., hpf=5000, amp=Pacc("ghost"))
+
+#@dropA(16)
+# drop layer 1: arpeggio on a moving filter, four-on-the-floor kick
+p2 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4, dur=0.5, chorus=0.6, chorus_rate=0.5, lpf=sinvar([900, 6000], [8]), amp=0.4).every(8, "reverse")
+b1 >> play(X.x.X.x., amp=0.9)
+
+#@dropB(16)
+# drop layer 2: add a high blip lead + euclid-accented kick
+p3 >> blip(PRange(0, 7), oct=6, dur=0.25, echo=0.4, echo_time=0.375, amp=0.25).sometimes("stutter", 4)
+b1 >> play(X.[xx]X.x., amplify=PFDur((3,8),(5,8)), amp=0.9)
+h1 >> play(<-.><-o>, hpf=6000, amp=Pacc("offbeat"))
+
+#@goto(dropA, 0.5)   # 50% loop back to dropA (re-vary the drop), else go on
+
+#@dropC(16)
+# drop layer 3: chord stabs an octave up, reversing every 8 beats
+p2 >> prophet([0, (0,4,7), 4, (2,5,9)], oct=6, dur=0.5, chorus=0.7, lpf=sinvar([1200, 7000], [4]), amp=0.35).every(8, "reverse")
+
+#@goto(dropB, 0.4)   # 40% drop back to dropB, else continue to the break
+
+#@break(16)
+# strip back to a single frozen-reverb chord stab
+# p3 >>
+# h1 >>
+p2 >> prophet((0,4,7), oct=4, dur=2, mverb=0.85, mverbfreeze=1, amp=0.4)
+b1 >> play(x..., amp=0.6)
+
+#@goto(dropA, 0.5)   # 50% back into the drop, else resolve to the outro
+
+#@outro(16)
+# ~p1 resets that slot to a fresh bell; everything fades on a closing filter
+~p1 >> bell([0, 4, 7, 11], oct=5, dur=1, reverb=0.6, room=0.9, lpf=linvar([5000, 600], [16]), amp=linvar([0.5, 0], [16]))
+# p2 >>
+# b1 >>
+
+#@end(8)`)}
+    `, 'showcase');
+
+    return start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections + showcase;
+}
+
+// ── Workflow tab — how the editor & systems work, with examples ────────────────
+function key(k) { return `<span class="docs-key">${k}</span>`; }
+
+function buildWorkflow() {
+    const run = section('Running & editing live', `
+        ${note('Code is organised into <b>blocks</b> — runs of lines with no blank line between them. ' + key('Ctrl+Enter') + ' runs the single line at the cursor (or the current selection); ' + key('Ctrl+Alt+Enter') + ' runs the whole block. Edit any line and press it again to change that player live — the rest keep playing.')}
+        ${note(key('Ctrl+;') + ' stops everything · ' + key('Alt+X') + ' comments the line at the cursor and stops that player (uncomment + ' + key('Ctrl+Enter') + ' to bring it back).')}
+        ${code(`b1 >> play(x.o.)        # cursor here, Ctrl+Enter
+p1 >> bass([0,-3], oct=3)   # a second block`)}
+    `);
+
+    const nudge = section('Tweaking values live (nudge)', `
+        ${note('Put the cursor on a number and use ' + key('Alt+↑') + ' / ' + key('Alt+↓') + ' to nudge it (±1, or ±0.1 if it has decimals) — the block re-runs automatically, so you hear the change instantly. ' + key('Shift+Alt+↑/↓') + ' nudges ×10. Great for dialing in cutoff, amp, rate while it plays.')}
+        ${code(`p1 >> saw([0,4,7], cutoff=2000, amp=0.6)
+#                        ^ cursor here, Alt+↑ → 2001 … Shift+Alt+↑ → 2010`)}
+    `, 'wf-nudge');
+
+    const auto = section('Autocomplete (Ctrl+Space)', `
+        ${note('Context-aware — what it offers depends on where the cursor is:')}
+        ${code(`(empty line)   → a fresh player name + " >> " then the synth list
+xx >> |        → synths (pick one = full call, cursor on the degree)
+saw([0], |)    → params + FX groups (pick an FX = ALL its params)
+cutoff=|       → patterns & timevars (PRand, linvar, …)`)}
+        ${note('Picking a synth inserts the whole call with every parameter at its default and selects the degree so you can type your notes. Picking an FX (e.g. <code>reverb …</code>) drops in <code>reverb=0.4, room=0.6, damp=0.5</code>.')}
+    `, 'wf-auto');
+
+    const inspectS = section('Inspect a symbol (Alt+I)', `
+        ${note('Put the cursor on any name and press ' + key('Alt+I') + ' for a tooltip: what it is, its signature, and a description. For a <b>pattern</b> it goes further — it evaluates the call and shows the values it generates.')}
+        ${code(`p1 >> saw([0,4], amp=Pacc("ghost"))
+#                        ^ Alt+I → "Pacc … → [1, 0.25, 0.3, 0.25, 0.7, …]"`)}
+    `, 'wf-inspect');
+
+    const perf = section('Performance moves', `
+        ${note('Shortcuts act on the player at the cursor:')}
+        ${code(`Alt+S        solo (mute all others)
+Ctrl+Alt+S   unsolo (restore all)
+Alt+O        soloDrop(8) — solo 8 beats then restore`)}
+        ${note('Functions, beat-aligned:')}
+        ${code(`p1.solo(8)        # solo 8 beats then restore
+p1.stop(16)       # stop this player after 16 beats
+soloRnd(8)        # solo a random player for 8 beats
+drop(14, 2, 3)    # drop a random subset every 14+2 beats, 3 times (bar-aligned)`)}
+    `, 'wf-perf');
+
+    const compo = section('Composition — #@ sections', `
+        ${note('Arrange a whole set. A <code>#@name(beats)</code> line starts a <b>part</b> (its code is the lines until the next #@). Put the cursor on it and ' + key('Ctrl+Enter') + ' — it runs, then auto-advances to the next part after <code>beats</code>. <code>#@#@ name</code> groups parts into a foldable <b>track</b>.')}
+        ${note('A commented player line (<code># p1 >></code>) <b>stops</b> that player on entry — so you describe a part by what\'s active and comment out the rest. <code>#@loop(8, verse:3, fill:1)</code> jumps to a weighted-random part; <code>#@end(beats)</code> stops; <code>#@clear</code> stops now.')}
+        ${code(`#@#@ my_set
+
+#@intro(16)
+b1 >> play(x.o.)
+p1 >> bass([0,-3])
+
+#@drop(32)
+b1 >> play(x-o-, crush=0.5)
+p1 >> bass([0,-3,5,4])
+# p2 >>            # p2 was playing — this stops it
+
+#@loop(8, intro:1, drop:3)
+
+#@end(8)`)}
+        ${note('<b>Live aids:</b> the active part highlights green and blinks each time it (re)evaluates. The <b>Composition</b> side-panel lists every part — click one to jump there. ' + key('Ctrl+Alt+P') + ' jumps to the active part. ' + key('Ctrl+Alt+;') + ' stops the autoplay chain but <b>keeps players running</b> (freeze on a part and take manual control) — distinct from ' + key('Ctrl+;') + ' which stops everything.')}
+    `, 'wf-compo');
+
+    const rec = section('Recording', `
+        ${note('<b>rec code</b> captures your performance as code. Press it (blinks red), play your set with ' + key('Ctrl+Enter') + ', press again — WebFoxDot writes a <code>#@</code> composition of everything you ran (grouped into parts by timing) and appends it to the buffer. Run its <code>#@</code> parts to replay the set.')}
+        ${note('<b>rec audio</b> records the actual sound to a <code>.webm</code> file. The browser asks you to share the tab — tick <b>“share tab audio”</b>. Press again to stop; the file downloads automatically. (Chromium recommended; needs https or localhost.)')}
+    `, 'wf-rec');
+
+    const inherit = section('Player attribute inheritance', `
+        ${note('A <b>playing</b> player keeps its params when you re-run it — you only change what you re-type. Prefix <code>~</code> to reset to defaults.')}
+        ${code(`p1 >> saw([0,4], dur=4, cutoff=800)
+p1 >> saw([0,4], oct=6)     # dur=4 and cutoff=800 are kept; oct=6 added
+~p1 >> saw([0,4])           # reset — back to default dur, cutoff, …`)}
+    `, 'wf-inherit');
+
+    const save = section('Saving & sharing', `
+        ${note('Solo edits <b>autosave</b> to the browser and survive a refresh. The <b>clear</b> button empties the editor; <b>examples</b> loads the full example tour (both undoable with ' + key('Ctrl+Z') + ').')}
+        ${note('<b>Multiplayer:</b> open <code>?session=NAME</code> in the URL to share a live editor — shared text, cursors, and synced evals. Put a <code>loadpack(...)</code> at the top so everyone loads the same samples.')}
+    `, 'wf-save');
+
+    return run + nudge + auto + inspectS + perf + compo + rec + inherit + save;
 }
 
 function buildShortcuts() {
@@ -627,6 +813,7 @@ export function initDocs() {
 
     const CONTENT = {
         examples:  buildExamples,
+        workflow:  buildWorkflow,
         shortcuts: buildShortcuts,
         synths:    buildSynths,
         fx:        buildFX,
