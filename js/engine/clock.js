@@ -17,6 +17,11 @@ export class Clock {
         this._tick();
     }
 
+    // Re-anchor the timing reference (call when the tab regains focus): the next
+    // tick then measures a tiny dt instead of the whole hidden interval, so the
+    // beat resumes cleanly rather than jumping.
+    resync() { this._lastMs = performance.now(); }
+
     _tick() {
         if (!this._running) return;
         const now = performance.now();

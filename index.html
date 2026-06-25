@@ -984,12 +984,18 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         return arrays;
     }
     const _MARK_CSS = 'background:rgba(63,185,80,0.5);color:#fff;border-radius:2px';
+    const _lastMark = new Map();   // name → last mark time, to cap DOM churn at fast durs
     function clearDegMark(name) {
         const ms = _degMarks.get(name);
         if (ms) { ms.forEach(m => { try { m.clear(); } catch (_) {} }); _degMarks.delete(name); }
     }
     function highlightStep(name, step) {
         if (step < 0) { clearDegMark(name); return; }
+        // Throttle to ~25fps per player: at fast durs the markText DOM churn would
+        // compete with the audio clock on the main thread.
+        const now = performance.now();
+        if (now - (_lastMark.get(name) || 0) < 40) return;
+        _lastMark.set(name, now);
         const line = resolveLine(name);
         if (line < 0 || line >= editor.lineCount()) { clearDegMark(name); return; }
         const arrays = arraysFor(editor.getLine(line));
@@ -1135,6 +1141,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             el.title = `scheduler lag ${lag.toFixed(0)}ms · ${voices} active players · ${bus.used} private buses in use (max ~${BUS_MAX})`;
         }, PERIOD);
     })();
+
+    // Re-anchor the clock when the tab regains focus, so it resumes at tempo
+    // instead of lurching after a background throttle.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) clock.resync(); });
 
     log('WebFoxDot loaded. Click "boot" to start audio.', 'info');
   </script>
