@@ -121,8 +121,10 @@ function initSections(clock, evalFn, cmEditor, onChange, onActive) {
 // Notify listeners (multiplayer) of the current active section + autoplay state.
 function notifyActive() { if (_onActive) _onActive(_activeLine, _autoplay); }
 
-// Set autoplay and notify, in one place so every change propagates to peers.
-function setAutoplay(v) { _autoplay = v; notifyActive(); }
+// Set autoplay and notify, in one place so every change propagates. Refresh the
+// local UI (panel + stop button) too — setActive may have rendered before this
+// flips, which would leave the "stop autoplay" button stuck greyed-out.
+function setAutoplay(v) { _autoplay = v; if (_onChange) _onChange(); notifyActive(); }
 
 // ── Active-section marking ─────────────────────────────────────────────────────
 

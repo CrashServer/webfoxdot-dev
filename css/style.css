@@ -85,6 +85,14 @@
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Discreet scrollbars ────────────────────────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: var(--border-1) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-1); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-2); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 /* ── Layout ───────────────────────────────────────────────────────────────── */
 body {
     background: var(--bg-1);
@@ -168,6 +176,27 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
 #synth-status { font-size: 10px; color: var(--text-2); }
+
+/* User identity (multiplayer only — revealed via .active) */
+#user-box { display: none; align-items: center; gap: 5px; }
+#user-box.active { display: flex; }
+#user-name {
+    width: 92px;
+    background: var(--bg-1);
+    color: var(--text-1);
+    border: 1px solid var(--border-1);
+    padding: 2px 7px;
+    font-family: monospace;
+    font-size: 11px;
+    border-radius: 4px;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+#user-name:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 2px var(--green-dim); }
+#user-color {
+    width: 18px; height: 18px; padding: 0;
+    border: 1px solid var(--border-1); border-radius: 4px;
+    background: none; cursor: pointer; flex-shrink: 0;
+}
 
 #theme-select {
     background: var(--bg-3);

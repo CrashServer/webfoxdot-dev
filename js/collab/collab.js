@@ -51,6 +51,12 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     localStorage.setItem('wfd-user', JSON.stringify(user));
     provider.awareness.setLocalStateField('user', user);
 
+    // Update identity live — peers see the new name/colour on your cursor at once.
+    function setUser(u) {
+        localStorage.setItem('wfd-user', JSON.stringify(u));
+        provider.awareness.setLocalStateField('user', u);
+    }
+
     // ── App-message WebSocket (eval relay + clock sync) ───────────────────
     // Distinct ?app=1 path so the server keeps this OFF the Yjs channel —
     // otherwise JSON frames reach the Yjs decoder ("Unexpected end of array").
@@ -183,5 +189,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, getClockOffset, destroy };
+    return { broadcastEval, broadcastAction, setUser, getClockOffset, destroy };
 }

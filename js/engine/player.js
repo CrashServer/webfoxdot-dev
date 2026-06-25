@@ -179,7 +179,7 @@ export class Player {
             this._modifiers = synthCall._modifiers ?? null;
             this._unison    = synthCall._unison ?? null;
             this._scheduleAfter(synthCall._after);
-            this._warnUnknownPlay();
+            this._warnUnknownPlay(userOpts);
             if (!this._active) {
                 this._active   = true;
                 this._step     = 0;
@@ -209,7 +209,7 @@ export class Player {
         this._modifiers  = synthCall._modifiers ?? null;
         this._degreeAdds = synthCall._degreeAdds ?? null;
         this._scheduleAfter(synthCall._after);
-        this._warnUnknown();
+        this._warnUnknown(userArgs);
 
         if (!wasActive) {
             this._active   = true;
@@ -460,10 +460,13 @@ export class Player {
         }
     }
 
-    // Warn (once) when a declared param isn't recognised by this synth or the FX set
-    _warnUnknown() {
+    // Warn (once) when an EXPLICITLY-written param isn't recognised by this synth
+    // or the FX set. Only the args the user typed on this call are checked —
+    // params inherited from a previously-assigned synth (e.g. saw's `rate` when
+    // the slot is reused as prophet) are silently ignored, like FoxDot.
+    _warnUnknown(userArgs) {
         const known = knownParams(this._synth);
-        for (const k of Object.keys(this._args)) {
+        for (const k of Object.keys(userArgs)) {
             const base = k.endsWith('_') ? k.slice(0, -1) : k;   // lpf_ envelope → lpf
             if (known.has(k) || known.has(base)) continue;
             const id = `${this._synth}.${k}`;
@@ -473,9 +476,9 @@ export class Player {
         }
     }
 
-    // Same, for play() — known = sample params + FX keys
-    _warnUnknownPlay() {
-        for (const k of Object.keys(this._playOpts)) {
+    // Same, for play() — known = sample params + FX keys. Checks explicit opts only.
+    _warnUnknownPlay(userOpts) {
+        for (const k of Object.keys(userOpts)) {
             const base = k.endsWith('_') ? k.slice(0, -1) : k;
             if (SAMPLE_PARAMS.has(k) || SAMPLE_PARAMS.has(base) || FX_KEYS.has(base)) continue;
             const id = `play.${k}`;

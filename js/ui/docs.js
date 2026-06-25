@@ -110,10 +110,16 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha11';
+export const VERSION = 'alpha12';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha12', title: 'Set your name & cursor colour (multiplayer)', items: [
+        'In a session, a name + colour box appears in the toolbar — set your display name and cursor colour',
+        'Changes update live: peers see your new name/colour on your cursor immediately, and your evals are tagged with it in the log',
+        'Identity persists across reloads (localStorage); the box is hidden in solo mode',
+        'Fix: the unknown-param warning now only fires for params you explicitly type — params inherited when a player slot is reused as a different synth (e.g. saw’s rate carried into prophet) are silently ignored, like FoxDot',
+    ]},
     { v: 'alpha11', title: '#@goto chains · multiplayer sync · cyberpunk default · UI polish', items: [
         { t: '#@goto(target, prob) — a zero-length probabilistic router: prob chance to jump to a part, else fall through. Chain them for a Markov-style set that never repeats', ex: 'sections' },
         'Multiplayer: solo / unsolo / soloDrop now broadcast (solo mutes for everyone); the active #@ part highlight + autoplay state mirror to all peers',

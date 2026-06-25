@@ -18,13 +18,17 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α11</span>
+      <span id="version-tag" class="version-tag" title="changelog">α12</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
       <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
+      <div id="user-box" title="your name &amp; colour — shown to others in this session">
+        <input type="color" id="user-color" title="your cursor colour">
+        <input type="text" id="user-name" maxlength="24" placeholder="name" spellcheck="false">
+      </div>
       <button id="btn-rec" title="record your evals into a #@ composition">rec code</button>
       <button id="btn-rec-audio" title="record the audio output to a file">rec audio</button>
       <button id="btn-examples" title="load the example tour into the editor">examples</button>
@@ -272,7 +276,7 @@
         }
         // Broadcast to peers (skip if this eval came from a peer)
         if (!fromRemote && _collab) {
-            const user = JSON.parse(localStorage.getItem('wfd-user') || '{"name":"?","color":"#888"}');
+            const user = getUser();
             _collab.broadcastEval(raw, [], user.name, user.color, clock.now());
         }
     }
@@ -512,89 +516,82 @@
     }
 
     // ── Editor ────────────────────────────────────────────────────────────────
-    const INITIAL_CODE = `# WebFoxDot  |  Ctrl+Enter: run line · Ctrl+Alt+Enter: run block  |  Alt+X: comment+stop  |  Alt+S: solo  |  Ctrl+;: stop all  |  Alt+↑↓: nudge number
-# Run a line: put the cursor on it and press Ctrl+Enter (Ctrl+Alt+Enter runs the whole block). Edit + re-run live.
+    const INITIAL_CODE = `# ────────────────────────────────────────────────────────────────────────
+#  WebFoxDot α11 — browser-native FoxDot live coding
+# ────────────────────────────────────────────────────────────────────────
+#  GETTING STARTED
+#   1. Click  [ boot ]  (top-left) to start the audio engine.
+#   2. Load the sound kit: put the cursor on the loadpack line below and
+#      press Ctrl+Enter (use the GitHub line instead if the CDN is cold).
+#   3. Put the cursor on  #@intro(16)  and press Ctrl+Enter — the set plays
+#      and auto-advances.   Ctrl+;  stops everything.
+#
+#  > Best in Chromium / Brave / Edge.  Firefox has audio + sample issues.
+#  > Keys: Ctrl+Enter = run line · Ctrl+Alt+Enter = run block · Alt+X = stop
+#          Alt+Up / Alt+Down = nudge the number under the cursor, live.
+#  > Docs, examples & changelog: the  [ ? ]  button (top-right).  Have fun!
+# ────────────────────────────────────────────────────────────────────────
 
-Clock.bpm = 120
+# ── load the default kit — evaluate ONE of these (cursor on it, Ctrl+Enter)
+loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
+# loadpack("https://raw.githubusercontent.com/CrashServer/webfoxdot-kit/v1/pack.json")
+
+Clock.bpm = 124
 Scale.default = "minor"
 Root.default = 0
 
-
-# ══ 1. DRUMS — play()  ( . = rest, brackets nest ) ══════════════════════
-#   (xo) together   [xo] subdivide   {xo} random   <xo> alternate
-b1 >> play(x.o., amp=0.9)
-# b2 >> play(x-o-, lpf=1500, reverb=0.3)        # FX work on drums
-# b3 >> play(<x.><[--]><x.>, amp=0.8)           # brackets nest
-# b4 >> play(x-o-).sometimes("stutter", 2)       # probabilistic
-# b5 >> play(x., amp=Pacc("tresillo"))     # accent groove
-# b6 >> play(x-o-, amplify=PSwing(0.3))          # swing feel
-
-
-# ══ 2. SYNTHS — [seq]  (chord)  per-param groups ════════════════════════
-p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), rq=0.4)
-
-# (a,b,c) = chord ;  grouped params zip across voices
-# p2 >> pluck([0, (0,4,7), 4, 7], oct=4, dur=0.5, pan=(-1,1))
-# p3 >> fm([0, 7, 5, 3], oct=4, ratio=2, index=var([2, 9], [4, 4]))
-
-# bell · pads · bass · prophet · pulse(width) · blip(rate) · saw · sine · rsin · donk
-# p4 >> bell([0, 4, 7], oct=5, rate=2, amp=0.5)
-# p5 >> pads([0, 3, 5], oct=4, dur=4, amp=0.5, reverb=0.4)
-
-
-# ══ 3. f* PARAMETER ENVELOPES — "_" suffix, per-note, FX params only ════
-# fi=fade in  fo=fade out  fb=bounce/wobble   sig: f(beats, from, to)
-# p7 >> saw([0, 4], oct=4, dur=1, lpf_=fi(0.5, 400, 5000), amp=0.5)
-# p8 >> saw([0, 3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000), amp=0.5)
-
-
-# ══ 4. FX — append to any player (lpf hpf reverb echo tanh crush) ═══════
-# crush = bitcrush (bits=levels, srate=downsample Hz)
-# p1 >> dbass([0,-3,0,4], oct=4, crush=0.6, bits=4, echo=0.3, echo_time=0.375)
-
-
-# ══ 5. DEFINE A SYNTH LIVE — defsynth() (no SuperCollider needed) ═══════
-# Run this block once, then play "mylead" like any built-in.
-# defsynth("mylead", { cutoff: 2000, rq: 0.4 }, ({ out, note, amp, sus, pan, attack, release, cutoff, rq }) => {
-#   const freq = note.midicps()
-#   const env  = EnvGen.ar(Env.linen(attack, sus, release), { doneAction: 2 })
-#   const sig  = RLPF.ar(Saw.ar(freq), cutoff, rq).mul(env).mul(amp)
-#   Out.ar(out, Pan2.ar(sig, pan))
-# })
-# p2 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)
-
-
-# ══ 6. EXTERNAL SAMPLES — load from any CORS-friendly URL ═══════════════
-# loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
-# loadsample("K", "https://raw.githubusercontent.com/user/repo/main/kick.wav")
-# b1 >> play(K.K.K.K., amp=0.9)
-
-
-# ══ 7. PERFORMANCE ══════════════════════════════════════════════════════
-# p1.every(8, 'stutter', 4)
-# p1.solo(8)        # solo 8 beats then restore   |   soloRnd(8)
-# drop(14, 2)       # bar-aligned drop   (Alt+S solo · Ctrl+Alt+S unsolo)
-
-
-# ══ 8. SECTION SEQUENCER — cursor on a #@ line, Ctrl+Enter ══════════════
-# sections auto-advance after their beat count | commented "# p1 >>" = stop
-#@#@ my_set
+# ── a little starter set — put the cursor on #@intro(16) and Ctrl+Enter ───
+#@#@ welcome_set
 
 #@intro(16)
-# p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9)
-# b1 >> play(X.oX.o, amp=0.9)
+p1 >> pads([0, (0,4,7), 5, (2,5,9)], oct=4, dur=4, attack=0.5, lpf=linvar([400, 4000], [16]), reverb=0.5, amp=0.5)
+b1 >> play(x...x...x...x..., amp=0.6)
 
-#@verse(32)
-# p1 >> dbass([0, -3, 5, 4], oct=4, amp=0.9)
-# p5 >> pads([0, 3, 5], oct=4, dur=4, reverb=0.4)
-# # b1 >>
+#@groove(32)
+p1 >> dbass([0, -3, 0, 4], oct=4, mverb=0.3, tanh=0.4, drive=3, amp=0.8)
+b1 >> play(x.x.x.x., amp=0.8).sometimes("stutter", 2)
+h1 >> play(-.-.-.-., hpf=5000, amp=Pacc("ghost"))
+p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000], [8]), amp=0.4).every(8, "reverse")
 
-#@loop(8, verse:3, fill:1)
+#@goto(groove, 0.5)   # 50% loop the groove again, else resolve to the outro
 
-#@fill(4, verse:1)
-# b1 >> play(<X.oX.> [XoX] X.X., crush=0.5, bits=4)
+#@outro(16)
+~p1 >> bell([0, 4, 7, 11], oct=5, dur=1, reverb=0.6, amp=linvar([0.5, 0], [16]))
+# b1 >>
+# h1 >>
+# p2 >>
 
 #@end(8)
+
+
+# ════════ CHEATSHEET — everything below is reference; edit & run freely ════
+# Full docs, the changelog and a copy-paste example library: the [ ? ] button.
+
+# DRUMS — play()  ( . = rest )   (xo) together  [xo] subdivide  {xo} random  <xo> alternate
+# b2 >> play(x-o-, lpf=1500, reverb=0.3)         # FX work on drums too
+# b3 >> play(<x.><[--]><x.>, amp=0.8)            # brackets nest
+# b4 >> play(x-o-).sometimes("stutter", 2)        # probabilistic
+
+# SYNTHS — dbass bass saw sine rsin donk pluck pulse(width) blip(rate) fm bell pads prophet
+# (a,b,c) = chord ;  grouped params (pan=(-1,1)) zip across voices
+# p3 >> pluck([0, (0,4,7), 4, 7], oct=4, dur=0.5, pan=(-1,1))
+# p4 >> fm([0, 7, 5, 3], oct=4, ratio=2, index=var([2, 9], [4, 4]))
+
+# FX (append to any player): lpf hpf reverb mverb echo chorus tanh crush rgate resonbank tremolo
+# p1 >> dbass([0,-3,0,4], oct=4, crush=0.6, bits=4, echo=0.3, echo_time=0.375)
+
+# ENVELOPES ("_" suffix, FX params only): fi fade-in · fo fade-out · fb wobble — f(beats, from, to)
+# p5 >> saw([0, 4], oct=4, dur=1, lpf_=fi(0.5, 400, 5000), amp=0.5)
+
+# PATTERNS: PRand PWhite PRange PStep Pacc PFDur PLife · var linvar sinvar expvar
+# p6 >> sine(PRange(0, 7), dur=0.5, amp=PWhite(0.4, 0.9))
+
+# PERFORMANCE: p1.every(8,'stutter',4) · p1.solo(8) · soloRnd(8) · drop(14,2)
+
+# DEFINE A SYNTH LIVE — defsynth() (no SuperCollider). See the [ ? ] examples.
+
+# SECTIONS ( #@ ): auto-advance after beats · #@goto(part, prob) branches ·
+#   #@loop(beats, a:2, b:1) weighted jump · a commented "# p1 >>" stops it on entry
 `;
 
     // Session mode (?session=) is persisted by Yjs. In solo mode, autosave the
@@ -736,9 +733,47 @@ p1 >> dbass([0, -3, 0, 4], oct=4, amp=0.9, cutoff=linvar([400, 2000], [8, 8]), r
     let _partsTimer = null;
     editor.on('change', () => { clearTimeout(_partsTimer); _partsTimer = setTimeout(renderParts, 300); });
 
+    // ── User identity (multiplayer) — name + cursor colour ────────────────────
+    function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }
+    function getUser() {
+        let u = null;
+        try { u = JSON.parse(localStorage.getItem('wfd-user') || 'null'); } catch (_) {}
+        if (!u || !u.name) {
+            u = { name: 'user' + Math.floor(Math.random() * 99), color: userRandomColor() };
+            localStorage.setItem('wfd-user', JSON.stringify(u));
+        }
+        return u;
+    }
+    // <input type=color> needs #rrggbb — normalise any CSS colour (e.g. hsl()) via canvas.
+    function toHexColor(color) {
+        if (/^#[0-9a-f]{6}$/i.test(color)) return color;
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.fillStyle = color || '#888888';
+        return ctx.fillStyle;
+    }
+    // Reveal + wire the name/colour box (only shown in a session).
+    function initUserBox() {
+        const box   = document.getElementById('user-box');
+        const nameI = document.getElementById('user-name');
+        const colI  = document.getElementById('user-color');
+        const user  = getUser();
+        nameI.value = user.name;
+        colI.value  = toHexColor(user.color);
+        box.classList.add('active');
+        const save = () => {
+            const u = { name: nameI.value.trim() || 'anon', color: colI.value };
+            localStorage.setItem('wfd-user', JSON.stringify(u));
+            if (_collab) _collab.setUser(u);   // live-update peers' cursors
+        };
+        nameI.onchange = save;
+        nameI.onblur   = save;
+        colI.oninput   = save;
+    }
+
     // ── Multiplayer — init if ?session= is in the URL ─────────────────────────
     if (_sessionSlug) {
         log(`Joining session: ${_sessionSlug}`, 'info');
+        initUserBox();   // persist identity before collab reads it, reveal the box
         initCollab(_sessionSlug, clock, editor, (msg) => {
             // Peer eval received — flash lines and run without re-broadcasting
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
