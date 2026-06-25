@@ -130,6 +130,30 @@ export const FX_REGISTRY = {
     cswdepth: { scParam: 'cswdepth', default: 0.3, desc: 'Sweep depth' },
     cswrate:  { scParam: 'cswrate',  default: 0.5, desc: 'Sweep LFO rate Hz' },
     cswdecay: { scParam: 'cswdecay', default: 0.5, desc: 'Comb resonance/decay' },
+
+    // eb — tape-style echo (Roland EchoBoy-ish), CrashServer port
+    eb:       { scParam: 'eb',       default: 0.5,  desc: 'Echo delay time (s); ebmix sets wet' },
+    ebmix:    { scParam: 'ebmix',    default: 0,    desc: 'Echo wet mix (0=off)' },
+    ebfeed:   { scParam: 'ebfeed',   default: 0.5,  desc: 'Echo feedback (0..0.95)' },
+    ebmode:   { scParam: 'ebmode',   default: 0,    desc: 'Echo voicing: 0 digital · 1 analog · 2 tape' },
+    ebwow:    { scParam: 'ebwow',    default: 0.1,  desc: 'Tape wow (slow pitch drift)' },
+    ebflutter:{ scParam: 'ebflutter',default: 0.15, desc: 'Tape flutter (fast pitch jitter)' },
+    ebsat:    { scParam: 'ebsat',    default: 0.3,  desc: 'Echo saturation (analog/tape modes)' },
+
+    // tube — tube-style saturation (even harmonics + warmth), CrashServer port
+    tube:     { scParam: 'tube',     default: 0,   desc: 'Tube-saturation mix (0=off)' },
+    tubedrive:{ scParam: 'tube',     default: 0,   desc: 'Alias of tube (saturation mix)' },
+    tubegain: { scParam: 'tubegain', default: 1.5, desc: 'Tube input drive' },
+    tubewarm: { scParam: 'tubewarm', default: 0.6, desc: 'Even-harmonic warmth' },
+    tubebias: { scParam: 'tubebias', default: 0.1, desc: 'Asymmetry bias' },
+
+    // drcomp — drum-bus compressor + shelves (techno glue), CrashServer port
+    drcomp:   { scParam: 'drcomp',   default: 0, desc: 'Drum compressor mix (0=off)' },
+
+    // lofi — degrade: compress + tape wow + soft sat + band-limit, CrashServer port
+    lofi:     { scParam: 'lofi',     default: 0,   desc: 'Lo-fi degrade mix (0=off)' },
+    lofiwow:  { scParam: 'lofiwow',  default: 0.5, desc: 'Lo-fi tape wow amount' },
+    lofiamp:  { scParam: 'lofiamp',  default: 0.5, desc: 'Lo-fi crush/compression intensity' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));

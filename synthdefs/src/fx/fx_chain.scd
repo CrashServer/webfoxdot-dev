@@ -39,11 +39,16 @@ SynthDef(\fd_fx_chain, {
      phaser=0, phaser_rate=0.5, formant=0, formant_vowel=0,
      octclean=0, ocsub=0.5, ocup=0.3,
      fold=0, symetry=1,
-     csweep=0, cswfreq=200, cswdepth=0.3, cswrate=0.5, cswdecay=0.5|
+     csweep=0, cswfreq=200, cswdepth=0.3, cswrate=0.5, cswdecay=0.5,
+     eb=0.5, ebfeed=0.5, ebmix=0, ebmode=0, ebwow=0.1, ebflutter=0.15, ebsat=0.3,
+     tube=0, tubegain=1.5, tubewarm=0.6, tubebias=0.1,
+     drcomp=0,
+     lofi=0, lofiwow=0.5, lofiamp=0.5|
 
-    var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT,
+    var sig, wet, dry, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT,
         flT, phWet, phMod, ff1, ff2, ff3,
-        ocSub, ocUp, foldGain, cswDel, cswLfo;
+        ocSub, ocUp, foldGain, cswDel, cswLfo,
+        ebWow, ebFlut, ebDelT, sat, harm, loR, loT, loG, loRate, loDepth, loMul;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -193,6 +198,48 @@ SynthDef(\fd_fx_chain, {
     cswLfo = SinOsc.kr(cswrate.clip(0.01, 20)).range(1 - cswdepth, 1 + cswdepth);
     wet = CombC.ar(sig, 0.05, (cswDel * cswLfo).clip(0.00005, 0.05), cswdecay.clip(0, 4));
     sig = XFade2.ar(sig, LeakDC.ar(wet), csweep.clip(0, 1) * 2 - 1);
+
+    // ── eb — tape-style echo (Roland EchoBoy-ish). CombC feedback (the chain's
+    //    one LocalIn is taken by fbdelay), wow/flutter modulated, tone + sat.
+    //    ebmix = wet level (0=off) · ebmode 0/1/2 = digital/analog/tape ──────
+    ebWow  = SinOsc.kr(0.5 + (0.3 * LFNoise1.kr(0.2)), 0, ebwow * 0.003);
+    ebFlut = LFNoise1.kr(10 + (20 * LFNoise1.kr(0.5)), ebflutter * 0.002);
+    ebDelT = (eb.clip(0.001, 2) * (1 + ebWow + ebFlut)).clip(0.0001, 2);
+    wet    = CombC.ar(sig, 2.0, ebDelT, eb.clip(0.001, 2) * (1 + (ebfeed.clip(0, 0.95) * 24)));
+    wet    = LPF.ar(HPF.ar(wet, 100), 8000);
+    wet    = Select.ar(ebmode.clip(0, 2), [wet, (wet * (1 + (ebsat * 2))).tanh * 0.7, (wet * (1 + (ebsat * 4))).distort * 0.5]);
+    sig    = HPF.ar((sig * (1 - ebmix.clip(0, 1))) + (wet * ebmix.clip(0, 1)), 40);
+
+    // ── tube — tube-style saturation: even harmonics + warmth ─────────────
+    dry  = sig;
+    sat  = Compander.ar(sig, sig, 0.3, 1, 0.5, 0.001, 0.06, 1.3) + (tubebias * 0.15);
+    sat  = sat * tubegain * 1.8;
+    sat  = sat - (sat.cubed * 0.25);
+    harm = (sig.squared * tubewarm * 0.4).softclip + (sig.cubed * tubewarm * 0.15);
+    sat  = (sat + harm).softclip;
+    sat  = LeakDC.ar(sat);
+    sat  = BLowShelf.ar(LPF.ar(sat, 9000), 150, 0.7, tubewarm * 2);
+    sat  = BPeakEQ.ar(sat, 2500, 0.6, tubewarm * 1.5);
+    sat  = Compander.ar(sat, sat, 0.35, 1, 0.6, 0.003, 0.06, 1.3);
+    sig  = XFade2.ar(dry, sat * 0.8, tube.clip(0, 1) * 2 - 1);
+
+    // ── drcomp — drum bus compressor + shelves (techno glue) ──────────────
+    wet = Compander.ar(sig, sig, 0.1, 1, 0.1, 0.002, 0.05, 3);
+    wet = BHiShelf.ar(BLowShelf.ar(wet, 200, 1, 2), 6000, 1, 3);
+    sig = XFade2.ar(sig, wet * 0.7, drcomp.clip(0, 1) * 2 - 1);
+
+    // ── lofi — degrade: compress + tape wow + soft sat + band-limit ───────
+    loR    = LinExp.kr(lofiamp.clip(0, 1), 0, 1, 0.15, 0.01);
+    loT    = LinLin.kr(lofiamp.clip(0, 1), 0, 1, 0.8, 0.33);
+    loG    = 1 / (((1.0 - loT) * loR) + loT);
+    wet    = Limiter.ar(Compander.ar(sig, sig, loT, 1.0, loR, 0.1, 1, loG), 1, 0.0008);
+    loRate = LinExp.kr(lofiwow.clip(0, 1), 0, 1, 0.5, 4);
+    loDepth = LinExp.kr(lofiwow.clip(0, 1), 0, 1, 1, 30);
+    loMul  = ((2 ** (loDepth / 1200)) - 1) / (4 * loRate);
+    wet    = DelayC.ar(wet, 0.05, SinOsc.ar(loRate, 2, loMul, loMul + 0.001));
+    wet    = (wet * 1.5).tanh;
+    wet    = HPF.ar(LPF.ar(wet, 5000), 60);
+    sig    = XFade2.ar(sig, wet, lofi.clip(0, 1) * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);
