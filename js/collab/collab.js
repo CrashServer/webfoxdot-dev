@@ -150,10 +150,15 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // Re-elect if someone leaves
     provider.awareness.on('change', electBeatMaster);
 
-    // Connected-peer list (name + colour), pushed to the UI on every change.
+    // Connected-peer list, keyed by the stable Yjs client id so a rename updates
+    // the same entry instead of looking like a new user. isSelf marks you.
     function getPeers() {
-        return Array.from(provider.awareness.getStates().values())
-            .map(s => s.user).filter(Boolean);
+        const me = provider.awareness.clientID;
+        const out = [];
+        provider.awareness.getStates().forEach((state, id) => {
+            if (state.user) out.push({ id, name: state.user.name, color: state.user.color, isSelf: id === me });
+        });
+        return out;
     }
     provider.awareness.on('change', () => onPeers?.(getPeers()));
     setTimeout(() => onPeers?.(getPeers()), 300);

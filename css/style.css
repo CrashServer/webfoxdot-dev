@@ -700,6 +700,19 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .cp-peer-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px currentColor; }
 .cp-peer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Session chat */
+#cp-chat-log { margin-top: 8px; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.cp-chat-msg { font-size: 11px; color: var(--text-1); line-height: 1.35; word-break: break-word; }
+.cp-chat-name { font-weight: bold; margin-right: 2px; }
+#cp-chat-input {
+    width: 100%; margin-top: 5px;
+    background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-1); border-radius: 4px;
+    padding: 3px 7px; font-family: monospace; font-size: 11px;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+#cp-chat-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 2px var(--green-dim); }
+
 /* Composition parts panel */
 #cp-parts { display: flex; flex-direction: column; gap: 2px; }
 .cp-part {

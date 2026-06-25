@@ -126,7 +126,7 @@ const CHANGELOG = [
         'Fix: ~player >> … is now a full reset — clears every()/solo gain/transposition AND bypasses the FX chain (stale lpf/reverb gone)',
         'New "↻ reset" button (and softReload() in code) — stop everything & free stuck audio nodes without a page refresh',
         'Composition panel: live progress squares next to each part — watch the active section advance through its beats (mirrors to peers)',
-        'Multiplayer: a Session panel lists connected peers (name + colour), updating live as people join/leave',
+        'Multiplayer: a Session panel lists connected peers (name + colour) + a session chat; renaming updates your entry in place (keyed by client id)',
         'Fix: .every() now fires on play() too (it was synth-only); it also honours a trailing kwarg, e.g. .every(4, "stutter", mverb=0.5)',
         'Load meter in the toolbar — scheduler lag (ms) + active voice count; green/amber/red as the main thread keeps up or struggles',
         { t: 'New FX: fbdelay — stereo feedback delay with filtered feedback (fbtime/fbfeed/fbcutoff/fbspread)', ex: 'fx' },

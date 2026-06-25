@@ -96,6 +96,8 @@
     <div class="cp-section" id="cp-session">
       <h3>Session</h3>
       <div id="cp-peers"></div>
+      <div id="cp-chat-log"></div>
+      <input id="cp-chat-input" type="text" placeholder="chat…  (Enter)" maxlength="280" spellcheck="false">
     </div>
 
     <div class="cp-section">
@@ -218,6 +220,7 @@
                 case 'soloDrop': clock._players.get(msg.name)?.soloDrop(msg.beats); break;
                 case 'section':  applyRemoteSection(msg.line, msg.autoplay);       break;
                 case 'cancel':   cancelSection();                                  break;
+                case 'chat':     appendChat(msg);                                  break;
             }
         } finally { _applyingRemote = false; }
     }
@@ -820,27 +823,54 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
     }
 
     // Render the connected-peers list (name + colour); marks you as "(you)".
+    // Keyed by client id, so renaming updates your entry instead of duplicating.
     function renderPeers(peers) {
         const el = document.getElementById('cp-peers');
         if (!el) return;
-        const me = getUser().name;
         if (!peers || peers.length === 0) {
             el.innerHTML = '<div style="font-size:10px;color:var(--text-2)">connecting…</div>';
             return;
         }
-        // De-dupe by name (a peer can briefly appear twice across reconnects).
         const seen = new Set();
         el.innerHTML = '';
         for (const u of peers) {
-            if (!u || seen.has(u.name)) continue;
-            seen.add(u.name);
+            if (!u || seen.has(u.id)) continue;
+            seen.add(u.id);
             const d = document.createElement('div');
             d.className = 'cp-peer';
             d.innerHTML = `<span class="cp-peer-dot" style="background:${u.color || '#888'}"></span>` +
-                `<span class="cp-peer-name">${u.name}${u.name === me ? ' (you)' : ''}</span>`;
+                `<span class="cp-peer-name">${u.name || 'anon'}${u.isSelf ? ' (you)' : ''}</span>`;
             el.appendChild(d);
         }
     }
+
+    // ── Session chat ──────────────────────────────────────────────────────────
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+    function appendChat({ name, color, text }) {
+        const log = document.getElementById('cp-chat-log');
+        if (!log) return;
+        const d = document.createElement('div');
+        d.className = 'cp-chat-msg';
+        d.innerHTML = `<span class="cp-chat-name" style="color:${color || '#888'}">${escapeHtml(name || 'anon')}</span> ${escapeHtml(text)}`;
+        log.appendChild(d);
+        while (log.childElementCount > 200) log.removeChild(log.firstChild);
+        log.scrollTop = log.scrollHeight;
+    }
+    function sendChat() {
+        const inp = document.getElementById('cp-chat-input');
+        const text = inp.value.trim();
+        if (!text) return;
+        inp.value = '';
+        const u = getUser();
+        appendChat({ name: u.name, color: u.color, text });   // show our own message
+        broadcastAction('chat', { name: u.name, color: u.color, text });
+    }
+    document.getElementById('cp-chat-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+        e.stopPropagation();   // keep editor shortcuts out of the chat box
+    });
 
     // ── Multiplayer — init if ?session= is in the URL ─────────────────────────
     if (_sessionSlug) {
