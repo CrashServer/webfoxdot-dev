@@ -78,7 +78,7 @@
     <div class="cp-section">
       <h3>Clock</h3>
       <div id="cp-beat">—</div>
-      <div id="cp-beat-sub" style="text-align:center;font-size:9px;color:var(--text-2);margin-bottom:4px;">◦◦◦◦</div>
+      <div id="cp-beat-sub" style="text-align:center;font-size:9px;color:var(--text-2);margin-bottom:2px;">◦◦◦◦</div>
       <div class="cp-row">
         <span class="cp-label">BPM</span>
         <span class="cp-value green" id="cp-bpm-val">120</span>
@@ -107,7 +107,7 @@
       <div id="cp-parts"></div>
     </div>
 
-    <div class="cp-section" style="flex:1;overflow-y:auto;min-height:0">
+    <div class="cp-section">
       <h3>Players</h3>
       <div id="cp-players"></div>
     </div>
@@ -457,9 +457,10 @@
     const SYNTHDEFS_TO_LOAD = [
         'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
         'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm', 'fd_bell', 'fd_pads',
-        'fd_bass', 'fd_prophet',
-        'fd_sampler', 'fd_fx_chain',
+        'fd_bass', 'fd_prophet', 'fd_plaits',
+        'fd_sampler', 'fd_fx_chain', 'fd_master',
     ];
+    const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
 
     async function bootAudio() {
         const dot = document.getElementById('status-dot');
@@ -502,6 +503,11 @@
                     console.error(`loadSynthDef ${name}:`, e);
                 }
             }
+            // Master safety limiter at the tail of RootNode — sees the summed mix
+            // of every player + FX, so stacking loud players can't hard-clip.
+            sc.send('/s_new', 'fd_master', MASTER_NODE, 1, 0);
+            log('  master limiter ✓', 'ok');
+
             synthStatus.textContent = 'reading sample manifest…';
             try {
                 const charCount = await loadSamples(sc);

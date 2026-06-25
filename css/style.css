@@ -238,7 +238,13 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .CodeMirror-activeline-background { background: var(--bg-2) !important; }
 .CodeMirror-matchingbracket { color: var(--green) !important; background: var(--green-dim); font-weight: bold; }
 /* Live degree highlight — the array element a player is currently sounding */
-.wfd-playing { background: var(--green-dim); border-radius: 2px; box-shadow: 0 0 4px var(--glow); color: var(--green) !important; }
+.wfd-playing {
+    background: rgba(63,185,80,0.35);
+    border-radius: 2px;
+    box-shadow: 0 0 6px var(--glow);
+    color: #fff !important;
+    font-weight: bold;
+}
 /* Hide the editor's horizontal scrollbar (the bar above the log). Long lines
    still scroll via cursor navigation / trackpad; the vertical bar stays. */
 .CodeMirror-hscrollbar { display: none !important; }
@@ -297,7 +303,8 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     border-left: 1px solid var(--border-1);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     height: 100vh;
     height: 100dvh;
     flex-shrink: 0;
@@ -305,10 +312,11 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     user-select: none;
     transition: width 0.2s;
 }
+#cp-header { position: sticky; top: 0; z-index: 2; background: var(--bg-2); }
 #crash-panel.hidden { width: 0; border: none; }
 
 #cp-header {
-    padding: 8px 10px 6px;
+    padding: 5px 10px;
     background: var(--bg-1);
     border-bottom: 1px solid var(--border-1);
     text-align: center;
@@ -326,7 +334,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 }
 
 .cp-section {
-    padding: 8px 10px;
+    padding: 5px 10px;
     border-bottom: 1px solid var(--border-1);
 }
 .cp-section h3 {
@@ -334,7 +342,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     text-transform: uppercase;
     letter-spacing: 1.5px;
     color: var(--text-2);
-    margin-bottom: 6px;
+    margin-bottom: 3px;
 }
 
 .cp-row {
@@ -352,11 +360,11 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 
 /* Beat display */
 #cp-beat {
-    font-size: 18px;
+    font-size: 14px;
     font-weight: bold;
     text-align: center;
     color: var(--green);
-    padding: 4px 0 2px;
+    padding: 1px 0;
     letter-spacing: 2px;
 }
 #cp-beat-sub { font-size: 9px; color: var(--text-2); text-align: center; margin-bottom: 4px; }
@@ -397,12 +405,12 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 /* Tap tempo */
 #cp-tap {
     width: 100%;
-    margin-top: 4px;
+    margin-top: 3px;
     background: var(--bg-3);
     color: var(--text-2);
     border: 1px solid var(--border-1);
-    padding: 4px;
-    font-size: 11px;
+    padding: 3px;
+    font-size: 10px;
     cursor: pointer;
     border-radius: 3px;
     font-family: monospace;

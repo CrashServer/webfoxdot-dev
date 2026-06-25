@@ -51,8 +51,10 @@ let _sc = null;
 export function setSuperSonic(sc) { _sc = sc; }
 
 // Per-step UI signal: (playerName, step). step < 0 means "stopped — clear".
+// Wrapped so a UI error can never break audio scheduling (it fires mid-_fire).
 let _onStep = null;
 export function setStepListener(fn) { _onStep = fn; }
+function emitStep(name, step) { if (_onStep) { try { _onStep(name, step); } catch (_) {} } }
 
 // Resolve all pattern args at the current step
 function resolveArgs(args, step) {
@@ -362,7 +364,7 @@ export class Player {
             else setTimeout(fireVoices, t);
         }
 
-        if (_onStep) _onStep(this.name, step);   // editor degree highlight
+        emitStep(this.name, step);   // editor degree highlight
 
         // Tick .every() handlers
         for (const h of this._every) {
@@ -427,7 +429,7 @@ export class Player {
         };
         for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
 
-        if (_onStep) _onStep(this.name, step);   // editor highlight (play strings)
+        emitStep(this.name, step);   // editor highlight (play strings)
 
         // Tick .every() handlers (play() mode — was previously synth-only)
         for (const h of this._every) {
@@ -602,7 +604,7 @@ export class Player {
         if (beats) { this._clock._schedule(this._clock.now() + beats, () => this.stop()); return this; }
         this._active = false;
         this._every  = [];
-        if (_onStep) _onStep(this.name, -1);   // clear the editor highlight
+        emitStep(this.name, -1);   // clear the editor highlight
         if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
         if (this._fxChain && _sc) {
             this._fxChain.free(_sc);
