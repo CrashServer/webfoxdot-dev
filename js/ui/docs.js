@@ -306,6 +306,55 @@ function buildExamples() {
         return `p${i + 1} >> ${name}([0, 4, 7, 4], oct=${oct}, amp=0.6${tail})`;
     }).join('\n');
 
+    const welcome = section('Welcome — boot, load the kit, run #@intro', `
+        ${note('Hiya! <b>1.</b> Click <b>boot</b> (top-left). <b>2.</b> Put the cursor on a <code>loadpack</code> line below and press <b>Ctrl+Enter</b> to load the sound kit. <b>3.</b> Put the cursor on <code>#@intro(16)</code> and press Ctrl+Enter — the set plays and auto-advances (it branches with <code>#@goto</code>, so it never plays the same way twice). <b>Ctrl+;</b> stops everything.')}
+        ${note('Best in Chromium / Brave / Edge — Firefox has audio + sample issues. Keys: Ctrl+Enter run line · Ctrl+Alt+Enter run block · Alt+X stop · Alt+↑/↓ nudge a number live. In a <code>?session=</code> room, say hi in the chat (right panel) — leave a comment if you connect!')}
+        ${code(`# load the kit — evaluate ONE of these (cursor on it, Ctrl+Enter)
+loadpack("https://raw.githubusercontent.com/CrashServer/webfoxdot-kit/v1/pack.json")
+# CDN mirror (faster, but sometimes cold — hard-refresh & try the other if silent):
+# loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")`)}
+        ${code(`#@#@ welcome_set
+
+#@intro(16)
+p1 >> pads([0, (0,4,7), 5, (2,5,9)], oct=4, dur=4, attack=0.5, lpf=linvar([400, 4500], [16]), reverb=0.5, room=0.85, amp=0.5)
+b1 >> play(x..., amp=0.6)
+
+#@build(16)
+p1 >> dbass([0, -3, 0, 4], oct=4, mverb=0.3, tanh=0.4, drive=3, amp=0.8).unison(2)
+b1 >> play(x.x.x.x., amp=0.8).sometimes("stutter", 2)
+h1 >> play(-.-.-.-., hpf=5000, amp=Pacc("ghost"))
+p2 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000], [8]), amp=0.4).every(8, "reverse")
+
+#@dropA(16)
+p2 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000], [8]), amp=0.4).every(8, "reverse")
+b1 >> play(X.x.X.x., amp=0.9)
+
+#@dropB(16)
+p3 >> blip([0,4,7,5,7,4], oct=6, dur=0.25, echo=0.4, echo_time=0.375, amp=0.25).sometimes("stutter", 4)
+b1 >> play(X.[xx]X.x., amplify=PFDur((3,8),(5,8)), amp=0.9)
+h1 >> play(<-.><-o>, hpf=6000, amp=Pacc("offbeat"))
+
+#@goto(dropA, 0.5)   # 50% loop the drop, else go on
+
+#@dropC(16)
+p2 >> prophet([0, (0,4,7), 4, (2,5,9)], oct=6, dur=0.5, chorus=0.7, lpf=sinvar([1200, 7000], [4]), amp=0.35).every(8, "reverse")
+
+#@goto(dropB, 0.4)   # 40% back to dropB, else continue
+
+#@break(16)
+# p3 >>
+# h1 >>
+p2 >> prophet((0,4,7), oct=4, dur=2, mverb=0.85, mverbfreeze=1, amp=0.4)
+b1 >> play(x..., amp=0.6)
+
+#@goto(dropA, 0.5)   # 50% back into the drop, else resolve
+
+#@outro(16)
+~p1 >> bell([0, 4, 7, 11], oct=5, dur=1, reverb=0.6, room=0.9, lpf=linvar([5000, 600], [16]), amp=linvar([0.5, 0], [16]))
+
+#@end(8)`)}
+    `, 'welcome');
+
     const start = section('Start here', `
         ${note('Boot audio first (the <b>boot</b> button). Put the cursor on a line and press <b>Ctrl+Enter</b> to run it; <b>Ctrl+Alt+Enter</b> runs the whole block. Edit and re-run live. <b>Ctrl+;</b> stops everything. Click any code box below to copy it.')}
         ${note('<b>Ctrl+Space</b> autocompletes (synths, params, FX, patterns). <b>Alt+I</b> shows info on the symbol under the cursor — and for a pattern it evaluates and shows the values it makes.')}
@@ -347,6 +396,10 @@ b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid rhythm as play chars → "..
         ${code(`p1 >> plaits([0,4,7], oct=4, engine=0, timbre=0.6)        # virtual analog
 p1 >> plaits([0,4,7], oct=5, engine=1, harm=0.3, timbre=0.7)  # FM
 p1 >> plaits([0,4,7], oct=4, engine=var([0,1,4,6], 8), timbre=sinvar([0.2,0.9],[8]))  # morph engines`)}
+        ${note('<b>tb303</b> — acid bass: a resonant filter swept by a per-note envelope (<code>env</code> = mod amount, <code>rq</code> = resonance, <code>dist</code> = drive). Pairs beautifully with <code>PArp</code> arpeggios, and tweak <code>cutoff</code> live with attribute assignment.')}
+        ${code(`p1 >> tb303(PArp([0,3,7], 5), oct=3, cutoff=300, rq=0.15, env=4, dur=1/4, dist=0.3)
+p1.cutoff = linvar([200, 3000], 16)        # ride the filter live
+p1.env = PStep(8, 6, 2)`)}
     `, 'synths');
 
     const tweak = section('Live tweaking — try these', `
@@ -423,7 +476,12 @@ b1 >> play(x.o., resonbank=0.3, rbfreq=[47,50,62]) # resonator bank
 b2 >> play(x-o-, rgate=0.8, rgaterate=8)           # rhythmic gate
 b3 >> play(x.o., mverb=0.6, mverbfreeze=1)         # frozen reverb
 b4 >> play(x-o-, tremolo=0.8, trem_rate=8)         # tremolo
-p1 >> blip([0,4,7], dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbspread=0.3)  # ping-pong feedback delay`)}
+p1 >> blip([0,4,7], dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbspread=0.3)  # ping-pong feedback delay
+p1 >> saw([0,4,7], oct=3, shape=0.6)               # sine wavefolder
+p1 >> dbass([0,-3], oct=4, dist2=0.7, dist2shape=0.4)        # fold + tanh saturation
+p1 >> dbass([0,-3], oct=4, multicrush=0.7, mchighdrive=5)    # 3-band multiband drive
+p1 >> saw([0,4,7], dur=1/2, chop=4)                # rhythmic gate, 4 slices/beat
+p1 >> pads([0,4,7], oct=4, dur=1, leg=4)           # legato — notes overlap (pad)`)}
     `, 'fx');
 
     const samples = section('External samples — the webfoxdot-kit pack', `
@@ -541,7 +599,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + sections + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────

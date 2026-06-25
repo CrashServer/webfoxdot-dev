@@ -855,22 +855,57 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     let _partsTimer = null;
     editor.on('change', () => { clearTimeout(_partsTimer); _partsTimer = setTimeout(renderParts, 300); });
 
-    // ── Live degree highlight ─────────────────────────────────────────────────
-    // Mark the array element a synth player is currently sounding. Cheap: spans
-    // are parsed once per line text (cached), and only one marker moves per step.
+    // ── Live degree / sample highlight ────────────────────────────────────────
+    // Mark the array element (synth) or play-char (drums) a player is sounding.
+    // A name can appear on several lines (composition sections), so we resolve to
+    // the occurrence inside the currently-active #@ section.
     const _degMarks = new Map();      // playerName → CodeMirror TextMarker
     const _spanCache = new Map();     // lineText → [[s,e],…] | null
-    let   _playerLineMap = null;      // name → line, rebuilt lazily after edits
+    const _NAME_RE = /^\s*~?\s*([a-zA-Z_]\w*)\s*>>/;
 
-    function parseDegreeSpans(lineText) {
+    function findPlayerLine(name) {
+        const active = isAutoplaying() ? getActiveInfo().line : -1;
+        let secEnd = editor.lineCount();
+        if (active >= 0) {
+            for (let i = active + 1; i < editor.lineCount(); i++) {
+                if (editor.getLine(i).trim().startsWith('#@')) { secEnd = i; break; }
+            }
+        }
+        let best = -1, fallback = -1;
+        for (let i = 0; i < editor.lineCount(); i++) {
+            const m = editor.getLine(i).match(_NAME_RE);
+            if (m && m[1] === name) {
+                fallback = i;
+                if (active >= 0 && i >= active && i < secEnd) best = i;
+            }
+        }
+        return best >= 0 ? best : fallback;
+    }
+
+    function parseSpans(lineText) {
         const ge = lineText.indexOf('>>');
         if (ge < 0) return null;
-        if (/^\s*~?\s*play\b/.test(lineText.slice(ge + 2))) return null;  // play strings: skip
+        const isPlay = /^\s*~?\s*play\b/.test(lineText.slice(ge + 2));
         const op = lineText.indexOf('(', ge);
         if (op < 0) return null;
         let i = op + 1;
         while (i < lineText.length && /\s/.test(lineText[i])) i++;
-        if (lineText[i] !== '[') return null;            // degree (first arg) isn't a literal array
+        if (isPlay) {
+            // First arg = play string. Highlight each char of a FLAT string only
+            // (nested brackets don't map 1:1 to steps).
+            let q = '';
+            if (lineText[i] === '"' || lineText[i] === "'") { q = lineText[i]; i++; }
+            const spans = [];
+            for (let k = i; k < lineText.length; k++) {
+                const c = lineText[k];
+                if (q ? c === q : (c === ',' || c === ')')) break;
+                if ('()[]{}<>'.includes(c)) return null;   // not flat — skip
+                if (c === ' ') continue;
+                spans.push([k, k + 1]);
+            }
+            return spans.length ? spans : null;
+        }
+        if (lineText[i] !== '[') return null;              // synth degree isn't a literal array
         let depth = 0, j = i;
         for (; j < lineText.length; j++) {
             const c = lineText[j];
@@ -893,9 +928,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }
         return spans.length ? spans : null;
     }
-    function degreeSpans(lineText) {
+    function spansFor(lineText) {
         if (_spanCache.has(lineText)) return _spanCache.get(lineText);
-        const spans = parseDegreeSpans(lineText);
+        const spans = parseSpans(lineText);
         if (_spanCache.size > 300) _spanCache.clear();
         _spanCache.set(lineText, spans);
         return spans;
@@ -906,26 +941,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     function highlightStep(name, step) {
         if (step < 0) { clearDegMark(name); return; }
-        if (!_playerLineMap) {
-            _playerLineMap = new Map();
-            for (let i = 0; i < editor.lineCount(); i++) {
-                const m = editor.getLine(i).match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
-                if (m) _playerLineMap.set(m[1], i);
-            }
-        }
-        const line = _playerLineMap.get(name);
-        if (line == null || line >= editor.lineCount()) { clearDegMark(name); return; }
-        const lineText = editor.getLine(line);
-        const nm = lineText.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
-        if (!nm || nm[1] !== name) { _playerLineMap = null; clearDegMark(name); return; }
-        const spans = degreeSpans(lineText);
+        const line = findPlayerLine(name);
+        if (line < 0 || line >= editor.lineCount()) { clearDegMark(name); return; }
+        const spans = spansFor(editor.getLine(line));
         if (!spans) { clearDegMark(name); return; }
         const [s, e] = spans[((step % spans.length) + spans.length) % spans.length];
         clearDegMark(name);
         _degMarks.set(name, editor.markText({ line, ch: s }, { line, ch: e }, { className: 'wfd-playing' }));
     }
     _setStepListener(highlightStep);
-    editor.on('change', () => { _playerLineMap = null; });
 
     // ── User identity (multiplayer) — name + cursor colour ────────────────────
     function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }
