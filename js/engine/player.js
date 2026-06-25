@@ -40,11 +40,16 @@ import { PlayStringCall, parsePattern, charToBufId } from './sampler.js';
 export const PLAYER_GROUP = 2;
 export const FX_GROUP     = 3;
 
-// Private bus allocation (stereo, 2 channels each)
+// Private bus allocation (stereo, 2 channels each). Freed buses are recycled, so
+// a long session that spawns many player names can't exhaust the bus pool.
 const FIRST_BUS = 64;
 const STRIDE    = 2;
 let   _nextSlot = 0;
-function allocBus() { return FIRST_BUS + _nextSlot++ * STRIDE; }
+const _freeBuses = [];
+function allocBus() { return _freeBuses.length ? _freeBuses.pop() : (FIRST_BUS + _nextSlot++ * STRIDE); }
+function freeBus(b) { if (b != null) _freeBuses.push(b); }
+// Live bus usage for the toolbar monitor: { used, peak }
+export function busStats() { return { used: _nextSlot - _freeBuses.length, peak: _nextSlot }; }
 
 // SuperSonic instance reference — set after boot
 let _sc = null;
@@ -200,6 +205,7 @@ export class Player {
     // active player INHERITS its previous params and only overrides what's given.
     __rshift__(synthCall, reset = false) {
         if (synthCall === null || synthCall === undefined) { this.stop(); return this; }
+        if (this._bus == null) this._bus = allocBus();   // re-acquire after a stop
 
         // ~player >> … — clear accumulated state so the reset is total, not just
         // the args: drop every() handlers, solo/drop gain, transposition, and
@@ -389,7 +395,7 @@ export class Player {
     }
 
     _fireSample() {
-        if (!_sc || !this._pattern?.length) return;
+        if (!_sc || !this._pattern?.length || this._bus == null) return;
         const opts     = this._playOpts;
         const step     = this._step;
         // In sample mode a group param varies per pattern step (it can't layer).
@@ -591,7 +597,7 @@ export class Player {
     }
 
     _trigger(midi, r) {
-        if (!_sc) return;
+        if (!_sc || this._bus == null) return;   // bus freed (player stopped)
         const secPerBeat = 60 / this._clock.bpm;
         const result     = buildParams(this._synth, midi, r, secPerBeat, this._bus);
         if (!result) { console.error(`Unknown synth: ${this._synth}`); return; }
@@ -619,6 +625,8 @@ export class Player {
             this._fxChain.free(_sc);
             this._fxChain = null;
         }
+        freeBus(this._bus);   // recycle the private bus for the next player
+        this._bus = null;
     }
 
     // solo() — mute all others indefinitely. solo(beats) — restore after N beats.

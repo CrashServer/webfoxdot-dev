@@ -130,7 +130,7 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
@@ -500,13 +500,18 @@
             const sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
-                // Raise the node ceiling 1024 → 8192. The server cap is read from
-                // worldOptions.maxNodes (top-level maxNodes was ignored, so we'd been
-                // stuck at the 1024 default — new players went silent once full). The
-                // node-tree mirror cap must match or it warns and stops tracking.
+                // Server limits are read from worldOptions. Defaults are low:
+                //   maxNodes 1024, numAudioBusChannels 128. Each player grabs a
+                //   private stereo bus at 64+2N, so >~32 players ran out of buses
+                //   (writes wrapped onto the output bus → everything went silent).
+                // Raise both generously; the node-tree mirror cap must match maxNodes.
                 maxNodes:                   8192,
-                worldOptions:               { maxNodes: 8192 },
                 NODE_TREE_MIRROR_MAX_NODES:  8192,
+                worldOptions: {
+                    maxNodes:                   8192,
+                    numAudioBusChannels:        2048,
+                    NODE_TREE_MIRROR_MAX_NODES:  8192,
+                },
                 // Firefox crashes on shared-memory WebAssembly.Memory.grow(), which
                 // SuperSonic calls when the sample buffer pool needs to expand.
                 // Set the pool's initial size == maximum so it's allocated once at
@@ -1122,8 +1127,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             const lag = Math.max(0, now - last - PERIOD);
             last = now;
             const voices = clock._players ? [...clock._players.values()].filter(p => p._active).length : 0;
-            el.textContent = `load ${lag.toFixed(0)}ms · ${voices}v`;
-            el.className = lag > 30 ? 'hi' : (lag > 10 ? 'mid' : 'ok');
+            const bus    = _busStats();                 // { used, peak } private stereo buses
+            const BUS_MAX = (2048 - 64) / 2;             // numAudioBusChannels − base, /stereo
+            el.textContent = `${lag.toFixed(0)}ms · ${voices}v · ${bus.used}/${BUS_MAX}bus`;
+            // red on scheduler lag OR when buses are running low
+            el.className = (lag > 30 || bus.used > BUS_MAX * 0.9) ? 'hi'
+                         : (lag > 10 || bus.used > BUS_MAX * 0.7) ? 'mid' : 'ok';
+            el.title = `scheduler lag ${lag.toFixed(0)}ms · ${voices} active players · ${bus.used} private buses in use (max ~${BUS_MAX})`;
         }, PERIOD);
     })();
 

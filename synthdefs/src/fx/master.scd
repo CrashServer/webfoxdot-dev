@@ -34,6 +34,9 @@ SynthDef(\fd_master, {|gain=1, ceiling=0.95,
     wet = (sig * 1.5).tanh * 0.8;
     sig = XFade2.ar(sig, wet, lofi.clip(0, 1) * 2 - 1);
 
+    // NaN/inf safety net: one blown-up synth or feedback loop can poison the
+    // summed bus and silence everything — Sanitize replaces bad values with 0.
+    sig = Sanitize.ar(sig);
     sig = Limiter.ar(LeakDC.ar(sig), ceiling.clip(0.1, 1.0), 0.01);
     ReplaceOut.ar(0, sig);
 }).writeDefFile(~outDir);
