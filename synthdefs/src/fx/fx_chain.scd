@@ -34,9 +34,12 @@ SynthDef(\fd_fx_chain, {
      fbdelay=0, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, beat_dur=0.5,
      shape=0, dist2=0, dist2shape=1, chop=0,
      multicrush=0, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500,
-     vibrato=0, vib_rate=5, vib_depth=0.008|
+     vibrato=0, vib_rate=5, vib_depth=0.008,
+     ringmod=0, ringmod_freq=200, flanger=0, flanger_rate=0.5, flanger_depth=0.004,
+     phaser=0, phaser_rate=0.5, formant=0, formant_vowel=0|
 
-    var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT;
+    var sig, wet, fbDelTime, fb, fbL, fbR, mcLow, mcMid, mcHigh, vibT,
+        flT, phWet, phMod, ff1, ff2, ff3;
     sig = In.ar(in_bus, 2);
 
     // ── Low-pass filter — lpf = cutoff Hz (0 = bypass) ──────────────────
@@ -146,6 +149,28 @@ SynthDef(\fd_fx_chain, {
     vibT = (0.02 + (SinOsc.kr(vib_rate.clip(0.1, 14)) * vib_depth.clip(0, 0.02))).clip(0.001, 0.05);
     wet  = DelayC.ar(sig, 0.05, vibT);
     sig  = XFade2.ar(sig, wet, vibrato.clip(0, 1) * 2 - 1);
+
+    // ── ringmod — multiply by a sine carrier ──────────────────────────────
+    wet = sig * SinOsc.ar(ringmod_freq.clip(1, 8000));
+    sig = XFade2.ar(sig, wet, ringmod.clip(0, 1) * 2 - 1);
+
+    // ── flanger — short feedback comb, LFO-swept delay ────────────────────
+    flT = (0.001 + SinOsc.kr(flanger_rate.clip(0.01, 10)).range(0, flanger_depth.clip(0, 0.01))).clip(0.0002, 0.02);
+    wet = sig + (CombC.ar(sig, 0.02, flT, 0.2) * 0.7);
+    sig = XFade2.ar(sig, wet, flanger.clip(0, 1) * 2 - 1);
+
+    // ── phaser — cascaded LFO-modulated allpass micro-delays ──────────────
+    phMod = SinOsc.kr(phaser_rate.clip(0.01, 10)).range(0.0001, 0.0009);
+    phWet = sig;
+    6.do { phWet = AllpassC.ar(phWet, 0.001, phMod, 0); };
+    sig = XFade2.ar(sig, sig + phWet, phaser.clip(0, 1) * 2 - 1);
+
+    // ── formant — vowel band-pass bank (vowel 0/1/2 = ah/eh/oh) ───────────
+    ff1 = Select.kr(formant_vowel.clip(0, 2), [730, 530, 570]);
+    ff2 = Select.kr(formant_vowel.clip(0, 2), [1090, 1840, 840]);
+    ff3 = Select.kr(formant_vowel.clip(0, 2), [2440, 2480, 2410]);
+    wet = BPF.ar(sig, ff1, 0.1, 3) + BPF.ar(sig, ff2, 0.1, 2) + BPF.ar(sig, ff3, 0.12, 1.5);
+    sig = XFade2.ar(sig, wet, formant.clip(0, 1) * 2 - 1);
 
     Out.ar(out, sig);
 }).writeDefFile(~outDir);

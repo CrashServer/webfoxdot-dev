@@ -213,6 +213,46 @@ export function PArp(seq, index = 0) {
     return cyc(notes.map((n, i) => n + octs[i % octs.length] * OC));
 }
 
+// PStretch(seq, size) — repeat seq cyclically to exactly `size` steps.
+export function PStretch(seq, size = 8) {
+    const a = Array.isArray(seq) ? seq : [seq];
+    const out = [];
+    for (let i = 0; i < size; i++) out.push(a[i % a.length]);
+    return cyc(out.length ? out : [0]);
+}
+
+// PZip(a, b) — interleave two sequences: [a0,b0,a1,b1,…] (cycles the shorter).
+export function PZip(a, b) {
+    const A = Array.isArray(a) ? a : [a], B = Array.isArray(b) ? b : [b];
+    const n = Math.max(A.length, B.length), out = [];
+    for (let i = 0; i < n; i++) { out.push(A[i % A.length], B[i % B.length]); }
+    return cyc(out);
+}
+
+// PReverse(seq) — the sequence reversed, cycling.
+export function PReverse(seq) {
+    const a = (Array.isArray(seq) ? seq : [seq]).slice().reverse();
+    return cyc(a.length ? a : [0]);
+}
+
+// PMorse(text, point, tiret) — Morse-code rhythm as a `dur` pattern: dots = point,
+// dashes = tiret, a longer gap between letters. e.g. dur=PMorse("sos")
+const _MORSE = { A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.',
+    H: '....', I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---',
+    P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--',
+    X: '-..-', Y: '-.--', Z: '--..', '0': '-----', '1': '.----', '2': '..---',
+    '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.' };
+export function PMorse(text, point = 1 / 4, tiret = 3 / 4) {
+    const durs = [];
+    for (const ch of String(text)) {
+        const code = _MORSE[ch.toUpperCase()];
+        if (!code) continue;
+        for (const sym of code) durs.push(sym === '.' ? point : tiret);
+        durs.push(5 * point);   // inter-letter gap
+    }
+    return cyc(durs.length ? durs : [point]);
+}
+
 // PGauss(mean=0, deviation=1) — Gaussian-distributed random per step (Box–Muller).
 // Integer mean → rounded ints, like FoxDot. e.g. pan=PGauss(0, 0.3)
 export function PGauss(mean = 0, deviation = 1) {

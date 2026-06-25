@@ -99,6 +99,26 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.05, release: 0.15, cutoff: 2000, rq: 0.4, bright: 0.5 },
         extraParams: ['cutoff', 'rq', 'bright'],
     },
+    organ: {
+        scName: 'fd_organ',
+        defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.01, release: 0.1, lpf: 6000, perc: 0 },
+        extraParams: ['lpf', 'perc'],
+    },
+    ssaw: {
+        scName: 'fd_ssaw',
+        defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.02, release: 0.2, cutoff: 4000, rq: 0.6, detune: 0.5 },
+        extraParams: ['cutoff', 'rq', 'detune'],
+    },
+    karp: {
+        scName: 'fd_karp',
+        defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.2, cutoff: 6000 },
+        extraParams: ['cutoff'],
+    },
+    piano: {
+        scName: 'fd_piano',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.002, release: 0.3, tone: 0.5 },
+        extraParams: ['tone'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';

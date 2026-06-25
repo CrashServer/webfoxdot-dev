@@ -68,6 +68,10 @@ export const PATTERNS = [
     { name: 'PFr(lo, hi, seed, size)',  desc: 'Fractal step pattern, deterministic from seed, mapped into [lo,hi]' },
     { name: 'PGauss(mean, deviation)',  desc: 'Gaussian-distributed random per step (int mean → ints)' },
     { name: 'PArp(seq, 0-9)',           desc: 'BlueARP arpeggiator: seq=[k1,k2,k3,k4] degrees, index picks an arp shape. e.g. PArp([0,4,7], 5)' },
+    { name: 'PStretch(seq, size)',      desc: 'Repeat seq cyclically to exactly size steps' },
+    { name: 'PZip(a, b)',               desc: 'Interleave two sequences: [a0,b0,a1,b1,…]' },
+    { name: 'PReverse(seq)',            desc: 'The sequence reversed' },
+    { name: 'PMorse(text, point, tiret)', desc: 'Morse-code rhythm as a dur pattern (dur=PMorse("sos"))' },
 ];
 
 export const TIMEVARS = [
@@ -114,10 +118,15 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha15';
+export const VERSION = 'alpha16';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha16', title: 'More synths, FX & patterns', items: [
+        { t: 'New synths: organ (drawbar additive), ssaw (supersaw), karp (Karplus string), piano (FM electric piano)', ex: 'synths' },
+        { t: 'New FX: ringmod, flanger, phaser, formant (vowel band-pass, 0/1/2 = ah/eh/oh)', ex: 'fx' },
+        { t: 'New patterns: PStretch(seq,size), PZip(a,b), PReverse(seq), PMorse(text) — morse rhythm as a dur', ex: 'patterns' },
+    ]},
     { v: 'alpha15', title: 'Live-tweak attrs · Master bus · new synths & FX · bus fix', items: [
         'Attribute assignment — p1.lpf = linvar(...) / p1.dur = 1/2: tweak one attr of a running player without re-stating the line (the bank\'s core live idiom)',
         'Master / global FX bus — Server.addFx(lpf=…, hpf=…, mverb=…, echo=…, tanh=…, lofi=…) over the whole mix, Server.clearFx(), and Master().lpf = 800',
@@ -471,7 +480,7 @@ p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
     `, 'defsynth');
 
     const fx = section('FX — append to any player', `
-        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush vibrato. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
+        ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush vibrato ringmod flanger phaser formant. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
         ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
@@ -487,7 +496,11 @@ p1 >> dbass([0,-3], oct=4, dist2=0.7, dist2shape=0.4)        # fold + tanh satur
 p1 >> dbass([0,-3], oct=4, multicrush=0.7, mchighdrive=5)    # 3-band multiband drive
 p1 >> saw([0,4,7], dur=1/2, chop=4)                # rhythmic gate, 4 slices/beat
 p1 >> pads([0,4,7], oct=4, dur=1, leg=4)           # legato — notes overlap (pad)
-p1 >> prophet([0,4,7], dur=2, vibrato=0.6, vib_rate=5, vib_depth=0.01)  # pitch vibrato`)}
+p1 >> prophet([0,4,7], dur=2, vibrato=0.6, vib_rate=5, vib_depth=0.01)  # pitch vibrato
+p1 >> ssaw([0,4,7], oct=4, ringmod=0.5, ringmod_freq=180)          # ring mod
+p1 >> ssaw([0,4,7], oct=4, flanger=0.6, flanger_rate=0.3)         # flanger
+p1 >> ssaw([0,4,7], oct=4, phaser=0.7, phaser_rate=0.4)          # phaser
+p1 >> saw([0,4,7], oct=4, formant=0.8, formant_vowel=1)         # vowel filter (eh)`)}
     `, 'fx');
 
     const samples = section('External samples — the webfoxdot-kit pack', `

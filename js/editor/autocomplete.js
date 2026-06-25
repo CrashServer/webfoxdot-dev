@@ -68,6 +68,10 @@ const FX_GROUPS = [
     { name: 'chop',      on: 4,    params: ['chop'] },
     { name: 'multicrush',on: 0.6,  params: ['multicrush', 'mclowdrive', 'mcmiddrive', 'mchighdrive', 'mclofreq', 'mchifreq'] },
     { name: 'vibrato',   on: 0.6,  params: ['vibrato', 'vib_rate', 'vib_depth'] },
+    { name: 'ringmod',   on: 0.5,  params: ['ringmod', 'ringmod_freq'] },
+    { name: 'flanger',   on: 0.6,  params: ['flanger', 'flanger_rate', 'flanger_depth'] },
+    { name: 'phaser',    on: 0.6,  params: ['phaser', 'phaser_rate'] },
+    { name: 'formant',   on: 0.6,  params: ['formant', 'formant_vowel'] },
     { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
 ];
 function fxItem(g) {
@@ -84,7 +88,7 @@ const SCALE_NAMES = [
 const PATTERN_NAMES = [
     'PRand','PWhite','PWalk','PDur','PPing','PStutter','PAlt','PShuf','PBern','PCoin',
     'PEuclid','PRange','PStep','PSine','PTri','PChain','PMarkov',
-    'Pacc','PSwing','PBin','PFDur','PLife',
+    'Pacc','PSwing','PBin','PFDur','PLife','PEuclid2','PFr','PGauss','PArp','PStretch','PZip','PReverse','PMorse',
 ];
 
 const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','fi(','fo(','fb('];

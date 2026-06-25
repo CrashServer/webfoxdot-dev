@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α15</span>
+      <span id="version-tag" class="version-tag" title="changelog">α16</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -137,7 +137,7 @@
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
              PChain, PMarkov, _group,
-             Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp } from './js/patterns/sequences.js';
+             Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
@@ -277,7 +277,7 @@
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,
             PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
-            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp,
+            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse,
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
             __group: _group,
@@ -485,6 +485,7 @@
         'fd_dbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
         'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm', 'fd_bell', 'fd_pads',
         'fd_bass', 'fd_prophet', 'fd_plaits', 'fd_tb303', 'fd_choir', 'fd_brass',
+        'fd_organ', 'fd_ssaw', 'fd_karp', 'fd_piano',
         'fd_sampler', 'fd_fx_chain', 'fd_master',
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root

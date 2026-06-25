@@ -97,6 +97,23 @@ export const FX_REGISTRY = {
     vibrato:    { scParam: 'vibrato',    default: 0,     desc: 'Vibrato mix (0=off)' },
     vib_rate:   { scParam: 'vib_rate',   default: 5,     desc: 'Vibrato LFO rate Hz' },
     vib_depth:  { scParam: 'vib_depth',  default: 0.008, desc: 'Vibrato depth (delay mod seconds)' },
+
+    // Ring modulation
+    ringmod:      { scParam: 'ringmod',      default: 0,   desc: 'Ring-mod mix (0=off)' },
+    ringmod_freq: { scParam: 'ringmod_freq', default: 200, desc: 'Ring-mod carrier Hz' },
+
+    // Flanger (swept feedback comb)
+    flanger:       { scParam: 'flanger',       default: 0,     desc: 'Flanger mix (0=off)' },
+    flanger_rate:  { scParam: 'flanger_rate',  default: 0.5,   desc: 'Flanger LFO rate Hz' },
+    flanger_depth: { scParam: 'flanger_depth', default: 0.004, desc: 'Flanger sweep depth (seconds)' },
+
+    // Phaser (cascaded modulated allpass)
+    phaser:      { scParam: 'phaser',      default: 0,   desc: 'Phaser mix (0=off)' },
+    phaser_rate: { scParam: 'phaser_rate', default: 0.5, desc: 'Phaser LFO rate Hz' },
+
+    // Formant — vowel band-pass bank (0/1/2 = ah/eh/oh)
+    formant:       { scParam: 'formant',       default: 0, desc: 'Vowel-formant mix (0=off)' },
+    formant_vowel: { scParam: 'formant_vowel', default: 0, desc: 'Vowel: 0 ah · 1 eh · 2 oh' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));
