@@ -2,7 +2,7 @@
 // Created on first player activation, freed when player stops.
 // FX params updated live via /n_set each step.
 
-import { buildFxParams } from './registry.js';
+import { buildFxParams, fxDefaultParams } from './registry.js';
 
 export class FXChain {
     constructor(bus, fxGroupId, sc) {
@@ -13,6 +13,12 @@ export class FXChain {
     // Apply resolved FX args (only sends params that changed would be optimization, for now send all)
     update(resolvedFxArgs, sc) {
         const params = buildFxParams(resolvedFxArgs);
+        if (params.length > 0) sc.send('/n_set', this._nodeId, ...params);
+    }
+
+    // Reset every FX param to its default (bypass) — for ~player resets.
+    reset(sc) {
+        const params = fxDefaultParams();
         if (params.length > 0) sc.send('/n_set', this._nodeId, ...params);
     }
 

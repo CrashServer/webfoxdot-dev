@@ -53,6 +53,7 @@ export const PATTERNS = [
     { name: 'PBern(p)',                 desc: 'Bernoulli sequence — 1 with probability p' },
     { name: 'PCoin(p)',                 desc: 'Return 0 or 1 with probability p' },
     { name: 'PEuclid(n, k)',            desc: 'Euclidean rhythm — k pulses in n steps' },
+    { name: 'PEuclid2(n, k, lo, hi)',   desc: 'Euclidean rhythm of n pulses in k steps, filled with lo/hi (great for play() chars: PEuclid2(3,8,".","x"))' },
     { name: 'PRange(lo, hi)',           desc: 'Linear ramp from lo to hi, then repeat' },
     { name: 'PStep(n, v, default=0)',   desc: 'Return v at step n, else default' },
     { name: 'PSine(lo, hi, len)',       desc: 'Sine-shaped sweep over len steps' },
@@ -64,6 +65,8 @@ export const PATTERNS = [
     { name: 'PBin(n)',                  desc: 'Binary digits of n (random if 0): PBin(8)→[1,0,0,0]' },
     { name: 'PFDur((n,k), …)',          desc: 'Layered Euclidean density — 1 where any layer hits' },
     { name: 'PLife(chaos, lo, hi, n)',  desc: 'Cellular-automaton values in [lo,hi]; chaos 0=steady .. 1=chaotic' },
+    { name: 'PFr(lo, hi, seed, size)',  desc: 'Fractal step pattern, deterministic from seed, mapped into [lo,hi]' },
+    { name: 'PGauss(mean, deviation)',  desc: 'Gaussian-distributed random per step (int mean → ints)' },
 ];
 
 export const TIMEVARS = [
@@ -110,10 +113,22 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha12';
+export const VERSION = 'alpha13';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha13', title: 'Groove & feel + fixes — delay, .human(), patterns, reset', items: [
+        'delay — per-note timing offset in beats (works on synths and play()); the groove building-block',
+        '.human(velocity, humanize, swing) — humanise dynamics + micro-timing (ports FoxDot/CrashServer): sets a delay + amplify jitter',
+        { t: 'PEuclid2(n, k, lo, hi) — Euclidean rhythm filled with lo/hi (e.g. play(PEuclid2(3,8,".","x")))', ex: 'patterns' },
+        { t: 'PFr(lo, hi, seed, size) — deterministic fractal pattern; PGauss(mean, deviation) — Gaussian random', ex: 'patterns' },
+        'Fix: autocomplete now offers FX/params anywhere inside a call — a chord/group/array no longer hides them (proper bracket-depth detection)',
+        'Fix: ~player >> … is now a full reset — clears every()/solo gain/transposition AND bypasses the FX chain (stale lpf/reverb gone)',
+        'New "↻ reset" button (and softReload() in code) — stop everything & free stuck audio nodes without a page refresh',
+        'Composition panel: live progress squares next to each part — watch the active section advance through its beats (mirrors to peers)',
+        'Multiplayer: a Session panel lists connected peers (name + colour), updating live as people join/leave',
+        'More from the bank coming next: PArp, PMorse, the leg/chop/shape/dist/multicrush FX, and the Master/Server.addFx global bus',
+    ]},
     { v: 'alpha12', title: 'Set your name & cursor colour (multiplayer)', items: [
         'In a session, a name + colour box appears in the toolbar — set your display name and cursor colour',
         'Changes update live: peers see your new name/colour on your cursor immediately, and your evals are tagged with it in the log',
@@ -298,6 +313,11 @@ b2 >> play(-, amp=Pacc("ghost", 8))         # ghost-note hats
 b3 >> play(x-o-, amplify=PSwing(0.3))              # swing feel
 b4 >> play(x..x..x., amplify=PFDur((3,8),(5,8)))   # layered density
 b5 >> play(o., amplify=PLife(0.6))           # generative accents`)}
+        ${note('<b>Feel:</b> <code>delay</code> nudges a note off the grid (in beats) — micro-timing without changing the pattern. <code>.human(velocity, humanize, swing)</code> does it for you: random velocity + timing jitter, with optional swing %.')}
+        ${code(`b1 >> play(x-o-, delay=[0, 0.04])          # push the off-beats late
+b2 >> play(x-o-).human(30, 8, 10)          # humanise: vel 30, jitter 8%, swing 10%
+p1 >> saw([0,4,7], dur=0.5).human(20, 6)   # human feel on a synth too
+b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid as play chars`)}
     `, 'grooves');
 
     const synths = section('All synths', `

@@ -23,6 +23,10 @@ let _sequenceId = Symbol();
 let _activeLine = -1;
 let _autoplay   = false;
 
+// Active section's progress window — start beat + length, for the panel squares.
+let _activeStart = 0;
+let _activeBeats = null;
+
 // ── Parser ───────────────────────────────────────────────────────────────────
 
 /**
@@ -150,8 +154,15 @@ function setActive(line) {
 // re-evaluates or schedules; it just mirrors the driver's visual state.
 function applyRemoteSection(line, autoplay) {
     _autoplay = !!autoplay;
+    // Approximate the progress window so peers animate too (start = now of receipt).
+    const parsed = line >= 0 && _editor ? parseSectionTag(_editor.getLine(line)) : null;
+    _activeBeats = parsed?.beats ?? null;
+    _activeStart = _clock ? _clock.now() : 0;
     setActive(line);
 }
+
+// Progress info for the active section's panel squares: { line, start, beats }.
+function getActiveInfo() { return { line: _activeLine, start: _activeStart, beats: _activeBeats }; }
 
 // All #@ sections + #@#@ tracks, in document order, with active flag.
 function getSections() {
@@ -301,7 +312,10 @@ function runSection(sectionLine) {
         _evalFn(stoppedCode);
     }
 
-    if (!beats) { setAutoplay(false); if (_onChange) _onChange(); return true; } // no auto-advance
+    if (!beats) { _activeBeats = null; setAutoplay(false); if (_onChange) _onChange(); return true; } // no auto-advance
+    // Open the progress window for the panel squares
+    _activeStart = _clock.now();
+    _activeBeats = beats;
     setAutoplay(true);
 
     const targetBeat = _clock.now() + beats;
@@ -361,4 +375,4 @@ function jumpToTarget(targets) {
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export { initSections, runSection, cancelSection, parseSectionTag,
-         getSections, jumpToActive, getActiveLine, isAutoplaying, applyRemoteSection };
+         getSections, jumpToActive, getActiveLine, isAutoplaying, applyRemoteSection, getActiveInfo };

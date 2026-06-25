@@ -8,8 +8,8 @@ import { patGet, isGroup }        from '../patterns/sequences.js';
 import { isEnv, evalEnv }         from '../patterns/timevars.js';
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
-const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify']);
-const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify']);
+const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay']);
+const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify', 'delay']);
 let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
 export function setWarn(fn) { _warn = fn; }
@@ -93,6 +93,22 @@ export function unsolo(clock) {
     clock._players.forEach(p => { p._amplify = 1; });
 }
 
+// Soft reload / panic — recover from a stuck engine WITHOUT a page refresh:
+// stop & fully reset every player, then free any orphaned server nodes (stuck
+// synths / FX) while keeping the groups intact. Re-run code to restart.
+export function panic(clock) {
+    try { clock.clear(); } catch (_) {}
+    clock._players.forEach(p => {
+        try { p._resetState(); } catch (_) {}
+        try { p.stop(); } catch (_) {}
+        p._fxChain = null;            // drop FX node ref — recreated on next eval
+    });
+    if (_sc) {
+        try { _sc.send('/g_freeAll', PLAYER_GROUP); } catch (_) {}
+        try { _sc.send('/g_freeAll', FX_GROUP); } catch (_) {}
+    }
+}
+
 // Next beat that is a multiple of `mod` — for bar-aligned scheduling.
 function nextMod(clock, mod) {
     return Math.ceil((clock.now() + 0.001) / mod) * mod;
@@ -170,6 +186,11 @@ export class Player {
     __rshift__(synthCall, reset = false) {
         if (synthCall === null || synthCall === undefined) { this.stop(); return this; }
 
+        // ~player >> … — clear accumulated state so the reset is total, not just
+        // the args: drop every() handlers, solo/drop gain, transposition, and
+        // bypass the FX chain (so a stale lpf/reverb from before is cleared).
+        if (reset) this._resetState();
+
         if (synthCall instanceof PlayStringCall) {
             const fresh     = reset || !this._active;
             this._mode      = 'sample';
@@ -223,6 +244,17 @@ export class Player {
         return this;
     }
 
+    // Total reset of accumulated per-player state (used by ~player >> …).
+    _resetState() {
+        this._every      = [];
+        this._amplify    = 1;
+        this._degreeAdds = null;
+        this._modifiers  = null;
+        this._unison     = null;
+        this._stutterN   = 0;
+        if (this._fxChain && _sc) this._fxChain.reset(_sc);
+    }
+
     // Register call-level .every() specs into the every-handler array.
     // Only resets when the call has specs (preserves imperative p1.every()).
     _applyEverys(call) {
@@ -254,6 +286,10 @@ export class Player {
                 delete r[k];
             }
         }
+
+        // delay — per-note timing offset in beats (player-side, not a synth control)
+        const delayBeats = Math.max(0, ungroup(r.delay, step) ?? 0);
+        delete r.delay;
 
         const { synth: sArgs, fx: fxArgs } = splitArgs(r);
         const dur  = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
@@ -303,9 +339,12 @@ export class Player {
                 this._trigger(midi, { ...synthA, dur: repDur, amp });
             }
         };
+        const msPerBeat = 60000 / this._clock.bpm;
+        const delayMs   = delayBeats * msPerBeat;
         for (let i = 0; i < reps; i++) {
-            if (i === 0) fireVoices();
-            else setTimeout(fireVoices, i * repDur * 60000 / this._clock.bpm);
+            const t = delayMs + i * repDur * msPerBeat;
+            if (t <= 0) fireVoices();
+            else setTimeout(fireVoices, t);
         }
 
         // Tick .every() handlers
@@ -335,6 +374,7 @@ export class Player {
         const pan      = opt(opts.pan, 0);
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
+        const delayBeats = Math.max(0, opt(opts.delay, 0));   // per-note timing offset (beats)
 
         // Lazy FX chain init (if boot happened after first >> call)
         if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
@@ -368,7 +408,7 @@ export class Player {
                 this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate });
             }
         };
-        for (let i = 0; i < reps; i++) renderAt(i * repDur, repDur);
+        for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
 
         this._step++;
         this._nextBeat += baseDur;

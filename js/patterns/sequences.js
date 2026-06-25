@@ -51,6 +51,23 @@ export function attachModifiers(cls) {
             return this;
         };
     }
+    // .human(velocity, humanize, swing) — humanise dynamics + micro-timing (FoxDot).
+    // Sets a 2-step `delay` (timing jitter, ± humanize% of dur, biased by swing%)
+    // and `amplify` (velocity) pattern. Works on synths (.args) and play() (.opts).
+    cls.prototype.human = function (velocity = 20, humanize = 5, swing = 0) {
+        const a = this.args ?? this.opts;
+        if (humanize === 0) humanize = 1;
+        if (velocity !== 0) {
+            const dur = typeof a.dur === 'number' ? a.dur : 1;
+            const sw  = dur * swing / 100;
+            a.delay   = [0, PWhite(-(humanize / 100) * dur + sw, (humanize / 100) * dur + sw)];
+            a.amplify = [1, PWhite((100 - velocity) / 100, 1)];
+        } else {
+            a.delay = 0;
+            a.amplify = 1;
+        }
+        return this;
+    };
 }
 
 // ── Basic sequences ──────────────────────────────────────────────────────────
@@ -148,6 +165,40 @@ function _euclid(n, k) {
     let b = 0;
     for (let i = 0; i < n; i++) { b += k; if (b >= n) { b -= n; seq[i] = 1; } }
     return seq;
+}
+
+// PEuclid2(n, k, lo, hi) — Euclidean rhythm of n pulses in k steps, filled with
+// `lo`/`hi` instead of 0/1. Great for play() char patterns:
+//   play(PEuclid2(3, 8, '.', 'x'))  → a kick on the 3-in-8 euclid grid
+export function PEuclid2(n, k, lo = 0, hi = 1) {
+    return cyc(_euclid(k, n).map(x => (x ? hi : lo)));
+}
+
+// PFr(mapl, maph, seed, size) — fractal step pattern (FoxDot's simple PFrac),
+// deterministic from `seed`, mapped into [mapl, maph]. e.g. cutoff=PFr(300, 4000)
+export function PFr(mapl = 0, maph = 1, seed = 1664, size = 16) {
+    const unit = (n) => { const x = Math.sin(n * 12.9898) * 43758.5453; return (x - Math.floor(x)) * 0.99; };
+    const a = unit(seed);                       // FoxDot seeds a and b from the same value
+    const data = [];
+    for (let i = 0; i < size; i++) {
+        const f = (((a * i + a) % 1) + 1) % 1;
+        data.push(mapl + f * (maph - mapl));
+    }
+    return cyc(data);
+}
+
+// PGauss(mean=0, deviation=1) — Gaussian-distributed random per step (Box–Muller).
+// Integer mean → rounded ints, like FoxDot. e.g. pan=PGauss(0, 0.3)
+export function PGauss(mean = 0, deviation = 1) {
+    const isInt = Number.isInteger(mean);
+    const gauss = () => {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        const g = mean + deviation * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+        return isInt ? Math.round(g) : g;
+    };
+    return { get: () => gauss() };
 }
 
 // ── Range / step ─────────────────────────────────────────────────────────────

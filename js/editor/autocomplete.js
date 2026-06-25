@@ -131,15 +131,33 @@ function getContext(cm) {
     if (before.match(/[a-zA-Z_]\w*\s*>>\s*[a-zA-Z_]*$/)) return { type: 'synth', word };
     const scaleM = before.match(/Scale\s*\.\s*default\s*=\s*["']([a-zA-Z]*)$/);
     if (scaleM) return { type: 'scale', word: scaleM[1] };
-    const synthM = before.match(/([a-zA-Z_]\w*)\s*\([^)]*$/);
-    if (synthM) {
-        const fn = synthM[1];
+
+    // Are we inside an unclosed function call? Scan bracket depth so nested
+    // chords/groups/arrays (which contain their own ")") don't fool us.
+    const call = enclosingCall(before);
+    if (call && call.fn) {
         // value position: right after `param=` → suggest patterns/timevars
         if (before.match(/[a-zA-Z_]\w*\s*=\s*[a-zA-Z_]*$/)) return { type: 'value', word };
-        if (fn === 'play' || SYNTH_NAMES.includes(fn)) return { type: 'param', synth: fn, word };
+        if (call.fn === 'play' || SYNTH_NAMES.includes(call.fn)) return { type: 'param', synth: call.fn, word };
         return { type: 'param', synth: null, word };
     }
     return { type: 'general', word };
+}
+
+// Walk `before` tracking bracket depth. Returns the innermost UNCLOSED bracket;
+// if it's a "(" immediately preceded by an identifier, that's a function call.
+function enclosingCall(before) {
+    const stack = [];
+    for (let i = 0; i < before.length; i++) {
+        const c = before[i];
+        if (c === '(' || c === '[' || c === '{') stack.push({ c, i });
+        else if (c === ')' || c === ']' || c === '}') stack.pop();
+    }
+    if (stack.length === 0) return null;
+    const top = stack[stack.length - 1];
+    if (top.c !== '(') return { fn: null };            // inside [...] / {...} / a group
+    const m = before.slice(0, top.i).match(/([a-zA-Z_]\w*)\s*$/);
+    return { fn: m ? m[1] : null };                    // identifier before "(" → call
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

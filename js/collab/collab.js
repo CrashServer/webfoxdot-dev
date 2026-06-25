@@ -18,7 +18,7 @@ function randomColor() {
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -150,6 +150,14 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // Re-elect if someone leaves
     provider.awareness.on('change', electBeatMaster);
 
+    // Connected-peer list (name + colour), pushed to the UI on every change.
+    function getPeers() {
+        return Array.from(provider.awareness.getStates().values())
+            .map(s => s.user).filter(Boolean);
+    }
+    provider.awareness.on('change', () => onPeers?.(getPeers()));
+    setTimeout(() => onPeers?.(getPeers()), 300);
+
     // ── Public API ────────────────────────────────────────────────────────
 
     /**
@@ -189,5 +197,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setUser, getClockOffset, destroy };
+    return { broadcastEval, broadcastAction, setUser, getPeers, getClockOffset, destroy };
 }

@@ -18,10 +18,11 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α12</span>
+      <span id="version-tag" class="version-tag" title="changelog">α13</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
+      <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
       <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
@@ -91,6 +92,11 @@
       <select class="cp-select" id="cp-root-sel"></select>
     </div>
 
+    <div class="cp-section" id="cp-session">
+      <h3>Session</h3>
+      <div id="cp-peers"></div>
+    </div>
+
     <div class="cp-section">
       <h3>Composition</h3>
       <div id="cp-autoplay">autoplay: off</div>
@@ -121,14 +127,14 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
-             PEuclid, PRange, PStep, PSine, PTri,
+             PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
              PChain, PMarkov, _group,
-             Pacc, PSwing, PBin, PFDur, PLife } from './js/patterns/sequences.js';
+             Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
@@ -140,7 +146,7 @@
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
-             getSections, jumpToActive, isAutoplaying, applyRemoteSection } from './js/engine/sections.js';
+             getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
@@ -222,6 +228,15 @@
         log('autoplay stopped — players keep running', 'warn');
     }
 
+    // Soft reload — recover from a stuck engine without a page refresh.
+    function softReload() {
+        try {
+            cancelSection();
+            _panicFn(clock);
+            log('soft reload: players stopped & audio nodes freed — re-run your code', 'ok');
+        } catch (e) { log('soft reload failed: ' + e.message + ' (try a page refresh)', 'error'); }
+    }
+
     function buildCtx() {
         return {
             Clock: new Proxy(clock, {
@@ -235,8 +250,8 @@
             ...SYNTHS,
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,
-            PEuclid, PRange, PStep, PSine, PTri,
-            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife,
+            PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
+            PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss,
             _var, _linvar, _sinvar, _expvar,
             fi: _fi, fo: _fo, fb: _fb,
             __group: _group,
@@ -258,6 +273,7 @@
             },
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop, (m) => log(m, 'info')),
+            softReload: () => softReload(),
             unsolo: () => _unsoloFn(clock),
             soloRnd: (time = 8) => _soloRndFn(clock, time, (m) => log(m, 'info')),
         };
@@ -648,6 +664,7 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
     document.getElementById('btn-boot').onclick  = bootAudio;
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => clock.clear();
+    document.getElementById('btn-reload').onclick = softReload;
     document.getElementById('bpm-input').oninput = (e) => { clock.bpm = Number(e.target.value); };
 
     // Replace the whole buffer as one undoable edit (Ctrl+Z restores).
@@ -706,7 +723,14 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
             } else {
                 d.className = 'cp-part' + (s.active ? ' active' : '');
                 const beats = s.beats != null ? `<span class="cp-part-beats">${s.beats}b</span>` : '';
-                d.innerHTML = `${s.name}${beats}`;
+                // Progress squares — one row per part; filled live for the active part.
+                let squares = '';
+                if (s.beats != null) {
+                    const n = Math.min(s.beats, 16);
+                    squares = '<span class="cp-prog">' + '<i></i>'.repeat(n) + '</span>';
+                }
+                d.innerHTML = `<span class="cp-part-name">${s.name}${beats}</span>${squares}`;
+                d.dataset.line = s.line;
                 d.onclick = () => {
                     editor.setCursor({ line: s.line, ch: 0 });
                     editor.scrollIntoView({ line: s.line, ch: 0 }, 120);
@@ -723,7 +747,31 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
         }
         const stopBtn = document.getElementById('cp-stop-autoplay');
         if (stopBtn) stopBtn.disabled = !on;
+        updateProgressSquares();
     }
+
+    // Fill the active part's progress squares as it advances through its beats.
+    // Runs on a rAF loop while autoplaying; only touches the DOM when the count
+    // changes, so it's cheap.
+    let _lastFilled = -1, _progressRAF = null;
+    function updateProgressSquares() {
+        const info = getActiveInfo();
+        const active = document.querySelector('#cp-parts .cp-part.active');
+        if (!active || info.beats == null) { _lastFilled = -1; return; }
+        const prog = active.querySelector('.cp-prog');
+        if (!prog) return;
+        const sqs = prog.children;
+        const frac = Math.max(0, Math.min(1, (clock.now() - info.start) / info.beats));
+        const filled = Math.min(sqs.length, Math.round(frac * sqs.length));
+        if (filled === _lastFilled) return;
+        _lastFilled = filled;
+        for (let i = 0; i < sqs.length; i++) sqs[i].className = i < filled ? 'on' : '';
+    }
+    function progressLoop() {
+        if (isAutoplaying()) updateProgressSquares();
+        _progressRAF = requestAnimationFrame(progressLoop);
+    }
+    _progressRAF = requestAnimationFrame(progressLoop);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
         // Mirror the active section + autoplay state to peers (cosmetic; the
         // section code itself rides the eval broadcast).
@@ -770,16 +818,40 @@ p2 >> saw([0, (0,4,7), 4, 7], oct=4, dur=0.5, chorus=0.6, lpf=sinvar([900, 6000]
         colI.oninput   = save;
     }
 
+    // Render the connected-peers list (name + colour); marks you as "(you)".
+    function renderPeers(peers) {
+        const el = document.getElementById('cp-peers');
+        if (!el) return;
+        const me = getUser().name;
+        if (!peers || peers.length === 0) {
+            el.innerHTML = '<div style="font-size:10px;color:var(--text-2)">connecting…</div>';
+            return;
+        }
+        // De-dupe by name (a peer can briefly appear twice across reconnects).
+        const seen = new Set();
+        el.innerHTML = '';
+        for (const u of peers) {
+            if (!u || seen.has(u.name)) continue;
+            seen.add(u.name);
+            const d = document.createElement('div');
+            d.className = 'cp-peer';
+            d.innerHTML = `<span class="cp-peer-dot" style="background:${u.color || '#888'}"></span>` +
+                `<span class="cp-peer-name">${u.name}${u.name === me ? ' (you)' : ''}</span>`;
+            el.appendChild(d);
+        }
+    }
+
     // ── Multiplayer — init if ?session= is in the URL ─────────────────────────
     if (_sessionSlug) {
         log(`Joining session: ${_sessionSlug}`, 'info');
+        document.getElementById('cp-session').classList.add('active');   // reveal peers panel
         initUserBox();   // persist identity before collab reads it, reveal the box
         initCollab(_sessionSlug, clock, editor, (msg) => {
             // Peer eval received — flash lines and run without re-broadcasting
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             runCode(msg.code, { fromRemote: true });
-        }, applyAction).then(collab => {
+        }, applyAction, renderPeers).then(collab => {
             _collab = collab;
             log(`Session ready. Share: ${location.href}`, 'ok');
         }).catch(err => {
