@@ -18,7 +18,28 @@ Branch: **alpha20** (off alpha19). Rollback anchor: tag `alpha17-stable` @ 6a1c1
   - Globals `midi`/`mlearn` in index.html buildCtx; docs FUNCTIONS + changelog updated.
   - Idiom: `p1 >> compkick(); p1.lpf = midi(74, 100, 8000, 'exp')`.
   - Verified: headless CDP load = 0 console errors; mapping math unit-tested.
-- VERSION → 'alpha20'; index.html tag → α20; changelog entry added.
+- **Ableton Link sync (follow-only)** — new feature:
+  - Browsers can't speak Link (LAN UDP), so a Node Link peer bridges it:
+    `server/link-bridge.js` (uses the `abletonlink` native addon — builds on
+    Node 25, prebuilt) joins the Link session, relays `{bpm, beat, phase, peers,
+    playing}` over a WebSocket on `config.json` port `link` (4445) at ~20Hz.
+    Run: `cd server && npm run start-link`.
+  - `js/sync/link.js` — browser client: connects (URL from config.json, like
+    collab), auto-reconnects (2s), calls `clock.syncTo(msg)`.
+  - `clock.js` `syncTo({bpm,phase,quantum})` — matches tempo, aligns bar phase:
+    big error snaps (fast lock), small error nudged *0.08 (inaudible). Follow-only.
+  - `js/ui/linkpanel.js` + `#cp-link` section — connect/disconnect toggle, shows
+    peers · bpm · transport. Global `link(on)` in buildCtx. CSS in style.css.
+  - VERIFIED end-to-end: a 2nd Link peer + WS client confirmed the bridge relays a
+    live advancing session; headless browser clicked connect and showed real LAN
+    peer "● 1 peer · 174.0 bpm" with 0 console errors. (There's a real Link peer on
+    the dev LAN — sync works against actual Ableton/Link.)
+  - DIRECTION: Ableton is master (we follow). Bidirectional/master-out not done.
+    Transport start/stop is displayed but does NOT gate WebFoxDot's clock in v1
+    (would disrupt section timing) — tempo + phase only.
+  - NOTE: bridge is a separate process (native addon) — not started by serve.py.
+    `abletonlink` teardown prints a harmless "terminate called" abort on exit.
+- VERSION → 'alpha20'; index.html tag → α20; changelog entries added.
 - KNOWN LIMITATION / next ideas: midi values update per-step (per beat), not
   sub-beat — fine for most params, steppy on slow pads. Could route FX-bound midi
   through a continuous n_set. Note-input (play synths from a MIDI keyboard) not done.

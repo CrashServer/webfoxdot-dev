@@ -105,6 +105,14 @@
       <button id="cp-midi-clear" class="cp-btn" style="display:none">clear bindings</button>
     </div>
 
+    <div class="cp-section" id="cp-link">
+      <div class="cp-row" style="padding:0">
+        <h3 style="margin:0">Ableton Link</h3>
+        <button id="cp-link-toggle" class="cp-btn" style="width:auto;padding:1px 8px">connect</button>
+      </div>
+      <div id="cp-link-status"><span class="link-off">off</span></div>
+    </div>
+
     <div class="cp-section" id="cp-session">
       <h3>Session</h3>
       <div id="cp-peers"></div>
@@ -161,6 +169,8 @@
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi }      from './js/midi/midi.js';
+    import { initLinkPanel }             from './js/ui/linkpanel.js';
+    import { initLink, enableLink, disableLink } from './js/sync/link.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -326,6 +336,9 @@
             // via assignment: p1.lpf = midi(74, 100, 8000, 'exp')
             midi:   (cc, lo = 0, hi = 1, curve = 'lin') => { _ensureMidi(); return makeMidi(cc, lo, hi, curve); },
             mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
+            // Ableton Link — follow Ableton's tempo + bar phase. link()/link(true)
+            // connects to the bridge (server/link-bridge.js); link(false) disconnects.
+            link:   (on = true) => { if (on) enableLink(); else disableLink(); log(`Link ${on ? 'connecting…' : 'off'}`, 'info'); },
         };
     }
 
@@ -805,6 +818,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // ── Crashpanel ────────────────────────────────────────────────────────────
     initCrashPanel(clock);
     initMidiPanel();
+    initLink(clock);
+    initLinkPanel();
 
     // ── Docs ──────────────────────────────────────────────────────────────────
     initDocs();

@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node collab-server.js",
+    "start-link": "node link-bridge.js",
     "build-yjs": "esbuild yjs-entry.js --bundle --format=esm --outfile=../lib/yjs/yjs-bundle.js"
   },
   "dependencies": {
+    "abletonlink": "^0.2.0-beta.0",
     "ws": "^8.0.0",
     "y-websocket": "^2.0.0"
   },

@@ -90,6 +90,19 @@ export class Clock {
         setTimeout(() => this._tick(), 10);
     }
 
+    // Discipline the beat to an external source (Ableton Link, follow-only):
+    // match tempo and align the bar phase. A large error (first lock / tempo
+    // jump) snaps so we catch up fast; small errors are nudged a fraction each
+    // update so the correction is inaudible — no lurching notes.
+    syncTo({ bpm, phase, quantum }) {
+        if (bpm && Math.abs(bpm - this._bpm) > 0.01) this.bpm = bpm;   // setter → UI
+        if (phase == null || !quantum) return;
+        const cur = ((this._beat % quantum) + quantum) % quantum;
+        let err = phase - cur;
+        err -= quantum * Math.round(err / quantum);                   // nearest, (-q/2, q/2]
+        this._beat += Math.abs(err) > quantum * 0.25 ? err : err * 0.08;
+    }
+
     now()                      { return this._beat; }
     // lead (seconds): dispatch fn this far before `b`, for timestamped audio events.
     _schedule(b, fn, lead = 0) { this._events.push({ beat: b, fn, lead }); }
