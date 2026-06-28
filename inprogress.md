@@ -106,9 +106,16 @@ Porting the missing language features, synths, and FX from `/home/svdk/live/FoxD
      moogpluck (acidbass/hoover/cs80 were already present). FX aren't highlighted
      (they're kwargs), so no FX list to update there.
 2. **Remaining track gaps**:
-   - `loop("hiphop16", dur=16, sample=2)` — needs named-loop-buffer loading + a
-     PlayBuf player path (its own chunk). Source: scsyndef/loop.scd (uses PlayBuf,
-     BufDur, Splay, beat_stretch). Not yet started.
+   - `loop("break", dur=8, sample=2)` — DONE (alpha20). `fd_loop` synthdef
+     (synthdefs/src/synths/loop.scd: PlayBuf(2) + beat_stretch BufDur/sus + Splay,
+     fixed-len env w/ doneAction:2 so each step frees). `LoopCall` in sampler.js;
+     player `_mode='loop'` + `_fireLoop`/`_triggerLoop` (mirror the sample path).
+     Reuses the `_manifest`/`charToBufId` buffer store — `loadloop(name,url)` just
+     calls loadSampleFromURL (multi-char loop names never collide with play chars).
+     `loop`/`loadloop` globals; fd_loop in SYNTHDEFS_TO_LOAD; docs+highlight.
+     Verified: headless boot + `b1 >> loop("a",dur=2)` → active loop:a, 0 errors.
+     NOTE: fd_loop is stereo PlayBuf(2); a MONO loop buffer plays one-sided. If
+     that bites, add an fd_loop1 (mono) and pick by buffer channel count.
    - `play()` `bank=` (sample-bank switching) — not supported.
    - `fx1`/`fx2` (lapin) — utility lpf/hpf routing FX in crashFX.py (lines ~633/642). Low priority.
 3. **More synths/FX** if wanted — the user picked all 4 groups; only 1 per group ported

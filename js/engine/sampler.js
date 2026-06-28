@@ -207,3 +207,21 @@ export class PlayStringCall {
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);
+
+// ── LoopCall — returned by loop(), detected in Player.__rshift__ ──────────────
+// loop("break", dur=8) plays a named loop buffer, beat-stretched to dur beats.
+// Named loops are registered with loadloop(name, url) and share the same buffer
+// store as play() samples (multi-char names never collide with single chars).
+export class LoopCall {
+    constructor(name, opts) {
+        this.name       = name;
+        this.opts       = opts;
+        this._modifiers = null;
+        this._after     = null;
+    }
+    after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
+    every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
+    __add__() { return this; }
+    degrade(prob = 0.5) { this._degrade = prob; return this; }
+}
+attachModifiers(LoopCall);

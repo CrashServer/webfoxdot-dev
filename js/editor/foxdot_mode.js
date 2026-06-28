@@ -34,7 +34,7 @@
     const TIMEVARS = ['linvar','sinvar','expvar','Pvar','lininf','expinf','linbpm','linmod'];
 
     const KEYWORDS = [
-        'Clock','Scale','Root','drop','rest','print','play','melody','chaos',
+        'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','chaos',
         'unsolo','solo','once','norm','clamp','lmap','drummer','fill','brk',
         'renv','clone','switch','start',
     ];

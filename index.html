@@ -159,7 +159,7 @@
              PChain, PMarkov, _group, _alt, Pmath,
              Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fperlin, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
-    import { loadSamples, PlayStringCall,
+    import { loadSamples, PlayStringCall, LoopCall,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { transpile, applyRenames }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
@@ -313,6 +313,12 @@
             defsynth,
             rest:   () => null,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
+            // loop(name, dur=1, …) — beat-synced audio-loop player. Register named
+            // loops with loadloop(name, url) first. dur sets the bars to stretch to.
+            loop:   (name, opts = {}) => new LoopCall(name, opts),
+            loadloop: (name, url) => loadSampleFromURL(name, url)
+                .then(ok => log(ok ? `loop "${name}" loaded` : `loop "${name}": all URLs failed`, ok ? 'ok' : 'error'))
+                .catch(e => log(`loadloop "${name}": ${e.message}`, 'error')),
             loadsample: (char, url) => loadSampleFromURL(char, url)
                 .then(ok => log(ok ? `sample "${char}" loaded` : `sample "${char}": all URLs failed`, ok ? 'ok' : 'error'))
                 .catch(e => log(`loadsample "${char}": ${e.message}`, 'error')),
@@ -534,7 +540,7 @@
         'fd_organ', 'fd_ssaw', 'fd_karp', 'fd_piano',
         'fd_ebass', 'fd_faim', 'fd_guit', 'fd_lapin',
         'fd_acidbass', 'fd_hoover', 'fd_cs80', 'fd_moogpluck', 'fd_compkick',
-        'fd_sampler', 'fd_fx_chain', 'fd_master',
+        'fd_sampler', 'fd_loop', 'fd_fx_chain', 'fd_master',
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
 

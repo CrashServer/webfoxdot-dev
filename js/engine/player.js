@@ -36,7 +36,7 @@ for (const def of Object.values(SYNTH_DEFS)) {
     (def.extraParams ?? []).forEach(k => ALL_SYNTH_PARAMS.add(k));
 }
 import { toMidi, SCALE_MAP }      from './scale.js';
-import { PlayStringCall, parsePattern, charToBufId } from './sampler.js';
+import { PlayStringCall, LoopCall, parsePattern, charToBufId } from './sampler.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
 export const PLAYER_GROUP = 2;
@@ -196,9 +196,11 @@ export class Player {
         this._every    = [];
         this._amplify  = 1;
         // sample-mode state
-        this._mode     = 'synth';   // 'synth' | 'sample'
+        this._mode     = 'synth';   // 'synth' | 'sample' | 'loop'
         this._pattern  = null;      // parsed steps array
         this._playOpts = {};
+        this._loopName = null;      // loop-mode: named loop buffer
+        this._loopOpts = {};
         // Axis-3 parameter-envelope scheduler
         this._envTimer = null;
         // probability modifiers (.sometimes/.often/…) — array of specs
@@ -246,6 +248,28 @@ export class Player {
             return this;
         }
 
+        if (synthCall instanceof LoopCall) {
+            const fresh     = reset || !this._active;
+            this._mode      = 'loop';
+            this._loopName  = synthCall.name;
+            const userOpts  = applyAliases({ ...synthCall.opts });
+            this._loopOpts  = fresh ? userOpts : { ...this._loopOpts, ...userOpts };
+            this._modifiers = synthCall._modifiers ?? null;
+            this._degrade   = synthCall._degrade ?? 0;
+            this._scheduleAfter(synthCall._after);
+            if (!this._active) {
+                this._active   = true;
+                this._activeSince = Date.now();
+                this._step     = 0;
+                this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
+                const now      = this._clock.now();
+                this._nextBeat = Math.ceil(now + 0.001);
+                this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+            }
+            this._applyEverys(synthCall);
+            return this;
+        }
+
         if (!(synthCall instanceof SynthCall)) {
             console.error(`${this.name} >>: expected synth call or play(), got`, synthCall);
             return this;
@@ -283,7 +307,9 @@ export class Player {
     // Applies on the next step (synth or sample mode), like a re-eval of one arg.
     setAttr(attr, value) {
         const aliased = PARAM_ALIASES[attr] ?? attr;
-        const target  = this._mode === 'sample' ? this._playOpts : this._args;
+        const target  = this._mode === 'sample' ? this._playOpts
+                      : this._mode === 'loop'   ? this._loopOpts
+                      : this._args;
         target[aliased] = value;
         return this;
     }
@@ -311,6 +337,7 @@ export class Player {
         if (!this._active) return;
         this._applyModifiers();
         if (this._mode === 'sample') { this._fireSample(); return; }
+        if (this._mode === 'loop')   { this._fireLoop();   return; }
 
         const step = this._step;
         const r    = resolveArgs(this._args, step);
@@ -525,6 +552,64 @@ export class Player {
         } catch (_) {}
     }
 
+    // loop() mode — one fd_loop voice per step, beat-stretched to `dur` beats so
+    // the buffer locks to the tempo. Mirrors _fireSample but plays a whole named
+    // loop buffer (no token tree) and passes sus (seconds) + beat_stretch.
+    _fireLoop() {
+        if (!_sc || this._bus == null) return;
+        const opts = this._loopOpts;
+        const step = this._step;
+        const opt = (v, def) => {
+            const out = isGroup(v)
+                ? patGet(v.__group[((step % v.__group.length) + v.__group.length) % v.__group.length], step, def)
+                : patGet(v, step, def);
+            return isEnv(out) ? envValue(out) : out;
+        };
+        const baseDur    = Math.max(0.0625, opt(opts.dur, 1));
+        const amp        = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify;
+        const pan        = opt(opts.pan, 0);
+        const rate       = opt(opts.rate, 1);
+        const sampleIdx  = Math.round(opt(opts.sample, 0));
+        const stretch    = opt(opts.stretch, 1) > 0 ? 1 : 0;   // beat_stretch on/off
+        const looping    = opt(opts.looping, 0) > 0 ? 1 : 0;
+        const pos        = Math.max(0, opt(opts.pos, 0));
+        const delayBeats = Math.max(0, opt(opts.delay, 0));
+
+        if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
+        if (this._fxChain) {
+            const fxFlat = {};
+            for (const [k, v] of Object.entries(opts)) if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
+            if (Object.keys(fxFlat).length > 0) this._fxChain.update(fxFlat, _sc);
+        }
+
+        const bufId = charToBufId(this._loopName, sampleIdx);
+        if (bufId !== null && !(this._degrade > 0 && Math.random() < this._degrade)) {
+            const susSec  = baseDur * 60 / this._clock.bpm;   // step length in seconds
+            const whenNTP = this._clock.beatToNTP(this._nextBeat + delayBeats);
+            this._triggerLoop(bufId, { amp, pan, rate, sus: susSec, stretch, looping, pos }, whenNTP);
+            emitStep(this.name, step);
+        }
+
+        for (const h of this._every) {
+            if (this._nextBeat >= h.nextBeat) { h.fn(this); h.nextBeat += h.beats; }
+        }
+        this._step++;
+        this._nextBeat += baseDur;
+        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+    }
+
+    _triggerLoop(bufId, p, whenNTP) {
+        if (!_sc) return;
+        const id  = _sc.nextNodeId();
+        const out = this._fxChain ? this._bus : 0;
+        try {
+            _sc.sendOSC(osc.encodeSingleBundle(whenNTP, '/s_new',
+                ['fd_loop', id, 0, PLAYER_GROUP,
+                 'out', out, 'buf', bufId, 'amp', p.amp, 'pan', p.pan, 'rate', p.rate,
+                 'sus', p.sus, 'beat_stretch', p.stretch, 'looping', p.looping, 'pos', p.pos]));
+        } catch (_) {}
+    }
+
     // .after(beats, method, ...args) — one-shot delayed player method call
     _scheduleAfter(spec) {
         if (!spec || !spec.method) return;
@@ -543,7 +628,9 @@ export class Player {
             ? (this._pattern?.length || 1)
             : (Array.isArray(this._args.degree) ? this._args.degree.length : 1);
         if (this._step % cycleLen !== 0) return;     // only at a cycle boundary
-        const target = this._mode === 'sample' ? this._playOpts : this._args;
+        const target = this._mode === 'sample' ? this._playOpts
+                     : this._mode === 'loop'   ? this._loopOpts
+                     : this._args;
         for (const m of this._modifiers) {
             if (Math.random() >= m.prob) continue;
             const args = m.args.map(a => patGet(a, this._step, a));

@@ -74,7 +74,8 @@ function _updatePlayers() {
         }
         const synthEl = row.querySelector('.cp-player-synth');
         // Sample players (play()) have no synth name — label them "play".
-        if (synthEl) synthEl.textContent = p._synth ?? (p._mode === 'sample' ? 'play' : '');
+        if (synthEl) synthEl.textContent = p._mode === 'loop' ? `loop:${p._loopName}`
+                                          : p._synth ?? (p._mode === 'sample' ? 'play' : '');
         // Age: green when fresh → red the longer it has been playing (webTroop-style)
         const ageEl = row.querySelector('.cp-player-age');
         if (ageEl) {
