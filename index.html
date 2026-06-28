@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α19</span>
+      <span id="version-tag" class="version-tag" title="changelog">α20</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -93,6 +93,18 @@
       <select class="cp-select" id="cp-root-sel"></select>
     </div>
 
+    <div class="cp-section" id="cp-midi">
+      <div class="cp-row" style="padding:0">
+        <h3 style="margin:0">MIDI</h3>
+        <button id="cp-midi-enable" class="cp-btn" style="width:auto;padding:1px 8px">enable</button>
+      </div>
+      <div id="cp-midi-status">off</div>
+      <div id="cp-midi-learn" class="midi-hint" style="display:none">⟳ learning — touch a control…</div>
+      <div id="cp-midi-monitor"></div>
+      <div id="cp-midi-bindings"></div>
+      <button id="cp-midi-clear" class="cp-btn" style="display:none">clear bindings</button>
+    </div>
+
     <div class="cp-section" id="cp-session">
       <h3>Session</h3>
       <div id="cp-peers"></div>
@@ -147,6 +159,8 @@
     import { incrementValue, stopPlayerAtCursor,
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
+    import { initMidiPanel }             from './js/ui/midipanel.js';
+    import { enableMidi, makeMidi }      from './js/midi/midi.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -307,7 +321,23 @@
             Master: () => new Proxy({}, { set(_t, k, v) { masterSet({ [String(k)]: v }); return true; }, get() { return undefined; } }),
             unsolo: () => _unsoloFn(clock),
             soloRnd: (time = 8) => _soloRndFn(clock, time, (m) => log(m, 'info')),
+            // MIDI control: midi(cc,lo,hi[,curve]) binds a CC knob to a live value;
+            // mlearn(lo,hi[,curve]) binds the next control you touch. Use inline or
+            // via assignment: p1.lpf = midi(74, 100, 8000, 'exp')
+            midi:   (cc, lo = 0, hi = 1, curve = 'lin') => { _ensureMidi(); return makeMidi(cc, lo, hi, curve); },
+            mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
         };
+    }
+
+    // Lazy Web MIDI enable — first midi()/mlearn() call (an eval keypress is a
+    // valid user gesture for the permission prompt). Logs once.
+    let _midiAsked = false;
+    function _ensureMidi() {
+        if (_midiAsked) return;
+        _midiAsked = true;
+        enableMidi()
+            .then(() => log('MIDI enabled — twist a control', 'ok'))
+            .catch(e => log(`MIDI: ${e.message}`, 'error'));
     }
 
     function runCode(raw, { fromRemote = false } = {}) {
@@ -490,7 +520,7 @@
         'fd_bass', 'fd_prophet', 'fd_plaits', 'fd_tb303', 'fd_choir', 'fd_brass',
         'fd_organ', 'fd_ssaw', 'fd_karp', 'fd_piano',
         'fd_ebass', 'fd_faim', 'fd_guit', 'fd_lapin',
-        'fd_acidbass', 'fd_hoover', 'fd_cs80', 'fd_moogpluck',
+        'fd_acidbass', 'fd_hoover', 'fd_cs80', 'fd_moogpluck', 'fd_compkick',
         'fd_sampler', 'fd_fx_chain', 'fd_master',
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
@@ -774,6 +804,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── Crashpanel ────────────────────────────────────────────────────────────
     initCrashPanel(clock);
+    initMidiPanel();
 
     // ── Docs ──────────────────────────────────────────────────────────────────
     initDocs();

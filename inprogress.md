@@ -1,7 +1,34 @@
-# In-progress — alpha19 (resume after reboot)
+# In-progress — alpha20 (resume after reboot)
 
-Branch: **alpha19** (off alpha17). Working tree clean — everything below is committed.
-Rollback anchor: tag `alpha17-stable` @ 6a1c149.
+Branch: **alpha20** (off alpha19). Rollback anchor: tag `alpha17-stable` @ 6a1c149.
+
+## alpha20 — DONE so far
+- **compkick synth** — industrial compressed kick ported from CrashServer
+  (`synthdefs/src/synths/compkick.scd` → compiled `fd_compkick.scsyndef`). Registry
+  entry + index.html SYNTHDEFS_TO_LOAD + foxdot_mode highlight. oct=3 ≈ 65Hz, oct=2 sub.
+- **MIDI assignment (Web MIDI)** — new feature:
+  - `js/midi/midi.js` — engine. A `midi(cc, lo, hi[, curve])` value is a `{get()}`
+    object (same shape as a TimeVar) so the player's per-step `resolveArgs`/`patGet`
+    samples it every beat → a knob sweeps any synth/FX param. `mlearn(lo,hi[,curve])`
+    binds the next control touched. One CC can drive several params (macro). curve
+    'exp' (geometric) for filter cutoffs. Keyed by CC number (channel-agnostic), CC
+    messages only (0xB0). Lazy-enabled on first midi()/mlearn() (eval = user gesture).
+  - `js/ui/midipanel.js` + `#cp-midi` section in index.html — enable button, live CC
+    monitor (discover your controller's numbers), active bindings. CSS in style.css.
+  - Globals `midi`/`mlearn` in index.html buildCtx; docs FUNCTIONS + changelog updated.
+  - Idiom: `p1 >> compkick(); p1.lpf = midi(74, 100, 8000, 'exp')`.
+  - Verified: headless CDP load = 0 console errors; mapping math unit-tested.
+- VERSION → 'alpha20'; index.html tag → α20; changelog entry added.
+- KNOWN LIMITATION / next ideas: midi values update per-step (per beat), not
+  sub-beat — fine for most params, steppy on slow pads. Could route FX-bound midi
+  through a continuous n_set. Note-input (play synths from a MIDI keyboard) not done.
+  `midi()*0.5` arithmetic not via Pmath (midi isn't a pattern token) — bind directly.
+
+---
+
+# Archived — alpha19 (shipped)
+
+Branch: alpha19 (off alpha17). Working tree clean — everything below is committed.
 
 ## Goal of alpha19
 Make WebFoxDot run CrashServer-style FoxDot tracks (the big test track in chat).

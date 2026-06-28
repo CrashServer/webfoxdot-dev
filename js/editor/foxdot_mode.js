@@ -7,7 +7,7 @@
         'abass','acidbass','alva','ambi','angst','arpy','arpymod','audioin',
         'bass','bbass','bell','bellmod','blip','bnoise','bounce','braids',
         'breakcore','brown','bug','cbass','charm','click','cluster','combs',
-        'crackle','creep','cringe','crunch','cs80','dab','dafbass',
+        'compkick','compperc','crackle','creep','cringe','crunch','cs80','dab','dafbass',
         'dbass','dblbass','dirt','donk','donorgan','dopple','dub',
         'dubulse','ebass','elpfsaw','fail','faim','feel','fmpiano','fm2','fmvibe',
         'guit','gtr','gun','harp','hoover','jbass','jbass2','keys','kick','kik',

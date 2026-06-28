@@ -102,6 +102,8 @@ export const FUNCTIONS = [
     { name: 'p1.stutter(n)',           desc: 'Roll the current step n times within its duration (n = number of rapid repeats). Sequence carries on normally' },
     { name: 'p1.reverse()',            desc: 'Reverse degree array for one cycle' },
     { name: 'p1.shuffle()',            desc: 'Shuffle degree array for one cycle' },
+    { name: 'midi(cc, lo, hi, curve)', desc: 'Bind a MIDI CC knob/fader to a live value — turn it to sweep any param. Use inline or by assignment: p1.lpf = midi(74, 100, 8000, "exp"). curve "exp" suits filter cutoffs. Web MIDI (Chromium/Edge); enables on first use' },
+    { name: 'mlearn(lo, hi, curve)',   desc: 'MIDI learn — binds to the NEXT control you touch, then sticks to it. e.g. p1.amp = mlearn(0, 1). One control can drive several params at once (a macro)' },
 ];
 
 export const PLAYER_PARAMS = [
@@ -118,10 +120,16 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha19';
+export const VERSION = 'alpha20';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha20', title: 'MIDI control + industrial kick', items: [
+        'MIDI assignment — map a hardware controller to live params over Web MIDI: midi(cc, lo, hi[, curve]) binds a CC knob/fader to any synth or FX param (read every step, like a TimeVar). Use inline or by assignment: p1.lpf = midi(74, 100, 8000, "exp")',
+        'mlearn(lo, hi[, curve]) — MIDI learn: binds to the next control you touch. One control can drive several params at once (a macro)',
+        'New MIDI panel (right sidebar): enable Web MIDI, a live CC monitor to discover your controller\'s numbers (twist a knob → see CC# + value), and the active bindings. Chromium/Edge; enables on first midi()/mlearn() call',
+        { t: 'New synth: compkick — industrial compressed kick (sub + body + click, internal Compander/Limiter + 4-band EQ). oct=3 ≈ 65Hz punchy; oct=2 for deep sub', ex: 'synths' },
+    ]},
     { v: 'alpha19', title: 'CrashServer track support — language, synths & FX', items: [
         { t: 'Pattern arithmetic: time-vars and P patterns combine — linvar([1.4,0],32) * P[1,0,0.9], etc. (a pattern token + a top-level op routes through Pmath; plain scalars stay native)', ex: 'patterns' },
         { t: 'Note-name roots ("E" → 4), .penta() (pentatonic), .degrade(p) (drop a fraction of steps), richer .unison(n, detune, spread), and fperlin(period, lo, hi) noise', ex: 'patterns' },

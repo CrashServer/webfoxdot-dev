@@ -176,6 +176,14 @@ export const SYNTH_DEFS = {
                     pluck_filter: 4, pluck_mix: 0.8, rate: 1 },
         extraParams: ['pluck_filter', 'pluck_mix', 'rate', 'fmod'],
     },
+    // Industrial compressed kick (ported from CrashServer compkick). oct=3 ≈ 65Hz
+    // punchy kick; drop to oct=2 for a deep sub kick.
+    compkick: {
+        scName: 'fd_compkick',
+        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.35,
+                    punch: 0.7, comp: 8, click: 0.4, drive: 1.5, sub: 1, body: 0.6, tone: 0.3 },
+        extraParams: ['punch', 'comp', 'click', 'drive', 'sub', 'body', 'tone', 'fmod'],
+    },
 };
 
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
