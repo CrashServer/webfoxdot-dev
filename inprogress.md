@@ -49,13 +49,14 @@ Porting the missing language features, synths, and FX from `/home/svdk/live/FoxD
   `<>` synth alternation; global stop Ctrl/Cmd+.; readable cm-builtin.
 
 ## PENDING — pick up here
-1. **Finalize alpha19** (was the open question when we paused):
-   - bump version: `VERSION` in `js/ui/docs.js` (currently 'alpha18') → 'alpha19';
-     `index.html` version tag span `α18` → `α19`.
-   - changelog: add an alpha19 entry in `js/ui/docs.js` CHANGELOG.
-   - docs/examples: mention the 8 synths + 10 FX; add to `js/ui/docs.js` SYNTHS/FX lists
-     and examples; update `js/editor/autocomplete.js` + `js/editor/foxdot_mode.js`
-     (synth/FX name lists for highlighting + completion).
+1. **Finalize alpha19** — DONE (commit after 9ac5d6f):
+   - VERSION 'alpha18'→'alpha19' in `js/ui/docs.js`; `index.html` tag `α18`→`α19`.
+   - alpha19 CHANGELOG entry added (pattern arithmetic, lang features, 8 synths, 10 FX).
+   - docs Synths/FX tabs + examples + autocomplete all auto-generate from
+     `SYNTH_DEFS` / `FX_REGISTRY`, so they were already current.
+   - `js/editor/foxdot_mode.js` highlight list: added ebass, faim, guit, lapin,
+     moogpluck (acidbass/hoover/cs80 were already present). FX aren't highlighted
+     (they're kwargs), so no FX list to update there.
 2. **Remaining track gaps**:
    - `loop("hiphop16", dur=16, sample=2)` — needs named-loop-buffer loading + a
      PlayBuf player path (its own chunk). Source: scsyndef/loop.scd (uses PlayBuf,

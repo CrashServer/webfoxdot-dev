@@ -118,10 +118,17 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha18';
+export const VERSION = 'alpha19';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha19', title: 'CrashServer track support — language, synths & FX', items: [
+        { t: 'Pattern arithmetic: time-vars and P patterns combine — linvar([1.4,0],32) * P[1,0,0.9], etc. (a pattern token + a top-level op routes through Pmath; plain scalars stay native)', ex: 'patterns' },
+        { t: 'Note-name roots ("E" → 4), .penta() (pentatonic), .degrade(p) (drop a fraction of steps), richer .unison(n, detune, spread), and fperlin(period, lo, hi) noise', ex: 'patterns' },
+        'fb / fi / fo usable as plain clock-synced values (not only with the _ envelope suffix); var() durations accept patterns; a player can read another\'s attr live (b1.degree)',
+        { t: 'New synths: ebass, faim, guit (MiPlaits), lapin, acidbass, hoover, cs80, moogpluck — 29 total', ex: 'synths' },
+        { t: 'New FX: octclean, fold, csweep, eb (echo), tube (+tubedrive), drcomp (compressor), lofi, vowel, feed, sbrk', ex: 'fx' },
+    ]},
     { v: 'alpha18', title: 'Sample-accurate clock', items: [
         'Notes are now sent to the audio engine as timestamped OSC bundles — scsynth fires each note on its audio thread at the exact beat time (NTP timetag), not from a main-thread timer',
         'Result: a brief main-thread stall (GC, heavy re-eval, the live highlighter) no longer drops or lags notes — timing holds steady under load',
