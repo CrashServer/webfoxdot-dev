@@ -32,6 +32,18 @@ Branch: **alpha21** (off alpha20). Rollback anchor: tag `alpha17-stable` @ 6a1c1
   - NOT DONE: MIDI clock out, program-change/CC out, note input (MIDI keyboard →
     play synths). Per-step value updates only (like midi()).
 - VERSION → 'alpha21'; index.html tag → α21; changelog + docs + highlight updated.
+- **Boot: match audio device sample rate** — SuperSonic forced the AudioContext to
+  48 kHz; on Firefox, booting while another tab held the audio device at a
+  different rate (e.g. a playing YouTube tab at 44.1 kHz) hung/crashed the browser.
+  bootAudio() now probes the device rate (throwaway AudioContext → read sampleRate
+  → close) and passes `audioContextOptions:{sampleRate:hw}` to match it. scsynth +
+  synthdefs are rate-agnostic (clock is wall-clock; no 48k assumptions in app code),
+  so this is safe. Added a 25s boot watchdog (Promise.race) that surfaces an
+  actionable "close audio tabs and retry" error instead of a stuck "booting…".
+  NOTE: a hard Firefox crash can't be caught in JS — the rate-match is the actual
+  fix; the watchdog only covers hangs. Not yet confirmed on real Firefox+YouTube.
+- loop() (the alpha20 feature that never reached origin/alpha20) is now listed in
+  the alpha21 changelog + has its own examples section ('loop').
 
 ---
 

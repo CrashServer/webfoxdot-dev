@@ -128,12 +128,14 @@ export const VERSION = 'alpha21';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha21', title: 'MIDI out + more control curves', items: [
+    { v: 'alpha21', title: 'MIDI out + more control curves + loops', items: [
         { t: 'MIDI out — drive external/virtual MIDI gear from a player: m1 >> midiout([0,2,4], channel=1, oct=5, dur=1) sends note-on/off to a MIDI port. Velocity follows amp, note length follows sus/leg, groups make chords ((0,4,7)), and degree/transposition/.every/.stutter all work like a synth. Notes are scheduled sub-beat-accurate (performance.now() timestamps) so they stay phase-locked to the internal synths. Pick the output port in the MIDI panel; route through a virtual port (IAC / loopMIDI / ALSA-JACK) to reach a DAW. Stop / Ctrl+. sends all-notes-off', ex: 'midi' },
         { t: 'midi()/mlearn() curves — beyond lin and exp: log, quad, cubic, sqrt, and s (smoothstep). exp now eases-in on 0-based ranges instead of going linear. The MIDI panel lists the curves and labels each active binding', ex: 'midi' },
+        { t: 'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to lock to 8 beats. opts: amp/pan/rate/sample/pos/stretch/looping. (Ported from FoxDot loop; included here for the first published build.)', ex: 'loop' },
+        'Boot now matches the audio device sample rate (was forced to 48 kHz). Fixes a Firefox hang/crash when booting while another tab held the audio device at a different rate (e.g. a playing YouTube tab), plus a boot watchdog with an actionable message if the engine can\'t start',
     ]},
     { v: 'alpha20', title: 'MIDI control + Ableton Link + loops + industrial kick', items: [
-        'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to fit 8 beats (locks to tempo). opts: amp/pan/rate/sample/pos/stretch/looping. Ported from FoxDot loop (PlayBuf + beat-stretch); each step self-frees',
+        { t: 'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to fit 8 beats (locks to tempo). opts: amp/pan/rate/sample/pos/stretch/looping. Ported from FoxDot loop (PlayBuf + beat-stretch); each step self-frees', ex: 'loop' },
         { t: 'MIDI assignment — map a hardware controller to live params over Web MIDI: midi(cc, lo, hi[, curve]) binds a CC knob/fader to any synth or FX param (read every step, like a TimeVar). Use inline or by assignment: p1.lpf = midi(74, 100, 8000, "exp")', ex: 'midi' },
         { t: 'mlearn(lo, hi[, curve]) — MIDI learn: binds to the next control you touch. One control can drive several params at once (a macro)', ex: 'midi' },
         { t: 'New MIDI panel (right sidebar): enable Web MIDI, a live CC monitor to discover your controller\'s numbers (twist a knob → see CC# + value), and the active bindings. Chromium/Edge; enables on first midi()/mlearn() call', ex: 'midi' },
@@ -559,6 +561,16 @@ b2 >> play(<X.><o.> [--], amp=0.7)`)}
 b3 >> play(K.K.K.K.)`)}
     `, 'samples');
 
+    const loop = section('Audio loops ( loop )', `
+        ${note('<code>loadloop(name, url)</code> registers an audio loop under a multi-character name; <code>b1 >> loop("name", dur=N)</code> plays it time-stretched to lock to N beats (so it follows the tempo). opts: <code>amp · pan · rate · sample · pos · stretch · looping</code>. Loops share the sample buffer store, so the name just can\'t be a single play() character.')}
+        ${code(`loadloop("break", "https://example.com/amen.wav")   # register once
+b1 >> loop("break", dur=8)               # stretch to fit 8 beats (locks to tempo)
+b1 >> loop("break", dur=8, rate=1.5)     # faster playback (also raises pitch)
+b1 >> loop("break", dur=4, pos=0.5)      # start halfway in
+b1 >> loop("break", dur=8, lpf=1200, mverb=0.3)   # loops route through the FX chain
+b1 >> loop("break", dur=8).every(8, "reverse")    # player methods work too`)}
+    `, 'loop');
+
     const patterns = section('Patterns', `
         ${note('Pattern objects produce a new value each step. P shorthands: <code>P*[a,b,c]</code> random pick · <code>P[a,b,c]</code> cyclic list · <code>P(a,b,c)</code> chord. TimeVars can hold patterns.')}
         ${code(`p1 >> saw([0,2,4,7], amp=PWhite(0.4, 0.9))      # random float
@@ -677,7 +689,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + patterns + perf + midi + sections + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + midi + sections + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
