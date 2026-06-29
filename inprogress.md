@@ -1,6 +1,43 @@
-# In-progress — alpha20 (resume after reboot)
+# In-progress — alpha21 (resume after reboot)
 
-Branch: **alpha20** (off alpha19). Rollback anchor: tag `alpha17-stable` @ 6a1c149.
+Branch: **alpha21** (off alpha20). Rollback anchor: tag `alpha17-stable` @ 6a1c149.
+
+## alpha21 — DONE so far
+- **MIDI value curves** (small, extends alpha20 midi()) — `midi`/`mlearn` 4th arg
+  now: lin, exp, log, quad, cubic, sqrt, s (smoothstep). `js/midi/midi.js`
+  `MIDI_CURVES` + `curvePos()`; exp eases-in (quad) on 0-based ranges instead of
+  going linear. MIDI panel shows a curve reference line + labels each binding's
+  curve. (commit e92e24f)
+- **MIDI out** — new feature. Send notes to an external/virtual MIDI port from a
+  player, phase-locked to the clock.
+  - `js/midi/midiout.js` — engine: shares midi.js's MIDIAccess (`midiAccess()`
+    export), `scheduleNote(note,vel,chan,whenMs,durMs)` uses `output.send(data,
+    when)` with **performance.now() timestamps** (same domain as the clock →
+    sub-beat accurate, immune to JS jitter). `allNotesOff(chans)` + `panicMidiOut()`
+    (CC123/120 + output.clear()). `MidiOutCall` class (mirrors SynthCall) +
+    `makeMidiOut()`. Output device selection (`selectMidiOut`, `midiOutState`).
+  - `clock.js` `beatToPerfMs(beat)` — twin of beatToNTP in the perf-ms domain.
+  - `player.js` — `_mode='midiout'`, `__rshift__` branch, `_fireMidiOut` (mirrors
+    synth fire: degree→toMidi, group→chord, stutter/delay/transposition, vel=amp*
+    127, note length=sus*leg). `stop()` sends all-notes-off on used channels;
+    `panic()` calls panicMidiOut(). setAttr/_applyModifiers/every targets updated.
+  - index.html: `midiout(deg, opts)` global + lazy `_ensureMidiOut()`; output-port
+    `<select>` in the MIDI panel (`#cp-midi-out`), rendered in midipanel.js.
+  - Idiom: `m1 >> midiout([0, (0,4,7), 5], channel=1, oct=4, dur=1, amp=0.9)`.
+  - VERIFIED: unit-tested the full fire path with a fake MIDI port — single notes +
+    chords (C-major 48/55/60), channel nibble, vel 102, note-off at exactly 1 beat,
+    stop→CC123/120. Headless CDP boot = 0 console errors, midiout.js loads.
+  - NEEDS REAL-PORT TEST: not yet driven into an actual DAW/hardware (this box has
+    no virtual MIDI port set up). Route via ALSA/JACK virtual MIDI to confirm.
+  - NOT DONE: MIDI clock out, program-change/CC out, note input (MIDI keyboard →
+    play synths). Per-step value updates only (like midi()).
+- VERSION → 'alpha21'; index.html tag → α21; changelog + docs + highlight updated.
+
+---
+
+# Archived — alpha20 (shipped)
+
+Branch: alpha20 (off alpha19). Rollback anchor: tag `alpha17-stable` @ 6a1c149.
 
 ## alpha20 — DONE so far
 - **compkick synth** — industrial compressed kick ported from CrashServer

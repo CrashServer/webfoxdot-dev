@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α20</span>
+      <span id="version-tag" class="version-tag" title="changelog">α21</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -104,6 +104,10 @@
       <div id="cp-midi-bindings"></div>
       <button id="cp-midi-clear" class="cp-btn" style="display:none">clear bindings</button>
       <div id="cp-midi-curves" class="midi-hint"></div>
+      <div id="cp-midi-out" class="cp-row" style="padding:2px 0;display:none">
+        <span class="midi-hint" style="padding:0">out →</span>
+        <select id="cp-midi-out-sel" class="cp-select" style="flex:1;width:auto;margin-top:0"></select>
+      </div>
     </div>
 
     <div class="cp-section" id="cp-link">
@@ -170,6 +174,7 @@
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi }      from './js/midi/midi.js';
+    import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
@@ -343,6 +348,9 @@
             // via assignment: p1.lpf = midi(74, 100, 8000, 'exp')
             midi:   (cc, lo = 0, hi = 1, curve = 'lin') => { _ensureMidi(); return makeMidi(cc, lo, hi, curve); },
             mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
+            // MIDI out: m1 >> midiout([0,2,4], channel=1, oct=5) sends notes to an
+            // external/virtual MIDI port (velocity from amp, length from sus/leg).
+            midiout: (deg, opts = {}) => { _ensureMidiOut(); return _midiout(deg, opts); },
             // Ableton Link — follow Ableton's tempo + bar phase. link()/link(true)
             // connects to the bridge (server/link-bridge.js); link(false) disconnects.
             link:   (on = true) => { if (on) enableLink(); else disableLink(); log(`Link ${on ? 'connecting…' : 'off'}`, 'info'); },
@@ -358,6 +366,17 @@
         enableMidi()
             .then(() => log('MIDI enabled — twist a control', 'ok'))
             .catch(e => log(`MIDI: ${e.message}`, 'error'));
+    }
+
+    // Lazy Web MIDI output enable — first midiout() call. Shares the access above.
+    const _midiout = makeMidiOut();
+    let _midiOutAsked = false;
+    function _ensureMidiOut() {
+        if (_midiOutAsked) return;
+        _midiOutAsked = true;
+        enableMidiOut()
+            .then(() => log('MIDI out enabled — pick a port in the MIDI panel', 'ok'))
+            .catch(e => log(`MIDI out: ${e.message}`, 'error'));
     }
 
     function runCode(raw, { fromRemote = false } = {}) {

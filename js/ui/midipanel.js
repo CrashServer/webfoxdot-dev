@@ -3,6 +3,7 @@
 // 100, 8000)` or `mlearn(...)`; this panel is the discovery + status surface.
 
 import { enableMidi, midiState, onMidiChange, clearMidiBindings, MIDI_CURVES } from '../midi/midi.js';
+import { midiOutState, selectMidiOut } from '../midi/midiout.js';
 
 let _wired = false;
 
@@ -15,6 +16,9 @@ export function initMidiPanel() {
         _render();
     };
     if (clearBtn) clearBtn.onclick = () => { clearMidiBindings(); _render(); };
+
+    const outSel = document.getElementById('cp-midi-out-sel');
+    if (outSel) outSel.onchange = () => { selectMidiOut(outSel.value); _render(); };
 
     // Curve reference — the 4th arg to midi()/mlearn(). Static, so set it once.
     const curvesEl = document.getElementById('cp-midi-curves');
@@ -76,6 +80,22 @@ function _render() {
     }
     const clearBtn = document.getElementById('cp-midi-clear');
     if (clearBtn) clearBtn.style.display = s.bindings.length ? '' : 'none';
+
+    // MIDI-out port picker — only shown once outputs exist (midiout() enabled them).
+    const o = midiOutState();
+    const outRow = document.getElementById('cp-midi-out');
+    const outSel = document.getElementById('cp-midi-out-sel');
+    if (outRow && outSel) {
+        if (o.outputs.length) {
+            outRow.style.display = '';
+            const chosen = o.selected || o.outputs.find(d => d.active)?.id;
+            outSel.innerHTML = o.outputs.map(d =>
+                `<option value="${escapeHtml(d.id)}"${d.id === chosen ? ' selected' : ''}>${escapeHtml(d.name)}</option>`
+            ).join('');
+        } else {
+            outRow.style.display = 'none';
+        }
+    }
 }
 
 function fmt(v) {

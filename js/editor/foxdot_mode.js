@@ -36,7 +36,7 @@
     const KEYWORDS = [
         'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','chaos',
         'unsolo','solo','once','norm','clamp','lmap','drummer','fill','brk',
-        'renv','clone','switch','start',
+        'renv','clone','switch','start','midi','mlearn','midiout','link',
     ];
 
     // Build a fast lookup: word → cm class name

@@ -37,6 +37,7 @@ for (const def of Object.values(SYNTH_DEFS)) {
 }
 import { toMidi, SCALE_MAP }      from './scale.js';
 import { PlayStringCall, LoopCall, parsePattern, charToBufId } from './sampler.js';
+import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut } from '../midi/midiout.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
 export const PLAYER_GROUP = 2;
@@ -120,6 +121,7 @@ export function unsolo(clock) {
 // synths / FX) while keeping the groups intact. Re-run code to restart.
 export function panic(clock) {
     try { clock.clear(); } catch (_) {}
+    try { panicMidiOut(); } catch (_) {}   // silence external MIDI gear too
     clock._players.forEach(p => {
         try { p._resetState(); } catch (_) {}
         try { p.stop(); } catch (_) {}
@@ -196,11 +198,13 @@ export class Player {
         this._every    = [];
         this._amplify  = 1;
         // sample-mode state
-        this._mode     = 'synth';   // 'synth' | 'sample' | 'loop'
+        this._mode     = 'synth';   // 'synth' | 'sample' | 'loop' | 'midiout'
         this._pattern  = null;      // parsed steps array
         this._playOpts = {};
         this._loopName = null;      // loop-mode: named loop buffer
         this._loopOpts = {};
+        this._midiOpts = {};        // midiout-mode opts (degree/channel/amp/…)
+        this._midiChans = new Set();// channels this player has sent on (for note-off)
         // Axis-3 parameter-envelope scheduler
         this._envTimer = null;
         // probability modifiers (.sometimes/.often/…) — array of specs
@@ -270,6 +274,27 @@ export class Player {
             return this;
         }
 
+        if (synthCall instanceof MidiOutCall) {
+            const fresh     = reset || !this._active;
+            this._mode      = 'midiout';
+            const userOpts  = applyAliases({ ...synthCall.args });
+            this._midiOpts  = fresh ? userOpts : { ...this._midiOpts, ...userOpts };
+            this._modifiers  = synthCall._modifiers ?? null;
+            this._degreeAdds = synthCall._degreeAdds ?? null;
+            this._degrade    = synthCall._degrade ?? 0;
+            this._scheduleAfter(synthCall._after);
+            if (!this._active) {
+                this._active   = true;
+                this._activeSince = Date.now();
+                this._step     = 0;
+                const now      = this._clock.now();
+                this._nextBeat = Math.ceil(now + 0.001);
+                this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+            }
+            this._applyEverys(synthCall);
+            return this;
+        }
+
         if (!(synthCall instanceof SynthCall)) {
             console.error(`${this.name} >>: expected synth call or play(), got`, synthCall);
             return this;
@@ -307,8 +332,9 @@ export class Player {
     // Applies on the next step (synth or sample mode), like a re-eval of one arg.
     setAttr(attr, value) {
         const aliased = PARAM_ALIASES[attr] ?? attr;
-        const target  = this._mode === 'sample' ? this._playOpts
-                      : this._mode === 'loop'   ? this._loopOpts
+        const target  = this._mode === 'sample'  ? this._playOpts
+                      : this._mode === 'loop'    ? this._loopOpts
+                      : this._mode === 'midiout' ? this._midiOpts
                       : this._args;
         target[aliased] = value;
         return this;
@@ -336,8 +362,9 @@ export class Player {
     _fire() {
         if (!this._active) return;
         this._applyModifiers();
-        if (this._mode === 'sample') { this._fireSample(); return; }
-        if (this._mode === 'loop')   { this._fireLoop();   return; }
+        if (this._mode === 'sample')  { this._fireSample();  return; }
+        if (this._mode === 'loop')    { this._fireLoop();    return; }
+        if (this._mode === 'midiout') { this._fireMidiOut(); return; }
 
         const step = this._step;
         const r    = resolveArgs(this._args, step);
@@ -610,6 +637,70 @@ export class Player {
         } catch (_) {}
     }
 
+    // midiout() mode — emit MIDI note-on/off to an external port instead of audio.
+    // Mirrors the synth path (degree→MIDI, group→chord, stutter, delay) but sends
+    // scheduled MIDI messages (performance.now() timestamps) rather than /s_new.
+    _fireMidiOut() {
+        const step = this._step;
+        const r    = resolveArgs(this._midiOpts, step);
+
+        if (this._degreeAdds) {
+            for (const a of this._degreeAdds) r.degree = addDegree(r.degree ?? 0, a, step);
+        }
+        // fb/fi/fo used directly on a param (e.g. amp=fb(...)) → clock-synced value
+        for (const k of Object.keys(r)) if (isEnv(r[k])) r[k] = envValue(r[k]);
+
+        const delayBeats = Math.max(0, ungroup(r.delay, step) ?? 0);
+        const dur        = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
+        const noteLen    = (ungroup(r.sus, step) ?? dur) * (ungroup(r.leg, step) ?? 1);
+        const chan       = Math.round(ungroup(r.channel, step) ?? 1);
+
+        // Group/chord expansion — voices = longest group among the params.
+        let voices = 1;
+        for (const v of Object.values(r)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
+
+        const reps   = Math.max(1, this._stutterN || 1);
+        this._stutterN = 0;
+        const repDur = dur / reps;
+        // Each note lasts sus*leg beats; when stuttering, cap to the rep slot so the
+        // roll's notes don't overlap into one another.
+        const lenBeats   = reps > 1 ? repDur : noteLen;
+        const secPerBeat = 60 / this._clock.bpm;
+        const onsetMs    = this._clock.beatToPerfMs(this._nextBeat);
+
+        const degraded = this._degrade > 0 && Math.random() < this._degrade;
+        if (!degraded && this._amplify > 0) {
+            for (let rep = 0; rep < reps; rep++) {
+                const whenMs = onsetMs + (delayBeats + rep * repDur) * secPerBeat * 1000;
+                for (let vi = 0; vi < voices; vi++) {
+                    const va = {};
+                    for (const [k, v] of Object.entries(r)) {
+                        va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
+                    }
+                    const deg = va.degree ?? 0;
+                    if (deg === null) continue;
+                    let note = toMidi(deg, va.oct ?? 5, this._scale);
+                    if (note === null) continue;
+                    note += (va.pshift ?? 0);
+                    if (note < 0 || note > 127) continue;
+                    const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
+                    const vel = amp * 127;
+                    const vch = Math.round(va.channel ?? chan);
+                    this._midiChans.add(vch);
+                    scheduleNote(note, vel, vch, whenMs, lenBeats * secPerBeat * 1000);
+                }
+            }
+            emitStep(this.name, step);
+        }
+
+        for (const h of this._every) {
+            if (this._nextBeat >= h.nextBeat) { h.fn(this); h.nextBeat += h.beats; }
+        }
+        this._step++;
+        this._nextBeat += dur;
+        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+    }
+
     // .after(beats, method, ...args) — one-shot delayed player method call
     _scheduleAfter(spec) {
         if (!spec || !spec.method) return;
@@ -624,12 +715,14 @@ export class Player {
     // chance on a 4-step pattern fires on ~half of all steps and feels constant.
     _applyModifiers() {
         if (!this._modifiers?.length) return;
+        const degArr   = this._mode === 'midiout' ? this._midiOpts.degree : this._args.degree;
         const cycleLen = this._mode === 'sample'
             ? (this._pattern?.length || 1)
-            : (Array.isArray(this._args.degree) ? this._args.degree.length : 1);
+            : (Array.isArray(degArr) ? degArr.length : 1);
         if (this._step % cycleLen !== 0) return;     // only at a cycle boundary
-        const target = this._mode === 'sample' ? this._playOpts
-                     : this._mode === 'loop'   ? this._loopOpts
+        const target = this._mode === 'sample'  ? this._playOpts
+                     : this._mode === 'loop'    ? this._loopOpts
+                     : this._mode === 'midiout' ? this._midiOpts
                      : this._args;
         for (const m of this._modifiers) {
             if (Math.random() >= m.prob) continue;
@@ -741,6 +834,11 @@ export class Player {
         this._active = false;
         this._every  = [];
         emitStep(this.name, -1);   // clear the editor highlight
+        // midiout: cut any note whose scheduled note-off is still pending (long sus)
+        if (this._mode === 'midiout' && this._midiChans.size) {
+            allNotesOff(this._midiChans);
+            this._midiChans.clear();
+        }
         if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
         if (this._fxChain && _sc) {
             this._fxChain.free(_sc);
@@ -777,7 +875,10 @@ export class Player {
             kwargs = args.pop();
         }
         const method = typeof fn !== 'string' ? fn : (p) => {
-            const target = p._mode === 'sample' ? p._playOpts : p._args;
+            const target = p._mode === 'sample'  ? p._playOpts
+                         : p._mode === 'loop'    ? p._loopOpts
+                         : p._mode === 'midiout' ? p._midiOpts
+                         : p._args;
             let saved = null;
             if (kwargs) {
                 saved = {};

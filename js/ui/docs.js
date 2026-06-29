@@ -106,6 +106,7 @@ export const FUNCTIONS = [
     { name: 'p1.shuffle()',            desc: 'Shuffle degree array for one cycle' },
     { name: 'midi(cc, lo, hi, curve)', desc: 'Bind a MIDI CC knob/fader to a live value — turn it to sweep any param. Use inline or by assignment: p1.lpf = midi(74, 100, 8000, "exp"). curve: lin (default), exp (cutoffs/freq), log, quad, cubic, sqrt, s (smoothstep) — listed in the MIDI panel. Web MIDI (Chromium/Edge); enables on first use' },
     { name: 'mlearn(lo, hi, curve)',   desc: 'MIDI learn — binds to the NEXT control you touch, then sticks to it. e.g. p1.amp = mlearn(0, 1). One control can drive several params at once (a macro)' },
+    { name: 'midiout(deg, ...)',       desc: 'MIDI OUT — send notes to an external/virtual MIDI port instead of audio: m1 >> midiout([0,2,4], channel=1, oct=5, dur=1). Velocity from amp, note length from sus/leg, groups make chords. Pick the port in the MIDI panel (Chromium/Edge; route via IAC/loopMIDI/ALSA-JACK to a DAW)' },
     { name: 'link(on)',                desc: 'Ableton Link — follow Ableton\'s tempo + bar phase. link()/link(true) connects to the Link bridge (run: cd server && npm run start-link); link(false) disconnects. Also a toggle in the Link panel. Syncs with Ableton/Link gear on the LAN' },
 ];
 
@@ -123,14 +124,19 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha20';
+export const VERSION = 'alpha21';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha21', title: 'MIDI out + more control curves', items: [
+        'MIDI out — drive external/virtual MIDI gear from a player: m1 >> midiout([0,2,4], channel=1, oct=5, dur=1) sends note-on/off to a MIDI port. Velocity follows amp, note length follows sus/leg, groups make chords ((0,4,7)), and degree/transposition/.every/.stutter all work like a synth. Notes are scheduled sub-beat-accurate (performance.now() timestamps) so they stay phase-locked to the internal synths. Pick the output port in the MIDI panel; route through a virtual port (IAC / loopMIDI / ALSA-JACK) to reach a DAW. Stop / Ctrl+. sends all-notes-off',
+        'midi()/mlearn() curves — beyond lin and exp: log, quad, cubic, sqrt, and s (smoothstep). exp now eases-in on 0-based ranges instead of going linear. The MIDI panel lists the curves and labels each active binding',
+    ]},
     { v: 'alpha20', title: 'MIDI control + Ableton Link + loops + industrial kick', items: [
         'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to fit 8 beats (locks to tempo). opts: amp/pan/rate/sample/pos/stretch/looping. Ported from FoxDot loop (PlayBuf + beat-stretch); each step self-frees',
         'MIDI assignment — map a hardware controller to live params over Web MIDI: midi(cc, lo, hi[, curve]) binds a CC knob/fader to any synth or FX param (read every step, like a TimeVar). Use inline or by assignment: p1.lpf = midi(74, 100, 8000, "exp")',
-        'mlearn(lo, hi[, curve]) — MIDI learn: binds to the next control you touch. One control can drive several params at once (a macro)',
+        'mlearn(lo, hi[, curve]) — MIDI learn: binds to the next control you touch. One control can drive several params at once (a macro). curves: lin, exp, log, quad, cubic, sqrt, s',
+        'MIDI out — m1 >> midiout([0,2,4], channel=1, oct=5, dur=1) sends notes to an external/virtual MIDI port (velocity from amp, length from sus/leg, groups make chords). Choose the output port in the MIDI panel; route through a virtual port to drive a DAW',
         'New MIDI panel (right sidebar): enable Web MIDI, a live CC monitor to discover your controller\'s numbers (twist a knob → see CC# + value), and the active bindings. Chromium/Edge; enables on first midi()/mlearn() call',
         'Ableton Link — follow Ableton\'s tempo + bar phase over the LAN. A small Link bridge in the Node server (cd server && npm run start-link) joins the Link session and relays tempo/phase to the browser, which disciplines its clock to match. link(true) or the Link panel\'s connect button. Syncs with Ableton Live + any Link app/gear',
         { t: 'New synth: compkick — industrial compressed kick (sub + body + click, internal Compander/Limiter + 4-band EQ). oct=3 ≈ 65Hz punchy; oct=2 for deep sub', ex: 'synths' },

@@ -31,6 +31,9 @@ export function midiSupported() {
     return typeof navigator !== 'undefined' && typeof navigator.requestMIDIAccess === 'function';
 }
 
+// Shared MIDIAccess so the output side (midiout.js) reuses one request/permission.
+export function midiAccess() { return _access; }
+
 export function onMidiChange(fn) { _onChange = fn; }
 function _changed() { if (_onChange) _onChange(); }
 

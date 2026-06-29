@@ -54,6 +54,13 @@ export class Clock {
         return osc.ntpNow() + (beat - this._beatNow()) * 60 / this._bpm;
     }
 
+    // performance.now() timestamp (ms) at which `beat` falls — the time domain
+    // Web MIDI's output.send(data, when) uses, so MIDI-out notes stay phase-locked
+    // to the audio (which is scheduled from the same beat clock).
+    beatToPerfMs(beat) {
+        return performance.now() + (beat - this._beatNow()) * 60000 / this._bpm;
+    }
+
     _tick() {
         if (!this._running) return;
         const now = performance.now();
