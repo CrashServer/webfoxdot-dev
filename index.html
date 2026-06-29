@@ -1272,6 +1272,25 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }, PERIOD);
     })();
 
+    // Engine diagnostics — open with ?diag to log scsynth health every 3s. Used to
+    // hunt timing/scheduler regressions (e.g. synth voices dropping over time): watch
+    // audioHealthPct, scsynthSchedulerDropped/Lates, preschedulerLates, drift*.
+    if (new URLSearchParams(location.search).has('diag')) {
+        const KEYS = ['audioHealthPct','glitchCount','scsynthMessagesDropped',
+            'scsynthSchedulerDepth','scsynthSchedulerPeakDepth','scsynthSchedulerDropped',
+            'scsynthSchedulerLates','scsynthSchedulerMaxLateMs','preschedulerPending',
+            'preschedulerLates','preschedulerRetryQueueSize','scsynthWasmErrors',
+            'driftOffsetMs','clockOffsetMs','audioContextState'];
+        setInterval(() => {
+            if (!_scRef?.getMetrics) return;
+            let m; try { m = _scRef.getMetrics() || {}; } catch (_) { return; }
+            const o = {}; for (const k of KEYS) o[k] = m[k];
+            const voices = clock._players ? [...clock._players.values()].filter(p => p._active).length : 0;
+            console.log('[diag]', voices + 'v', JSON.stringify(o));
+            log(`diag: health ${o.audioHealthPct}% · schedDrop ${o.scsynthSchedulerDropped} · schedLate ${o.scsynthSchedulerLates} · preLate ${o.preschedulerLates} · drift ${Math.round(o.driftOffsetMs||0)}ms`, 'info');
+        }, 3000);
+    }
+
     // Re-anchor the clock when the tab regains focus, so it resumes at tempo
     // instead of lurching after a background throttle.
     document.addEventListener('visibilitychange', () => { if (!document.hidden) clock.resync(); });

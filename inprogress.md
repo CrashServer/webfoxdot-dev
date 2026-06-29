@@ -2,6 +2,27 @@
 
 Branch: **alpha21** (off alpha20). Rollback anchor: tag `alpha17-stable` @ 6a1c149.
 
+## alpha21 — INVESTIGATING: synth voices drop after ~1 min (Chrome)
+- SYMPTOM (user): synths + a play; after ~1 min the synth notes stop sounding but
+  audio (the play/drums) keeps going. Repro code: dbass.unison(2) + saw(sinvar lpf,
+  .every reverse) + play(x...).
+- RULED OUT via headless CDP (see scratchpad repro/wall/metrics scripts):
+  - JS clock/_fire: all players keep firing linearly for 3-min-equiv, 0 errors.
+  - Highlight logic: all lines highlight (block AND line-by-line eval).
+  - Bus/voice leak: flat at 3v / 3 buses; scheduler lag ~0ms.
+  - scsynth server: 70s+ with audioHealthPct=100, 0 sched drops/lates, 0 glitches.
+  - All synthdefs self-free (doneAction) — no server node leak.
+- LIKELY AREA: headless has NO audio device → prescheduler takes the "bypass/
+  immediate" path (preschedulerBypassed increments per msg), so the real-audio
+  *scheduled* path (bundles timed against the AudioContext clock, drift-compensated)
+  is never exercised here. The ~1-min degradation almost certainly lives there
+  (clock-vs-audioclock drift / scheduler horizon). Can't repro without a real device.
+- ADDED: `?diag` URL flag — logs scsynth getMetrics() every 3s (audioHealthPct,
+  scsynthSchedulerDropped/Lates, preschedulerLates, driftOffsetMs, …) to console +
+  log panel. NEXT: run real Chrome with ?diag for ~90s until synths drop, see which
+  metric moves. Candidate fix if it's message pressure: diff FX n_set (only send
+  changed params; today FXChain.update sends every step even for constant FX).
+
 ## alpha21 — DONE so far
 - **MIDI value curves** (small, extends alpha20 midi()) — `midi`/`mlearn` 4th arg
   now: lin, exp, log, quad, cubic, sqrt, s (smoothstep). `js/midi/midi.js`
