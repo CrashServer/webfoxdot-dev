@@ -67,8 +67,37 @@ Approaches considered:
   Effort medium; ~4 new synthdefs + fx_chain recompile.
 - C (bypass-guard inside the static def): impossible in scsynth (can't skip UGens).
 
-Decision: ___ (awaiting user)
-- ☐ **①** implement chosen approach
+Decision: **A — full per-effect split** (user chose).
+
+### Implementation plan (A)
+Architecture: synth voices → private bus (additive, as today). Each effect = its own
+SynthDef: `sig = In.ar(bus,2); wet = <dsp>; ReplaceOut.ar(bus, XFade2(sig,wet,gate*2-1))`
+— in-place on the bus. A permanent tail node `fd_fx_out: Out.ar(0, In.ar(bus,2))` routes
+bus→main. FXChain holds the active effect nodes in canonical order; activating an effect
+inserts its node and orders the chain via `/n_after` (e0→e1→…→out); deactivating frees it.
+Idle effects cost zero.
+
+Canonical order + gate param (from fx_chain.scd, the `sig = XFade2(...)` lines):
+ lpf(lpf>0) hpf(hpf>0) crush resonbank rgate mverb cheapverb chorus tremolo tanh reverb
+ echo fbdelay shape dist2 multicrush chop vibrato ringmod flanger phaser formant octclean
+ fold csweep eb(ebmix) tube drcomp lofi vowel feed(additive) sbrk
+ (eb/feed/sbrk have non-XFade blends; feed & eb are additive/mix — keep their exact math.)
+
+Per-effect param groups + defaults already live in js/fx/registry.js (FX_REGISTRY) — add an
+EFFECTS array: [{scName:'fd_fx_lpf', gate:'lpf', gateActive:v=>v>0, params:['lpf','lpf_rq']}, …]
+in canonical order.
+
+### Staged build (de-risk a 33-item migration)
+- ☐ **①a PROOF**: convert 4 representative effects only — lpf (filter), octclean (heavy
+  PitchShift), fbdelay (LocalIn/LocalOut feedback), sbrk (LocalBuf/RecordBuf) — into
+  standalone synthdefs + fd_fx_out router; rewrite FXChain to manage ordered on-demand
+  nodes; route the OTHER ~29 effects through a temporary legacy fd_fx_chain node OR gate
+  them off. Compile, verify: ordering correct, audio identical for these 4, idle cost 0.
+- ☐ **①b EXPAND**: mechanically convert the remaining ~29 effects to standalone defs once
+  the mechanism is proven; drop the legacy fd_fx_chain. Compile all, full A/B audio test.
+- ☐ **①c** update SYNTHDEFS_TO_LOAD (33 names), docs note, optimise.md.
+NOTE: recommend doing ①a/①b in a fresh focused session — large + audio-core-critical;
+botching it is worse than shipping batches 1–3. All design above is ready to execute.
 
 ## Verification log
 (filled per batch)
