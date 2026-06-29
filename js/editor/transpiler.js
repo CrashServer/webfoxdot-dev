@@ -7,13 +7,24 @@
 //   var(...)    → _var(...)    (JS reserved word)
 //   linvar(...) → _linvar(...) etc.
 
+// Hoisted regexes (built once, not per line per eval).
+const RE_COMMENT  = /^(\s*)#/;
+const RE_P_RAND   = /\bP\s*\*\s*\[([^\]]*)\]/g;
+const RE_P_LIST   = /\bP\s*\[([^\]]*)\]/g;
+const RE_P_GROUP  = /\bP\s*\(([^)]*)\)/g;
+const RE_DOT_REST = /(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g;
+const RE_RSHIFT   = /^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/;
+const RE_ATTR     = /^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/;
+const RE_RESERVED = /^(Clock|Scale|Root|Master|Server)$/;
+const RE_METHOD   = /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop)\s*\(/g;
+
 export function transpile(code) {
     return code.split('\n').map(line => {
         const stripped = line.trim();
         if (!stripped) return line;
 
         // Full-line Python comment
-        if (stripped.startsWith('#')) return line.replace(/^(\s*)#/, '$1//');
+        if (stripped.startsWith('#')) return line.replace(RE_COMMENT, '$1//');
 
         // Strip inline comment
         let main = line, tail = '';
@@ -24,17 +35,17 @@ export function transpile(code) {
         //   P*[a,b,c] → PRand([a,b,c])   (random pick from the list)
         //   P[a,b,c]  → [a,b,c]          (plain cyclic pattern)
         //   P(a,b,c)  → __group(a,b,c)   (simultaneous group)
-        main = main.replace(/\bP\s*\*\s*\[([^\]]*)\]/g, 'PRand([$1])');
-        main = main.replace(/\bP\s*\[([^\]]*)\]/g, '[$1]');
-        main = main.replace(/\bP\s*\(([^)]*)\)/g, '__group($1)');
+        main = main.replace(RE_P_RAND, 'PRand([$1])');
+        main = main.replace(RE_P_LIST, '[$1]');
+        main = main.replace(RE_P_GROUP, '__group($1)');
 
         // Standalone . used as rest → null in array/argument positions
         // dbass([0, ., 4]) → dbass([0, null, 4])
-        main = main.replace(/(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g, 'null');
+        main = main.replace(RE_DOT_REST, 'null');
 
         // >> operator: [~]name >> synth(...)  [+ transpose ...]
         // A leading ~ resets the player to defaults (no attribute inheritance).
-        const m = main.match(/^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/);
+        const m = main.match(RE_RSHIFT);
         if (m) {
             const [, indent, tilde, player, rhs] = m;
             // Player arithmetic: synth(...) + N / + (a,b,c) adds to the degree.
@@ -51,17 +62,14 @@ export function transpile(code) {
 
         // Player attribute assignment: p1.lpf = linvar(...)  (live-tweak one attr
         // of a running player). Not Clock/Scale/Root/Master/Server, not == .
-        const am = main.match(/^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/);
-        if (am && !/^(Clock|Scale|Root|Master|Server)$/.test(am[2])) {
+        const am = main.match(RE_ATTR);
+        if (am && !RE_RESERVED.test(am[2])) {
             const [, indent, player, attr, value] = am;
             return `${indent}__p('${player}').setAttr('${attr}', ${patMath(kwargify(convertAlt(value.trim())))})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
-        main = main.replace(
-            /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop)\s*\(/g,
-            (_, name, method) => `__p('${name}').${method}(`
-        );
+        main = main.replace(RE_METHOD, (_, name, method) => `__p('${name}').${method}(`);
 
         // kwargify the rest too, so kwargs in any call work — Server.addFx(lpf=800),
         // p1.every(4, "stutter", mverb=0.5), drop(...), etc.

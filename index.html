@@ -383,13 +383,25 @@
             .catch(e => log(`MIDI out: ${e.message}`, 'error'));
     }
 
+    // Compiled-function cache: re-running the same block (the common live-coding
+    // loop) reuses the compiled fn instead of re-parsing ~130 named params each
+    // time. Keyed by transpiled source + ctx key-count (a new defsynth appends a
+    // key → count changes → recompile; same block, no new synth → cache hit).
+    const _fnCache = new Map();
     function runCode(raw, { fromRemote = false } = {}) {
         let js = transpile(raw.trim());
         js = applyRenames(js);
         log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');
-        const ctx = buildCtx();
+        const ctx  = buildCtx();
+        const keys = Object.keys(ctx);
         try {
-            new Function(...Object.keys(ctx), js)(...Object.values(ctx));
+            let entry = _fnCache.get(js);
+            if (!entry || entry.n !== keys.length) {
+                if (_fnCache.size > 200) _fnCache.clear();
+                entry = { fn: new Function(...keys, js), n: keys.length };
+                _fnCache.set(js, entry);
+            }
+            entry.fn(...Object.values(ctx));
         } catch (e) {
             log(`Error: ${e.message}`, 'error');
             console.error('transpiled:\n' + js, e);

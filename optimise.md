@@ -34,14 +34,21 @@ Status: ☐ todo · ◐ in progress · ☑ done (committed)
   Verified: mock (FX routing/chord intact, bare bypass, secPerBeat passed); headless —
   all 4 players still highlight (chords incl.), 4v, 0 errors.
 
-## Batch 3 — unison + per-eval + consolidation + bug
-- ☐ **⑤** unison: resolve non-grouped params once per step
-- ☐ **⑦** memoize compiled `new Function` by transpiled source
-- ☐ **⑧** hoist transpiler regex literals to module scope
-- ☐ **B1** shared `escapeHtml` (js/ui/util.js)
-- ☐ **B2/B3** share degree/opts splitter + chainable-modifier base between SynthCall/MidiOutCall
-- ☐ **B5** fold crashpanel's two 500ms timers into the 250ms _update
-- ☐ **BUG** synthdef.js BINOP: min/max/% selector indices (mod=5, min=12, max=13) — verify + fix
+## Batch 3 — per-eval + consolidation + bug — ☑ DONE
+- ☑ **BUG** synthdef.js BINOP: corrected min=12, max=13 (were 5/6, colliding with %=5
+  and ==). They're unreachable today (only +,-,*,/ exposed via UGenOut) but the table
+  is now accurate for when min/max get wired up.
+- ☑ **⑧** hoisted the 9 transpiler regex literals to module scope (built once, not per
+  line per eval). Verified: P*[]/P[]/play/setAttr/every/rest all still transpile right.
+- ☑ **⑦** memoize compiled `new Function` by (transpiled source + ctx key-count). Re-
+  running the same block (the common loop) skips re-parsing ~130 params; a new defsynth
+  appends a key → count change → recompile. Verified re-eval + new block + 0 errors.
+- ☑ **B5** folded crashpanel's two 500ms Scale/Root reflect timers into the 250ms
+  _update (_reflectScaleRoot). Verified Scale.default="major" reflects in the select.
+- DEFERRED (rationale): **⑤** unison resolve-once — only multi-voice, and per-voice copy
+  is cheap assignments (not patGet); marginal. **B1** shared escapeHtml — a new module
+  for one 1-liner is churn > value. **B2/B3** SynthCall/MidiOutCall base class — touches
+  the `instanceof` dispatch in __rshift__ for a cosmetic dedup; risk > value.
 
 ## Batch 4 — the big one
 - ☐ **①** fd_fx_chain → per-effect on-demand nodes (idle effects cost zero). Needs design:

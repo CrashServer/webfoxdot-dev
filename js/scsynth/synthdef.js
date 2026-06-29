@@ -115,8 +115,11 @@ export class SynthGraph {
     add(u) { u._idx = this.ugens.length; this.ugens.push(u); return u; }
 }
 
-// SC binary-operator selector indices (subset)
-const BINOP = { '+': 0, '-': 1, '*': 2, '/': 4, 'min': 5, 'max': 6, '%': 5 };
+// SC binary-operator selector indices (the canonical scsynth BinaryOpUGen table:
+// 0+ 1- 2* 3div 4/ 5% 6== … 12min 13max). Only +,-,*,/ are exposed via UGenOut
+// methods today; min/max/% are here for when they're wired up — corrected from a
+// prior typo (min/max were 5/6, colliding with % and ==).
+const BINOP = { '+': 0, '-': 1, '*': 2, '/': 4, '%': 5, 'min': 12, 'max': 13 };
 
 // Coerce an input to a UGenOut or leave as a number (constant)
 function asInput(v) {

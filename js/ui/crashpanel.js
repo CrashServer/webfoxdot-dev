@@ -26,6 +26,7 @@ function _update() {
     _updateBpm();
     _updateBeat();
     _updatePlayers();
+    _reflectScaleRoot();
 }
 
 function _updateBpm() {
@@ -140,9 +141,10 @@ function _initTap() {
 
 // ── Scale / Root selects ─────────────────────────────────────────────────────
 
+let _scaleEl = null, _rootEl = null;
 function _initScaleRoot() {
-    const scaleEl = document.getElementById('cp-scale-sel');
-    const rootEl  = document.getElementById('cp-root-sel');
+    const scaleEl = _scaleEl = document.getElementById('cp-scale-sel');
+    const rootEl  = _rootEl  = document.getElementById('cp-root-sel');
 
     if (scaleEl) {
         const scales = ['major','minor','dorian','phrygian','lydian','mixolydian',
@@ -154,10 +156,8 @@ function _initScaleRoot() {
             scaleEl.appendChild(o);
         });
         scaleEl.onchange = () => { Scale.default = scaleEl.value; };
-        // Reflect external changes (e.g. Scale.default = "major" in editor) back to select
-        setInterval(() => {
-            if (scaleEl.value !== Scale._name) scaleEl.value = Scale._name;
-        }, 500);
+        // External changes (e.g. Scale.default="major" in the editor) reflected in
+        // _update (folded in from a separate 500ms timer).
     }
 
     if (rootEl) {
@@ -168,10 +168,13 @@ function _initScaleRoot() {
             rootEl.appendChild(o);
         });
         rootEl.onchange = () => { Root.default = Number(rootEl.value); };
-        setInterval(() => {
-            if (rootEl.value !== String(Root.default ?? 0)) rootEl.value = Root.default ?? 0;
-        }, 500);
     }
+}
+
+// Reflect external Scale/Root changes back into the selects (called from _update).
+function _reflectScaleRoot() {
+    if (_scaleEl && _scaleEl.value !== Scale._name) _scaleEl.value = Scale._name;
+    if (_rootEl) { const r = String(Root.default ?? 0); if (_rootEl.value !== r) _rootEl.value = r; }
 }
 
 // ── Panel toggle ─────────────────────────────────────────────────────────────
