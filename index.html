@@ -156,6 +156,7 @@
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, PLAYER_GROUP, FX_GROUP,
              drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
+    import { FX_SYNTHDEFS }   from './js/fx/registry.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
@@ -576,7 +577,8 @@
         'fd_organ', 'fd_ssaw', 'fd_karp', 'fd_piano',
         'fd_ebass', 'fd_faim', 'fd_guit', 'fd_lapin',
         'fd_acidbass', 'fd_hoover', 'fd_cs80', 'fd_moogpluck', 'fd_compkick',
-        'fd_sampler', 'fd_loop', 'fd_fx_chain', 'fd_master',
+        'fd_sampler', 'fd_loop', 'fd_master',
+        ...FX_SYNTHDEFS,   // fd_fx_out + per-effect fd_fx_* nodes (approach A)
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
 

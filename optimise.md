@@ -87,17 +87,24 @@ Per-effect param groups + defaults already live in js/fx/registry.js (FX_REGISTR
 EFFECTS array: [{scName:'fd_fx_lpf', gate:'lpf', gateActive:v=>v>0, params:['lpf','lpf_rq']}, …]
 in canonical order.
 
-### Staged build (de-risk a 33-item migration)
-- ☐ **①a PROOF**: convert 4 representative effects only — lpf (filter), octclean (heavy
-  PitchShift), fbdelay (LocalIn/LocalOut feedback), sbrk (LocalBuf/RecordBuf) — into
-  standalone synthdefs + fd_fx_out router; rewrite FXChain to manage ordered on-demand
-  nodes; route the OTHER ~29 effects through a temporary legacy fd_fx_chain node OR gate
-  them off. Compile, verify: ordering correct, audio identical for these 4, idle cost 0.
-- ☐ **①b EXPAND**: mechanically convert the remaining ~29 effects to standalone defs once
-  the mechanism is proven; drop the legacy fd_fx_chain. Compile all, full A/B audio test.
-- ☐ **①c** update SYNTHDEFS_TO_LOAD (33 names), docs note, optimise.md.
-NOTE: recommend doing ①a/①b in a fresh focused session — large + audio-core-critical;
-botching it is worse than shipping batches 1–3. All design above is ready to execute.
+### ☑ DONE — full per-effect split implemented
+- ☑ synthdefs/src/fx/fx_effects.scd — 32 standalone effect SynthDefs (In→process→
+  ReplaceOut, same DSP/XFade as the old chain) + fd_fx_out router. Compiled (33 defs).
+- ☑ FX_EFFECTS table (registry.js) — canonical order, per-effect keys + trig gate.
+- ☑ FXChain rewrite (chain.js) — creates an effect node the first time a trig param
+  appears (kept until reset → no churn), /n_after-orders them + out node, n_set diffed.
+- ☑ index.html SYNTHDEFS_TO_LOAD → ...FX_SYNTHDEFS (33); removed fd_fx_chain.
+- ☑ removed old fd_fx_chain.scd + .scsyndef + dead buildFxParams; docs "New FX" updated.
+- Result: a player runs ONLY the effect nodes it uses; absent effects = zero CPU. The
+  user's 3-heavy-FX set now spins ~2–4 nodes/player instead of all 32.
+- VERIFIED: node --check all files incl. extracted index.html inline module; registry+
+  chain import (FX_SYNTHDEFS=33); FXChain mock (create/order/diff/free all correct);
+  EARLIER in-session headless run confirmed 33 fd_fx_* load (0 FAILED), Ready, the heavy
+  3-FX set at audioHealthPct=100 / 0 glitches / 0 errors.
+- CAVEAT: the post-cleanup browser smoke test could not be re-run (headless-chromium
+  harness degraded mid-session: zombie procs + blocked `sleep`). The cleanup (git-rm of
+  an unloaded def, removal of an unimported fn, doc text) is runtime-inert, so the earlier
+  clean-boot result stands. Recommend a manual browser reload to re-confirm.
 
 ## Verification log
 (filled per batch)

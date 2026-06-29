@@ -903,28 +903,29 @@ SynthDef(\\fd_mysynth, {|out=0, note=60, amp=0.8, sus=1, pan=0,
     `);
 
     const newFX = section('New FX', `
-        ${note('All FX live in one persistent SynthDef (<code>fd_fx_chain</code>) — one running instance per active player. Every wet/dry section follows the same XFade2 pattern.')}
+        ${note('Each FX is its own SynthDef (<code>fd_fx_*</code>), inserted on demand only when a player uses it (absent effects cost zero CPU). An effect reads the player\\'s private bus, processes it, and writes back in-place; a permanent <code>fd_fx_out</code> node routes the bus to the main output.')}
 
-        ${step(1, 'Add a section to <code>synthdefs/src/fx/fx_chain.scd</code> inside the SynthDef arg list and body:')}
-        ${code(`// Add to the |arg| list:
-chorus=0, chorus_depth=0.003, chorus_rate=0.5,
-
-// Add a processing section (after the existing ones):
-// ── Chorus ─────────────────────────────────────────────────────────
-wet = sig + DelayC.ar(sig, 0.05,
-    SinOsc.kr(chorus_rate, [0, 0.5pi]) * chorus_depth + chorus_depth);
-sig = XFade2.ar(sig, wet * 0.5, chorus * 2 - 1);
-// chorus=0 → XFade2 mix=-1 (all dry)
-// chorus=1 → XFade2 mix=+1 (all wet)`)}
+        ${step(1, 'Add a standalone SynthDef to <code>synthdefs/src/fx/fx_effects.scd</code> — read the bus, process, ReplaceOut with the XFade2 wet/dry blend:')}
+        ${code(`SynthDef(\\fd_fx_chorus, {|in_bus=64, chorus=0, chorus_rate=0.5, chorus_depth=0.003|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = sig + DelayC.ar(sig, 0.05,
+        SinOsc.kr(chorus_rate, [0, 0.5pi]) * chorus_depth + chorus_depth);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet * 0.5, chorus * 2 - 1));
+}).writeDefFile(~outDir);
+// chorus=0 → XFade2 mix=-1 (all dry) · chorus=1 → +1 (all wet)`)}
 
         ${step(2, 'Recompile:')}
-        ${code('./scripts/build.sh fx_chain')}
+        ${code('./scripts/build.sh fx_effects')}
 
-        ${step(3, 'Register each user-facing param in <code>js/fx/registry.js</code>:')}
-        ${code(`chorus:       { scParam: 'chorus',       default: 0,   desc: 'Chorus mix (0=off)' },
+        ${step(3, 'Register the params in <code>js/fx/registry.js</code> (FX_REGISTRY) and add an entry to <code>FX_EFFECTS</code> in chain order:')}
+        ${code(`// FX_REGISTRY:
+chorus:       { scParam: 'chorus',       default: 0,   desc: 'Chorus mix (0=off)' },
+chorus_rate:  { scParam: 'chorus_rate',  default: 0.5,  desc: 'Mod rate Hz' },
 chorus_depth: { scParam: 'chorus_depth', default: 0.003,desc: 'Mod depth in seconds' },
-chorus_rate:  { scParam: 'chorus_rate',  default: 0.5,  desc: 'Mod rate Hz' },`)}
-        ${note('Any key in <code>FX_REGISTRY</code> is automatically: routed to the FX chain (not the synth), updated every beat step (supports TimeVars), available in autocomplete, and shown in the FX docs tab.')}
+
+// FX_EFFECTS (position = where it sits in the chain):
+{ scName: 'fd_fx_chorus', keys: ['chorus','chorus_rate','chorus_depth'], trig: ['chorus'] },`)}
+        ${note('Any key in <code>FX_REGISTRY</code> is automatically routed to the FX chain (not the synth), updated every beat step (supports TimeVars), in autocomplete, and shown in the FX docs tab. The <code>trig</code> param activates the node.')}
     `);
 
     const newFn = section('New pattern or function', `

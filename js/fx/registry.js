@@ -1,9 +1,10 @@
 // FX registry — maps user-facing FoxDot-style param names to SC SynthDef params.
 //
 // To add a new FX:
-//   1. Add its section to synthdefs/src/fx/fx_chain.scd
-//   2. Add param entries here
-//   3. Run scripts/build.sh, reload browser
+//   1. Add a standalone SynthDef to synthdefs/src/fx/fx_effects.scd
+//      (In.ar(in_bus,2) → wet → ReplaceOut.ar(in_bus, XFade2(sig,wet,gate*2-1)))
+//   2. Add its param entries here, AND an entry to FX_EFFECTS (in chain order)
+//   3. Run scripts/build.sh fx_effects, reload browser
 //
 // Keys listed here are treated as FX params in player >> calls
 // and are NOT forwarded to the player synth.
@@ -171,12 +172,45 @@ export const FX_REGISTRY = {
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));
 
-// Build SC param list from resolved user FX args
-export function buildFxParams(r) {
-    const params = [];
-    for (const [key, val] of Object.entries(r)) {
-        const reg = FX_REGISTRY[key];
-        if (reg) params.push(reg.scParam, val);
-    }
-    return params;
-}
+// Per-effect nodes (approach A): each effect is its own SynthDef (fd_fx_*),
+// inserted on demand. Ordered as the old fd_fx_chain applied them. `keys` = the
+// user params this effect owns (sent via /n_set when present); `trig` = the
+// param(s) whose presence activates the effect (its node is created). Absent
+// effects = no node = zero CPU. Plus a permanent fd_fx_out tail (bus → main).
+export const FX_EFFECTS = [
+    { scName: 'fd_fx_lpf',        keys: ['lpf', 'lpf_rq'], trig: ['lpf'] },
+    { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
+    { scName: 'fd_fx_crush',      keys: ['crush', 'bits', 'srate'], trig: ['crush'] },
+    { scName: 'fd_fx_resonbank',  keys: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'], trig: ['resonbank'] },
+    { scName: 'fd_fx_rgate',      keys: ['rgate', 'rgaterate', 'rgatewave'], trig: ['rgate'] },
+    { scName: 'fd_fx_mverb',      keys: ['mverb', 'mverbmix', 'mverbdamp', 'mverbdiff', 'mverbfreeze'], trig: ['mverb'] },
+    { scName: 'fd_fx_cheapverb',  keys: ['cheapverb', 'cvdecay', 'cvdamp'], trig: ['cheapverb'] },
+    { scName: 'fd_fx_chorus',     keys: ['chorus', 'chorus_rate', 'chorus_depth'], trig: ['chorus'] },
+    { scName: 'fd_fx_tremolo',    keys: ['tremolo', 'trem_rate', 'trem_depth'], trig: ['tremolo'] },
+    { scName: 'fd_fx_tanh',       keys: ['tanh', 'drive'], trig: ['tanh'] },
+    { scName: 'fd_fx_reverb',     keys: ['reverb', 'room', 'damp'], trig: ['reverb'] },
+    { scName: 'fd_fx_echo',       keys: ['echo', 'echo_time', 'echo_dec'], trig: ['echo'] },
+    { scName: 'fd_fx_fbdelay',    keys: ['fbdelay', 'fbtime', 'fbfeed', 'fbcutoff', 'fbspread', 'beat_dur'], trig: ['fbdelay'] },
+    { scName: 'fd_fx_shape',      keys: ['shape'], trig: ['shape'] },
+    { scName: 'fd_fx_dist2',      keys: ['dist2', 'dist2shape'], trig: ['dist2'] },
+    { scName: 'fd_fx_multicrush', keys: ['multicrush', 'mclowdrive', 'mcmiddrive', 'mchighdrive', 'mclofreq', 'mchifreq'], trig: ['multicrush'] },
+    { scName: 'fd_fx_chop',       keys: ['chop', 'beat_dur'], trig: ['chop'] },
+    { scName: 'fd_fx_vibrato',    keys: ['vibrato', 'vib_rate', 'vib_depth'], trig: ['vibrato'] },
+    { scName: 'fd_fx_ringmod',    keys: ['ringmod', 'ringmod_freq'], trig: ['ringmod'] },
+    { scName: 'fd_fx_flanger',    keys: ['flanger', 'flanger_rate', 'flanger_depth'], trig: ['flanger'] },
+    { scName: 'fd_fx_phaser',     keys: ['phaser', 'phaser_rate'], trig: ['phaser'] },
+    { scName: 'fd_fx_formant',    keys: ['formant', 'formant_vowel'], trig: ['formant'] },
+    { scName: 'fd_fx_octclean',   keys: ['octclean', 'ocsub', 'ocup'], trig: ['octclean'] },
+    { scName: 'fd_fx_fold',       keys: ['fold', 'symetry'], trig: ['fold'] },
+    { scName: 'fd_fx_csweep',     keys: ['csweep', 'cswfreq', 'cswdepth', 'cswrate', 'cswdecay'], trig: ['csweep'] },
+    { scName: 'fd_fx_eb',         keys: ['eb', 'ebmix', 'ebfeed', 'ebmode', 'ebwow', 'ebflutter', 'ebsat'], trig: ['ebmix'] },
+    { scName: 'fd_fx_tube',       keys: ['tube', 'tubedrive', 'tubegain', 'tubewarm', 'tubebias'], trig: ['tube', 'tubedrive'] },
+    { scName: 'fd_fx_drcomp',     keys: ['drcomp'], trig: ['drcomp'] },
+    { scName: 'fd_fx_lofi',       keys: ['lofi', 'lofiwow', 'lofiamp'], trig: ['lofi'] },
+    { scName: 'fd_fx_vowel',      keys: ['vowel', 'vowelf', 'vowelq'], trig: ['vowel'] },
+    { scName: 'fd_fx_feed',       keys: ['feed', 'feedfreq'], trig: ['feed'] },
+    { scName: 'fd_fx_sbrk',       keys: ['sbrk', 'sbrkdur'], trig: ['sbrk'] },
+];
+
+// Names to preload: the router + every per-effect def.
+export const FX_SYNTHDEFS = ['fd_fx_out', ...FX_EFFECTS.map(e => e.scName)];
