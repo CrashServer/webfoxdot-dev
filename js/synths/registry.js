@@ -91,8 +91,8 @@ export const SYNTH_DEFS = {
     },
     choir: {
         scName: 'fd_choir',
-        defaults: { oct: 4, amp: 0.6, dur: 2, pan: 0, attack: 0.3, release: 0.4, vowel: 0, lpf: 4000 },
-        extraParams: ['vowel', 'lpf'],
+        defaults: { oct: 4, amp: 0.6, dur: 2, pan: 0, attack: 0.3, release: 0.4, vox: 0, cutoff: 4000 },
+        extraParams: ['vox', 'cutoff'],
     },
     brass: {
         scName: 'fd_brass',
@@ -101,8 +101,8 @@ export const SYNTH_DEFS = {
     },
     organ: {
         scName: 'fd_organ',
-        defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.01, release: 0.1, lpf: 6000, perc: 0 },
-        extraParams: ['lpf', 'perc'],
+        defaults: { oct: 4, amp: 0.6, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 6000, perc: 0 },
+        extraParams: ['cutoff', 'perc'],
     },
     ssaw: {
         scName: 'fd_ssaw',
@@ -181,8 +181,8 @@ export const SYNTH_DEFS = {
     compkick: {
         scName: 'fd_compkick',
         defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.35,
-                    punch: 0.7, comp: 8, click: 0.4, drive: 1.5, sub: 1, body: 0.6, tone: 0.3 },
-        extraParams: ['punch', 'comp', 'click', 'drive', 'sub', 'body', 'tone', 'fmod'],
+                    punch: 0.7, comp: 8, click: 0.4, crunch: 1.5, sub: 1, body: 0.6, tone: 0.3 },
+        extraParams: ['punch', 'comp', 'click', 'crunch', 'sub', 'body', 'tone', 'fmod'],
     },
 };
 
