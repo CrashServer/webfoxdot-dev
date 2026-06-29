@@ -227,6 +227,10 @@ function kwargify(expr) {
             else if (')]}'. includes(c)) depth--;
             j++;
         }
+        // No matching ')' on this line — the '(' opens a multi-line construct (e.g.
+        // a defsynth arrow body `(...) => {` continuing on later lines). Leave the
+        // rest verbatim; reformatting it would mangle the trailing brace.
+        if (depth > 0) { result += expr.slice(parenIdx); break; }
         const closeIdx = j - 1;
         const inner    = expr.slice(parenIdx + 1, closeIdx);
 

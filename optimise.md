@@ -16,11 +16,12 @@ Status: ☐ todo · ◐ in progress · ☑ done (committed)
   /s_new still sent); headless 20s+ run audioHealth 100/glitch 0/0 drops (no leak); normal
   synth+sample play 0 errors.
 
-## ⚠️ Bug discovered during testing (NOT batch work — separate)
-- ☐ **BUG-defsynth** transpiler mangles multi-line arrow bodies: `({…}) => {` → `=>)`
-  (js/editor/transpiler.js kwargify treats the destructured-param `(...)`+`{`-body as a
-  call group). Breaks multi-line `defsynth(...)` from the docs example. Pre-existing
-  (transpiler untouched by batch1). Needs a fix so arrow `=> {` survives kwargify.
+## ⚠️ Bug discovered during testing — ☑ FIXED
+- ☑ **BUG-defsynth** transpiler mangled multi-line arrow bodies: `({…}) => {` → `=>)`.
+  Fix: in kwargify, when a `(` has no matching `)` on the line (depth>0 at end-of-
+  string = a multi-line construct), emit the rest verbatim instead of reformatting
+  (js/editor/transpiler.js). Verified: defsynth("mylead", …)=>{…} now transpiles
+  intact, `synth "mylead" defined ✓`, plays (1 voice); normal player lines unaffected.
 
 ## Batch 2 — per-step hot path + highlight
 - ☐ **④** cache arg partition (static vs dynamic) + synth/fx key split; pass secPerBeat down; precompute env keys
