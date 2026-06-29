@@ -572,9 +572,27 @@
         btn.textContent = 'booting…';
         log('Booting scsynth WASM…');
         try {
+            // Match the AudioContext rate to the audio device. SuperSonic otherwise
+            // forces 48 kHz; on Firefox, opening a 48 kHz context while another tab
+            // (e.g. a playing YouTube tab) already holds the device at a different
+            // rate — usually 44.1 kHz — hangs or crashes the browser. scsynth and our
+            // synthdefs are sample-rate-agnostic, so matching the device rate is safe.
+            let hwSampleRate = 0;
+            try {
+                const ProbeAC = window.AudioContext || window.webkitAudioContext;
+                const probe = new ProbeAC();
+                hwSampleRate = probe.sampleRate;
+                await probe.close();
+            } catch (_) {}
+            if (hwSampleRate && hwSampleRate !== 48000) {
+                log(`  matching audio device rate: ${hwSampleRate} Hz`, 'info');
+            }
+
             const sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
+                // Use the device's native rate (see hwSampleRate probe above).
+                ...(hwSampleRate ? { audioContextOptions: { sampleRate: hwSampleRate } } : {}),
                 // Server limits — merged over SuperSonic's defaults as
                 // {...defaults, ...scsynthOptions}. The default numAudioBusChannels
                 // is only 128, and each player takes a private stereo bus at 64+2N,
@@ -594,7 +612,15 @@
                     maxBufferPoolSize: 128 * 1024 * 1024,
                 },
             });
-            await sc.init();
+            // Watchdog: if the audio engine doesn't start (Firefox can hang opening
+            // the device when another tab is using it), surface an actionable error
+            // instead of leaving the button stuck on "booting…".
+            await Promise.race([
+                sc.init(),
+                new Promise((_, rej) => setTimeout(
+                    () => rej(new Error('audio engine did not start in 25s — another tab may be using the audio device; close audio/video tabs (e.g. YouTube) and retry')),
+                    25000)),
+            ]);
             log('scsynth started ✓', 'ok');
 
             // Group 1 (DefaultGroup) is NOT auto-created in this WASM build — use group 0 (RootNode).
