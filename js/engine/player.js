@@ -242,8 +242,7 @@ export class Player {
                 this._active   = true;
                 this._activeSince = Date.now();
                 this._step     = 0;
-                // play() routes through the FX chain too (samples → private bus → FX → out)
-                this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
+                // FX chain is created lazily in _fireSample, only if an FX is used.
                 const now      = this._clock.now();
                 this._nextBeat = Math.ceil(now + 0.001);
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
@@ -265,7 +264,7 @@ export class Player {
                 this._active   = true;
                 this._activeSince = Date.now();
                 this._step     = 0;
-                this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
+                // FX chain is created lazily in _fireLoop, only if an FX is used.
                 const now      = this._clock.now();
                 this._nextBeat = Math.ceil(now + 0.001);
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
@@ -319,7 +318,7 @@ export class Player {
             this._active   = true;
             this._activeSince = Date.now();
             this._step     = 0;
-            this._fxChain  = this._fxChain ?? (_sc ? new FXChain(this._bus, FX_GROUP, _sc) : null);
+            // FX chain is created lazily in _fire, only if the player uses an FX.
             const now      = this._clock.now();
             this._nextBeat = Math.ceil(now + 0.001);
             this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
@@ -348,7 +347,9 @@ export class Player {
         this._modifiers  = null;
         this._unison     = null;
         this._stutterN   = 0;
-        if (this._fxChain && _sc) this._fxChain.reset(_sc);
+        // Free the FX chain entirely (not just bypass): a reset player with no FX
+        // routes straight to output again; _fire rebuilds the chain if FX reappear.
+        if (this._fxChain && _sc) { this._fxChain.free(_sc); this._fxChain = null; }
     }
 
     // Register call-level .every() specs into the every-handler array.
@@ -394,10 +395,16 @@ export class Player {
         const { synth: sArgs, fx: fxArgs } = splitArgs(r);
         const dur  = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
 
-        // Lazy FX chain init (if boot happened after first >> call)
-        if (!this._fxChain && _sc) {
+        // FX chain is created lazily — ONLY when the player actually uses an FX
+        // param (or an FX envelope). A player with none routes straight to the
+        // output, so a bare `d1 >> dbass()` skips the whole 37-stage FX graph.
+        // Once created it persists, and FX args are inherited across re-evals, so
+        // `dbass(mverb=0.5)` then `dbass(decimate=1)` keeps the reverb too.
+        const needsFx = Object.keys(fxArgs).length > 0 || Object.keys(envs).length > 0;
+        if (needsFx && !this._fxChain && _sc) {
             this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
         }
+        const outBus = this._fxChain ? this._bus : 0;
 
         // Update FX params every step (groups collapse to their first value —
         // the FX chain is a single node and can't be layered)
@@ -436,7 +443,7 @@ export class Player {
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
-                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP);
+                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP, outBus);
             }
         };
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
@@ -483,16 +490,14 @@ export class Player {
         const sampleIdx = Math.round(opt(opts.sample, 0));
         const delayBeats = Math.max(0, opt(opts.delay, 0));   // per-note timing offset (beats)
 
-        // Lazy FX chain init (if boot happened after first >> call)
-        if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
-
-        // Apply FX params each step (samples flow through the chain via the bus)
-        if (this._fxChain) {
-            const fxFlat = {};
-            for (const [k, v] of Object.entries(opts)) {
-                if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
-            }
-            if (Object.keys(fxFlat).length > 0) this._fxChain.update(fxFlat, _sc);
+        // FX chain only when this play() uses an FX (else samples go straight out).
+        const fxFlat = {};
+        for (const [k, v] of Object.entries(opts)) {
+            if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
+        }
+        if (Object.keys(fxFlat).length > 0) {
+            if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
+            if (this._fxChain) this._fxChain.update(fxFlat, _sc);
         }
 
         const pat   = this._pattern;
@@ -602,11 +607,12 @@ export class Player {
         const pos        = Math.max(0, opt(opts.pos, 0));
         const delayBeats = Math.max(0, opt(opts.delay, 0));
 
-        if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
-        if (this._fxChain) {
-            const fxFlat = {};
-            for (const [k, v] of Object.entries(opts)) if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
-            if (Object.keys(fxFlat).length > 0) this._fxChain.update(fxFlat, _sc);
+        // FX chain only when this loop() uses an FX (else it goes straight out).
+        const fxFlat = {};
+        for (const [k, v] of Object.entries(opts)) if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
+        if (Object.keys(fxFlat).length > 0) {
+            if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
+            if (this._fxChain) this._fxChain.update(fxFlat, _sc);
         }
 
         const bufId = charToBufId(this._loopName, sampleIdx);
@@ -807,10 +813,10 @@ export class Player {
     // (node freeing needs no sample accuracy) — keeping it out of scsynth's timed
     // queue avoids piling up ~1s-lived future bundles per note, which with many
     // players choked the scheduler and silenced voices.
-    _trigger(midi, r, whenNTP) {
+    _trigger(midi, r, whenNTP, outBus = this._bus) {
         if (!_sc || this._bus == null) return;   // bus freed (player stopped)
         const secPerBeat = 60 / this._clock.bpm;
-        const result     = buildParams(this._synth, midi, r, secPerBeat, this._bus);
+        const result     = buildParams(this._synth, midi, r, secPerBeat, outBus);
         if (!result) { console.error(`Unknown synth: ${this._synth}`); return; }
 
         const id = _sc.nextNodeId();

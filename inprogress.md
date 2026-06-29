@@ -2,6 +2,22 @@
 
 Branch: **alpha21** (off alpha20). Rollback anchor: tag `alpha17-stable` @ 6a1c149.
 
+## alpha21 — DONE: conditional FX routing (skip FX graph when unused)
+- Players used to ALWAYS instantiate + route through fd_fx_chain (37 always-on
+  effect stages), even a bare `d1 >> dbass()`. Now the FX chain is created LAZILY
+  in _fire/_fireSample/_fireLoop, only when the player actually has an FX param
+  (or FX envelope). No FX → synth routes straight to bus 0 (outBus computed as
+  `this._fxChain ? this._bus : 0`, threaded into _trigger). Removed the 3
+  unconditional `new FXChain` at activation. _resetState now FREES the chain
+  (was: bypass) so `~d1 >>` returns a player to direct routing.
+- FX persist via the existing arg inheritance: `dbass(mverb=0.5)` then
+  `dbass(crush=4)` (no ~) → n_set sends BOTH (verified). Chain kept once created.
+- VERIFIED (node mock + headless): bare→no chain; mverb→chain+reverb only;
+  +crush→reverb+crush; ~reset→/n_free + back to direct; 4 mixed players 0 errors.
+- SCOPE: helps FX-free players (big CPU win). Does NOT reduce cost for players that
+  DO use FX — the 3-heavy-FX dropout still needs the fd_fx_chain idle-stage skip
+  (next item).
+
 ## alpha21 — INVESTIGATING: synth voices drop after ~1 min (Chrome)
 - SYMPTOM (user): synths + a play; after ~1 min the synth notes stop sounding but
   audio (the play/drums) keeps going. Repro code: dbass.unison(2) + saw(sinvar lpf,
