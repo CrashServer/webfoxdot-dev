@@ -378,10 +378,11 @@ export class Player {
         // Extract Axis-3 envelopes: keys ending in "_" whose value is an envelope.
         // Only FX-chain params can be modulated mid-note (persistent node + n_set).
         const envs = {};
+        let hasEnvs = false;
         for (const k of Object.keys(r)) {
             if (k.endsWith('_') && isEnv(r[k])) {
                 const base = k.slice(0, -1);
-                if (FX_KEYS.has(base)) envs[base] = r[k];
+                if (FX_KEYS.has(base)) { envs[base] = r[k]; hasEnvs = true; }
                 delete r[k];
             }
         }
@@ -393,14 +394,16 @@ export class Player {
         delete r.delay;
 
         const { synth: sArgs, fx: fxArgs } = splitArgs(r);
+        const hasFx = Object.keys(fxArgs).length > 0;
         const dur  = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
+        const secPerBeat = 60 / this._clock.bpm;
 
         // FX chain is created lazily — ONLY when the player actually uses an FX
         // param (or an FX envelope). A player with none routes straight to the
         // output, so a bare `d1 >> dbass()` skips the whole 37-stage FX graph.
         // Once created it persists, and FX args are inherited across re-evals, so
         // `dbass(mverb=0.5)` then `dbass(decimate=1)` keeps the reverb too.
-        const needsFx = Object.keys(fxArgs).length > 0 || Object.keys(envs).length > 0;
+        const needsFx = hasFx || hasEnvs;
         if (needsFx && !this._fxChain && _sc) {
             this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
         }
@@ -408,14 +411,14 @@ export class Player {
 
         // Update FX params every step (groups collapse to their first value —
         // the FX chain is a single node and can't be layered)
-        if (this._fxChain && Object.keys(fxArgs).length > 0) {
+        if (this._fxChain && hasFx) {
             const fxFlat = {};
             for (const [k, v] of Object.entries(fxArgs)) fxFlat[k] = ungroup(v, step);
             this._fxChain.update(fxFlat, _sc);
         }
 
         // Start Axis-3 envelopes (sub-beat modulation of FX params via n_set)
-        if (Object.keys(envs).length > 0) {
+        if (hasEnvs) {
             const susBeats = ungroup(r.sus, step) ?? ungroup(r.dur, step) ?? 1;
             this._startEnvelopes(envs, susBeats);
         }
@@ -443,7 +446,7 @@ export class Player {
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
-                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP, outBus);
+                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP, outBus, secPerBeat);
             }
         };
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
@@ -451,7 +454,6 @@ export class Player {
         // .degrade(prob): randomly drop this step's note (bookkeeping still advances)
         const degraded = this._degrade > 0 && Math.random() < this._degrade;
         const onsetNTP = this._clock.beatToNTP(this._nextBeat);
-        const secPerBeat = 60 / this._clock.bpm;
         if (!degraded) {
             for (let i = 0; i < reps; i++) {
                 fireVoices(onsetNTP + (delayBeats + i * repDur) * secPerBeat);
@@ -812,9 +814,8 @@ export class Player {
     // main-thread jitter once dispatched. The node frees itself via doneAction:2 in
     // the synthdef envelope (every synthdef has it), so no client /n_free is needed —
     // matching the sample/loop paths.
-    _trigger(midi, r, whenNTP, outBus = this._bus) {
+    _trigger(midi, r, whenNTP, outBus = this._bus, secPerBeat = 60 / this._clock.bpm) {
         if (!_sc || this._bus == null) return;   // bus freed (player stopped)
-        const secPerBeat = 60 / this._clock.bpm;
         const result     = buildParams(this._synth, midi, r, secPerBeat, outBus);
         if (!result) { console.error(`Unknown synth: ${this._synth}`); return; }
 

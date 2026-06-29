@@ -23,9 +23,16 @@ Status: ☐ todo · ◐ in progress · ☑ done (committed)
   (js/editor/transpiler.js). Verified: defsynth("mylead", …)=>{…} now transpiles
   intact, `synth "mylead" defined ✓`, plays (1 voice); normal player lines unaffected.
 
-## Batch 2 — per-step hot path + highlight
-- ☐ **④** cache arg partition (static vs dynamic) + synth/fx key split; pass secPerBeat down; precompute env keys
-- ☐ **⑨** highlight: cache {line,spans} per player, invalidate on editor change; skip markText when span unchanged
+## Batch 2 — per-step hot path + highlight — ☑ DONE
+- ☑ **④ (safe subset)** compute hasFx/hasEnvs once (removed 3 redundant Object.keys/step);
+  thread secPerBeat from _fire into _trigger (was recomputed per voice×rep).
+  DEFERRED (deep arg-partition/static-vs-dynamic cache): poor risk/reward — patGet on a
+  scalar is one cheap branch, and a stale cache in the live-coding hot path is a subtle
+  correctness hazard. DSP (batch 4) is the real CPU cost, not these few allocations.
+- ☑ **⑨** highlight skips the clear+markText DOM churn when the marked span signature is
+  unchanged from the prior step (`_markSig` map; common for length-1/slow patterns).
+  Verified: mock (FX routing/chord intact, bare bypass, secPerBeat passed); headless —
+  all 4 players still highlight (chords incl.), 4v, 0 errors.
 
 ## Batch 3 — unison + per-eval + consolidation + bug
 - ☐ **⑤** unison: resolve non-grouped params once per step

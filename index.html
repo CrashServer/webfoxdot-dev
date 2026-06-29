@@ -1120,9 +1120,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     const _MARK_CSS = 'background:rgba(63,185,80,0.5);color:#fff;border-radius:2px';
     const _lastMark = new Map();   // name → last mark time, to cap DOM churn at fast durs
+    const _markSig  = new Map();   // name → signature of the currently-marked spans
     function clearDegMark(name) {
         const ms = _degMarks.get(name);
         if (ms) { ms.forEach(m => { try { m.clear(); } catch (_) {} }); _degMarks.delete(name); }
+        _markSig.delete(name);
     }
     function highlightStep(name, step) {
         if (step < 0) { clearDegMark(name); return; }
@@ -1134,14 +1136,24 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const line = resolveLine(name);
         if (line < 0 || line >= editor.lineCount()) { clearDegMark(name); return; }
         const arrays = arraysFor(editor.getLine(line));
-        clearDegMark(name);
-        if (!arrays) return;
-        const marks = [];
+        if (!arrays) { clearDegMark(name); return; }
+        // Pick this step's span per array + build a signature; if it matches what's
+        // already marked, skip the clear+markText DOM churn entirely (common when a
+        // degree array is length-1 or a slow pattern holds the same element).
+        const picks = [];
+        let sig = line + ':';
         for (const spans of arrays) {
             const [s, e] = spans[((step % spans.length) + spans.length) % spans.length];
-            marks.push(editor.markText({ line, ch: s }, { line, ch: e }, { className: 'wfd-playing', css: _MARK_CSS }));
+            picks.push(s, e); sig += s + '-' + e + ',';
+        }
+        if (_markSig.get(name) === sig) return;
+        clearDegMark(name);
+        const marks = [];
+        for (let i = 0; i < picks.length; i += 2) {
+            marks.push(editor.markText({ line, ch: picks[i] }, { line, ch: picks[i + 1] }, { className: 'wfd-playing', css: _MARK_CSS }));
         }
         _degMarks.set(name, marks);
+        _markSig.set(name, sig);
     }
     _setStepListener(highlightStep);
 
