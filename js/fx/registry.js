@@ -180,11 +180,3 @@ export function buildFxParams(r) {
     }
     return params;
 }
-
-// Flat [scParam, default, ...] for every FX param — resets a chain to bypass
-// (used when a player is reset with ~ so stale FX, e.g. an old lpf, are cleared).
-export function fxDefaultParams() {
-    const params = [];
-    for (const reg of Object.values(FX_REGISTRY)) params.push(reg.scParam, reg.default);
-    return params;
-}

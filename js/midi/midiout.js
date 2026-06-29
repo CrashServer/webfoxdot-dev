@@ -11,7 +11,7 @@
 // Shares the single MIDIAccess obtained by midi.js (input side), so enabling
 // either lights up both. Channel/velocity follow amp; sus/leg set note length.
 
-import { enableMidi, midiAccess, onMidiChange } from './midi.js';
+import { enableMidi, midiAccess } from './midi.js';
 import { attachModifiers, isGroup } from '../patterns/sequences.js';
 
 const NOTE_ON = 0x90, NOTE_OFF = 0x80, CC = 0xb0;
@@ -25,7 +25,6 @@ export function midiOutSupported() {
 
 // Reuse midi.js's access request (also enables inputs — harmless, often wanted).
 export async function enableMidiOut() { await enableMidi(); return true; }
-export { onMidiChange as onMidiOutChange };   // statechange refreshes device list
 
 function outputs() {
     const acc = midiAccess();

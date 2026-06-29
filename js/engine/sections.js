@@ -178,7 +178,6 @@ function getSections() {
 }
 
 function isAutoplaying() { return _autoplay; }
-function getActiveLine() { return _activeLine; }
 
 // Move the cursor to the active section and reveal it.
 function jumpToActive() {
@@ -387,4 +386,4 @@ function jumpToTarget(targets) {
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export { initSections, runSection, cancelSection, parseSectionTag,
-         getSections, jumpToActive, getActiveLine, isAutoplaying, applyRemoteSection, getActiveInfo };
+         getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo };

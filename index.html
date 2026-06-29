@@ -292,8 +292,12 @@
         log('master FX cleared', 'info');
     }
 
+    // The eval context is ~130 globals. Everything except live-defined synths is
+    // static (closures capture stable refs: clock, log, masters), so build it ONCE
+    // and only merge the growing userSynths per eval.
+    let _ctxStatic = null;
     function buildCtx() {
-        return {
+        if (!_ctxStatic) _ctxStatic = {
             Clock: new Proxy(clock, {
                 set(t, k, v) { if (k === 'bpm') t.bpm = v; else t[k] = v; return true; }
             }),
@@ -314,7 +318,6 @@
             __group: _group,
             _alt,
             ...UGENS,            // SinOsc, Saw, RLPF, Out, EnvGen, Env, Pan2, …
-            ...userSynths,       // synths defined live via defsynth()
             defsynth,
             rest:   () => null,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
@@ -354,6 +357,8 @@
             // connects to the bridge (server/link-bridge.js); link(false) disconnects.
             link:   (on = true) => { if (on) enableLink(); else disableLink(); log(`Link ${on ? 'connecting…' : 'off'}`, 'info'); },
         };
+        // userSynths (defsynth) grows at runtime — merge it fresh each eval.
+        return { ..._ctxStatic, ...userSynths };
     }
 
     // Lazy Web MIDI enable — first midi()/mlearn() call (an eval keypress is a

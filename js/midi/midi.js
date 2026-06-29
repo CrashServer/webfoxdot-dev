@@ -107,16 +107,8 @@ function _onMessage(ev) {
     _changed();
 }
 
-// Available response curves (knob 0..1 → param). Shown in the MIDI panel.
-//   lin   straight                       general purpose (default)
-//   exp   geometric (needs lo,hi>0)      filter cutoffs, frequency, time
-//   log   fast rise then plateau         inverse of exp — feels "snappy"
-//   quad  ease-in (n²)                   gentle start, exp-like on 0-based ranges
-//   cubic stronger ease-in (n³)          very gentle start
-//   sqrt  ease-out (√n)                  quick start, gentle top
-//   s     smoothstep (ease-in-out)       crossfades, morphs
-export const MIDI_CURVES = ['lin', 'exp', 'log', 'quad', 'cubic', 'sqrt', 's'];
-
+// Response curves (4th arg to midi()/mlearn()): lin (default), exp (geometric,
+// needs lo,hi>0), log, quad, cubic, sqrt, s (smoothstep). See curvePos below.
 // Shape the normalized 0..1 position (linear mapping to [lo,hi] happens in shape()).
 function curvePos(curve, n) {
     switch (curve) {

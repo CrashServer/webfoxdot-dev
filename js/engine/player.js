@@ -809,10 +809,9 @@ export class Player {
 
     // whenNTP: NTP timetag for the note's onset. /s_new goes as a timestamped
     // bundle so scsynth fires it on its audio thread at the exact time, immune to
-    // main-thread jitter once dispatched. The /n_free is a plain immediate timer
-    // (node freeing needs no sample accuracy) — keeping it out of scsynth's timed
-    // queue avoids piling up ~1s-lived future bundles per note, which with many
-    // players choked the scheduler and silenced voices.
+    // main-thread jitter once dispatched. The node frees itself via doneAction:2 in
+    // the synthdef envelope (every synthdef has it), so no client /n_free is needed —
+    // matching the sample/loop paths.
     _trigger(midi, r, whenNTP, outBus = this._bus) {
         if (!_sc || this._bus == null) return;   // bus freed (player stopped)
         const secPerBeat = 60 / this._clock.bpm;
@@ -823,12 +822,6 @@ export class Player {
         try {
             _sc.sendOSC(osc.encodeSingleBundle(whenNTP, '/s_new',
                 [result.scName, id, 0, PLAYER_GROUP, ...result.params]));
-
-            // Auto-free after the envelope completes (immediate send, off-clock).
-            const sus  = r.sus ?? r.dur ?? 1;
-            const relS = r.release ?? Math.min(0.5, sus * secPerBeat * 0.3);
-            setTimeout(() => { try { _sc.send('/n_free', id); } catch (_) {} },
-                (sus * secPerBeat + relS + 0.3) * 1000);
         } catch (_) {}
     }
 
