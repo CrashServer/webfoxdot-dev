@@ -2,7 +2,7 @@
 // active CC→param bindings. Binding itself is done in code: `p1.lpf = midi(74,
 // 100, 8000)` or `mlearn(...)`; this panel is the discovery + status surface.
 
-import { enableMidi, midiState, onMidiChange, clearMidiBindings } from '../midi/midi.js';
+import { enableMidi, midiState, onMidiChange, clearMidiBindings, MIDI_CURVES } from '../midi/midi.js';
 
 let _wired = false;
 
@@ -15,6 +15,14 @@ export function initMidiPanel() {
         _render();
     };
     if (clearBtn) clearBtn.onclick = () => { clearMidiBindings(); _render(); };
+
+    // Curve reference — the 4th arg to midi()/mlearn(). Static, so set it once.
+    const curvesEl = document.getElementById('cp-midi-curves');
+    if (curvesEl) {
+        curvesEl.innerHTML = 'curves: ' +
+            MIDI_CURVES.map(c => `<span class="midi-curve">${c}</span>`).join(' ');
+    }
+
     onMidiChange(_render);
     _wired = true;
     _render();
@@ -62,6 +70,7 @@ function _render() {
             ? s.bindings.map(b =>
                 `<div class="midi-row"><span class="midi-cc bound">CC${b.cc}</span>` +
                 `<span class="midi-meter">${bar(b.norm)}</span>` +
+                `<span class="midi-curve">${escapeHtml(b.curve || 'lin')}</span>` +
                 `<span class="midi-val">${fmt(b.value)}</span></div>`).join('')
             : '';
     }

@@ -104,11 +104,39 @@ function _onMessage(ev) {
     _changed();
 }
 
-// lo/hi map; curve 'exp' (lo>0) is geometric — natural for filter cutoffs.
+// Available response curves (knob 0..1 → param). Shown in the MIDI panel.
+//   lin   straight                       general purpose (default)
+//   exp   geometric (needs lo,hi>0)      filter cutoffs, frequency, time
+//   log   fast rise then plateau         inverse of exp — feels "snappy"
+//   quad  ease-in (n²)                   gentle start, exp-like on 0-based ranges
+//   cubic stronger ease-in (n³)          very gentle start
+//   sqrt  ease-out (√n)                  quick start, gentle top
+//   s     smoothstep (ease-in-out)       crossfades, morphs
+export const MIDI_CURVES = ['lin', 'exp', 'log', 'quad', 'cubic', 'sqrt', 's'];
+
+// Shape the normalized 0..1 position (linear mapping to [lo,hi] happens in shape()).
+function curvePos(curve, n) {
+    switch (curve) {
+        case 'log':   return Math.log1p(n * (Math.E - 1));   // 0→0, 1→1, concave
+        case 'quad':  return n * n;
+        case 'cubic': return n * n * n;
+        case 'sqrt':  return Math.sqrt(n);
+        case 's':     return n * n * (3 - 2 * n);            // smoothstep
+        default:      return n;                              // 'lin'
+    }
+}
+
+// lo/hi map. 'exp' is geometric (multiplicative) — natural for filter cutoffs and
+// frequency, but only valid when both ends are >0; on a 0-based range it falls back
+// to 'quad' (ease-in), the closest single-curve approximation. Other curves shape
+// the 0..1 position via curvePos, then map linearly into [lo,hi].
 function shape(b) {
     const n = b._norm;
-    if (b.curve === 'exp' && b.lo > 0 && b.hi > 0) return b.lo * Math.pow(b.hi / b.lo, n);
-    return b.lo + (b.hi - b.lo) * n;
+    if (b.curve === 'exp') {
+        if (b.lo > 0 && b.hi > 0) return b.lo * Math.pow(b.hi / b.lo, n);
+        return b.lo + (b.hi - b.lo) * (n * n);              // ease-in fallback
+    }
+    return b.lo + (b.hi - b.lo) * curvePos(b.curve, n);
 }
 
 // Factory. cc == null arms MIDI learn (binds to the next control touched).
