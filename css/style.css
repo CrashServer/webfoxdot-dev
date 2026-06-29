@@ -351,6 +351,22 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     margin-bottom: 3px;
 }
 
+/* Foldable sections — click the header to collapse/expand. */
+.cp-fold-h { cursor: pointer; user-select: none; }
+.cp-fold-h:hover { color: var(--text-1); }
+.cp-fold-h::before {
+    content: '▾';
+    display: inline-block;
+    width: 10px;
+    font-size: 8px;
+    opacity: 0.6;
+    letter-spacing: 0;
+}
+.cp-section.collapsed .cp-fold-h::before { content: '▸'; }
+/* !important: beats ID-level display rules (e.g. #cp-midi-monitor { display:flex }) */
+.cp-section.collapsed > *:not(:first-child) { display: none !important; }
+.cp-section.collapsed { padding-bottom: 5px; }
+
 .cp-row {
     display: flex;
     justify-content: space-between;
@@ -421,7 +437,6 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .midi-meter { color: var(--green); letter-spacing: -1px; flex: 1; }
 .midi-val { color: var(--text-1); min-width: 30px; text-align: right; }
 .midi-curve { color: var(--text-2); font-style: italic; }
-#cp-midi-curves .midi-curve { color: var(--blue); font-style: normal; padding: 0 1px; }
 
 /* Link panel */
 #cp-link-status { font-size: 10px; color: var(--text-1); padding: 2px 0; }

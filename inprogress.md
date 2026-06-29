@@ -44,6 +44,11 @@ Branch: **alpha21** (off alpha20). Rollback anchor: tag `alpha17-stable` @ 6a1c1
   fix; the watchdog only covers hangs. Not yet confirmed on real Firefox+YouTube.
 - loop() (the alpha20 feature that never reached origin/alpha20) is now listed in
   the alpha21 changelog + has its own examples section ('loop').
+- **Sidebar UX** — every #crash-panel .cp-section is collapsible: `initFoldableSections()`
+  in index.html adds `.cp-fold-h` to each section's header h3, toggles `.collapsed`
+  on click, persists in localStorage (key `fold:<title>`). CSS hides non-header
+  children when collapsed (`!important` to beat ID-level `#cp-midi-monitor` rules).
+  Removed the curve-list line from the MIDI panel (kept per-binding curve label).
 
 ---
 

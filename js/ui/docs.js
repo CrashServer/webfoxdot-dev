@@ -133,6 +133,7 @@ const CHANGELOG = [
         { t: 'midi()/mlearn() curves — beyond lin and exp: log, quad, cubic, sqrt, and s (smoothstep). exp now eases-in on 0-based ranges instead of going linear. The MIDI panel lists the curves and labels each active binding', ex: 'midi' },
         { t: 'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to lock to 8 beats. opts: amp/pan/rate/sample/pos/stretch/looping. (Ported from FoxDot loop; included here for the first published build.)', ex: 'loop' },
         'Boot now matches the audio device sample rate (was forced to 48 kHz). Fixes a Firefox hang/crash when booting while another tab held the audio device at a different rate (e.g. a playing YouTube tab), plus a boot watchdog with an actionable message if the engine can\'t start',
+        'Right sidebar panels are now collapsible — click a section header (Clock / Scale / MIDI / Link / Session / Composition / Players) to fold it; the state persists across reloads',
     ]},
     { v: 'alpha20', title: 'MIDI control + Ableton Link + loops + industrial kick', items: [
         { t: 'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to fit 8 beats (locks to tempo). opts: amp/pan/rate/sample/pos/stretch/looping. Ported from FoxDot loop (PlayBuf + beat-stretch); each step self-frees', ex: 'loop' },

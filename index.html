@@ -103,7 +103,6 @@
       <div id="cp-midi-monitor"></div>
       <div id="cp-midi-bindings"></div>
       <button id="cp-midi-clear" class="cp-btn" style="display:none">clear bindings</button>
-      <div id="cp-midi-curves" class="midi-hint"></div>
       <div id="cp-midi-out" class="cp-row" style="padding:2px 0;display:none">
         <span class="midi-hint" style="padding:0">out →</span>
         <select id="cp-midi-out-sel" class="cp-select" style="flex:1;width:auto;margin-top:0"></select>
@@ -872,6 +871,26 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     initMidiPanel();
     initLink(clock);
     initLinkPanel();
+    initFoldableSections();
+
+    // Make every sidebar section collapsible: click its header to fold/unfold.
+    // The header is the section's first child (an <h3>, or the <h3> inside a
+    // header .cp-row). Fold state persists in localStorage, keyed by title.
+    function initFoldableSections() {
+        for (const sec of document.querySelectorAll('#crash-panel > .cp-section')) {
+            const first = sec.firstElementChild;
+            if (!first) continue;
+            const h3 = first.tagName === 'H3' ? first : first.querySelector('h3');
+            if (!h3) continue;
+            h3.classList.add('cp-fold-h');
+            const key = 'fold:' + h3.textContent.trim();
+            if (localStorage.getItem(key) === '1') sec.classList.add('collapsed');
+            h3.addEventListener('click', () => {
+                const collapsed = sec.classList.toggle('collapsed');
+                try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch (_) {}
+            });
+        }
+    }
 
     // ── Docs ──────────────────────────────────────────────────────────────────
     initDocs();
