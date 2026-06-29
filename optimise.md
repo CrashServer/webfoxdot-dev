@@ -50,9 +50,25 @@ Status: ☐ todo · ◐ in progress · ☑ done (committed)
   for one 1-liner is churn > value. **B2/B3** SynthCall/MidiOutCall base class — touches
   the `instanceof` dispatch in __rshift__ for a cosmetic dedup; risk > value.
 
-## Batch 4 — the big one
-- ☐ **①** fd_fx_chain → per-effect on-demand nodes (idle effects cost zero). Needs design:
-      effect ordering, single LocalIn/LocalOut (fbdelay), recompile. Highest CPU payoff.
+## Batch 4 — the big one (① fd_fx_chain idle-stage cost)
+Problem: one fd_fx_chain runs ALL ~32 effect stages every block (XFade2 only selects
+output; wet DSP always computes). N FX players = N× the full rack. Heavy offenders:
+octclean 2×PitchShift, tube/drcomp/lofi 4×Compander, sbrk always-on RecordBuf+PlayBuf.
+
+Approaches considered:
+- **A — full per-effect on-demand**: split the rack into ~32 individual SynthDefs,
+  each In.ar(bus)→process→ReplaceOut.ar(bus); FXChain inserts a node only when a
+  param goes non-zero (ordered via /n_after), frees it when back to default. Idle
+  cost = 0. Hard: deterministic ordering, per-node LocalIn/LocalOut (fbdelay),
+  param→effect grouping, "returned to default→remove". Effort high; ~32 recompiles.
+- **B — interim: extract only the heavy always-on offenders** (octclean PitchShift,
+  sbrk RecordBuf/PlayBuf, the 4 Companders) into separate on-demand nodes; keep the
+  cheap filters/allpass in the common chain. ~80% of the CPU win, far less risk.
+  Effort medium; ~4 new synthdefs + fx_chain recompile.
+- C (bypass-guard inside the static def): impossible in scsynth (can't skip UGens).
+
+Decision: ___ (awaiting user)
+- ☐ **①** implement chosen approach
 
 ## Verification log
 (filled per batch)
