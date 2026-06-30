@@ -13,10 +13,10 @@ const RAMP = ' .,:;-=+*o#%@';
 const FPS  = 30;
 const CELL = 13;
 const SCENES = ['plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain',
-                'kaleido', 'mandala', 'starfield', 'fire', 'ripple', 'interference',
+                'aurora', 'cells', 'starfield', 'fire', 'ripple', 'interference',
                 'helix', 'spiral'];
 // warm/over-ridden hue for a few scenes; null = use the code-driven hue
-const SCENE_HUE = { fire: 0.04 };
+const SCENE_HUE = { fire: 0.04, aurora: 0.42 };
 
 // ── state ──────────────────────────────────────────────────────────────────────
 const A = { bass: 0, mid: 0, treble: 0, level: 0, bpm: 120, beat: 0, bar: 0 };
@@ -60,7 +60,7 @@ const LEAD = /saw|blip|pluck|pad|key|prophet|cs80|piano|bell|choir|brass|organ|g
 // each synth category draws from a pool, picked at random per eval → variety
 const POOLS = {
     bass: ['tunnel', 'spiral', 'helix', 'ripple'],
-    lead: ['plasma', 'kaleido', 'mandala', 'interference', 'wave'],
+    lead: ['plasma', 'interference', 'wave', 'aurora', 'cells'],
     drum: ['spectrum', 'grid', 'starfield', 'fire', 'rain'],
 };
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
@@ -184,17 +184,22 @@ function fieldVal(name, x, y, t) {
         const ripple = Math.sin(r * 22 * z - t * 4 - A.bass * 8) * 0.5 + 0.5;
         return on * ripple * (0.5 + A.level * 1.6);
     }
-    if (name === 'kaleido') {
-        const seg = 6 + (Math.floor(A.mid * 6) * 2);
-        let a = ang % (Math.PI * 2 / seg);
-        a = Math.abs(a - Math.PI / seg);                 // mirror within the wedge
-        const v = Math.sin(a * 9 + t * 2) * Math.sin(r * 16 * z - t * 3 + A.bass * 8);
-        return Math.max(0, v * 0.5 + 0.5) * (0.4 + A.level * 1.4) * (1 - r * 0.5);
+    if (name === 'aurora') {
+        // wavering vertical curtains drifting sideways — top-weighted, no symmetry
+        const sway = Math.sin(w * 4 - t * 1.5 + u * 8) * 0.3;
+        const v = Math.sin((u + sway) * 9 + t * 2 + A.treble * 5);
+        return Math.max(0, v) * (1 - w * 0.5) * (0.45 + A.level) * (0.4 + A.mid);
     }
-    if (name === 'mandala') {
-        const petals = 6 + Math.floor(A.mid * 10);
-        const v = Math.cos(ang * petals + t) * Math.sin(r * 20 * z - t * 2 + A.treble * 6);
-        return Math.max(0, v) * (0.5 + A.level) * (1 - r * 0.6);
+    if (name === 'cells') {
+        // voronoi-ish: glow on the edges between a few drifting seed points
+        let m1 = 9, m2 = 9;
+        for (let i = 0; i < 5; i++) {
+            const px = 0.5 + 0.42 * Math.sin(t * 0.5 + i * 1.3 + A.bass * 2);
+            const py = 0.5 + 0.42 * Math.cos(t * 0.4 + i * 2.1 + A.mid * 2);
+            const d = Math.hypot(u - px, w - py);
+            if (d < m1) { m2 = m1; m1 = d; } else if (d < m2) m2 = d;
+        }
+        return Math.max(0, 1 - (m2 - m1) * 11) * (0.5 + A.level * 1.3);
     }
     if (name === 'starfield') {
         const a2 = Math.floor(ang / (Math.PI * 2) * 48);
