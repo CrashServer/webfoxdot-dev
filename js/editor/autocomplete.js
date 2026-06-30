@@ -96,6 +96,8 @@ const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','fi(','fo(','fb('];
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
+    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(',
+    'midi(','mlearn(','midiout(','link(',
 ];
 
 // ── Player name generation ───────────────────────────────────────────────────
