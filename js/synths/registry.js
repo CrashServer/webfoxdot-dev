@@ -22,6 +22,24 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, distortion: 8, cutoff: 800, resonance: 0.7 },
         extraParams: ['distortion', 'cutoff', 'resonance'],
     },
+    // a_daft — Daft Punk-style punchy filter bass (CrashServer port)
+    a_daft: {
+        scName: 'fd_a_daft',
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.05, cutoff: 300, resonance: 0.8, punch: 1.2 },
+        extraParams: ['cutoff', 'resonance', 'punch'],
+    },
+    // a_hhat — French-electro metallic hi-hat (CrashServer port, pitchless)
+    a_hhat: {
+        scName: 'fd_a_hhat',
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, tone: 8000, decay: 0.1, metallic: 1, distortion: 2, open: 0 },
+        extraParams: ['tone', 'decay', 'metallic', 'distortion', 'open'],
+    },
+    // pumpbass — pumping filter bass (crashDot original; sidechain-style per-note duck)
+    pumpbass: {
+        scName: 'fd_pumpbass',
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 800, res: 0.4, sub: 0.3, body: 4, growl: 0.2, fuzz: 0, fuzzgain: 1.5, noiz: 0, noizr: 1, noizt: 0.5, hpr: 0, pump: 1 },
+        extraParams: ['cutoff', 'res', 'sub', 'body', 'growl', 'fuzz', 'fuzzgain', 'noiz', 'noizr', 'noizt', 'hpr', 'pump'],
+    },
     saw: {
         scName: 'fd_saw',
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 8000, rq: 0.8, rate: 0.5 },

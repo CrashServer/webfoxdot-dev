@@ -173,7 +173,43 @@ mixolydian scale, list-of-durs.
 
 ---
 
-## Part 5 — minutesaredays (skipped)
+## Part 5 — Pump (126 bpm, phrygian)
+
+French-electro pumping techno. **Three more native ports this round** — it runs
+essentially verbatim:
+- **`pumpbass`** — pumping filter bass (crashDot original; FoxDot had no source).
+- **`a_daft`** — Daft Punk-style punchy filter bass.
+- **`a_hhat`** — French-electro metallic hi-hat (pitchless).
+
+```python
+#@#@ pump
+# Pump — 126 bpm, phrygian. pumpbass / a_daft / a_hhat are native crashDot synths.
+Scale.default = "phrygian"
+Root.default = 0
+Clock.bpm = 126
+
+~t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
+k1 >> compkick(punch=1, comp=10, release=0.4, oct=4, click=8, drive=0.2, sub=1, body=15, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, tone=0.15, dur=1, multicrush=0.2, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
+
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat")*1.1, beat_dur=0.5, decay=0.04, hpf=9000)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat")*1.3, beat_dur=0.5, decay=0.04, hpf=9000)
+```
+
+### Notes (Pump)
+
+- `pumpbass`, `a_daft`, `a_hhat` are now **native** — no substitution.
+- `pumpbass` is a crashDot original (no FoxDot source existed); it accepts all the
+  used params (`cutoff/res/sub/body/growl/fuzz/fuzzgain/noiz/noizr/noizt/hpr/pump`)
+  plus the chain FX (`dist2`, `rgate`, `fbdelay`, `hpf`).
+- `a_daft`'s `fuzz`/`fuzzgain` aren't synth params (its source has only
+  `cutoff/resonance/punch`); the bite comes from the `dist2` chain FX instead.
+- `a_hhat` is pitchless — `decay`/`tone`/`metallic`/`open` shape it; `atk`/`rel`
+  from the original are dropped (it has a fixed fast attack).
+
+---
+
+## Part 6 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`
