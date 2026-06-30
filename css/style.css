@@ -82,6 +82,34 @@
     --cm-def:      #fede5d;
 }
 
+/* Terminal — pure black, green phosphor + amber. */
+:root.terminal {
+    --bg-1:        #000000;
+    --bg-2:        #050805;
+    --bg-3:        #0a120a;
+    --border-1:    #154015;
+    --border-2:    #1f6b1f;
+    --text-1:      #33ff66;
+    --text-2:      #1f9d4d;
+    --green:       #33ff66;
+    --green-dim:   rgba(51,255,102,0.15);
+    --glow:        rgba(51,255,102,0.45);
+    --blue:        #33ddcc;
+    --yellow:      #ffcc33;
+    --red:         #ff5544;
+    --purple:      #66ffaa;
+    --orange:      #ffaa33;
+    --flash-col:   rgba(51,255,102,0.22);
+    --synth-col:   #33ff66;
+    --pattern-col: #66ffaa;
+    --timevar-col: #ffcc33;
+    --keyword-col: #00ffaa;
+    --cm-keyword:  #00ffaa;
+    --cm-number:   #ffcc33;
+    --cm-string:   #66ff99;
+    --cm-def:      #33ff66;
+}
+
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -385,17 +413,19 @@ body.zen #docs-panel { display: none !important; }
     margin-bottom: 3px;
 }
 
-/* Phrase counters — current bar position within 4/8/16/32-bar phrases. */
-#cp-phrases { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 3px 0 4px; }
+/* Phrase counters — current bar within 4/8/16/32/64-bar phrases (integer jumps). */
+#cp-phrases { display: flex; gap: 2px; margin: 3px 0 4px; }
 .cp-phrase {
+    flex: 1;
     font-family: monospace;
-    font-size: 10px;
+    font-size: 9px;
     text-align: center;
     padding: 2px 0;
     border-radius: 2px;
     color: var(--text-1);
     background: var(--bg-3);
     overflow: hidden;
+    white-space: nowrap;
 }
 
 /* Foldable sections — click the header to collapse/expand. */

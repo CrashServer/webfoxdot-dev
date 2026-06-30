@@ -33,12 +33,15 @@
       </div>
       <button id="btn-rec" title="record your evals into a #@ composition">rec code</button>
       <button id="btn-rec-audio" title="record the audio output to a file">rec audio</button>
-      <button id="btn-examples" title="load the example tour into the editor">examples</button>
+      <select id="examples-select" title="load an example into the editor">
+        <option value="" disabled selected>examples ▾</option>
+      </select>
       <button id="btn-clear" title="empty the editor">clear</button>
       <select id="theme-select">
         <option value="dark">Dark</option>
         <option value="cyberpunk">Cyberpunk</option>
         <option value="synthwave">Synthwave</option>
+        <option value="terminal">Terminal</option>
       </select>
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
@@ -85,12 +88,14 @@
       <h3>Clock</h3>
       <div id="cp-beat">—</div>
       <div id="cp-beat-sub" style="text-align:center;font-size:9px;color:var(--text-2);margin-bottom:2px;">◦◦◦◦</div>
-      <!-- Phrase counters: current bar position within 4/8/16/32-bar phrases -->
+      <!-- Phrase counters: current bar position within 4/8/16/32/64-bar phrases.
+           Integer per-bar jumps (1,2,3,4…), webTroop-style — not a sliding fill. -->
       <div id="cp-phrases">
-        <div class="cp-phrase" id="phrase-4">0/4</div>
-        <div class="cp-phrase" id="phrase-8">0/8</div>
-        <div class="cp-phrase" id="phrase-16">0/16</div>
-        <div class="cp-phrase" id="phrase-32">0/32</div>
+        <div class="cp-phrase" id="phrase-4">1/4</div>
+        <div class="cp-phrase" id="phrase-8">1/8</div>
+        <div class="cp-phrase" id="phrase-16">1/16</div>
+        <div class="cp-phrase" id="phrase-32">1/32</div>
+        <div class="cp-phrase" id="phrase-64">1/64</div>
       </div>
       <div class="cp-row">
         <span class="cp-label">BPM</span>
@@ -191,7 +196,7 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode } from './js/ui/docs.js';
+    import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
@@ -922,7 +927,25 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-rec').onclick       = toggleRec;
     document.getElementById('btn-rec-audio').onclick = toggleRecAudio;
     document.getElementById('cp-stop-autoplay').onclick = stopAutoplay;
-    document.getElementById('btn-examples').onclick = () => setEditorContent(examplesAsCode());
+    // Examples dropdown — pick a category to load it into the editor. First entry
+    // is the Introduction (boot + load the kit + a starter); last is "All examples".
+    (function initExamplesMenu() {
+        const sel = document.getElementById('examples-select');
+        if (!sel) return;
+        for (const { id, title } of exampleList()) {
+            const o = document.createElement('option');
+            o.value = id; o.textContent = title;
+            sel.appendChild(o);
+        }
+        const all = document.createElement('option');
+        all.value = 'all'; all.textContent = '— All examples —';
+        sel.appendChild(all);
+        sel.onchange = () => {
+            const id = sel.value;
+            if (id) setEditorContent(exampleCode(id));
+            sel.selectedIndex = 0;   // reset to the "examples ▾" placeholder
+        };
+    })();
     document.getElementById('btn-clear').onclick    = () => setEditorContent('');
 
     // ── Zen mode — hide all UI but the editor (clean view). Toggle with the

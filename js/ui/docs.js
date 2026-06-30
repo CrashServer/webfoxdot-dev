@@ -135,7 +135,8 @@ const CHANGELOG = [
         { t: 'chaos(n=4, type) — generate n random player lines (synth/drum/mix) into g1,g2,… (kept separate from your own) and PASTE them into the editor as a block — it does not run them, so you can review/edit then evaluate. type "synth" or "drum" forces one kind. A burst of generative material (the one-shot cousin of the planned son()/soff() bot).', ex: 'syncgen' },
         'Split view (⬓): in a session, peers\' evaluations stream in a live, name-tagged, colour-coded feed below the shared editor — top is the shared code, bottom is what everyone is running. Auto-on when you join a session; toggle with the ⬓ button.',
         'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
-        'Clock panel now shows phrase counters — where the current bar sits in 4/8/16/32-bar phrases, each with a progress-bar fill (see a drop/change coming), à la webTroop.',
+        'Clock panel now shows phrase counters — which bar of a 4/8/16/32/64-bar phrase you are on, jumping by integer bars (webTroop-style) so you can see a drop/change coming.',
+        'Examples are now a dropdown (pick a category to load it), starting with Introduction (boot + load the webfoxdot-kit + a starter). New Terminal theme — pure black, green-phosphor + amber.',
         'Fix: nudging a value with Alt+↑/↓ now re-runs only the current line (was re-running the whole block, restarting every player in it).',
     ]},
     { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
@@ -315,36 +316,56 @@ const CHANGELOG = [
 // Turn the Examples tab into a self-documenting editor buffer: section titles
 // become headers, explanations (notes) become # comments, code stays runnable.
 // Same source as the docs tab, so they never drift.
+const _EX_HEADER = [
+    '# crashDot examples — put the cursor on a line and press Ctrl+Enter to run it.',
+    '# Ctrl+Alt+Enter runs the whole block. Lines starting with # are notes.',
+    '',
+];
+function _wrap(text, width = 78) {
+    const words = text.replace(/\s+/g, ' ').trim().split(' ');
+    const lines = []; let cur = '';
+    for (const w of words) {
+        if (cur && (cur + ' ' + w).length > width) { lines.push(cur); cur = w; }
+        else cur = cur ? cur + ' ' + w : w;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+}
+// One .docs-section → runnable buffer text (title header, notes as # comments,
+// code verbatim).
+function _sectionToCode(sec) {
+    const out = [];
+    const title = sec.querySelector('.docs-section-title')?.textContent.trim();
+    if (title) out.push('# ══ ' + title + ' ══');
+    sec.querySelectorAll('.docs-note, .docs-code').forEach(el => {
+        if (el.classList.contains('docs-note')) _wrap(el.textContent).forEach(l => out.push('# ' + l));
+        else out.push(el.textContent.replace(/\s+$/, ''));
+    });
+    return out.join('\n');
+}
+
+// [{ id, title }] for the example sections, in document order (for the dropdown).
+export function exampleList() {
+    const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
+    return [...doc.querySelectorAll('.docs-section')]
+        .map(s => ({ id: (s.id || '').replace(/^ex-/, ''), title: (s.querySelector('.docs-section-title')?.textContent || '').trim() }))
+        .filter(e => e.id);
+}
+
+// Runnable buffer for ONE example section (by id), or all of them ('all').
+export function exampleCode(id) {
+    if (id === 'all' || !id) return examplesAsCode();
+    const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
+    const sec = doc.getElementById('ex-' + id);
+    if (!sec) return '';
+    return _EX_HEADER.join('\n') + '\n' + _sectionToCode(sec) + '\n';
+}
+
+// Turn the whole Examples tab into a self-documenting editor buffer.
 export function examplesAsCode() {
     const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
-    const out = [
-        '# crashDot examples — put the cursor on a line and press Ctrl+Enter to run it.',
-        '# Ctrl+Alt+Enter runs the whole block. Lines starting with # are notes.',
-        '',
-    ];
-    const wrap = (text, width = 78) => {
-        const words = text.replace(/\s+/g, ' ').trim().split(' ');
-        const lines = []; let cur = '';
-        for (const w of words) {
-            if (cur && (cur + ' ' + w).length > width) { lines.push(cur); cur = w; }
-            else cur = cur ? cur + ' ' + w : w;
-        }
-        if (cur) lines.push(cur);
-        return lines;
-    };
-    doc.querySelectorAll('.docs-section').forEach(sec => {
-        const title = sec.querySelector('.docs-section-title')?.textContent.trim();
-        if (title) out.push('# ══ ' + title + ' ══');
-        // notes and code blocks in document order
-        sec.querySelectorAll('.docs-note, .docs-code').forEach(el => {
-            if (el.classList.contains('docs-note')) {
-                wrap(el.textContent).forEach(l => out.push('# ' + l));
-            } else {
-                out.push(el.textContent.replace(/\s+$/, ''));
-            }
-        });
-        out.push('');
-    });
+    const out = [..._EX_HEADER];
+    doc.querySelectorAll('.docs-section').forEach(sec => { out.push(_sectionToCode(sec)); out.push(''); });
     return out.join('\n');
 }
 
@@ -375,7 +396,7 @@ function buildExamples() {
         return `p${i + 1} >> ${name}([0, 4, 7, 4], oct=${oct}, amp=0.6${tail})`;
     }).join('\n');
 
-    const welcome = section('Welcome — boot, load the kit, run #@intro', `
+    const welcome = section('Introduction — boot, load the kit, run #@intro', `
         ${note('Hiya! <b>1.</b> Click <b>boot</b> (top-left). <b>2.</b> Put the cursor on a <code>loadpack</code> line below and press <b>Ctrl+Enter</b> to load the sound kit. <b>3.</b> Put the cursor on <code>#@intro(16)</code> and press Ctrl+Enter — the set plays and auto-advances (it branches with <code>#@goto</code>, so it never plays the same way twice). <b>Ctrl+;</b> stops everything.')}
         ${note('Best in Chromium / Brave / Edge — Firefox has audio + sample issues. Keys: Ctrl+Enter run line · Ctrl+Alt+Enter run block · Alt+X stop · Alt+↑/↓ nudge a number live. In a <code>?session=</code> room, say hi in the chat (right panel) — leave a comment if you connect!')}
         ${code(`# load the kit — evaluate ONE of these (cursor on it, Ctrl+Enter)
