@@ -749,6 +749,18 @@ body.zen #docs-panel { display: none !important; }
     color: var(--green);
     text-transform: uppercase;
 }
+/* Category header on the Examples page — groups sections like the dropdown optgroups */
+.docs-cat {
+    margin: 16px 0 2px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--amber, #e0a030);
+    border-bottom: 2px solid var(--border-1);
+}
+.docs-cat:first-child { margin-top: 0; }
 .docs-sub-title {
     font-size: 9px;
     text-transform: uppercase;

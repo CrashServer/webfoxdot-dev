@@ -937,12 +937,24 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     (function initExamplesMenu() {
         const sel = document.getElementById('examples-select');
         if (!sel) return;
-        for (const { id, title } of exampleList()) {
-            const o = document.createElement('option');
-            o.value = id;
-            o.textContent = title.split(' — ')[0].trim();   // short label (drop the description)
-            o.title = title;                                // full title on hover
-            sel.appendChild(o);
+        // Group into <optgroup>s by category (matches the Examples page order).
+        const groups = new Map();
+        for (const { id, title, cat } of exampleList()) {
+            const key = cat || 'Examples';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push({ id, title });
+        }
+        for (const [catName, items] of groups) {
+            const og = document.createElement('optgroup');
+            og.label = catName;
+            for (const { id, title } of items) {
+                const o = document.createElement('option');
+                o.value = id;
+                o.textContent = title.split(' — ')[0].trim();   // short label
+                o.title = title;                                // full title on hover
+                og.appendChild(o);
+            }
+            sel.appendChild(og);
         }
         const all = document.createElement('option');
         all.value = 'all'; all.textContent = '— All examples —';

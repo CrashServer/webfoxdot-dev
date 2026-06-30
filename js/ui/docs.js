@@ -143,7 +143,8 @@ const CHANGELOG = [
         'Nested brackets now work in synth lists too: [0,[4,2]] alternates like <4 2> → 0,4,0,2 (deeper nesting too), so old FoxDot bracket patterns keep working. play() still subdivides. <…> alternation also resolves inside a synth list now.',
         'All synths now share defaults amp=1, pan=0, oct=5; the common params (amp/dur/pan/attack/release) are hidden from autocomplete inserts and the Alt+I signature, leaving just each synth\'s own controls.',
         'Fix: the rgate FX now matches FoxDot/CrashServer chop — rgaterate is slices per beat (tempo-locked to the clock, not a fixed Hz), with 5 wave shapes (pulse/tri/saw/sine/parabola) and a soft floor. chop and fbdelay are tempo-locked automatically now too.',
-        { t: 'pbuild gains live, FoxDot-style params: genre can be an index number (pbuild(0)); the layer params kick/snare/hat/perc take a per-bar GATE — snare=0 cuts snares, snare=PBin(4)/{1,0}/<1,0> toggle them per bar; fill/density can be pattern-valued too. Autocomplete now offers pbuild(…) (full call, every knob exposed) inside play().', ex: 'drums' },
+        { t: 'pbuild gains live, FoxDot-style params: genre can be an index number (pbuild(0)) or a prefix ("indus" → industrial); the layer params kick/snare/hat/perc take a per-bar GATE — snare=0 cuts snares, snare=PBin(4)/{1,0}/<1,0> toggle them per bar; fill/density can be pattern-valued too. Autocomplete now offers pbuild(…) (full call, every knob exposed) inside play().', ex: 'drums' },
+        { t: 'Examples are now grouped into categories (Live sets · Basics · Patterns & time · Sound design · Perform & MIDI) — the dropdown (optgroups) and the Examples page show the same sets in the same order. New live set: Rise (a build into industrial techno).', ex: 'rise' },
     ]},
     { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X', items: [
         { t: 'Slice a generator to freeze it: pat[:N] samples N values once and loops them, so a random source becomes a stable N-step phrase that repeats — PWhite(0,1)[:8], melody()[:8], PRange(0,12)[:4]. Also added melody(), a simple melodic random-walk generator.', ex: 'patterns' },
@@ -368,12 +369,19 @@ function _sectionToCode(sec) {
     return out.join('\n');
 }
 
-// [{ id, title }] for the example sections, in document order (for the dropdown).
+// [{ id, title, cat }] for the example sections, in document order, tagged with the
+// category header (.docs-cat) they fall under — so the dropdown can build optgroups
+// matching the Examples page exactly.
 export function exampleList() {
     const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
-    return [...doc.querySelectorAll('.docs-section')]
-        .map(s => ({ id: (s.id || '').replace(/^ex-/, ''), title: (s.querySelector('.docs-section-title')?.textContent || '').trim() }))
-        .filter(e => e.id);
+    const out = [];
+    let cat = '';
+    for (const el of doc.querySelectorAll('.docs-cat, .docs-section')) {
+        if (el.classList.contains('docs-cat')) { cat = el.textContent.trim(); continue; }
+        const id = (el.id || '').replace(/^ex-/, '');
+        if (id) out.push({ id, title: (el.querySelector('.docs-section-title')?.textContent || '').trim(), cat });
+    }
+    return out;
 }
 
 // Runnable buffer for ONE example section (by id), or all of them ('all').
@@ -475,7 +483,7 @@ b1 >> play(x..., amp=0.6)
         ${code(`Clock.bpm = 120
 Scale.default = "minor"
 Root.default = 0`)}
-    `);
+    `, 'start');
 
     const drums = section('Drums — play()', `
         ${note('Chars map to samples. <code>.</code> or space = rest. Brackets: <code>(Xo)</code> together · <code>[Xo]</code> subdivide · <code>{Xo}</code> random · <code>&lt;Xo&gt;</code> alternate.')}
@@ -533,7 +541,7 @@ br >> brass([0,3,5,7,5,3,7,5], oct=5, dur=1/2, bright=0.7, amp=0.4, reverb=0.5, 
 vc >> prophet([0,5,3,4], oct=4, dur=2, vibrato=0.6, vib_rate=5, vib_depth=0.01, reverb=0.8, room=0.9)  # strings w/ vibrato`)}
     `, 'synths');
 
-    const tweak = section('Live tweaking — try these', `
+    const tweak = section('Live tweaking', `
         ${note('Run this, then put the cursor ON the 2000 and press Alt+Up / Alt+Down — cutoff changes live (±1, or ±0.1 on decimals; Shift+Alt for ×10). The current line re-runs automatically so you hear it instantly.')}
         ${code(`p1 >> saw([0,4,7], oct=4, cutoff=2000, amp=0.5)`)}
         ${note('Alt+I on a name shows what it is — for a pattern it shows the values it makes. Try Alt+I on Pacc below. Ctrl+Space anywhere autocompletes (pick a synth = full call, pick an FX = all its params).')}
@@ -552,7 +560,7 @@ Master().lpf = 4000                        # ride it back open
 Server.clearFx()`)}
     `, 'tweak');
 
-    const axis1 = section('Axis 1 — sequences, chords & groups', `
+    const axis1 = section('Sequences, chords & groups', `
         ${note('<code>[a,b,c]</code> = a per-step sequence. <code>(a,b,c)</code> = a chord/group fired together — also works on any param (zipped across voices). <code>.</code> = rest.')}
         ${code(`p1 >> saw([0, (0,4,7), 4, (2,5,9)], oct=4)   # chord on steps 2 & 4
 p1 >> dbass((0,4,7), oct=4)                  # a held chord
@@ -569,15 +577,15 @@ b1 >> play(x-o-).rarely("stutter", 2, rate=2, amp=0.6)   # kwargs override
 b1 >> play(x.o.).often("stutter", 2).sometimes("stutter", 8)  # chained`)}
     `, 'sometimes');
 
-    const axis2 = section('Axis 2 — time-varying values (var family)', `
+    const axis2 = section('Time-varying values (var)', `
         ${note('Evolve a parameter over beats. <code>var</code> steps; <code>linvar/sinvar/expvar</code> interpolate. Args: (values, durations-in-beats).')}
         ${code(`p1 >> dbass([0,-3,0,4], oct=4, cutoff=linvar([400, 4000], [8, 8]))
 p1 >> saw([0,4,7], cutoff=sinvar([500, 5000], [4]))
 p1 >> pulse([0,3], width=var([0.2, 0.5, 0.8], [2, 2, 4]))
 p1 >> fm([0,7], index=expvar([1, 12], [16]))`)}
-    `);
+    `, 'axis2');
 
-    const axis3 = section('Axis 3 — parameter envelopes ( _ suffix )', `
+    const axis3 = section('Parameter envelopes (_)', `
         ${note('A <code>_</code> suffix runs an envelope per note. <code>fi</code> fade in, <code>fo</code> fade out, <code>fb</code> bounce/wobble. Signature: <code>f(beats, from, to)</code>. <b>FX-chain params only</b> (lpf, hpf, reverb, echo, crush…).')}
         ${code(`p1 >> saw([0,4], oct=4, dur=1, lpf_=fi(0.5, 400, 5000))   # filter opens
 p1 >> saw([0,3], oct=3, dur=1, lpf_=fo(1, 5000, 400))     # filter closes
@@ -733,95 +741,37 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `, 'sections');
 
-    const journey = section('Track — moody → rock → techno', `
-        ${note('A full arrangement wired with <code>#@</code> sections that auto-advance: a moody pad intro builds, guitars take over for a rock section (<code>.gtr()</code> + <code>.drummer()</code>), then it drops into four-on-the-floor techno (<code>pbuild</code> with per-bar gates + a <code>rgate</code>). Commented player lines (<code># p1 >></code>) stop that player when the next section enters; <code>#@goto</code> loops the techno a random number of times. Boot, load the kit, then run <code>#@moody(32)</code>.')}
-        ${code(`#@#@ moody_to_techno
-
-#@moody(32)
-Clock.bpm = 126
+    const rise = section('Rise', `
+        ${note('A live build — evaluate the numbered blocks top to bottom and it rises from a pad intro into driving industrial techno. Shows the tempo-locked <code>rgate</code> + <code>fbdelay</code>, <code>ebass</code> with <code>dist2</code>, a <code>compkick</code>, and <code>pbuild</code> with per-bar layer gates. Boot + load the kit first.')}
+        ${code(`Clock.bpm = 126
 Root.default = "E"
 Scale.default = "minor"
+
+# 1 — pads + a sine motif
 p1 >> pads([0, 3, (0,3,7), 5], oct=4, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=0.5)
 p2 >> sine([7, 5, 3, 0], oct=5, dur=4, amp=0.25, mverb=0.6)
-h1 >> play("-...-...-...-..-", hpf=4000, amp=0.3)
 
-#@build(16)
-# a heartbeat kick + a filtered counter-line; the pads stay
-b1 >> play("x       x       ", amp=0.6)
-p2 >> sine([0, 3, 5, 7], oct=5, dur=2, amp=0.3, lpf=sinvar([800, 5000], [8]))
+# 2 — the motif picks up a feedback delay
+p2 >> sine([0, 3, 5, 7], oct=5, dur=2, amp=0.3, lpf=sinvar([800, 5000], [8]), fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-#@rock(32)
-# guitars take over — drop the pads, the drummer kicks in
-# p1 >>
-# p2 >>
-f1 >> guit([0, 3, 5, 7, 5, 3, 2, 0], dur=0.25, dist2=0.6, tube=0.8, tubegain=1.4, hpf=120).gtr(5).unison(3)
-b1 >> play("x").drummer()
-a1 >> play("x.", sample=4, dur=0.5).sometimes("stutter")
+# 3 — gated saw + ebass come in
+p3 >> saw([0, 0, 7, 0], oct=3, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+p4 >> ebass([0, 0, 7, 0], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-#@techno(64)
-# four-on-the-floor, acid bass, rhythmic gate — guitars out
-# f1 >>
-# a1 >>
-b1 >> play(pbuild("techno", evolve=8, fill=4, snare=PBin(2)), dur=0.25, drcomp=0.6)
-d1 >> dbass([0, 0, 3, 0, 0, 5, 3, 0], oct=4, dur=0.25, dist2=0.4)
-p2 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3)
-p3 >> pads([0, (0,3,7)], oct=5, dur=8, reverb=0.5, room=0.9, amp=0.25)
+# 4 — lift the pads an octave
+p1 >> pads([0, 3, (0,3,7), 5], oct=6, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=0.5)
 
-#@goto(techno, 0.7)   # 70% loop the techno, else resolve
+# 5 — the drop: compkick + industrial drums (snare/hat gated out)
+~p2 >> compkick([0], oct=3, punch=4, comp=80, click=40, crunch=120, sub=4, body=0.6, tone=4)
+v1 >> play(pbuild("indus", evolve=8, fill=4, density=1, kick=1, snare=0, hat=0, perc=1), dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+v2 >> play("X ", amp=1)
+p4 >> ebass([0, 0, 7, 4], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-#@end(8)
-# wind down
-# b1 >>
-# d1 >>
-# p2 >>
-p3 >> pads([0], oct=4, dur=8, attack=4, release=8, reverb=0.7, amp=0.3)`)}
-    `, 'journey');
+# 6 — open the saw up an octave
+p3 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)`)}
+    `, 'rise');
 
-    const progressive = section('Track — progressive (melodic)', `
-        ${note('A melodic progressive build with <code>#@</code> sections. <code>melody()[:8]</code> freezes a generative 8-note phrase that loops (re-rolls each time you evaluate it); a 4-chord pad progression cycles underneath while <code>linvar/sinvar</code> sweep the filters open across the build. No drum generator — the kit is hand-written. <code>#@goto</code> loops the main section. Boot, load the kit, run <code>#@intro(32)</code>.')}
-        ${code(`#@#@ progressive
-
-#@intro(32)
-Clock.bpm = 123
-Root.default = "A"
-Scale.default = "minor"
-p1 >> pads([(0,3,7), (5,8,12), (-2,3,7), (3,7,10)], oct=4, dur=8, attack=3, release=4, reverb=0.6, room=0.9, lpf=linvar([500, 2500], [32]), amp=0.5)
-p2 >> pluck(melody()[:8], oct=6, dur=0.5, amp=0.3, mverb=0.5, lpf=2000)
-
-#@build(32)
-# kick, sub bass and an arp climb in under the pads
-b1 >> play("x...x...x...x...", amp=0.7)
-h1 >> play("--------", hpf=6000, amp=0.3)
-d1 >> dbass([0, 0, 5, -2], oct=3, dur=1, lpf=sinvar([400, 1800], [8]))
-p3 >> blip([0, 3, 7, 3, 5, 3], oct=6, dur=0.25, amp=0.25, room=0.4)
-
-#@main(64)
-# full drop — driving bass, clap, evolving lead over the chords
-b1 >> play("x...x...x...x...", amp=0.9)
-h1 >> play("--=--=--=--=--=-", hpf=7000, amp=0.35)
-c1 >> play("..o...o...o...o.", sample=2, amp=0.5)
-d1 >> dbass([0, 0, 5, -2], oct=3, dur=0.25, dist2=0.3, lpf=sinvar([500, 3000], [16]))
-p3 >> blip([0, 3, 7, 12, 7, 3], oct=6, dur=0.25, amp=0.3, room=0.4, echo=0.3)
-p2 >> saw(melody()[:16], oct=5, dur=0.25, lpf=sinvar([800, 5000], [16]), amp=0.25)
-
-#@break(32)
-# strip back to melody + pads, filter opens wide
-# b1 >>
-# c1 >>
-# d1 >>
-p2 >> pluck(melody()[:8], oct=6, dur=0.5, amp=0.35, mverb=0.6, echo=0.4)
-p1 >> pads([(0,3,7), (5,8,12), (-2,3,7), (3,7,10)], oct=4, dur=8, attack=2, reverb=0.7, room=0.9, lpf=linvar([600, 4000], [32]), amp=0.45)
-
-#@goto(main, 0.6)   # 60% back to the drop, else resolve
-
-#@end(8)
-# p2 >>
-# p3 >>
-# h1 >>
-p1 >> pads([0, 3, 7], oct=4, dur=8, attack=4, release=8, reverb=0.7, amp=0.4)`)}
-    `, 'progressive');
-
-    const showcase = section('Full composition — most features in one set', `
+    const showcase = section('Full composition', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
         ${code(`#@#@ showcase_set
 
@@ -873,7 +823,17 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + journey + progressive + showcase;
+    // Grouped into categories — a <div class="docs-cat"> header precedes each group.
+    // exampleList() reads these headers so the dropdown (optgroups) and this page
+    // show the exact same sets in the same order.
+    const cat = (name) => `<div class="docs-cat">${name}</div>`;
+    return [
+        cat('Live sets'),        rise, showcase,
+        cat('Basics'),           welcome, start, drums, synths, tweak,
+        cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
+        cat('Sound design'),     fx, defsynthEx, samples, loop,
+        cat('Perform & MIDI'),   sections, midi, perf,
+    ].join('');
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────

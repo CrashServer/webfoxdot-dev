@@ -24,7 +24,9 @@ const MUT_CHARS   = { kick: 'Xx', snare: 'oO*u', hat: '-=', perc: 'ts+:~' };
 function resolveGenre(g) {
     const names = Object.keys(_genres);
     if (typeof g === 'number') return names[((Math.round(g) % names.length) + names.length) % names.length];
-    return _genres[g] ? g : 'techno';
+    if (_genres[g]) return g;
+    const pre = typeof g === 'string' && names.find(n => n.startsWith(g));   // "indus" → "industrial"
+    return pre || 'techno';
 }
 
 // A layer override is a per-bar GATE (number/pattern/array/group → on/off each bar)
