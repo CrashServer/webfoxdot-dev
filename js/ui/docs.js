@@ -132,7 +132,7 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha26';
+export const VERSION = 'alpha27';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
