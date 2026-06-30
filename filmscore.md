@@ -209,7 +209,41 @@ h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat")*1.3, beat_dur=0.5, decay=0.04, hpf=
 
 ---
 
-## Part 6 — minutesaredays (skipped)
+## Part 6 — ambient (68 bpm, D dorian) — from codeBank
+
+A slow ambient drift (`codeBank/ambient.py`, "twoheadedstate"): layered evolving
+pad chords, sparse bells, a low gong, deep sub. Long random durs (`PWhite`) keep
+it from ever repeating. Evaluate the lines and let them breathe.
+
+```python
+#@#@ ambient
+# twoheadedstate — 68 bpm, D dorian, ambient pads / bells / gong
+Clock.bpm = 68
+Scale.default = "dorian"
+Root.default = "D"
+
+m1 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.8, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
+r1 >> bell(PRand([0,4,7,11,2,9]), dur=PWhite(6,20), sus=PWhite(4,12), oct=5, amp=0.4, cheapverb=0.75, cvdecay=4, hpf=600, pan=PRand([-0.75,-0.35,0.35,0.75]))
+g1 >> bell(PRand([0,4,7,11]), dur=PWhite(18,48), sus=PWhite(12,30), oct=4, amp=0.2, cheapverb=0.8, cvdecay=5, hpf=300, pan=PRand([-0.6,0.6]))
+m3 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.35, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
+m2 >> pads([(0,1,4),(0,3,6),(0,1,7),(-1,2,5)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.42, cutoff=linvar([600,2400],96), cheapverb=0.8, cvdecay=3.5, hpf=240)
+b1 >> dbass([0,0,0,4,0,0,-3,0], dur=PWhite(6,16), sus=PWhite(8,24), oct=4, amp=1.3, lpf=260, hpf=35, pan=0)
+```
+
+### Substitutions (ambient)
+
+| Original | Used | Lost |
+|---|---|---|
+| `pad2` | `pads` | `jpverb`/`jpsize`/`jpdamp` (JPverb), `stereowidth` |
+| `gong` | `bell` (low, long) | the gong body |
+| `subbass` | `dbass` | `tape`/`tapedrive`, `lpr` |
+
+Clean 1:1: `bell`, `cheapverb`/`cvdecay`, `cutoff`/`lpf`/`hpf`, `pan`, chord
+groups, `PWhite`/`PRand`/`linvar` automation.
+
+---
+
+## Part 7 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`
