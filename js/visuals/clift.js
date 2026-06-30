@@ -12,7 +12,11 @@ const hud = document.getElementById('hud');
 const RAMP = ' .,:;-=+*o#%@';
 const FPS  = 30;
 const CELL = 13;
-const SCENES = ['plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain'];
+const SCENES = ['plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain',
+                'kaleido', 'mandala', 'starfield', 'fire', 'ripple', 'interference',
+                'helix', 'spiral'];
+// warm/over-ridden hue for a few scenes; null = use the code-driven hue
+const SCENE_HUE = { fire: 0.04 };
 
 // ── state ──────────────────────────────────────────────────────────────────────
 const A = { bass: 0, mid: 0, treble: 0, level: 0, bpm: 120, beat: 0, bar: 0 };
@@ -53,12 +57,19 @@ resize();
 const BASS = /bass|sub|303|tb|gesa|daft|pump|donk|moog|reese|wob/i;
 const LEAD = /saw|blip|pluck|pad|key|prophet|cs80|piano|bell|choir|brass|organ|guit|fm|plaits|lead|sine|pulse|arp|karp|lapin/i;
 
+// each synth category draws from a pool, picked at random per eval → variety
+const POOLS = {
+    bass: ['tunnel', 'spiral', 'helix', 'ripple'],
+    lead: ['plasma', 'kaleido', 'mandala', 'interference', 'wave'],
+    drum: ['spectrum', 'grid', 'starfield', 'fire', 'rain'],
+};
+const rand = (a) => a[Math.floor(Math.random() * a.length)];
 function sceneFor(synth) {
-    if (synth === 'play') return 'spectrum';
+    if (synth === 'play') return rand(POOLS.drum);
     if (!synth) return null;
-    if (BASS.test(synth)) return 'tunnel';
-    if (LEAD.test(synth)) return 'plasma';
-    return 'rain';
+    if (BASS.test(synth)) return rand(POOLS.bass);
+    if (LEAD.test(synth)) return rand(POOLS.lead);
+    return rand(POOLS.drum);
 }
 // stable hue per player name → each player keeps a recognisable colour
 function playerHue(n) {
@@ -87,7 +98,7 @@ function onCode(m) {
     if (!text || text.startsWith('#')) return;
     // structural triggers
     if (/\bchaos\s*\(/.test(text))                     glitch = 1.3;
-    if (/\bdrop\s*\(/.test(text))                      { bigFlash = 1; if (auto) scene = (scene + 1) % SCENES.length; }
+    if (/\bdrop\s*\(/.test(text))                      { bigFlash = 1; if (auto) scene = Math.floor(Math.random() * SCENES.length); }
     if (/\.stop\s*\(|\bstopAll\b|\bunsolo\b/.test(text)) calm = 1;
     const pm = text.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>\s*([a-zA-Z_]\w*)/);
     if (pm) { live.player = pm[1]; live.synth = pm[2]; }
@@ -136,8 +147,9 @@ addEventListener('keydown', (e) => {
     else if (e.key === 'f') { document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.(); }
 });
 
+let curHue = 0.5;                            // per-frame: scene override or code hue
 function color(v) {
-    const h = ((live.hue * 300) + 40 + v * 50) % 360;
+    const h = ((curHue * 300) + 40 + v * 50) % 360;
     const l = Math.min(80, 14 + v * 60 * live.bright * (1 - calm * 0.5) + flash * 14 + beatPulse * 12 + pulse * 10);
     return `hsl(${h.toFixed(0)} 88% ${l.toFixed(0)}%)`;
 }
@@ -171,6 +183,51 @@ function fieldVal(name, x, y, t) {
         const on = (x % 3 === 0 && y % 3 === 0) ? 1 : 0;
         const ripple = Math.sin(r * 22 * z - t * 4 - A.bass * 8) * 0.5 + 0.5;
         return on * ripple * (0.5 + A.level * 1.6);
+    }
+    if (name === 'kaleido') {
+        const seg = 6 + (Math.floor(A.mid * 6) * 2);
+        let a = ang % (Math.PI * 2 / seg);
+        a = Math.abs(a - Math.PI / seg);                 // mirror within the wedge
+        const v = Math.sin(a * 9 + t * 2) * Math.sin(r * 16 * z - t * 3 + A.bass * 8);
+        return Math.max(0, v * 0.5 + 0.5) * (0.4 + A.level * 1.4) * (1 - r * 0.5);
+    }
+    if (name === 'mandala') {
+        const petals = 6 + Math.floor(A.mid * 10);
+        const v = Math.cos(ang * petals + t) * Math.sin(r * 20 * z - t * 2 + A.treble * 6);
+        return Math.max(0, v) * (0.5 + A.level) * (1 - r * 0.6);
+    }
+    if (name === 'starfield') {
+        const a2 = Math.floor(ang / (Math.PI * 2) * 48);
+        const seed = Math.sin(a2 * 127.1) * 43758.5, fr = seed - Math.floor(seed);
+        const sr = (fr + t * (0.12 + A.level * 0.5)) % 1;
+        return Math.max(0, 1 - Math.abs(r - sr) * 9) * (0.5 + A.bass * 1.5);
+    }
+    if (name === 'fire') {
+        const flick = Math.sin(u * 22 + t * 6) * 0.18 + Math.sin(u * 7 - t * 9 + A.treble * 10) * 0.3;
+        return Math.max(0, (1 - w) * (0.6 + A.level * 1.3) + flick - w * 0.35);
+    }
+    if (name === 'ripple') {
+        const v = Math.sin(r * 30 - t * 5 - A.bass * 12) * 0.5 + 0.5;
+        const ring = Math.max(0, 1 - Math.abs(r - (beatPulse * 0.6)) * 5) * beatPulse;
+        return v * (0.3 + A.level) + ring * 0.5;
+    }
+    if (name === 'interference') {
+        const d1 = Math.hypot(u - 0.3, w - 0.5), d2 = Math.hypot(u - 0.7, w - 0.5);
+        const v = Math.sin(d1 * 40 - t * 4 + A.bass * 8) + Math.sin(d2 * 40 - t * 4 + A.mid * 8);
+        return (v / 2 * 0.5 + 0.5) * (0.4 + A.level * 1.3);
+    }
+    if (name === 'helix') {
+        const ph = w * 11 + t * 2;
+        const s1 = 0.5 + Math.sin(ph) * 0.3 * (0.6 + A.bass);
+        const s2 = 0.5 + Math.sin(ph + Math.PI) * 0.3 * (0.6 + A.bass);
+        const strand = Math.max(0, 1 - Math.min(Math.abs(u - s1), Math.abs(u - s2)) * 12);
+        const rung = (Math.sin(ph) > 0.85 ? 1 : 0) * Math.max(0, 1 - Math.abs(u - 0.5) * 2.2);
+        return (strand + rung * 0.5) * (0.6 + A.level);
+    }
+    if (name === 'spiral') {
+        const arms = 3 + Math.floor(A.treble * 3);
+        const v = Math.sin(ang * arms + r * 18 * z - t * 2 + A.bass * 6);
+        return Math.max(0, v) * (0.4 + A.level * 1.4) * (1 - r * 0.4);
     }
     const col = Math.sin(x * 12.9898) * 43758.5453, seed = col - Math.floor(col);
     const head = (w + t * (0.2 + seed * 0.5 + A.level * 0.6)) % 1;
@@ -244,6 +301,7 @@ function frame(ts) {
     const t = ts / 1000 * live.speed * ((A.bpm || 120) / 120);
     flash = Math.max(flash, bpmFlash);
     const name = SCENES[scene];
+    curHue = SCENE_HUE[name] != null ? SCENE_HUE[name] : live.hue;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     const useCode = name === 'rain' && codeLines.length;
     const flat = useCode ? codeLines[codeLines.length - 1].runs.map(r => r.s).join('') : '';
