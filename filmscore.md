@@ -133,7 +133,47 @@ Clean 1:1: `piano`, `cs80` (incl. vib/cutoff), `chorus`, `room`, `lpf`/`cutoff`/
 
 ---
 
-## Part 4 — minutesaredays (skipped)
+## Part 4 — Ghosts (120 bpm, C mixolydian)
+
+Stuttered piano motif over a fast bass cascade. **Two synths/FX from this part are
+now native ports** (no substitution needed):
+- **`a_gesa`** synth — aggressive Gesaffelstein-style distorted sub-bass.
+- **`djf`** FX — DJ isolator filter (one knob: `0.5` flat, `<0.5` lowpass sweep
+  down, `>0.5` highpass sweep up).
+
+```python
+#@#@ Ghosts
+# Ghosts — 120 bpm, C mixolydian (a_gesa + djf are native crashDot ports)
+Clock.bpm = 120
+Scale.default = "mixolydian"
+Root.default = "C"
+
+d1 >> piano(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=[1,1,1,1,1,1,3/4,1/2,3/4,1,1,1/4,3/4,1,1,1,3/4,1/2,3/4], oct=4)
+d3 >> dbass([5,3,1,5,1,3,5,1,3,1,5,3,1,3,1,5,2,0,5,0,2,5,0,2,0,5,2,0,5,0,2,5,2,0,5,2,0,5,2,0,5,2,0,5,2,0,5,2,4,2,0,4,2,0,4,2,0,4,2,0,4,2,0,4], dur=1/4, oct=PStutter([6,5,6,7,6,5,6,5,6,7,6,5,6,5,6,5,6,5,6,5,6,5,6,5,6],[3,1,3,3,5,1,2,1,3,3,3,1,2,1,2,1,2,1,2,1,2,1,2,1,17]))
+d2 >> dbass(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=1/4, oct=5, drive=0.1).unison(3)
+
+# a_gesa (native) — Gesaffelstein bass + multicrush + a djf filter sweep
+d4 >> a_gesa([5,3,1,5,1,3,5,1,3,1,5,3,1,3,1,5,2,0,5,0,2,5,0,2,0,5,2,0,5,0,2,5,2,0,5,2,0,5,2,0,5,2,0,5,2,0,5,2,4,2,0,4,2,0,4,2,0,4,2,0,4,2,0,4], dur=1/4, oct=PStutter([6,5,6,7,6,5,6,5,6,7,6,5,6,5,6,5,6,5,6,5,6,5,6,5,6],[3,1,3,3,5,1,2,1,3,3,3,1,2,1,2,1,2,1,2,1,2,1,2,1,17]), multicrush=0.5, mclowdrive=4, mcmiddrive=2, mchighdrive=1.8, mclofreq=2000, mchifreq=3000, djf=sinvar([0.3,0.7],16))
+d5 >> a_gesa(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=[1,1,1,1,1,1,3/4,1/2,3/4,1,1,1/4,3/4,1,1,1,3/4,1/2,3/4], oct=7, distortion=12)
+~g6 >> ebass(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=[1,1,1,1,1,1,3/4,1/2,3/4,1,1,1/4,3/4,1,1,1,3/4,1/2,3/4], oct=5).unison(3)
+```
+
+### Substitutions (Ghosts)
+
+| Original | Used | Note |
+|---|---|---|
+| `a_gesa` | **`a_gesa`** | ✅ ported native this round |
+| `djf` (implied dirt) | **`djf`** | ✅ ported native this round (DJ filter) |
+| `pianovel` | `piano` | velocity nuance |
+| `bbass` | `dbass` | different bass voicing |
+| `a_xbass` | `ebass` | — |
+
+Clean 1:1: `PStutter`, `multicrush` (+ `mc*`), `drive`, `dbass`, `.unison()`,
+mixolydian scale, list-of-durs.
+
+---
+
+## Part 5 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`

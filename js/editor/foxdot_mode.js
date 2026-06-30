@@ -4,7 +4,7 @@
     'use strict';
 
     const SYNTHS = [
-        'abass','acidbass','alva','ambi','angst','arpy','arpymod','audioin',
+        'a_gesa','abass','acidbass','alva','ambi','angst','arpy','arpymod','audioin',
         'bass','bbass','bell','bellmod','blip','bnoise','bounce','braids',
         'breakcore','brown','bug','cbass','charm','click','cluster','combs',
         'compkick','compperc','crackle','creep','cringe','crunch','cs80','dab','dafbass',

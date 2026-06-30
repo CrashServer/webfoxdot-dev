@@ -18,6 +18,10 @@ export const FX_REGISTRY = {
     hpf:       { scParam: 'hpf',     default: 0,   desc: 'HPF cutoff Hz (0=off, e.g. 400)' },
     hpf_rq:    { scParam: 'hpf_rq',  default: 0.7, desc: 'HPF resonance' },
 
+    // DJ isolator filter (CrashServer port) — one knob, 0.5 = flat
+    djf:       { scParam: 'djf',     default: 0.5, desc: 'DJ filter: 0.5=flat, <0.5 lowpass down, >0.5 highpass up' },
+    djfq:      { scParam: 'djfq',    default: 0.3, desc: 'DJ filter resonance/Q' },
+
     // Bitcrush — bit-depth quantize + sample-rate decimate
     crush:      { scParam: 'crush',      default: 0,     desc: 'Bitcrush mix (0=off)' },
     bits:       { scParam: 'crush_bits', default: 8,     desc: 'Quantization levels (lower=grittier, e.g. 4)' },
@@ -180,6 +184,7 @@ export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));
 export const FX_EFFECTS = [
     { scName: 'fd_fx_lpf',        keys: ['lpf', 'lpf_rq'], trig: ['lpf'] },
     { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
+    { scName: 'fd_fx_djf',        keys: ['djf', 'djfq'], trig: ['djf'] },
     { scName: 'fd_fx_crush',      keys: ['crush', 'bits', 'srate'], trig: ['crush'] },
     { scName: 'fd_fx_resonbank',  keys: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'], trig: ['resonbank'] },
     { scName: 'fd_fx_rgate',      keys: ['rgate', 'rgaterate', 'rgatewave', 'beat_dur'], trig: ['rgate'] },

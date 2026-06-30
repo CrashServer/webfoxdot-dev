@@ -16,6 +16,12 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.02, release: 0.12, cutoff: 2000, rq: 0.5, phase: 0.9 },
         extraParams: ['cutoff', 'rq', 'phase'],
     },
+    // a_gesa — aggressive Gesaffelstein-style distorted sub-bass (CrashServer port)
+    a_gesa: {
+        scName: 'fd_a_gesa',
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, distortion: 8, cutoff: 800, resonance: 0.7 },
+        extraParams: ['distortion', 'cutoff', 'resonance'],
+    },
     saw: {
         scName: 'fd_saw',
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 8000, rq: 0.8, rate: 0.5 },

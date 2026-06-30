@@ -33,6 +33,16 @@ SynthDef(\fd_fx_hpf, {|in_bus=64, hpf=0, hpf_rq=0.7|
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (hpf > 0) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── djf — DJ isolator filter (CrashServer port) ─────────────────────────────
+// One knob: 0.5 = flat, <0.5 sweeps a lowpass down, >0.5 sweeps a highpass up.
+SynthDef(\fd_fx_djf, {|in_bus=64, djf=0.5, djfq=0.3|
+    var sig = In.ar(in_bus, 2), lpf, hpf, q = djfq.clip(0.02, 1.0);
+    lpf = djf.linexp(0, 0.5, 50, 15000).clip(50, 15000);
+    hpf = djf.linexp(0.5, 1, 50, 15000).clip(50, 15000);
+    sig = RHPF.ar(RLPF.ar(sig, lpf, q), hpf, q);
+    ReplaceOut.ar(in_bus, sig);
+}).writeDefFile(~outDir);
+
 // ── crush — bitcrush + decimate ─────────────────────────────────────────────
 SynthDef(\fd_fx_crush, {|in_bus=64, crush=0, crush_bits=8, crush_rate=44100|
     var sig = In.ar(in_bus, 2), wet;
