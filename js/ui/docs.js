@@ -777,6 +777,50 @@ p3 >> pads([0, (0,3,7)], oct=5, dur=8, reverb=0.5, room=0.9, amp=0.25)
 p3 >> pads([0], oct=4, dur=8, attack=4, release=8, reverb=0.7, amp=0.3)`)}
     `, 'journey');
 
+    const progressive = section('Track — progressive (melodic)', `
+        ${note('A melodic progressive build with <code>#@</code> sections. <code>melody()[:8]</code> freezes a generative 8-note phrase that loops (re-rolls each time you evaluate it); a 4-chord pad progression cycles underneath while <code>linvar/sinvar</code> sweep the filters open across the build. No drum generator — the kit is hand-written. <code>#@goto</code> loops the main section. Boot, load the kit, run <code>#@intro(32)</code>.')}
+        ${code(`#@#@ progressive
+
+#@intro(32)
+Clock.bpm = 123
+Root.default = "A"
+Scale.default = "minor"
+p1 >> pads([(0,3,7), (5,8,12), (-2,3,7), (3,7,10)], oct=4, dur=8, attack=3, release=4, reverb=0.6, room=0.9, lpf=linvar([500, 2500], [32]), amp=0.5)
+p2 >> pluck(melody()[:8], oct=6, dur=0.5, amp=0.3, mverb=0.5, lpf=2000)
+
+#@build(32)
+# kick, sub bass and an arp climb in under the pads
+b1 >> play("x...x...x...x...", amp=0.7)
+h1 >> play("--------", hpf=6000, amp=0.3)
+d1 >> dbass([0, 0, 5, -2], oct=3, dur=1, lpf=sinvar([400, 1800], [8]))
+p3 >> blip([0, 3, 7, 3, 5, 3], oct=6, dur=0.25, amp=0.25, room=0.4)
+
+#@main(64)
+# full drop — driving bass, clap, evolving lead over the chords
+b1 >> play("x...x...x...x...", amp=0.9)
+h1 >> play("--=--=--=--=--=-", hpf=7000, amp=0.35)
+c1 >> play("..o...o...o...o.", sample=2, amp=0.5)
+d1 >> dbass([0, 0, 5, -2], oct=3, dur=0.25, dist2=0.3, lpf=sinvar([500, 3000], [16]))
+p3 >> blip([0, 3, 7, 12, 7, 3], oct=6, dur=0.25, amp=0.3, room=0.4, echo=0.3)
+p2 >> saw(melody()[:16], oct=5, dur=0.25, lpf=sinvar([800, 5000], [16]), amp=0.25)
+
+#@break(32)
+# strip back to melody + pads, filter opens wide
+# b1 >>
+# c1 >>
+# d1 >>
+p2 >> pluck(melody()[:8], oct=6, dur=0.5, amp=0.35, mverb=0.6, echo=0.4)
+p1 >> pads([(0,3,7), (5,8,12), (-2,3,7), (3,7,10)], oct=4, dur=8, attack=2, reverb=0.7, room=0.9, lpf=linvar([600, 4000], [32]), amp=0.45)
+
+#@goto(main, 0.6)   # 60% back to the drop, else resolve
+
+#@end(8)
+# p2 >>
+# p3 >>
+# h1 >>
+p1 >> pads([0, 3, 7], oct=4, dur=8, attack=4, release=8, reverb=0.7, amp=0.4)`)}
+    `, 'progressive');
+
     const showcase = section('Full composition — most features in one set', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
         ${code(`#@#@ showcase_set
@@ -829,7 +873,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + journey + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + journey + progressive + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
