@@ -130,9 +130,9 @@ export const VERSION = 'alpha23';
 const CHANGELOG = [
     { v: 'alpha23', title: 'Renamed to crashDot · split view · zen mode', items: [
         'Renamed: WebFoxDot → crashDot (display name).',
-        'Quantised player start: a new player\'s first note now lands on the next beat that is a multiple of its dur (FoxDot-style) — so d1 >> dbass(dur=4) waits for a bar boundary while dur=1/4 starts almost instantly. Players stay in sync. (Re-evaluating a running player keeps its grid.)',
-        'Chained player methods on a call now work: p1 >> saw(...).solo(4) / .only(8) / .stop(8). Timed solo/only/stop/soloDrop are grid-aligned (next multiple of N), matching the quantised model.',
-        'chaos(n=4, type) — generate n random players at once (synth/drum/mix) into g1,g2,… (kept separate from your own players). type "synth" or "drum" to force one kind. An instant burst of generative material (the one-shot cousin of the planned son()/soff() bot).',
+        { t: 'Quantised player start: a new player\'s first note now lands on the next beat that is a multiple of its dur (FoxDot-style) — so d1 >> dbass(dur=4) waits for a bar boundary while dur=1/4 starts almost instantly. Players stay in sync. (Re-evaluating a running player keeps its grid.)', ex: 'syncgen' },
+        { t: 'Chained player methods on a call now work: p1 >> saw(...).solo(4) / .only(8) / .stop(8). Timed solo/only/stop/soloDrop are grid-aligned (next multiple of N), matching the quantised model.', ex: 'syncgen' },
+        { t: 'chaos(n=4, type) — generate n random players at once (synth/drum/mix) into g1,g2,… (kept separate from your own players). type "synth" or "drum" to force one kind. An instant burst of generative material (the one-shot cousin of the planned son()/soff() bot).', ex: 'syncgen' },
         'Split view (⬓): in a session, peers\' evaluations stream in a live, name-tagged, colour-coded feed below the shared editor — top is the shared code, bottom is what everyone is running. Auto-on when you join a session; toggle with the ⬓ button.',
         'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
     ]},
@@ -612,6 +612,21 @@ unsolo()                      # restore all`)}
         ${note('Shortcuts: <b>Alt+S</b> solo · <b>Ctrl+Alt+S</b> unsolo · <b>Alt+O</b> soloDrop(8) · <b>Alt+X</b> comment+stop the player at the cursor.')}
     `, 'perf');
 
+    const syncGen = section('Sync, timed solo/stop & chaos', `
+        ${note('<b>Quantised start.</b> A new player begins on the next beat that is a multiple of its <code>dur</code>: <code>dur=4</code> waits for a bar, <code>dur=1/4</code> starts almost at once — so everything stays in sync. Run the kick, then the pads a beat later: the pads snap onto the bar.')}
+        ${code(`b1 >> play(x.x.x.x., amp=0.7)
+p1 >> pads([0, (0,4,7), 5], oct=4, dur=4, lpf=1200, amp=0.5)   # lands on the next bar`)}
+        ${note('<b>Timed solo / only / stop</b> — chain them right on the player, or call as methods. The number is grid-aligned (the next multiple of N), like the dur grid.')}
+        ${code(`p1 >> prophet([0,4,7], oct=5, dur=1/2).solo(8)   # solo 8 beats, then restore
+p2 >> blip([0,4,7,5], oct=6, dur=1/4).only(8)    # at the next mult of 8, stop the others
+b1 >> play(x-x-, amp=0.8).stop(16)               # stop on the next mult of 16
+p1.soloDrop(8)                                   # solo-drop 8 beats (method form)`)}
+        ${note('<b>chaos(n)</b> — instantly generate <code>n</code> random players into <code>g1, g2, …</code> (kept apart from your own). Boot + load a kit first. <code>chaos(3, "drum")</code> or <code>chaos(2, "synth")</code> forces one kind. Stop them with <code>Ctrl+.</code> or re-run to add more.')}
+        ${code(`chaos(4)             # 4 random players (synth + drum mix)
+chaos(2, "synth")    # 2 random melodic/bass players
+chaos(3, "drum")     # 3 random drum patterns`)}
+    `, 'syncgen');
+
     const midi = section('MIDI — control in, notes out', `
         ${note('Web MIDI (Chromium / Edge / Brave). Enables on the first <code>midi()</code> / <code>mlearn()</code> / <code>midiout()</code> call (the eval keypress is the required user gesture). Discover CC numbers and pick the output port in the <b>MIDI panel</b> (Alt+I sidebar).')}
         ${note('<b>Control in</b> — a <code>midi()</code> value is sampled every step (like a TimeVar), so a knob sweeps any synth/FX param live. One CC can drive several params (a macro). Curves: <code>lin</code>, <code>exp</code> (cutoffs/freq), <code>log</code>, <code>quad</code>, <code>cubic</code>, <code>sqrt</code>, <code>s</code> (smoothstep).')}
@@ -705,7 +720,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + midi + sections + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
