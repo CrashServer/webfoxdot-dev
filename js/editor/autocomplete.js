@@ -193,6 +193,16 @@ function item(text, cls, display) {
     return { text, displayText: display ?? text, className: cls };
 }
 
+// pbuild(…) with every knob exposed — genre (a name or an index number), evolve,
+// fill, density, and per-layer gates (1=on, 0=off, or a pattern like PBin(4)/{1,0}).
+function pbuildItem() {
+    return item('pbuild("techno", evolve=8, fill=4, density=1, kick=1, snare=1, hat=1, perc=1)',
+                'hint-keyword', 'pbuild(…)  genre drums');
+}
+function pkitInPlayItem() {
+    return item('pkit("techno").kick', 'hint-keyword', 'pkit(…).kick  one layer');
+}
+
 // Remove category separators that have no items under them (after filtering).
 function dropEmptySeps(list) {
     return list.filter((it, i) => {
@@ -275,6 +285,13 @@ function hintFn(cm) {
         let synthParams;
         if (ctx.synth === 'play') {
             synthParams = ['amp=','dur=','pan=','rate=','sample=','amplify=','sus='].map(p => item(p, 'hint-param'));
+            // pbuild(…) generates a genre drum pattern as the play() string — offer
+            // the full call (every knob exposed) so it can be tweaked in place.
+            const gen = [sep('— generators —'), pbuildItem(), pkitInPlayItem()];
+            list = dropEmptySeps([...gen, sep('— params —'), ...synthParams,
+                                  sep('— fx (full) —'), ...FX_GROUPS.map(fxItem)]
+                                 .filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
+            return { list, from, to };
         } else if (ctx.synth) {
             synthParams = Object.keys(SYNTH_DEFS[ctx.synth]?.defaults ?? {}).map(p => item(p + '=', 'hint-param'));
         } else {

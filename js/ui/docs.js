@@ -92,7 +92,7 @@ export const FUNCTIONS = [
     { name: 'loadloop(name, url)',      desc: 'Load a WAV from a URL (or [urls] for variants) and register it as a named loop for loop(). Same buffer store as samples. e.g. loadloop("break", "https://…/amen.wav")' },
     { name: 'loadsample(char, url)',    desc: 'Load a WAV from a URL (or [urls]) and assign it to a play() char. GitHub raw / release URLs work. e.g. loadsample("K", "https://raw.githubusercontent.com/u/r/main/kick.wav")' },
     { name: 'loadpack(url)',            desc: 'Load a pack: JSON manifest {char: url | [urls]}. Relative URLs resolve against the pack location' },
-    { name: 'pbuild(genre, opts)',      desc: 'Genre drum-pattern generator → a play() string. e.g. play(pbuild("techno"), dur=0.25). genre: techno|ebm|dnb|house|breaks|halftime|industrial|reggae|afro. opts: evolve (bars before it loops, each a mutation; default 8), fill (a fill every N bars), density (0–1, thins hits), mute ("hat"), seed, or per-layer overrides (kick="X  x ", hat="dnb"). Second arg can be a number = evolve' },
+    { name: 'pbuild(genre, opts)',      desc: 'Genre drum-pattern generator → a play() string. e.g. play(pbuild("techno"), dur=0.25). genre: a name (techno|ebm|dnb|house|breaks|halftime|industrial|reggae|afro) OR an index number (pbuild(0)). opts: evolve (bars before it loops, each a mutation; default 8), fill (a fill every N bars), density (0–1, thins hits), mute, seed. Layer params kick/snare/hat/perc take a literal pattern (kick="X  x "), a genre name (hat="dnb"), or a per-bar GATE: snare=0 (off), snare=1 (on), snare=PBin(4)/{1,0}/<1,0> (toggle per bar). fill/density may be pattern-valued too (sampled per bar). Second arg can be a number = evolve' },
     { name: 'pkit(genre, opts)',        desc: 'Like pbuild but returns a kit for per-layer access: kit = pkit("house"); b1 >> play(kit.kick, dur=0.25); h1 >> play(kit.hat, dur=0.25). Layers: kick, snare, hat, perc' },
     { name: 'genres()',                 desc: 'List the available pbuild/pkit drum genres' },
     { name: 'chaos(n, type)',           desc: 'Generate n random players (synth/drum mix) into g1,g2,… and PASTE them into the editor as a block — does NOT run them; review/edit then evaluate. type "synth"|"drum" forces one kind. Default n=4' },
@@ -143,6 +143,7 @@ const CHANGELOG = [
         'Nested brackets now work in synth lists too: [0,[4,2]] alternates like <4 2> → 0,4,0,2 (deeper nesting too), so old FoxDot bracket patterns keep working. play() still subdivides. <…> alternation also resolves inside a synth list now.',
         'All synths now share defaults amp=1, pan=0, oct=5; the common params (amp/dur/pan/attack/release) are hidden from autocomplete inserts and the Alt+I signature, leaving just each synth\'s own controls.',
         'Fix: the rgate FX now matches FoxDot/CrashServer chop — rgaterate is slices per beat (tempo-locked to the clock, not a fixed Hz), with 5 wave shapes (pulse/tri/saw/sine/parabola) and a soft floor. chop and fbdelay are tempo-locked automatically now too.',
+        { t: 'pbuild gains live, FoxDot-style params: genre can be an index number (pbuild(0)); the layer params kick/snare/hat/perc take a per-bar GATE — snare=0 cuts snares, snare=PBin(4)/{1,0}/<1,0> toggle them per bar; fill/density can be pattern-valued too. Autocomplete now offers pbuild(…) (full call, every knob exposed) inside play().', ex: 'drums' },
     ]},
     { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X', items: [
         { t: 'Slice a generator to freeze it: pat[:N] samples N values once and loops them, so a random source becomes a stable N-step phrase that repeats — PWhite(0,1)[:8], melody()[:8], PRange(0,12)[:4]. Also added melody(), a simple melodic random-walk generator.', ex: 'patterns' },
@@ -488,7 +489,9 @@ b7 >> play(x-o-).sometimes("stutter", 2)   # probabilistic`)}
         ${note('<b>pbuild(genre)</b> generates a genre drum pattern as a play() string. Genres: techno · ebm · dnb · house · breaks · halftime · industrial · reggae · afro. <code>evolve</code> = bars before it loops (each a mutation, so the groove drifts) · <code>fill</code> every N bars · <code>density</code> 0–1 thins hits · <code>mute</code> a layer · per-layer access via <code>pkit()</code>.')}
         ${code(`b1 >> play(pbuild("techno"), dur=0.25)
 b1 >> play(pbuild("house", evolve=8, fill=4, density=0.8), dur=0.25)
-b1 >> play(pbuild("dnb", 16), dur=0.25)              # positional: evolve=16
+b1 >> play(pbuild(0, 16), dur=0.25)                  # genre by index + evolve=16
+b1 >> play(pbuild("dnb", snare=PBin(4), hat=<1,0>), dur=0.25)   # gate layers per bar
+b1 >> play(pbuild("house", snare=0, fill={4,2}), dur=0.25)      # cut snare; random fills
 kit = pkit("breaks")                                 # per-layer access
 b1 >> play(kit.kick, dur=0.25)
 h1 >> play(kit.hat, dur=0.25)`)}

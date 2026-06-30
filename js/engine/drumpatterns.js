@@ -15,8 +15,32 @@
 const _genres = {"techno": {"kick": ["X   X   X   X   ", "X   X   X  XX   ", "X     X X   X   ", "X   X   X   X X ", "X  X  X X  X  X ", "X   X    X  X   ", "X  X    X   X   ", "X   X   X X X   ", "X     X X     X ", "X   X  XX   X  X", "X  XX   X   X   ", "X   X X   X X   "], "snare": ["    o       o   ", "    *       *   ", "    o     o o   ", "    *   o   *   ", "    o      oo   ", "  o     o   o   ", "    o  o    o   ", "    *     * *   ", "    o   o   o   ", "  o o       o   ", "    *  o    *  o", "    o       o  o"], "hat": ["-.-.-.-.-.-.-.--", "----------------", "-.-.--=--.-.--=-", "--.--.---.------", "-.---.-.-.---.--", "--=---=---=---=-", "-.-.-.---.-.-.--", "---.-.-----.-.--", "-.--=-.--.--=-.-", "-.-.-.-.-.-=-.--", "=.-.=.-.=.-.=.--", "-...-..-...-..-."], "perc": ["                ", "  t   t   t   t ", "s   s   s   s   ", "    +     + +   ", "  :   :   :  :  ", "t     t     t   ", "  s     s     s ", "+   + +   +   + ", "  : :   : :   : ", "    t       t   "]}, "ebm": {"kick": ["X   X   X   X   ", "X X X X X X X X ", "X  XX   X  XX   ", "X X X   X X X   ", "X   X X X   X X ", "X X   X X X   X ", "XX  X   XX  X   ", "X  XX  XX  XX   ", "X X X X   X X X ", "X   XX  X   XX  ", "XX  XX    XX  XX", "X X   X X   X X "], "snare": ["    O       O   ", "    *       *   ", "    O     O O   ", "   oO      oO   ", "    O  o    O  o", "    *  *    *   ", "    O   *   O   ", "  o O   o   O   ", "    O o     O o ", "    *   o  o*   ", "   oO  o   oO   ", "    O     o O  o"], "hat": ["-.-.-.-.-.-.-.--", "----------------", "-.--.---.-.--.--", "-.-.-=-.-.-.-=-.", "-.---.---.---.--", "---.---.-.--.---", "-.-.-.-.---.-.--", "--=--.----=--.--"], "perc": ["                ", "  t   t   t   t ", "+  + +  +  + +  ", "  r   r   r   r ", "+   +   +   + + ", "t t   t t t   t "]}, "dnb": {"kick": ["X     X   X     ", "X       X   X   ", "X     X    X    ", "X  X      X     ", "X       X     X ", "X   X     X     ", "X      X  X     ", "X  X       X    ", "X     X       X ", "X        X  X   ", "X   X       X   ", "X  X    X       "], "snare": ["    o       o   ", "    o       o o ", "    o     o o   ", "   uo      uo   ", "    o  u    o u ", "    o       o  u", "    o  o    o   ", "   uo       o o ", "    o u     o   ", "    o     u o   ", "    o  u   uo   ", "    o   u   o u "], "hat": ["-.-.-.-.-.-.-.--", "-.---.-.-.---.--", "--=---=---=---=-", "-.-.=.-.-.-.=.--", "-.--.-=--.--.-=-", "=.-.-.=.-.-.-.=-", "-.-.-.---.-.-.--", "-.--=.-.-.--=.--"], "perc": ["                ", "  ~   ~   ~   ~ ", "    s     s s   ", "~     ~     ~   ", "  s   s       s ", "  ~ ~   ~ ~   ~ "]}, "house": {"kick": ["X   X   X   X   ", "X   X   X   X X ", "X   X  XX   X   ", "X   X   X  XX   ", "X   X X X   X   ", "X  XX   X   X   ", "X   X   X   XX  ", "X   X  XX   X X "], "snare": ["    *       *   ", "    H       H   ", "    *   *   *   ", "    *       * * ", "    H   *   H   ", "    *  *    *   ", "    H     * H   ", "    *   H   *   "], "hat": ["-.-.-.-.-.-.-.--", "--=---=---=---=-", "================", "-.--.-=--.--.-=-", "-.-.=.-.-.-.=.--", "=-.-=-=-.-.-=-=-", "-=.-=.-=-=.-=.--", "-.-.-.-=-.-.-.=-"], "perc": ["                ", "s s s s s s s s ", "  +   +   +   + ", "s   s   s   s   ", "  + + +   + + + ", "s     s s     s ", "  +   + +   +   "]}, "breaks": {"kick": ["X  X    X  X    ", "X     X  X      ", "X  X      X   X ", "X       X  X    ", "X    X  X       ", "X  X  X     X   ", "X       X X     ", "X  X       X  X ", "X     X     X   ", "X  X    X    X  "], "snare": ["    o  o    o   ", "    o   o  oo   ", "   oo       o o ", "    o o     o o ", "    o  o   oo   ", "   oo  o    o   ", "    o o  o  o   ", "    o  oo   o o ", "   oo   o   o   ", "    o o     oo  "], "hat": ["-.-.-.-.-.-.-.--", "-.---.-.-.---.--", "--=--.-.--=--.--", "-.-.-.---.-.-.--", "-.--=-.--.--=-.-", "-.---.---.---.--", "--.--.-.--.--.--"], "perc": ["                ", "  t     t   t   ", "  ~ ~ ~   ~ ~ ~ ", "t   t   t     t ", "  ~     ~   ~   ", "  t ~ t   t ~ t "]}, "halftime": {"kick": ["X       X       ", "X         X     ", "X       X    X  ", "X           X   ", "X     X         ", "X       X     X ", "X          X    ", "X   X           "], "snare": ["        o       ", "        o     o ", "    u   o       ", "        o   u   ", "        o  o    ", "    u   o     u ", "        *       ", "        o u     "], "hat": ["-.-.-.-.-.-.-.--", "-.--.--.-.--.---", "-.-.-=-.-.-.-=-.", "-.---.-.-.---.--", "-.--.-.--.--.---", "-.-.-.---.-.-.--"], "perc": ["                ", "  s   s   s   s ", "s       s       ", "    ~       ~   ", "  s     s     s "]}, "industrial": {"kick": ["X X X X X X X X ", "X  XX  XX  XX  X", "X X X   X X X X ", "XX  XX  XX  XX  ", "XXX   XXX   XXX ", "X XX  X XX  X XX", "X X XX  X X XX  ", "XX XX XX XX XX X", "X  XX X X  XX X ", "X X   XXX X   XX", "XX  X X XX  X X ", "X XXX   X XXX   "], "snare": ["    O       O   ", "    *   O   *   ", "  o O     o O   ", "    O O     O O ", "    *  O    *  O", "  O *     O *   ", "    O   *  oO   ", "  o O  *  o O  *", "    O o   O O o ", "    * O o   * O "], "hat": ["----------------", "-.-.-.-.-.-.-.--", "---.---.---.---.", "-.---.---.---.--", "----.-----.--.--", "-.-.---.-.-.---.", "--.--.--.--.--.."], "perc": ["                ", "r r r r r r r r ", "  +   + +   + + ", "K   K   K   K   ", "r   r r   r r r ", "+ + +   + + +   ", "K K   K K K   K ", "  r +   r +   r "]}, "reggae": {"kick": ["X       X       ", "X  X    X       ", "X     X X       ", "X       X   X   ", "X  X        X   ", "X     X   X     ", "X       X  X    ", "X   X   X       "], "snare": ["   o       o    ", "   *       *    ", "   o     o o    ", "   o  o    o    ", "   *     * *    ", "   o       o  o ", "   o   o   o    ", "   *  o    *  o "], "hat": [" - - - - - - - -", " -=- -=- -=- -=-", " - -=- - - -=- -", " -=- - - -=- - -", " - - -=- - - -=-", " --=- --=- --=- "], "perc": ["                ", "  s   s   s   s ", "t   t   t   t   ", "s     s s     s ", "  t   t     t   ", "s   s     s   s "]}, "afro": {"kick": ["X  X  X   X   X ", "X    XX  X    X ", "X  X   X  X  X  ", "X   X  X  X     ", "X  X    X   X   ", "X    X  X  X    ", "X  X  X     X  X", "X     X X  X    ", "X  X   X    X   ", "X    X    X  X  "], "snare": ["    o     o     ", "   o  o  o  o   ", "    o   o   o o ", "  o   o     o   ", "    o  o  o     ", "   o    o   o   ", "    o     o  o  ", "  o o   o   o   ", "    o  o    o o ", "   o  o   o   o "], "hat": ["-.-.-.-.-.-.-.--", "-.--.-.--.--.---", "-.---.-.-.---.--", "-.--.--.-.--.---", "-.-.---.-.-.---.", "-.--.-.-.--.-.-."], "perc": ["s  s  s  s  s  s", " t t  t  t t  t ", ":  :  :  :  :  :", "s  s    s  s    ", " t   t t   t t  ", ":    ::    ::   ", "s t s   s t s   ", " : t :   : t :  "]}};
 const _fills  = {"techno": ["X X X X X X XXXX", "X  XX  XXXXXXX X", "X   X   XXXXXXXX", "XXXX    o o XXXX", "X X XXXX  XXXXXX", "X   X XXXXXXXXXX", "XX XX XX XXXXXXX", "X  X  X  X XXXXX"], "ebm": ["X X X X XXXXXXXX", "X X XXXXX X XXXX", "XXXXXXXXX X X X ", "XX XX XXXXXXXXXX", "X XXXXX XXXXXXXX", "XXXX X XXXXXXXXX"], "dnb": ["X  oo  oX oXoo o", "X  o  XXXX oo oo", "X     oooooooooo", "X oX oXo oo oooo", "X  oo X oooooo o", "X   oooX ooooooo"], "house": ["X   X   XXXX*  *", "X   X X X X XXXX", "X   X   * * XXXX", "X X X   XXXX* * ", "X   X ***   XXXX"], "breaks": ["X oXo oXXoXo oXo", "X  oo XoXo ooXXo", "XoXo oXoXoXo oXo", "X oo oo ooXoXo o", "X  oXoXo oo  oXo"], "halftime": ["X       oooooooo", "X     X oooXXXXX", "X       ooooo oo", "X     oo  oooooo"], "industrial": ["XXXXXXXXXXXXXXXX", "X X XXXXX X XXXX", "XX XXXXX XX XXXX", "XXXXXX XXXXXXXXX", "X XXXXXXX XXXXXX"], "reggae": ["X  X  X  X ooooo", "X  X oo  X oo oo", "X    X X  ooo oo"], "afro": ["X oXo X oXo X oX", "XoX oXoXo oXoX o", "X o oXo oXoXo oX"]};
 
+import { patGet, isGroup } from '../patterns/sequences.js';
+
 const LAYER_ORDER = ['kick', 'snare', 'hat', 'perc'];
 const MUT_CHARS   = { kick: 'Xx', snare: 'oO*u', hat: '-=', perc: 'ts+:~' };
+
+// genre can be a number (index into the genre list) for short coding: pbuild(0).
+function resolveGenre(g) {
+    const names = Object.keys(_genres);
+    if (typeof g === 'number') return names[((Math.round(g) % names.length) + names.length) % names.length];
+    return _genres[g] ? g : 'techno';
+}
+
+// A layer override is a per-bar GATE (number/pattern/array/group → on/off each bar)
+// rather than an explicit pattern STRING. So snare=0 cuts snares, snare=PBin(4)
+// gates them randomly per bar, snare=<1,0> alternates; snare="X  x " stays a literal.
+function isGate(v) {
+    return typeof v === 'number' || (v != null && typeof v.get === 'function')
+        || Array.isArray(v) || isGroup(v);
+}
+
+// Sample a (possibly pattern-valued) numeric opt at bar i. group → first member.
+function sampleNum(v, i, dflt) {
+    if (v == null) return dflt;
+    const r = isGroup(v) ? patGet(v.__group[0], i) : patGet(v, i);
+    return r == null ? dflt : Number(r);
+}
 
 // Seedable RNG (mulberry32) so `seed` is reproducible; no seed → Math.random.
 function makeRng(seed) {
@@ -58,7 +82,7 @@ function mutShift(rng, layer) {
 class DrumKit {
     constructor(genre = 'techno', opts = {}) {
         const steps = opts.steps ?? 16;
-        this.genre  = _genres[genre] ? genre : 'techno';
+        this.genre  = resolveGenre(genre);
         this.steps  = steps;
         this._density = opts.density ?? 1.0;
         this.mute = new Set(typeof opts.mute === 'string'
@@ -70,9 +94,11 @@ class DrumKit {
         if (opts.layers) Object.assign(this._layers, opts.layers);
         else for (const name of LAYER_ORDER) this._layers[name] = choice(this._rng, gdef[name] || [' '.repeat(steps)]);
 
-        // Per-layer overrides: kick="X  x " or hat="dnb" (cross-genre variation).
+        // Per-layer overrides: kick="X  x " sets a literal pattern; hat="dnb" borrows
+        // another genre's layer. Gate-type overrides (snare=0 / PBin(4) / <1,0>) are
+        // NOT layers — they toggle the genre layer per bar, handled in renderBar.
         for (const name of LAYER_ORDER) {
-            if (name in opts) {
+            if (name in opts && !isGate(opts[name])) {
                 const val = opts[name];
                 if (typeof val === 'string' && _genres[val]) this._layers[name] = choice(this._rng, _genres[val][name] || [' '.repeat(steps)]);
                 else this._layers[name] = val;
@@ -81,10 +107,11 @@ class DrumKit {
         this._fills = _fills[this.genre] || _fills.techno;
     }
 
-    _merge(layers = this._layers) {
+    _merge(layers = this._layers, extraMutes = null) {
         const r = Array(this.steps).fill(' ');
         for (const name of LAYER_ORDER) {
             if (!(name in layers) || this.mute.has(name)) continue;
+            if (extraMutes && extraMutes.has(name)) continue;
             const layer = layers[name];
             for (let i = 0; i < Math.min(layer.length, this.steps); i++) {
                 if (layer[i] !== ' ' && r[i] === ' ') r[i] = layer[i];
@@ -105,6 +132,13 @@ class DrumKit {
         let d = this._density;
         if (d && typeof d.get === 'function') d = d.get(0);   // TimeVar
         if (Number(d) < 1.0) p = this._applyDensity(p, Number(d));
+        return p;
+    }
+
+    // Render one bar with a per-bar density and an extra set of muted layers.
+    render(density, extraMutes) {
+        let p = this._merge(this._layers, extraMutes);
+        if (density != null && Number(density) < 1.0) p = this._applyDensity(p, Number(density));
         return p;
     }
 
@@ -129,18 +163,35 @@ class DrumKit {
     }
 }
 
-// pbuild(genre, opts) — opts can be an object {evolve, fill, density, mute, seed,
-// kick, snare, hat, perc} or a number (= evolve). Returns a play() string.
+// Render a single bar honouring per-bar gates (layer on/off) and density.
+function renderBar(kit, opts, i) {
+    const mutes = new Set();
+    for (const name of LAYER_ORDER) {
+        if (name in opts && isGate(opts[name])) {
+            const g = isGroup(opts[name]) ? patGet(opts[name].__group[0], i) : patGet(opts[name], i);
+            if (!g) mutes.add(name);     // gate 0/false this bar → drop the layer
+        }
+    }
+    return kit.render(sampleNum(opts.density, i, 1), mutes);
+}
+
+// pbuild(genre, opts) — genre is a name ("techno") or an index number (0). opts can
+// be an object {evolve, fill, density, mute, seed, kick, snare, hat, perc} or a
+// number (= evolve). Layer params accept a literal pattern (kick="X  x "), a genre
+// name (hat="dnb"), or a per-bar GATE: snare=0 (off), snare=1 (on), snare=PBin(4)
+// / {1,0} / <1,0> (toggle per bar). fill/density may also be pattern-valued (sampled
+// per bar). Returns a play() string.
 export function pbuild(genre = 'techno', opts = {}) {
     if (typeof opts === 'number') opts = { evolve: opts };
-    const evolve = opts.evolve ?? 8;
-    const fill   = opts.fill ?? 0;
+    genre = resolveGenre(genre);
+    const evolve = Math.max(1, Math.round(sampleNum(opts.evolve, 0, 8)));
     const kit = new DrumKit(genre, opts);
-    if (evolve <= 1) return kit.toString();
+    if (evolve <= 1) return renderBar(kit, opts, 0);
     const parts = [];
     for (let i = 0; i < evolve; i++) {
-        if (fill > 0 && (i + 1) % fill === 0) parts.push(kit._getFill());
-        else parts.push(kit.toString());
+        const fillN = Math.round(sampleNum(opts.fill, i, 0));
+        if (fillN > 0 && (i + 1) % fillN === 0) parts.push(kit._getFill());
+        else parts.push(renderBar(kit, opts, i));
         kit._evolve(); kit._evolve();   // two mutations per bar — groove drifts
     }
     return parts.join('');
