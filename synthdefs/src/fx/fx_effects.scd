@@ -50,13 +50,21 @@ SynthDef(\fd_fx_resonbank, {|in_bus=64, resonbank=0, rbfreq=60, rbdecay=0.5, rbs
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, resonbank * 2 - 1));
 }).writeDefFile(~outDir);
 
-// ── rgate — rhythmic gate ───────────────────────────────────────────────────
-SynthDef(\fd_fx_rgate, {|in_bus=64, rgate=0, rgaterate=4, rgatewave=0|
-    var sig = In.ar(in_bus, 2), wet;
-    wet = sig * Select.kr(rgatewave.clip(0, 1).round, [
-            LFPulse.kr(rgaterate.clip(0.1, 50), 0, 0.5),
-            SinOsc.kr(rgaterate.clip(0.1, 50)).range(0, 1) ]);
-    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, rgate * 2 - 1));
+// ── rgate — rhythmic gate (FoxDot/CrashServer `chop` port) ───────────────────
+// rgaterate = slices per beat (tempo-locked via beat_dur = 60/bpm, injected by JS).
+// rgatewave = 0 pulse · 1 tri · 2 saw · 3 sine · 4 parabola. A 0.01 floor keeps the
+// gate from fully silencing (matches FoxDot add:0.01); rgate is the dry→wet mix.
+SynthDef(\fd_fx_rgate, {|in_bus=64, rgate=0, rgaterate=4, rgatewave=0, beat_dur=0.5|
+    var sig = In.ar(in_bus, 2), freq, lfo, wet;
+    freq = (rgaterate / beat_dur).clip(0.1, 200);
+    lfo = SelectX.kr(rgatewave.clip(0, 4), [
+            LFPulse.kr(freq, 0, 0.5, 1, 0.01),
+            LFTri.kr(freq, 0, 1, 0.01),
+            LFSaw.kr(freq, 0, 1, 0.01),
+            SinOsc.kr(freq, 0, 1, 0.01),
+            LFPar.kr(freq, 0, 1, 0.01) ]);
+    wet = sig * lfo;
+    ReplaceOut.ar(in_bus, SelectX.ar(rgate.clip(0, 1), [sig, wet]));
 }).writeDefFile(~outDir);
 
 // ── mverb — denser allpass reverb ───────────────────────────────────────────

@@ -447,6 +447,8 @@ export class Player {
         if (this._fxChain && hasFx) {
             const fxFlat = {};
             for (const [k, v] of Object.entries(fxArgs)) fxFlat[k] = ungroup(v, step);
+            // Tempo-lock beat-relative FX (rgate/chop/fbdelay) unless set explicitly.
+            if (fxFlat.beat_dur === undefined) fxFlat.beat_dur = 60 / this._clock.bpm;
             this._fxChain.update(fxFlat, _sc);
         }
 
@@ -531,6 +533,8 @@ export class Player {
             if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
         }
         if (Object.keys(fxFlat).length > 0) {
+            // Tempo-lock beat-relative FX (rgate/chop/fbdelay) unless set explicitly.
+            if (fxFlat.beat_dur === undefined) fxFlat.beat_dur = 60 / this._clock.bpm;
             if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
             if (this._fxChain) this._fxChain.update(fxFlat, _sc);
         }
@@ -646,6 +650,8 @@ export class Player {
         const fxFlat = {};
         for (const [k, v] of Object.entries(opts)) if (FX_KEYS.has(k)) fxFlat[k] = opt(v, undefined);
         if (Object.keys(fxFlat).length > 0) {
+            // Tempo-lock beat-relative FX (rgate/chop/fbdelay) unless set explicitly.
+            if (fxFlat.beat_dur === undefined) fxFlat.beat_dur = 60 / this._clock.bpm;
             if (!this._fxChain && _sc) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
             if (this._fxChain) this._fxChain.update(fxFlat, _sc);
         }

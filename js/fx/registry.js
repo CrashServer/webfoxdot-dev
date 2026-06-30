@@ -30,9 +30,9 @@ export const FX_REGISTRY = {
     rbspread:   { scParam: 'rbspread',  default: 1,   desc: 'Stereo detune %' },
 
     // Rhythmic gate
-    rgate:      { scParam: 'rgate',     default: 0, desc: 'Gate mix (0=off)' },
-    rgaterate:  { scParam: 'rgaterate', default: 4, desc: 'Gate rate (cycles/sec)' },
-    rgatewave:  { scParam: 'rgatewave', default: 0, desc: 'Gate shape: 0=pulse, 1=sine' },
+    rgate:      { scParam: 'rgate',     default: 0, desc: 'Rhythmic gate dry→wet mix (0=off)' },
+    rgaterate:  { scParam: 'rgaterate', default: 4, desc: 'Gate slices per beat (tempo-locked)' },
+    rgatewave:  { scParam: 'rgatewave', default: 0, desc: 'Gate shape: 0 pulse · 1 tri · 2 saw · 3 sine · 4 parabola' },
 
     // mverb — denser reverb
     mverb:      { scParam: 'mverb',       default: 0,   desc: 'mverb mix (0=off)' },
@@ -182,7 +182,7 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
     { scName: 'fd_fx_crush',      keys: ['crush', 'bits', 'srate'], trig: ['crush'] },
     { scName: 'fd_fx_resonbank',  keys: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'], trig: ['resonbank'] },
-    { scName: 'fd_fx_rgate',      keys: ['rgate', 'rgaterate', 'rgatewave'], trig: ['rgate'] },
+    { scName: 'fd_fx_rgate',      keys: ['rgate', 'rgaterate', 'rgatewave', 'beat_dur'], trig: ['rgate'] },
     { scName: 'fd_fx_mverb',      keys: ['mverb', 'mverbmix', 'mverbdamp', 'mverbdiff', 'mverbfreeze'], trig: ['mverb'] },
     { scName: 'fd_fx_cheapverb',  keys: ['cheapverb', 'cvdecay', 'cvdamp'], trig: ['cheapverb'] },
     { scName: 'fd_fx_chorus',     keys: ['chorus', 'chorus_rate', 'chorus_depth'], trig: ['chorus'] },
