@@ -45,6 +45,19 @@ function _updateBeat() {
     el.textContent = `${bar} . ${beat}`;
     const sub2 = document.getElementById('cp-beat-sub');
     if (sub2) sub2.textContent = '▪'.repeat(sub) + '◦'.repeat(4 - sub);
+
+    // Phrase counters — where the current bar sits in 4/8/16/32-bar phrases, with a
+    // progress-bar fill (so you can see a drop/change coming). Bars are 0-indexed
+    // internally; shown 1-indexed.
+    const barF = now / 4;                       // continuous bar position
+    for (const len of [4, 8, 16, 32]) {
+        const d = document.getElementById('phrase-' + len);
+        if (!d) continue;
+        const pos = Math.floor(barF) % len;     // 0..len-1
+        const pct = ((barF % len) / len) * 100; // smooth fill within the phrase
+        d.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--bg-3) ${pct}%)`;
+        d.textContent = `${pos + 1}/${len}`;
+    }
 }
 
 function _updatePlayers() {

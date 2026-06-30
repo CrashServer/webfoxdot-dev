@@ -85,6 +85,13 @@
       <h3>Clock</h3>
       <div id="cp-beat">—</div>
       <div id="cp-beat-sub" style="text-align:center;font-size:9px;color:var(--text-2);margin-bottom:2px;">◦◦◦◦</div>
+      <!-- Phrase counters: current bar position within 4/8/16/32-bar phrases -->
+      <div id="cp-phrases">
+        <div class="cp-phrase" id="phrase-4">0/4</div>
+        <div class="cp-phrase" id="phrase-8">0/8</div>
+        <div class="cp-phrase" id="phrase-16">0/16</div>
+        <div class="cp-phrase" id="phrase-32">0/32</div>
+      </div>
       <div class="cp-row">
         <span class="cp-label">BPM</span>
         <span class="cp-value green" id="cp-bpm-val">120</span>
@@ -872,10 +879,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Cmd-Alt-Enter':   () => runSelected(),
             'Ctrl-Space':     (cm) => triggerAutocomplete(cm),
             'Alt-I':          (cm) => inspect(cm),
-            'Alt-Up':         (cm) => incrementValue(cm,  1,  runBlockAtCursor),
-            'Alt-Down':       (cm) => incrementValue(cm, -1,  runBlockAtCursor),
-            'Shift-Alt-Up':   (cm) => incrementValue(cm,  10, runBlockAtCursor),
-            'Shift-Alt-Down': (cm) => incrementValue(cm, -10, runBlockAtCursor),
+            'Alt-Up':         (cm) => incrementValue(cm,  1,  runLineAtCursor),
+            'Alt-Down':       (cm) => incrementValue(cm, -1,  runLineAtCursor),
+            'Shift-Alt-Up':   (cm) => incrementValue(cm,  10, runLineAtCursor),
+            'Shift-Alt-Down': (cm) => incrementValue(cm, -10, runLineAtCursor),
             'Alt-X':          (cm) => stopPlayerAtCursor(cm, clock, runBlockAtCursor),
             'Alt-S':          (cm) => { const n = soloPlayerAtCursor(cm, clock); if (n) broadcastAction('solo', { name: n }); },
             'Ctrl-Alt-S':     ()   => { _unsoloFn(clock); broadcastAction('unsolo'); },

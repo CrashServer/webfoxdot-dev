@@ -385,6 +385,19 @@ body.zen #docs-panel { display: none !important; }
     margin-bottom: 3px;
 }
 
+/* Phrase counters — current bar position within 4/8/16/32-bar phrases. */
+#cp-phrases { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 3px 0 4px; }
+.cp-phrase {
+    font-family: monospace;
+    font-size: 10px;
+    text-align: center;
+    padding: 2px 0;
+    border-radius: 2px;
+    color: var(--text-1);
+    background: var(--bg-3);
+    overflow: hidden;
+}
+
 /* Foldable sections — click the header to collapse/expand. */
 .cp-fold-h { cursor: pointer; user-select: none; }
 .cp-fold-h:hover { color: var(--text-1); }

@@ -135,6 +135,8 @@ const CHANGELOG = [
         { t: 'chaos(n=4, type) — generate n random player lines (synth/drum/mix) into g1,g2,… (kept separate from your own) and PASTE them into the editor as a block — it does not run them, so you can review/edit then evaluate. type "synth" or "drum" forces one kind. A burst of generative material (the one-shot cousin of the planned son()/soff() bot).', ex: 'syncgen' },
         'Split view (⬓): in a session, peers\' evaluations stream in a live, name-tagged, colour-coded feed below the shared editor — top is the shared code, bottom is what everyone is running. Auto-on when you join a session; toggle with the ⬓ button.',
         'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
+        'Clock panel now shows phrase counters — where the current bar sits in 4/8/16/32-bar phrases, each with a progress-bar fill (see a drop/change coming), à la webTroop.',
+        'Fix: nudging a value with Alt+↑/↓ now re-runs only the current line (was re-running the whole block, restarting every player in it).',
     ]},
     { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
         'Collab server now logs a [status] line after each change — total instances, the live sessions with per-room counts, and how many people are using it solo. e.g. [status] instances: 4 · sessions: myjam(2) · solo: 2',
@@ -474,7 +476,7 @@ vc >> prophet([0,5,3,4], oct=4, dur=2, vibrato=0.6, vib_rate=5, vib_depth=0.01, 
     `, 'synths');
 
     const tweak = section('Live tweaking — try these', `
-        ${note('Run this, then put the cursor ON the 2000 and press Alt+Up / Alt+Down — cutoff changes live (±1, or ±0.1 on decimals; Shift+Alt for ×10). The block re-runs automatically so you hear it instantly.')}
+        ${note('Run this, then put the cursor ON the 2000 and press Alt+Up / Alt+Down — cutoff changes live (±1, or ±0.1 on decimals; Shift+Alt for ×10). The current line re-runs automatically so you hear it instantly.')}
         ${code(`p1 >> saw([0,4,7], oct=4, cutoff=2000, amp=0.5)`)}
         ${note('Alt+I on a name shows what it is — for a pattern it shows the values it makes. Try Alt+I on Pacc below. Ctrl+Space anywhere autocompletes (pick a synth = full call, pick an FX = all its params).')}
         ${code(`b1 >> play(x.x.x.x., amp=Pacc("ghost"))`)}
@@ -735,7 +737,7 @@ p1 >> bass([0,-3], oct=3)   # a second block`)}
     `);
 
     const nudge = section('Tweaking values live (nudge)', `
-        ${note('Put the cursor on a number and use ' + key('Alt+↑') + ' / ' + key('Alt+↓') + ' to nudge it (±1, or ±0.1 if it has decimals) — the block re-runs automatically, so you hear the change instantly. ' + key('Shift+Alt+↑/↓') + ' nudges ×10. Great for dialing in cutoff, amp, rate while it plays.')}
+        ${note('Put the cursor on a number and use ' + key('Alt+↑') + ' / ' + key('Alt+↓') + ' to nudge it (±1, or ±0.1 if it has decimals) — the current line re-runs automatically, so you hear the change instantly. ' + key('Shift+Alt+↑/↓') + ' nudges ×10. Great for dialing in cutoff, amp, rate while it plays.')}
         ${code(`p1 >> saw([0,4,7], cutoff=2000, amp=0.6)
 #                        ^ cursor here, Alt+↑ → 2001 … Shift+Alt+↑ → 2010`)}
     `, 'wf-nudge');

@@ -1,7 +1,8 @@
 // Editor keybinding handlers.
 
-// Nudge number under cursor by delta, then re-eval the block.
-export function incrementValue(cm, delta, runBlockFn) {
+// Nudge the number under the cursor by delta, then re-eval (the caller passes the
+// run fn — the current line, so a nudge only updates that player).
+export function incrementValue(cm, delta, runFn) {
     const cursor = cm.getCursor();
     const line   = cm.getLine(cursor.line);
     let s = cursor.ch, e = cursor.ch;
@@ -30,7 +31,7 @@ export function incrementValue(cm, delta, runBlockFn) {
     cm.replaceRange(result, { line: cursor.line, ch: s }, { line: cursor.line, ch: e });
     cm.setCursor({ line: cursor.line, ch: s + result.length });
 
-    if (runBlockFn) runBlockFn();
+    if (runFn) runFn();
 }
 
 // Parse player name from a line (handles both `p1 >>` and `# p1 >>`)
