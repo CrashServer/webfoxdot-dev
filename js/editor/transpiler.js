@@ -315,7 +315,9 @@ function findCommentChar(line) {
 // an argument value involves a pattern (an array literal or a pattern/timevar
 // call) AND a top-level operator, rewrite it into Pmath(a,'op',b) (left-assoc,
 // +/- below */). Pure-scalar arithmetic (1/4, 2400/600) is left as native JS.
-const PATTERN_TOKEN = /\[|\b(P[A-Z]\w*|_alt|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb)\s*\(/;
+// P[A-Za-z] (not just P[A-Z]) so lowercase-second-letter patterns like Pacc are
+// recognised — otherwise Pacc("offbeat")*1.3 stays raw JS ({get}*num = NaN).
+const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb)\s*\(/;
 
 function patMath(s) {
     return PATTERN_TOKEN.test(s) ? compilePatternMath(s) : s;

@@ -142,6 +142,7 @@ const CHANGELOG = [
         'New synth a_daft — Daft Punk-style punchy filter bass (saw stack into an env-driven resonant LPF). Params: cutoff, resonance, punch.',
         'New synth a_hhat — French-electro metallic hi-hat (pitchless noise + ring-mod tones). Params: tone, decay, metallic, distortion, open.',
         'New synth pumpbass — pumping filter bass with a per-note sidechain-style duck. Params: cutoff, res, sub, body, growl, fuzz, fuzzgain, noiz, hpr, pump.',
+        'Fix: arithmetic on Pacc (and Pslice) now works — e.g. amp=Pacc("offbeat")*1.3. The pattern-math detector only recognised P + UPPERCASE names, so Pacc*n stayed raw JS ({get}*number = NaN) and killed the voice. Now any P-name is wrapped in Pmath.',
     ]},
     { v: 'alpha25', title: 'Pattern fixes', items: [
         { t: 'Inline random choice with braces now works in degree/param patterns for synths AND play: {a, b, c} picks one each step (like P*[a,b,c]). e.g. v1 >> dbass([0, 2, (4, 2), {2, 4}]) or saw([0,4,7], oct={4,5,6}). Patterns nested inside a list (PRand, {…}, etc.) now resolve each step instead of producing a dead note. Dicts (PChain({0:[1]})) and defsynth bodies are left untouched.', ex: 'patterns' },
