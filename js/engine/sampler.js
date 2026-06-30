@@ -213,6 +213,8 @@ export class PlayStringCall {
     solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }
     only(beats) { (this._calls ??= []).push(['only', beats]); return this; }
     stop(beats) { (this._calls ??= []).push(['stop', beats]); return this; }
+    // .drummer(durloop, durPlyr) — auto rock-drummer (re-randomises every durloop)
+    drummer(...a) { (this._calls ??= []).push(['drummer', ...a]); return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);

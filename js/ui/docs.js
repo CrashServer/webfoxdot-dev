@@ -94,6 +94,7 @@ export const FUNCTIONS = [
     { name: 'pkit(genre, opts)',        desc: 'Like pbuild but returns a kit for per-layer access: kit = pkit("house"); b1 >> play(kit.kick, dur=0.25); h1 >> play(kit.hat, dur=0.25). Layers: kick, snare, hat, perc' },
     { name: 'genres()',                 desc: 'List the available pbuild/pkit drum genres' },
     { name: 'chaos(n, type)',           desc: 'Generate n random players (synth/drum mix) into g1,g2,… and PASTE them into the editor as a block — does NOT run them; review/edit then evaluate. type "synth"|"drum" forces one kind. Default n=4' },
+    { name: '.drummer(durloop, durPlyr)', desc: 'Chain onto a play() player to turn it into a self-evolving rock drummer (FoxDot/CrashServer port). Picks a random groove + fill, swaps the fill in for the tail of each loop, then re-randomises the groove every durloop beats. durloop default 16, step dur default 0.5. e.g. b1 >> play("x").drummer()' },
     { name: 'drop(playTime, dropTime, nbloop)', desc: 'Silence a random subset of players for dropTime beats, then restore — bar-aligned. Default: 14, 2, 1' },
     { name: 'soloRnd(time)',            desc: 'Solo a random active player for `time` beats, beat-aligned. Default: 8' },
     { name: 'unsolo()',                 desc: 'Restore all players muted by solo / Alt+S' },
@@ -142,6 +143,7 @@ const CHANGELOG = [
         'Clock panel now shows phrase counters — which bar of a 4/8/16/32/64-bar phrase you are on, jumping by integer bars (webTroop-style) so you can see a drop/change coming.',
         'Examples are now a dropdown (pick a category to load it), starting with Introduction (boot + load the webfoxdot-kit + a starter). New Terminal theme — pure black, green-phosphor + amber.',
         { t: 'pbuild(genre) — genre drum-pattern generator (port of FoxDot DrumPatterns): play(pbuild("techno"), dur=0.25). 9 genres (techno/ebm/dnb/house/breaks/halftime/industrial/reggae/afro); evolve/fill/density/mute options; pkit() for per-layer access; genres() lists them.', ex: 'drums' },
+        { t: '.drummer() — chain onto a play() player to turn it into a self-evolving rock drummer (FoxDot/CrashServer port): random groove + fill, fill dropped in at the end of each loop, re-randomised every durloop beats (default 16). e.g. b1 >> play("x").drummer()', ex: 'drums' },
         'Fix: nudging a value with Alt+↑/↓ now re-runs only the current line (was re-running the whole block, restarting every player in it).',
     ]},
     { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
@@ -474,6 +476,10 @@ b1 >> play(pbuild("dnb", 16), dur=0.25)              # positional: evolve=16
 kit = pkit("breaks")                                 # per-layer access
 b1 >> play(kit.kick, dur=0.25)
 h1 >> play(kit.hat, dur=0.25)`)}
+        ${note('<b>.drummer()</b> turns a play() player into a self-evolving rock drummer (FoxDot/CrashServer port): it picks a random groove + fill, drops the fill in at the end of each loop, then re-randomises every <code>durloop</code> beats (default 16). Step dur defaults to 0.5.')}
+        ${code(`b1 >> play("x").drummer()                   # auto rock drummer
+b1 >> play("x").drummer(8, 0.25)            # 8-beat loop, 1/16 steps
+b1 >> play("x", sample=2).drummer().solo()  # chains with solo/stop`)}
     `, 'drums');
 
     const grooves = section('Grooves & accents', `

@@ -37,6 +37,7 @@ for (const def of Object.values(SYNTH_DEFS)) {
 }
 import { toMidi, SCALE_MAP }      from './scale.js';
 import { PlayStringCall, LoopCall, parsePattern, charToBufId } from './sampler.js';
+import { randomGroove, randomFill } from './drummer.js';
 import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut } from '../midi/midiout.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
@@ -225,6 +226,11 @@ export class Player {
         this._degreeAdds = null;  // player `+` transposition addends
         this._degrade  = 0;       // .degrade(prob): chance to silence a step
         this._scale    = null;    // per-player scale override (.penta())
+        // .drummer() auto-drummer state
+        this._drumming     = false;
+        this._drummerEvery = false;
+        this._drummerArgs  = null;
+        this._drummerFillT = null;
     }
 
     // p1 >> dbass([0,2,4], ...) OR b1 >> play("X  o X  o", ...)
@@ -258,6 +264,8 @@ export class Player {
                 this._nextBeat = alignedStartBeat(this._clock, this._playOpts.dur);
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
+            // Re-evaluating a play() without .drummer() stops any prior auto-drummer.
+            if (!synthCall._calls?.some(c => c[0] === 'drummer')) this._stopDrummer();
             this._applyCalls(synthCall);
             this._applyEverys(synthCall);
             return this;
@@ -354,6 +362,8 @@ export class Player {
     // Total reset of accumulated per-player state (used by ~player >> …).
     _resetState() {
         this._every      = [];
+        this._drummerEvery = false;
+        this._stopDrummer();
         this._amplify    = 1;
         this._degreeAdds = null;
         this._modifiers  = null;
@@ -954,6 +964,41 @@ export class Player {
             setTimeout(() => { if (this._active) this._args.degree = orig; }, durMs + 50);
         }
         return this;
+    }
+
+    // .drummer(durloop, durPlyr) — turn a play() player into a self-evolving rock
+    // drummer (FoxDot/CrashServer port). Picks a random groove + fill, swaps the
+    // fill in for the tail of each loop, and re-randomises every durloop beats.
+    //   b1 >> play("x").drummer()          ← defaults: durloop=16, step dur=0.5
+    //   b1 >> play("x").drummer(8, 0.25)
+    drummer(durloop = 16, durPlyr = 0.5) {
+        if (this._mode !== 'sample') return this;     // play() players only
+        this._drummerArgs = { durloop, durPlyr };
+        this._drumming = true;
+        this._applyDrummer();
+        if (!this._drummerEvery) {                     // register the cycle once
+            this._drummerEvery = true;
+            this.every(durloop, () => { if (this._drumming) this._applyDrummer(); });
+        }
+        return this;
+    }
+    _applyDrummer() {
+        const { durloop, durPlyr } = this._drummerArgs;
+        this._pattern = randomGroove();
+        this._playOpts.dur = durPlyr;
+        // Swap a fill in for the tail of the loop (durloop/[4,8,16] beats), then the
+        // every() cycle re-randomises the groove at the next durloop boundary.
+        const fill     = randomFill();
+        const fillDur  = durloop / [4, 8, 16][Math.floor(Math.random() * 3)];
+        const ms       = Math.max(0, (durloop - fillDur)) * 60000 / this._clock.bpm;
+        clearTimeout(this._drummerFillT);
+        this._drummerFillT = setTimeout(() => {
+            if (this._active && this._drumming) this._pattern = fill;
+        }, ms);
+    }
+    _stopDrummer() {
+        this._drumming = false;
+        clearTimeout(this._drummerFillT);
     }
 
     // .degrade(prob) — randomly silence prob (0–1) of steps. degrade(0) clears it.
