@@ -1218,8 +1218,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 while (e > s && /\s/.test(text[e - 1])) e--;
                 if (e > s) spans.push([s, e]);
                 start = k + 1;
-            } else if (c === '(' || c === '[' || c === '{') d++;
-            else if (c === ')' || c === ']' || c === '}') d--;
+            } else if (c === '(' || c === '[' || c === '{' || c === '<') d++;
+            else if (c === ')' || c === ']' || c === '}' || c === '>') d--;
         }
         return { spans, end: j };
     }
@@ -1233,15 +1233,26 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (/^\s*~?\s*play\b/.test(lineText.slice(ge + 2))) {
             let i = op + 1; while (i < lineText.length && /\s/.test(lineText[i])) i++;
             let q = ''; if (lineText[i] === '"' || lineText[i] === "'") { q = lineText[i]; i++; }
-            const chars = [];
-            for (let k = i; k < lineText.length; k++) {
+            if (!q) return null;                        // only quoted play strings
+            // One span per top-level token (char / . / space = one step; a bracket
+            // group (..) [..] {..} <..> = one step spanning the whole group) so the
+            // highlight stays aligned even with brackets.
+            const spans = [];
+            for (let k = i; k < lineText.length && lineText[k] !== q; k++) {
                 const c = lineText[k];
-                if (q ? c === q : (c === ',' || c === ')')) break;
-                if ('()[]{}<>'.includes(c)) return null;   // not a flat string
-                if (c === ' ') continue;
-                chars.push([k, k + 1]);
+                if ('([{<'.includes(c)) {
+                    let depth = 0, j = k;
+                    for (; j < lineText.length; j++) {
+                        const d = lineText[j];
+                        if ('([{<'.includes(d)) depth++;
+                        else if (')]}>'.includes(d)) { depth--; if (depth === 0) break; }
+                    }
+                    spans.push([k, j + 1]); k = j;
+                } else {
+                    spans.push([k, k + 1]);             // char / . / space — one step each
+                }
             }
-            return chars.length ? [chars] : null;
+            return spans.length ? [spans] : null;
         }
         // synth: capture every array that is a direct argument (paren depth 1)
         const out = [];
@@ -1254,15 +1265,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 const r = arraySpans(lineText, k);
                 if (r && r.spans.length) { out.push(r.spans); k = r.end; }
             }
-            else if (c === '{' && pdepth === 1) {
-                // {a,b,c} random group: the pick is random in the engine, so we can't
-                // know which element sounded — highlight the whole group as one span
-                // (and skip its interior so we don't track a nested [..] by accident).
+            else if ((c === '{' || c === '<') && pdepth === 1) {
+                // {a,b,c} random / <a b c> alternation: the engine picks/cycles these,
+                // so we can't pin the exact element — highlight the whole group as one
+                // span (and skip its interior so a nested [..] isn't tracked instead).
                 let depth = 0, j = k;
                 for (; j < lineText.length; j++) {
                     const d = lineText[j];
-                    if ('([{'.includes(d)) depth++;
-                    else if (')]}'.includes(d)) { depth--; if (depth === 0) break; }
+                    if ('([{<'.includes(d)) depth++;
+                    else if (')]}>'.includes(d)) { depth--; if (depth === 0) break; }
                 }
                 if (j < lineText.length) { out.push([[k, j + 1]]); k = j; }
             }

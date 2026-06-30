@@ -145,6 +145,7 @@ const CHANGELOG = [
         'The beat subdivision (▪◦) now animates smoothly on its own frame loop instead of aliasing/sticking at the 250ms panel refresh.',
         'Editor: plain names (oct, dur, …) are no longer dimmed — .cm-variable is set to the readable text colour.',
         'Alt+X on a commented line now restarts just that line\'s player, not the whole block.',
+        'The live play-position highlight now follows bracketed patterns — (), [], {}, <> in both play() strings and synth degree lists (each group is one step) instead of dropping the highlight.',
     ]},
     { v: 'alpha26', title: 'New synth + FX ports', items: [
         'New synth a_gesa — aggressive Gesaffelstein-style distorted sub-bass (saw + pulse + sub, tanh distortion, resonant env-swept LPF, softclip). Params: distortion, cutoff, resonance.',
