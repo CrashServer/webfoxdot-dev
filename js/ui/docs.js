@@ -138,9 +138,8 @@ export const VERSION = 'alpha24';
 const CHANGELOG = [
     { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X · Thunderstruck', items: [
         { t: 'Slice a generator to freeze it: pat[:N] samples N values once and loops them, so a random source becomes a stable N-step phrase that repeats — PWhite(0,1)[:8], melody()[:8], PRange(0,12)[:4]. Also added melody(), a simple melodic random-walk generator.', ex: 'patterns' },
-        { t: '.gtr(string) — tune a player like a guitar string (FoxDot/CrashServer port): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. e.g. guit([0,3,5,7]).gtr(5).', ex: 'thunder' },
+        '.gtr(string) — tune a player like a guitar string (FoxDot/CrashServer port): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. e.g. guit([0,3,5,7]).gtr(5).',
         'Alt+X now stops the player quantised — the line is commented immediately, but the audio stops on the next bar boundary instead of cutting out the instant you press it.',
-        { t: 'New example — Thunderstruck (AC/DC), a port of our first track using .gtr(), dist2/tube crunch, unison and .drummer().', ex: 'thunder' },
     ]},
     { v: 'alpha23', title: 'Renamed to crashDot · split view · zen mode', items: [
         'Renamed: WebFoxDot → crashDot (display name).',
@@ -722,25 +721,6 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `, 'sections');
 
-    const thunder = section('Track — Thunderstruck (AC/DC)', `
-        ${note('A port of our first track, in B. <code>.gtr(string)</code> tunes a player like a guitar string — chromatic scale plus a root at that string open pitch — so the degrees are the <b>frets</b> of the riff. <code>dist2</code> + <code>tube</code> give the crunch and <code>.unison(3)</code> thickens it. Boot, load the kit, then run the lines top to bottom.')}
-        ${code(`Clock.bpm = 134
-Root.default = "B"
-Scale.default = "minor"
-
-# The intro riff — hammered 16ths high on the neck. .gtr(5) ≈ the B string,
-# so these degrees are the frets of the Thunderstruck lick.
-f1 >> guit([12,10,9,10,9,7,9,5,7,4,5,4,5,4,5,4], dur=1/4, oct=5, dist2=0.7, tube=0.9, tubegain=1.5, hpf=120).gtr(5).unison(3)
-
-# Pounding bass, tuned a few strings down
-b1 >> dbass(var([0,-3,-1,-5], 8), dur=1/4, oct=4, dist2=0.5).gtr(2)
-
-# Toms + kick build, then the full kit
-d1 >> play("(kmM-)-(kmM-)---(k-)---(k-)---(k-)-", dur=0.25, drcomp=0.8, mverb=0.5)
-a1 >> play("x.", sample=4, dur=0.5).sometimes("stutter")
-a2 >> play("k.").drummer()`)}
-    `, 'thunder');
-
     const showcase = section('Full composition — most features in one set', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
         ${code(`#@#@ showcase_set
@@ -793,7 +773,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + thunder + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
