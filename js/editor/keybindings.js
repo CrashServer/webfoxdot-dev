@@ -40,12 +40,12 @@ function playerNameFromLine(line) {
     return m ? m[1] : null;
 }
 
-// Alt+X — toggle comment + stop/restart.
-// Comment out → stop player.  Uncomment → restart player (re-eval block).
-// The stop is quantised: the line is commented immediately, but the audio stops on
-// the next bar boundary so it ends in time, not the instant the key is pressed.
+// Alt+X — toggle comment + stop/restart for the player on THIS line.
+// Comment out → stop that player.  Uncomment → restart just that line (not the
+// whole block). The stop is quantised: the line is commented immediately, but the
+// audio stops on the next bar boundary so it ends in time, not instantly.
 const STOP_GRID = 4;   // beats — one bar
-export function stopPlayerAtCursor(cm, clock, runBlockFn) {
+export function stopPlayerAtCursor(cm, clock, runLineFn) {
     const cursor  = cm.getCursor();
     const lineNo  = cursor.line;
     const line    = cm.getLine(lineNo);
@@ -59,7 +59,7 @@ export function stopPlayerAtCursor(cm, clock, runBlockFn) {
         cm.replaceRange(uncommented,
             { line: lineNo, ch: 0 },
             { line: lineNo, ch: line.length });
-        if (runBlockFn) runBlockFn();
+        if (runLineFn) runLineFn();   // restart just this player's line, not the block
     } else {
         // Comment out + stop
         cm.replaceRange(indent + '# ' + trimmed,

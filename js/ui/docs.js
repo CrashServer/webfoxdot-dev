@@ -142,6 +142,9 @@ const CHANGELOG = [
         'The examples dropdown now shows the example you picked (instead of snapping back to the ▾ placeholder).',
         'Autoclose brackets now includes <>: typing < gives you <>.',
         'The right sidebar is resizable — drag its left edge. Width is remembered. (The sidebar-toggle button was removed last version.)',
+        'The beat subdivision (▪◦) now animates smoothly on its own frame loop instead of aliasing/sticking at the 250ms panel refresh.',
+        'Editor: plain names (oct, dur, …) are no longer dimmed — .cm-variable is set to the readable text colour.',
+        'Alt+X on a commented line now restarts just that line\'s player, not the whole block.',
     ]},
     { v: 'alpha26', title: 'New synth + FX ports', items: [
         'New synth a_gesa — aggressive Gesaffelstein-style distorted sub-bass (saw + pulse + sub, tanh distortion, resonant env-swept LPF, softclip). Params: distortion, cutoff, resonance.',

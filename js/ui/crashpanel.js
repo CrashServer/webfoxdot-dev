@@ -17,6 +17,18 @@ export function initCrashPanel(clock) {
     _initScaleRoot();
     _timer = setInterval(_update, 250);
     _update();
+    requestAnimationFrame(_beatLoop);   // smooth beat/subdivision display (~25fps)
+}
+
+// The beat sub-counter (▪◦) and phrase bars need a faster refresh than the 250ms
+// _update — at that rate the subdivision aliases (flickers between 0 and 2). Run
+// just the cheap beat readout on a throttled rAF loop instead.
+let _lastBeatT = 0;
+function _beatLoop(t) {
+    requestAnimationFrame(_beatLoop);
+    if (!_clock || t - _lastBeatT < 40) return;
+    _lastBeatT = t;
+    _updateBeat();
 }
 
 // ── Update loop ──────────────────────────────────────────────────────────────
@@ -24,9 +36,9 @@ export function initCrashPanel(clock) {
 function _update() {
     if (!_clock) return;
     _updateBpm();
-    _updateBeat();
     _updatePlayers();
     _reflectScaleRoot();
+    // _updateBeat() runs on its own rAF loop (smoother subdivisions)
 }
 
 function _updateBpm() {
