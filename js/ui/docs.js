@@ -55,7 +55,7 @@ export const PATTERNS = [
     { name: 'PEuclid(n, k)',            desc: 'Euclidean rhythm — k pulses in n steps' },
     { name: 'PEuclid2(n, k, lo, hi)',   desc: 'Euclidean rhythm of n pulses in k steps, filled with lo/hi (great for play() chars: PEuclid2(3,8,".","x"))' },
     { name: 'PRange(lo, hi)',           desc: 'Linear ramp from lo to hi, then repeat' },
-    { name: 'PStep(n, v, default=0)',   desc: 'Return v at step n, else default' },
+    { name: 'PStep(n, v, default=0)',   desc: 'v every n steps (at 0, n, 2n…), default otherwise → PStep(4,7,6) = [7,6,6,6]' },
     { name: 'PSine(lo, hi, len)',       desc: 'Sine-shaped sweep over len steps' },
     { name: 'PTri(lo, hi, len)',        desc: 'Triangle-shaped sweep over len steps' },
     { name: 'PChain(dict)',             desc: 'Markov chain from {state: [next,...]} dict' },
@@ -139,6 +139,7 @@ const CHANGELOG = [
     { v: 'alpha25', title: 'Pattern fixes', items: [
         { t: 'Inline random choice with braces now works in degree/param patterns for synths AND play: {a, b, c} picks one each step (like P*[a,b,c]). e.g. v1 >> dbass([0, 2, (4, 2), {2, 4}]) or saw([0,4,7], oct={4,5,6}). Patterns nested inside a list (PRand, {…}, etc.) now resolve each step instead of producing a dead note. Dicts (PChain({0:[1]})) and defsynth bodies are left untouched.', ex: 'patterns' },
         'The live play-position highlight now recognises a {…} random group: it lights the whole group when it is the active step (the pick is random, so it cannot point at one element) instead of mis-tracking a value inside it.',
+        'Fix: PStep(n, v, default) now matches its documented FoxDot form — v every n steps, default otherwise (PStep(4,7,6) = [7,6,6,6]). It was reading args as a {step:value} map, so PStep(4,7,6) returned 0 forever. Nested alternation in a synth list also works now, e.g. sine([0, <4 2>]) plays 0,4,0,2.',
     ]},
     { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X', items: [
         { t: 'Slice a generator to freeze it: pat[:N] samples N values once and loops them, so a random source becomes a stable N-step phrase that repeats — PWhite(0,1)[:8], melody()[:8], PRange(0,12)[:4]. Also added melody(), a simple melodic random-walk generator.', ex: 'patterns' },

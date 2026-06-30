@@ -344,10 +344,16 @@ export function PRange(lo, hi, step = 1) {
     return { get: (s) => arr[s % arr.length] };
 }
 
-// PStep(mapping, cycle) — sparse {stepIndex: value} lookup, default 0
-export function PStep(mapping, cycle = null) {
-    const entries = Object.entries(mapping).map(([k, v]) => [Number(k), v]);
-    const max = cycle ?? (Math.max(...entries.map(([k]) => k)) + 1);
+// PStep(n, value, default=0) — FoxDot form: `value` every n steps (at 0, n, 2n…),
+// `default` otherwise → PStep(4,7,6) = [7,6,6,6]. If the first arg is an object it
+// falls back to the sparse {stepIndex: value} map form: PStep({0:7, 4:2}, cycle).
+export function PStep(n, value = 1, dflt = 0) {
+    if (typeof n === 'number') {
+        const len = Math.max(1, Math.round(n));
+        return { get: (step) => (((step % len) + len) % len === 0 ? value : dflt) };
+    }
+    const mapping = n, cycle = value === 1 ? null : value;
+    const max = cycle ?? (Math.max(...Object.keys(mapping).map(Number)) + 1);
     return { get: (step) => { const s = ((step % max) + max) % max; return mapping[s] ?? 0; } };
 }
 
