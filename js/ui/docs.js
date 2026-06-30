@@ -132,7 +132,7 @@ const CHANGELOG = [
         'Renamed: WebFoxDot → crashDot (display name).',
         { t: 'Quantised player start: a new player\'s first note now lands on the next beat that is a multiple of its dur (FoxDot-style) — so d1 >> dbass(dur=4) waits for a bar boundary while dur=1/4 starts almost instantly. Players stay in sync. (Re-evaluating a running player keeps its grid.)', ex: 'syncgen' },
         { t: 'Chained player methods on a call now work: p1 >> saw(...).solo(4) / .only(8) / .stop(8). Timed solo/only/stop/soloDrop are grid-aligned (next multiple of N), matching the quantised model.', ex: 'syncgen' },
-        { t: 'chaos(n=4, type) — generate n random players at once (synth/drum/mix) into g1,g2,… (kept separate from your own players). type "synth" or "drum" to force one kind. An instant burst of generative material (the one-shot cousin of the planned son()/soff() bot).', ex: 'syncgen' },
+        { t: 'chaos(n=4, type) — generate n random player lines (synth/drum/mix) into g1,g2,… (kept separate from your own) and PASTE them into the editor as a block — it does not run them, so you can review/edit then evaluate. type "synth" or "drum" forces one kind. A burst of generative material (the one-shot cousin of the planned son()/soff() bot).', ex: 'syncgen' },
         'Split view (⬓): in a session, peers\' evaluations stream in a live, name-tagged, colour-coded feed below the shared editor — top is the shared code, bottom is what everyone is running. Auto-on when you join a session; toggle with the ⬓ button.',
         'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
     ]},
@@ -621,7 +621,7 @@ p1 >> pads([0, (0,4,7), 5], oct=4, dur=4, lpf=1200, amp=0.5)   # lands on the ne
 p2 >> blip([0,4,7,5], oct=6, dur=1/4).only(8)    # at the next mult of 8, stop the others
 b1 >> play(x-x-, amp=0.8).stop(16)               # stop on the next mult of 16
 p1.soloDrop(8)                                   # solo-drop 8 beats (method form)`)}
-        ${note('<b>chaos(n)</b> — instantly generate <code>n</code> random players into <code>g1, g2, …</code> (kept apart from your own). Boot + load a kit first. <code>chaos(3, "drum")</code> or <code>chaos(2, "synth")</code> forces one kind. Stop them with <code>Ctrl+.</code> or re-run to add more.')}
+        ${note('<b>chaos(n)</b> — generate <code>n</code> random player lines into <code>g1, g2, …</code> (kept apart from your own) and <b>paste them into the editor as a block — it does not run them</b>. Review/edit, then evaluate (<b>Ctrl+Alt+↵</b>). <code>chaos(3, "drum")</code> or <code>chaos(2, "synth")</code> forces one kind; re-run to add more.')}
         ${code(`chaos(4)             # 4 random players (synth + drum mix)
 chaos(2, "synth")    # 2 random melodic/bass players
 chaos(3, "drum")     # 3 random drum patterns`)}

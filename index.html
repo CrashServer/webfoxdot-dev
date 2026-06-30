@@ -356,12 +356,23 @@
             },
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop, (m) => log(m, 'info')),
-            // chaos(n=4, type) — generate n random players (synth/drum/mix) at once
-            // into g1,g2,… (kept separate from your p1/b1). type: "synth"|"drum".
+            // chaos(n=4, type) — generate n random players (synth/drum/mix) into
+            // g1,g2,… (kept separate from your p1/b1) and PASTE them into the editor
+            // as a fresh block. It does NOT run them — review/edit, then evaluate.
+            // type: "synth" | "drum".
             chaos:  (n = 4, type = null) => {
                 const taken = new Set([...clock._players.keys()].filter(k => clock._players.get(k)._active));
                 const lines = chaosLines(n, type, { sampleChars: loadedSampleChars(), taken });
-                runCode(lines.join('\n'));
+                const last  = editor.lastLine();
+                const atEnd = editor.getValue().trim() === '';
+                const pre   = atEnd ? '' : '\n\n';
+                const startLine = atEnd ? 0 : last + 2;   // first pasted line
+                editor.replaceRange(pre + lines.join('\n') + '\n',
+                    { line: last, ch: editor.getLine(last).length });
+                editor.setCursor({ line: startLine, ch: 0 });
+                editor.scrollIntoView({ line: startLine, ch: 0 });
+                editor.focus();
+                log(`chaos: pasted ${lines.length} lines — review, then run (Ctrl+Alt+↵)`, 'info');
             },
             softReload: () => softReload(),
             Server: { addFx: (opts = {}) => masterSet(opts), clearFx: () => masterClear() },
