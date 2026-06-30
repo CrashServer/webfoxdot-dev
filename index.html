@@ -170,8 +170,9 @@
              PChain, PMarkov, _group, _alt, Pmath,
              Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse } from './js/patterns/sequences.js';
     import { _var, _linvar, _sinvar, _expvar, _fperlin, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
-    import { loadSamples, PlayStringCall, LoopCall,
+    import { loadSamples, PlayStringCall, LoopCall, loadedSampleChars,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
+    import { chaosLines } from './js/engine/generator.js';
     import { transpile, applyRenames }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { inspect, initInspect }      from './js/editor/inspect.js';
@@ -355,6 +356,13 @@
             },
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop, (m) => log(m, 'info')),
+            // chaos(n=4, type) — generate n random players (synth/drum/mix) at once
+            // into g1,g2,… (kept separate from your p1/b1). type: "synth"|"drum".
+            chaos:  (n = 4, type = null) => {
+                const taken = new Set([...clock._players.keys()].filter(k => clock._players.get(k)._active));
+                const lines = chaosLines(n, type, { sampleChars: loadedSampleChars(), taken });
+                runCode(lines.join('\n'));
+            },
             softReload: () => softReload(),
             Server: { addFx: (opts = {}) => masterSet(opts), clearFx: () => masterClear() },
             Master: () => new Proxy({}, { set(_t, k, v) { masterSet({ [String(k)]: v }); return true; }, get() { return undefined; } }),

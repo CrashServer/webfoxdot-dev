@@ -10,6 +10,11 @@ let   _nextUserBuf   = USER_BUF_START;
 
 export function samplesLoaded() { return _loaded; }
 
+// Single-character sample names currently in the bank (for the generator/chaos).
+export function loadedSampleChars() {
+    return Object.keys(_manifest).filter(c => c.length === 1 && (_manifest[c].count > 0 || _manifest[c]._loaded || _manifest[c]._loading));
+}
+
 // Read the manifest at boot — but do NOT fetch any WAVs. Buffer ids are
 // pre-assigned (manifest.bufStart), so each char's samples load lazily the
 // first time a pattern uses that char. This keeps boot instant and memory

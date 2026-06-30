@@ -132,6 +132,7 @@ const CHANGELOG = [
         'Renamed: WebFoxDot → crashDot (display name).',
         'Quantised player start: a new player\'s first note now lands on the next beat that is a multiple of its dur (FoxDot-style) — so d1 >> dbass(dur=4) waits for a bar boundary while dur=1/4 starts almost instantly. Players stay in sync. (Re-evaluating a running player keeps its grid.)',
         'Chained player methods on a call now work: p1 >> saw(...).solo(4) / .only(8) / .stop(8). Timed solo/only/stop/soloDrop are grid-aligned (next multiple of N), matching the quantised model.',
+        'chaos(n=4, type) — generate n random players at once (synth/drum/mix) into g1,g2,… (kept separate from your own players). type "synth" or "drum" to force one kind. An instant burst of generative material (the one-shot cousin of the planned son()/soff() bot).',
         'Split view (⬓): in a session, peers\' evaluations stream in a live, name-tagged, colour-coded feed below the shared editor — top is the shared code, bottom is what everyone is running. Auto-on when you join a session; toggle with the ⬓ button.',
         'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
     ]},
