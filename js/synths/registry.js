@@ -140,8 +140,8 @@ export const SYNTH_DEFS = {
     },
     piano: {
         scName: 'fd_piano',
-        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.002, release: 0.3, tone: 0.5 },
-        extraParams: ['tone'],
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.4, tone: 0.5, hammer: 0.5 },
+        extraParams: ['tone', 'hammer'],
     },
     // electric bass — Klank stiff-string model (ported from FoxDot ebass)
     ebass: {

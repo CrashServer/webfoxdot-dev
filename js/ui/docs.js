@@ -146,6 +146,7 @@ const CHANGELOG = [
         'Editor: plain names (oct, dur, …) are no longer dimmed — .cm-variable is set to the readable text colour.',
         'Alt+X on a commented line now restarts just that line\'s player, not the whole block.',
         'The live play-position highlight now follows bracketed patterns — (), [], {}, <> in both play() strings and synth degree lists (each group is one step) instead of dropping the highlight.',
+        'Reworked the piano — a proper acoustic model (6 inharmonic partials with per-partial decay, two detuned strings for beating, a hammer-noise click, velocity-tracked brightness) instead of the old 2-oscillator FM. New params: tone, hammer. (FoxDot uses MdaPiano, an sc3-plugin not in the WASM build, so this is a core-UGen build.)',
     ]},
     { v: 'alpha26', title: 'New synth + FX ports', items: [
         'New synth a_gesa — aggressive Gesaffelstein-style distorted sub-bass (saw + pulse + sub, tanh distortion, resonant env-swept LPF, softclip). Params: distortion, cutoff, resonance.',
