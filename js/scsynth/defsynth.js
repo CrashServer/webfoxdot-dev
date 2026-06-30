@@ -7,7 +7,7 @@
 //       Out.ar(out, Pan2.ar(sig, pan));
 //   })
 //
-// The build function receives the standard WebFoxDot control contract
+// The build function receives the standard crashDot control contract
 // (out, note, amp, sus, pan, attack, release) plus any extra params declared,
 // each as a UGenOut. After loading, the synth is playable exactly like a
 // built-in:  p1 >> mylead([0,4,7], cutoff=3000)

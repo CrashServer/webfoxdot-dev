@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WebFoxDot</title>
+  <title>crashDot</title>
   <link rel="icon" href="data:,">  <!-- suppress favicon.ico 404 -->
   <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
   <link rel="stylesheet" href="lib/codemirror/show-hint.css">
@@ -17,8 +17,8 @@
 
     <div id="toolbar">
       <span id="status-dot"></span>
-      <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α22</span>
+      <span class="title">crashDot</span>
+      <span id="version-tag" class="version-tag" title="changelog">α23</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -41,6 +41,8 @@
         <option value="synthwave">Synthwave</option>
       </select>
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
+      <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
+      <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
       <button id="panel-toggle-btn" title="toggle sidebar">⊟</button>
     </div>
 
@@ -63,6 +65,10 @@
 
     <div id="editor-wrap"></div>
 
+    <!-- Split view: peers' evals stream below the shared editor (session only) -->
+    <div id="peer-handle" class="hidden"></div>
+    <div id="peer-feed" class="hidden"></div>
+
     <div id="log-handle"></div>
     <div id="log"></div>
 
@@ -71,7 +77,7 @@
   <!-- ── Right: crashpanel ─────────────────────────────────────────────── -->
   <div id="crash-panel">
     <div id="cp-header">
-      <div class="cp-title">WebFoxDot</div>
+      <div class="cp-title">crashDot</div>
       <div class="cp-subtitle">scsynth ▸ WASM</div>
     </div>
 
@@ -707,7 +713,7 @@
 
     // ── Editor ────────────────────────────────────────────────────────────────
     const INITIAL_CODE = `# ────────────────────────────────────────────────────────────────────────
-#  WebFoxDot α11 — browser-native FoxDot live coding
+#  crashDot — browser-native FoxDot live coding
 # ────────────────────────────────────────────────────────────────────────
 #  GETTING STARTED
 #   1. Click  [ boot ]  (top-left) to start the audio engine.
@@ -892,6 +898,51 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('cp-stop-autoplay').onclick = stopAutoplay;
     document.getElementById('btn-examples').onclick = () => setEditorContent(examplesAsCode());
     document.getElementById('btn-clear').onclick    = () => setEditorContent('');
+
+    // ── Zen mode — hide all UI but the editor (clean view). Toggle with the
+    // button or Shift+Alt+Z (so it can be restored while everything's hidden).
+    function toggleZen() {
+        document.body.classList.toggle('zen');
+        editor.refresh();   // CodeMirror needs a refresh after its box resizes
+    }
+    document.getElementById('btn-zen').onclick = toggleZen;
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey && e.shiftKey && (e.key === 'Z' || e.key === 'z' || e.code === 'KeyZ')) {
+            e.preventDefault(); toggleZen();
+        }
+    });
+
+    // ── Split view — peers' evals stream below the shared editor (session only).
+    const peerFeed = document.getElementById('peer-feed');
+    function setSplit(on) {
+        peerFeed.classList.toggle('hidden', !on);
+        document.getElementById('peer-handle').classList.toggle('hidden', !on);
+        document.getElementById('btn-split').classList.toggle('active', on);
+        if (on && !peerFeed.dataset.seeded) {
+            peerFeed.innerHTML = '<div class="peer-feed-empty">peers\' evals will appear here…</div>';
+            peerFeed.dataset.seeded = '1';
+        }
+        editor.refresh();
+    }
+    document.getElementById('btn-split').onclick = () =>
+        setSplit(peerFeed.classList.contains('hidden'));
+
+    // Append a peer's eval to the feed (name-tagged, colour-coded, newest at bottom).
+    function appendPeerEval(author, color, code) {
+        const empty = peerFeed.querySelector('.peer-feed-empty');
+        if (empty) empty.remove();
+        const row = document.createElement('div');
+        row.className = 'peer-eval';
+        const name = document.createElement('span');
+        name.className = 'peer-name'; name.style.color = color || 'var(--blue)';
+        name.textContent = (author || 'peer') + ':';
+        const c = document.createElement('span');
+        c.className = 'peer-code'; c.textContent = code;
+        row.append(name, c);
+        peerFeed.appendChild(row);
+        while (peerFeed.children.length > 200) peerFeed.removeChild(peerFeed.firstChild);
+        peerFeed.scrollTop = peerFeed.scrollHeight;
+    }
 
     // ── Crashpanel ────────────────────────────────────────────────────────────
     initCrashPanel(clock);
@@ -1273,11 +1324,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     if (_sessionSlug) {
         log(`Joining session: ${_sessionSlug}`, 'info');
         document.getElementById('cp-session').classList.add('active');   // reveal peers panel
+        setSplit(true);  // peers exist → show the split feed by default
         initUserBox();   // persist identity before collab reads it, reveal the box
         initCollab(_sessionSlug, clock, editor, (msg) => {
             // Peer eval received — flash lines and run without re-broadcasting
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
+            appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
             runCode(msg.code, { fromRemote: true });
         }, applyAction, renderPeers, appendChat).then(collab => {
             _collab = collab;
@@ -1338,7 +1391,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // instead of lurching after a background throttle.
     document.addEventListener('visibilitychange', () => { if (!document.hidden) clock.resync(); });
 
-    log('WebFoxDot loaded. Click "boot" to start audio.', 'info');
+    log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>
 </body>
 </html>

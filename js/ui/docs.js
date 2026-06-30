@@ -124,10 +124,15 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha22';
+export const VERSION = 'alpha23';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha23', title: 'Renamed to crashDot · split view · zen mode', items: [
+        'Renamed: WebFoxDot → crashDot (display name).',
+        'Split view (⬓): in a session, peers\' evaluations stream in a live, name-tagged, colour-coded feed below the shared editor — top is the shared code, bottom is what everyone is running. Auto-on when you join a session; toggle with the ⬓ button.',
+        'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
+    ]},
     { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
         'Collab server now logs a [status] line after each change — total instances, the live sessions with per-room counts, and how many people are using it solo. e.g. [status] instances: 4 · sessions: myjam(2) · solo: 2',
         'Solo-usage visibility: running without a ?session= now registers a lightweight presence with the collab server (a keepalive ping only — no audio or edit data) so solo players show up in the count. Silent no-op if the collab server isn\'t reachable',
@@ -308,7 +313,7 @@ const CHANGELOG = [
 export function examplesAsCode() {
     const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
     const out = [
-        '# WebFoxDot examples — put the cursor on a line and press Ctrl+Enter to run it.',
+        '# crashDot examples — put the cursor on a line and press Ctrl+Enter to run it.',
         '# Ctrl+Alt+Enter runs the whole block. Lines starting with # are notes.',
         '',
     ];
@@ -765,7 +770,7 @@ p1 >> bass([0,-3,5,4])
     `, 'wf-compo');
 
     const rec = section('Recording', `
-        ${note('<b>rec code</b> captures your performance as code. Press it (blinks red), play your set with ' + key('Ctrl+Enter') + ', press again — WebFoxDot writes a <code>#@</code> composition of everything you ran (grouped into parts by timing) and appends it to the buffer. Run its <code>#@</code> parts to replay the set.')}
+        ${note('<b>rec code</b> captures your performance as code. Press it (blinks red), play your set with ' + key('Ctrl+Enter') + ', press again — crashDot writes a <code>#@</code> composition of everything you ran (grouped into parts by timing) and appends it to the buffer. Run its <code>#@</code> parts to replay the set.')}
         ${note('<b>rec audio</b> records the actual sound to a <code>.webm</code> file. The browser asks you to share the tab — tick <b>“share tab audio”</b>. Press again to stop; the file downloads automatically. (Chromium recommended; needs https or localhost.)')}
     `, 'wf-rec');
 
@@ -993,7 +998,7 @@ source ./emsdk_env.sh`)}
         ${code(`git clone https://github.com/samaaron/supersonic
 cd supersonic && npm install && npm run build
 # output → dist/`)}
-        ${step(3, 'Copy output into WebFoxDot:')}
+        ${step(3, 'Copy output into crashDot:')}
         ${code(`cp dist/supersonic.js     lib/dist/
 cp -r dist/wasm/          lib/dist/wasm/
 cp -r dist/workers/       lib/dist/workers/`)}

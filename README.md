@@ -1,4 +1,4 @@
-# WebFoxDot
+# crashDot
 
 A browser-based live coding environment that runs **scsynth** (SuperCollider's audio server) compiled to WebAssembly. Write FoxDot-style Python syntax in the browser — no SuperCollider installation required for the audience-facing version.
 
@@ -283,7 +283,7 @@ Any key in `FX_REGISTRY` is automatically:
 
 ## Syntax reference
 
-WebFoxDot uses a Python-like syntax that is transpiled to JavaScript.
+crashDot uses a Python-like syntax that is transpiled to JavaScript.
 
 ### Players
 
