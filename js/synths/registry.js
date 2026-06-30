@@ -186,6 +186,15 @@ export const SYNTH_DEFS = {
     },
 };
 
+// Normalise shared defaults across every synth: amp 1, pan 0, oct 5 (FoxDot-style
+// — degree is what you set, level/pan/octave are uniform). attack/release/dur and
+// each synth's own params stay as defined.
+for (const def of Object.values(SYNTH_DEFS)) {
+    def.defaults.amp = 1;
+    def.defaults.pan = 0;
+    def.defaults.oct = 5;
+}
+
 import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
 
 export class SynthCall {

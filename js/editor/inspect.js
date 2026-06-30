@@ -10,10 +10,13 @@ import { PATTERNS, TIMEVARS, FUNCTIONS, PLAYER_PARAMS } from '../ui/docs.js';
 let _defs = null;
 function defs() {
     if (_defs) return _defs;
+    // Common params (amp/dur/pan/attack/release) are uniform across synths, so we
+    // hide them from the inspected signature to keep it to the synth's own controls.
+    const HIDDEN = new Set(['amp', 'dur', 'pan', 'attack', 'release']);
     const d = {};
     for (const [name, def] of Object.entries(SYNTH_DEFS)) {
-        const params = Object.keys(def.defaults).join(', ');
-        d[name] = { kind: 'synth', sig: `${name}([degree], ${params})`,
+        const params = Object.keys(def.defaults).filter(k => !HIDDEN.has(k)).join(', ');
+        d[name] = { kind: 'synth', sig: `${name}([degree]${params ? ', ' + params : ''})`,
                     desc: `Synth — params: ${params}` };
     }
     for (const [name, reg] of Object.entries(FX_REGISTRY)) {

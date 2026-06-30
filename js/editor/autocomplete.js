@@ -14,11 +14,17 @@ const PLAYER_METHODS = [
     'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
 ];
 
-// Build a full synth call with every exposed param at its default.
+// Params common to every synth — uniform defaults, so we don't clutter the
+// inserted call / signature with them (amp 1, pan 0, oct 5, attack/release).
+const HIDDEN_SYNTH_PARAMS = new Set(['amp', 'dur', 'pan', 'attack', 'release']);
+
+// Build a synth call with the synth's own (non-common) params at their defaults.
 function fullSynthCall(name) {
     const def = SYNTH_DEFS[name];
-    const params = Object.entries(def.defaults).map(([k, v]) => `${k}=${v}`).join(', ');
-    return `${name}([0], ${params})`;
+    const params = Object.entries(def.defaults)
+        .filter(([k]) => !HIDDEN_SYNTH_PARAMS.has(k))
+        .map(([k, v]) => `${k}=${v}`).join(', ');
+    return params ? `${name}([0], ${params})` : `${name}([0])`;
 }
 
 // A synth completion that inserts the full call and selects the degree ([0]).

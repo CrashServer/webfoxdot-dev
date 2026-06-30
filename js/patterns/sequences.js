@@ -7,11 +7,18 @@ export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
     if (typeof val?.get === 'function') return val.get(step);
     if (Array.isArray(val)) {
-        const el = val[((step % val.length) + val.length) % val.length];
+        const len = val.length;
+        const el  = val[((step % len) + len) % len];
         // Resolve a pattern nested inside the list (e.g. [0, {2,4}] → PRand picks
         // each step) so {…}/P*[…] work in degree lists, like they do in play().
-        // Groups (chords) have no .get, so they survive for voice expansion.
-        return (el && typeof el.get === 'function') ? el.get(step) : el;
+        if (el && typeof el.get === 'function') return el.get(step);
+        // A nested list alternates one element per outer cycle (like <…>): [0,[4,2]]
+        // → 0,4,0,2, and deeper nesting keeps working — so old FoxDot bracket
+        // patterns stay functional in synths. (play() uses its own parser, which
+        // subdivides a step instead; that path is unaffected.)
+        if (Array.isArray(el)) return patGet(el, Math.floor(step / len));
+        // Groups (chords) have no .get / aren't arrays → survive for voice expansion.
+        return el;
     }
     return val;
 }
