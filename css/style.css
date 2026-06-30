@@ -152,8 +152,10 @@ body {
     background: linear-gradient(var(--bg-2), var(--bg-1));
     border-bottom: 1px solid var(--border-1);
     flex-shrink: 0;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;        /* never wrap → buttons keep their place */
+    overflow-x: auto;         /* if it's ever too narrow, scroll instead of reflow */
 }
+#toolbar > * { flex-shrink: 0; }   /* nothing collapses/resizes as text changes */
 
 .title {
     color: var(--green);
@@ -183,7 +185,6 @@ button:disabled { opacity: 0.3; cursor: default; }
 button:disabled:hover { background: var(--bg-3); border-color: var(--border-1); color: var(--text-1); }
 button#btn-boot.booted { background: var(--green-dim); border-color: var(--green); color: var(--green); text-shadow: 0 0 6px var(--glow); }
 
-#bpm-wrap { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-2); }
 #bpm-input {
     width: 52px;
     background: var(--bg-1);
@@ -215,11 +216,10 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 #load-meter.mid { color: var(--yellow); }
 #load-meter.hi  { color: var(--red); }
 
-/* User identity (multiplayer only — revealed via .active) */
-#user-box { display: none; align-items: center; gap: 5px; }
-#user-box.active { display: flex; }
+/* User identity — lives in the sidebar Session section */
+#user-box { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 #user-name {
-    width: 92px;
+    flex: 1; min-width: 0; width: auto;
     background: var(--bg-1);
     color: var(--text-1);
     border: 1px solid var(--border-1);
@@ -236,7 +236,6 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: none; cursor: pointer; flex-shrink: 0;
 }
 
-#theme-select,
 #examples-select {
     background: var(--bg-3);
     color: var(--text-2);
@@ -246,14 +245,10 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     padding: 2px 4px;
     border-radius: 3px;
     cursor: pointer;
+    max-width: 130px;
 }
-#examples-select { max-width: 130px; }
-
-#panel-toggle-btn {
-    padding: 3px 8px;
-    font-size: 10px;
-    color: var(--text-2);
-}
+/* rec buttons sit side by side in the sidebar Settings section */
+#cp-settings .cp-row .cp-btn { flex: 1; width: auto; }
 
 /* ── Editor ───────────────────────────────────────────────────────────────── */
 #editor-wrap { flex: 1; overflow: hidden; min-height: 0; }

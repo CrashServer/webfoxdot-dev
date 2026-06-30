@@ -23,30 +23,16 @@
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
-      <div id="bpm-wrap">BPM <input id="bpm-input" type="number" value="120" min="20" max="300"></div>
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
-      <div id="user-box" title="your name &amp; colour — shown to others in this session">
-        <input type="color" id="user-color" title="your cursor colour">
-        <input type="text" id="user-name" maxlength="24" placeholder="name" spellcheck="false">
-      </div>
-      <button id="btn-rec" title="record your evals into a #@ composition">rec code</button>
-      <button id="btn-rec-audio" title="record the audio output to a file">rec audio</button>
       <select id="examples-select" title="load an example into the editor">
         <option value="" disabled selected>examples ▾</option>
       </select>
       <button id="btn-clear" title="empty the editor">clear</button>
-      <select id="theme-select">
-        <option value="dark">Dark</option>
-        <option value="cyberpunk">Cyberpunk</option>
-        <option value="synthwave">Synthwave</option>
-        <option value="terminal">Terminal</option>
-      </select>
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
-      <button id="panel-toggle-btn" title="toggle sidebar">⊟</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -99,7 +85,7 @@
       </div>
       <div class="cp-row">
         <span class="cp-label">BPM</span>
-        <span class="cp-value green" id="cp-bpm-val">120</span>
+        <input id="bpm-input" type="number" value="120" min="20" max="300">
       </div>
       <button id="cp-tap">tap tempo</button>
     </div>
@@ -137,6 +123,10 @@
 
     <div class="cp-section" id="cp-session">
       <h3>Session</h3>
+      <div id="user-box" title="your name &amp; colour — shown to others in this session">
+        <input type="color" id="user-color" title="your cursor colour">
+        <input type="text" id="user-name" maxlength="24" placeholder="your name" spellcheck="false">
+      </div>
       <div id="cp-peers"></div>
       <div id="cp-chat-log"></div>
       <input id="cp-chat-input" type="text" placeholder="chat…  (Enter)" maxlength="280" spellcheck="false">
@@ -152,6 +142,20 @@
     <div class="cp-section">
       <h3>Players</h3>
       <div id="cp-players"></div>
+    </div>
+
+    <div class="cp-section" id="cp-settings">
+      <h3>Settings</h3>
+      <select class="cp-select" id="theme-select">
+        <option value="dark">Dark</option>
+        <option value="cyberpunk">Cyberpunk</option>
+        <option value="synthwave">Synthwave</option>
+        <option value="terminal">Terminal</option>
+      </select>
+      <div class="cp-row" style="gap:4px;margin-top:4px">
+        <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
+        <button id="btn-rec-audio" class="cp-btn" title="record the audio output to a file">rec audio</button>
+      </div>
     </div>
   </div>
 

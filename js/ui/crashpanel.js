@@ -11,7 +11,6 @@ export function initCrashPanel(clock) {
     _clock = clock;
     _restoreSize();
     _initResize();
-    _initToggle();
     _initTap();
     _initTheme();
     _initScaleRoot();
@@ -30,8 +29,10 @@ function _update() {
 }
 
 function _updateBpm() {
-    const el = document.getElementById('cp-bpm-val');
-    if (el) el.textContent = _clock.bpm;
+    // BPM now lives in the sidebar as an editable input — keep it in sync with the
+    // clock, but don't clobber what the user is typing while the field is focused.
+    const el = document.getElementById('bpm-input');
+    if (el && document.activeElement !== el) el.value = _clock.bpm;
 }
 
 function _updateBeat() {
@@ -188,22 +189,6 @@ function _initScaleRoot() {
 function _reflectScaleRoot() {
     if (_scaleEl && _scaleEl.value !== Scale._name) _scaleEl.value = Scale._name;
     if (_rootEl) { const r = String(Root.default ?? 0); if (_rootEl.value !== r) _rootEl.value = r; }
-}
-
-// ── Panel toggle ─────────────────────────────────────────────────────────────
-
-function _initToggle() {
-    const btn   = document.getElementById('panel-toggle-btn');
-    const panel = document.getElementById('crash-panel');
-    if (!btn || !panel) return;
-
-    const stored = localStorage.getItem('cpHidden');
-    if (stored === 'true') panel.classList.add('hidden');
-
-    btn.onclick = () => {
-        panel.classList.toggle('hidden');
-        localStorage.setItem('cpHidden', panel.classList.contains('hidden'));
-    };
 }
 
 // ── Theme selector ───────────────────────────────────────────────────────────
