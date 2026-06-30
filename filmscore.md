@@ -53,6 +53,11 @@ ti.stop()
 oj >> piano([0,3,2,0], oct=4, dur=2, sus=1.8, amp=0.7, room=0.8, reverb=0.7)
 cl >> bell([0,3,7,12], oct=6, dur=PRand([1,2,4],4), sus=PRand([1,2,3],4), amp=sinvar([0.1,0.25],8), cheapverb=0.8, cvdecay=4)
 al >> pads([0,3,7], oct=5, dur=8, attack=4, release=8, sus=8, amp=sinvar([0.05,0.2],16), room=0.99, reverb=0.95)
+
+# ── bridge — tension: a crushed low drone, an echoing reversed piano, a phased bell ──
+dr >> pads([0, 1], oct=2, dur=8, sus=8, attack=4, amp=0.4, lpf=linvar([200,800],16), reverb=0.6, crush=0.3, bits=6)
+oj >> piano([0, 1, 0, -1], oct=4, dur=1, sus=1.2, amp=0.6, echo=0.4, room=0.7, reverb=0.6).every(8, "reverse")
+cl >> bell([12, 11, 7, 6], oct=6, dur=PRand([1,2],4), sus=2, amp=0.2, cheapverb=0.9, cvdecay=5, phaser=0.5)
 ```
 
 ### Substitutions (filmscore)
@@ -94,6 +99,16 @@ cl >> play("..o.", dur=0.5, sample=5, amp=0.7, amplify=PEuclid(5,8), hpf=3500, f
 ~dk >> play(pbuild("industrial"), dur=0.25, amp=var([1,0.9,1,0.88],4), rgate=0.1, rgaterate=4, multicrush=4, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
 wr >> ssaw([0,0,-5,-5,-7,-7,0,0], oct=5, dur=0.5, sus=0.4, amp=0.8, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.6, hpf=240, lpf=sinvar([400,2000],16))
+
+# ── breakdown — cut the kick, sweep the lead + bass down with a djf isolator ──
+# dk >>
+ag >> blip([7,5,0,7,5,7,0,5], oct=7, dur=0.5, sus=0.6, amp=0.4, cutoff=sinvar([2000,12000],8), rq=0.3, echo=0.4, djf=linvar([0.5,0.2],16), reverb=0.4)
+ba >> ebass([0,-5,-7,-5], oct=4, dur=1, amp=0.6, lpf=linvar([300,1200],16), djf=sinvar([0.4,0.6],8))
+
+# ── drop — the .drummer() takes over + a gated industrial layer + djf riser ──
+b9 >> play("x").drummer()
+dk >> play(pbuild("industrial", evolve=8, fill=4), dur=0.25, amp=0.9, rgate=0.3, rgaterate=8, multicrush=2, djf=sinvar([0.4,0.7],16))
+ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=4, dur=0.25, sus=0.25, amp=1, dist2=0.6, multicrush=1, hpf=120)
 ```
 
 ### Substitutions (machine)
@@ -132,6 +147,18 @@ sw >> pads([-7,-5,0,4], oct=4, dur=4, sus=4.5, attack=2, amp=sinvar([0.05,0.18],
 vi >> pads([0,-2,3,2,0,-2], oct=4, dur=var([2,1,1,1,2,1],[4,2,2,2,4,2]), sus=var([1.8,0.8,0.8,0.8,1.8,0.8],[4,2,2,2,4,2]), amp=sinvar([0.15,0.35],16), room=0.9, reverb=0.8)
 cx >> cs80([0,4,5,3], oct=4, dur=4, sus=4.5, amp=sinvar([0.1,0.28],32), cutoff=sinvar([1500,3500],32), vibspeed=4, vibdepth=0.015, room=0.9, reverb=0.8)
 gt.only()   # isolate the guitar (intro); re-run the others to bring them back
+
+# ── chorus — lift the lead an octave, a moving arp, strings swell into chords ──
+ml >> pluck([4,4,3,2,0,2,3,4], oct=7, dur=0.5, sus=PRand([0.5,1],4), amp=0.5, chorus=0.6, echo=0.3, room=0.7, reverb=0.6).unison(3)
+sw >> pads([(0,2,4),(3,5,7),(4,6,8),(2,4,6)], oct=4, dur=4, sus=4.5, attack=2, amp=sinvar([0.1,0.3],32), room=0.9, reverb=0.85)
+ar >> blip(PArp([0,4,7], 5), oct=6, dur=0.25, amp=0.2, cutoff=sinvar([1000,5000],8), echo=0.3, pan=PWhite(-0.5,0.5))
+
+# ── outro — back to a lone pluck + a high bell, the rest fades ──
+# pd >>
+# sw >>
+# ar >>
+gt >> pluck([0,2,4,2], oct=5, dur=1, sus=1, amp=0.4, chorus=0.3, room=0.8, reverb=0.7)
+cl >> bell([7,11,14], oct=6, dur=PRand([2,4],3), sus=3, amp=0.2, cheapverb=0.8, cvdecay=4)
 ```
 
 ### Substitutions (score)
@@ -173,6 +200,16 @@ d2 >> dbass(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=1/4, oct=5, drive=0.1).un
 d4 >> a_gesa([5,3,1,5,1,3,5,1,3,1,5,3,1,3,1,5,2,0,5,0,2,5,0,2,0,5,2,0,5,0,2,5,2,0,5,2,0,5,2,0,5,2,0,5,2,0,5,2,4,2,0,4,2,0,4,2,0,4,2,0,4,2,0,4], dur=1/4, oct=PStutter([6,5,6,7,6,5,6,5,6,7,6,5,6,5,6,5,6,5,6,5,6,5,6,5,6],[3,1,3,3,5,1,2,1,3,3,3,1,2,1,2,1,2,1,2,1,2,1,2,1,17]), multicrush=0.5, mclowdrive=4, mcmiddrive=2, mchighdrive=1.8, mclofreq=2000, mchifreq=3000, djf=sinvar([0.3,0.7],16))
 d5 >> a_gesa(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=[1,1,1,1,1,1,3/4,1/2,3/4,1,1,1/4,3/4,1,1,1,3/4,1/2,3/4], oct=7, distortion=12)
 ~g6 >> ebass(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=[1,1,1,1,1,1,3/4,1/2,3/4,1,1,1/4,3/4,1,1,1,3/4,1/2,3/4], oct=5).unison(3)
+
+# ── drop — a .drummer() + gated dnb under the cascade; djf sweeps the bass ──
+k1 >> play("x").drummer()
+hd >> play(pbuild("dnb", snare=PBin(2)), dur=0.25, amp=0.8, rgate=0.2, rgaterate=4)
+d2 >> dbass(PStutter([1,4,5,6,5,6],[8,1,3,1,5,1]), dur=1/4, oct=5, dist2=0.4, djf=sinvar([0.4,0.7],16)).unison(3)
+
+# ── break — strip to the a_gesa lead, bit-crushed with an echo + djf close ──
+# k1 >>
+# hd >>
+d4 >> a_gesa([5,3,1,0,5,3,1,0], dur=1/2, oct=6, distortion=10, crush=0.4, bits=5, echo=0.4, djf=linvar([0.5,0.3],16))
 ```
 
 ### Substitutions (Ghosts)
@@ -213,6 +250,16 @@ t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, am
 t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
 t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
 h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.04, hpf=9000)
+
+# ── breakdown — stop the sub, filter the daft lead down with a djf, let it pulse ──
+t2.stop()
+# k1 >>
+t1 >> a_daft([0,1,0,3], dur=1, sus=1, oct=5, amp=1, cutoff=linvar([400,2000],16), djf=linvar([0.5,0.2],16), echo=0.4, reverb=0.4)
+
+# ── peak — kick back in, an acid blip lead, the pumpbass driving, djf riser ──
+k1 >> compkick(oct=4, dur=1, body=15, punch=2, multicrush=0.3)
+ld >> blip([0,5,7,12,7,5], oct=6, dur=0.25, amp=0.3, cutoff=sinvar([800,8000],8), rq=0.3, echo=0.3, djf=sinvar([0.4,0.7],8))
+t2 >> pumpbass([0,5,0,3,0,4,0,3], dur=1/2, oct=5, amp=1, cutoff=linvar([400,3000],4), dist2=1, rgate=0.5, rgaterate=4)
 ```
 
 ### Notes (Pump)
@@ -247,6 +294,13 @@ g1 >> bell(PRand([0,4,7,11]), dur=PWhite(18,48), sus=PWhite(12,30), oct=4, amp=0
 m3 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.35, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
 m2 >> pads([(0,1,4),(0,3,6),(0,1,7),(-1,2,5)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.42, cutoff=linvar([600,2400],96), cheapverb=0.8, cvdecay=3.5, hpf=240)
 b1 >> dbass([0,0,0,4,0,0,-3,0], dur=PWhite(6,16), sus=PWhite(8,24), oct=4, amp=1.3, lpf=260, hpf=35, pan=0)
+
+# ── darker — a deeper sub + a low phased pad shift the mood down ──
+b1 >> dbass([0,0,-4,0,0,0,-5,0], dur=PWhite(6,16), sus=PWhite(8,24), oct=3, amp=1.2, lpf=200, hpf=30)
+m4 >> pads([(-2,1,3),(-4,0,3),(-2,1,5),(-5,-1,2)], dur=PWhite(20,48), sus=PWhite(24,52), oct=4, amp=0.5, cutoff=linvar([400,1600],128), cheapverb=0.85, cvdecay=4, phaser=0.4, hpf=180)
+
+# ── glints — high, sparse, echoing bells drifting across the field ──
+gl >> bell(PRand([12,14,16,19]), dur=PWhite(4,12), sus=PWhite(3,8), oct=6, amp=0.18, cheapverb=0.9, cvdecay=5, echo=0.4, pan=PWhite(-0.8,0.8))
 ```
 
 ### Substitutions (ambient)
@@ -319,6 +373,14 @@ g3 >> a_gesa([4, 0, ., 1, (2,0,4), 0, (0,3,4), 4], oct=(4, 6, 7), dur=4, amp=0.4
 g0 >> a_gesa([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, lpf=1200, room=0.60, reverb=0.65, attack=0.2).unison(2).solo(8)
 g0 >> bass([4, 2, ., 4, 2, 3, (0,3,4), 4], oct=(7, PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=0.44, room=0.60, reverb=0.65).unison(2)
 g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(2)
+
+# ── rhythmic — put it on a grid: kick + hat + a filtered bass under the motif ──
+k1 >> play("x...x...x...x...", amp=0.8)
+h2 >> play("-.-.-.-.", sample=0, amp=0.3, hpf=7000)
+g0 >> bass([4,4,1,2], oct=4, dur=1/2, amp=0.7, lpf=sinvar([400,2500],8), djf=sinvar([0.45,0.6],16)).unison(2)
+
+# ── climax — both leads octave-up, bit-crushed, djf riser ──
+g3 >> a_gesa([4,4,.,1,2,3,(0,3,4),4], oct=(6,7), dur=1, amp=0.6, distortion=12, crush=0.3, djf=sinvar([0.4,0.7],8)).unison(2)
 ```
 
 ### Notes (Climb)
