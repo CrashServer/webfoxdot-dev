@@ -231,7 +231,8 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: none; cursor: pointer; flex-shrink: 0;
 }
 
-#theme-select {
+#theme-select,
+#examples-select {
     background: var(--bg-3);
     color: var(--text-2);
     border: 1px solid var(--border-1);
@@ -241,6 +242,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     border-radius: 3px;
     cursor: pointer;
 }
+#examples-select { max-width: 130px; }
 
 #panel-toggle-btn {
     padding: 3px 8px;
