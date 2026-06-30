@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>crashDot · visuals</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+    #vis { display: block; width: 100vw; height: 100vh; background: #000; }
+    #hud {
+      position: fixed; left: 8px; bottom: 6px; margin: 0;
+      font: 11px/1.4 monospace; color: #2c3a44; user-select: none; pointer-events: none;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="vis"></canvas>
+  <pre id="hud">crashDot visuals — boot audio &amp; run code in the main window
+[space] next scene · [a] auto · [f] fullscreen</pre>
+  <script type="module" src="./js/visuals/clift.js"></script>
+</body>
+</html>

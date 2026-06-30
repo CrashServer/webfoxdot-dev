@@ -1,6 +1,34 @@
 # clift visuals in crashDot — integration theory (alpha28)
 
-**Status:** theory / design only. No code yet. Decision-led.
+**Status:** theory + an MVP shipped in alpha28 (see "MVP" below). Decision-led.
+
+## MVP (alpha28) — pop-out, in-house renderer
+
+Decided against vendoring `clift_final` (it's a 31GB Three.js/Vite app — the dist is
+mostly video assets) and built a compact, no-build, same-origin renderer instead:
+
+- **`js/visuals/bridge.js`** (main window): taps `sc.node` (the scsynth worklet
+  output) with one `AnalyserNode`, and posts `{bass,mid,treble,level,bpm,beat,bar}`
+  ~30×/s plus each evaluated line over a `BroadcastChannel('crashdot-visuals')`.
+  `openVisuals()` opens the pop-up; `startVisualsAudio(sc,clock)` runs after boot;
+  `postCode()` is called from `runCode`.
+- **`visuals.html` + `js/visuals/clift.js`** (pop-out window): an ASCII grid on a
+  canvas with 4 scenes (plasma / tunnel / spectrum / code-rain) reactive to the
+  bands + beat; FPS-capped (30) and auto-paused when hidden. Keys: space = next
+  scene, a = auto-cycle, f = fullscreen.
+- **▦ toolbar button** opens it.
+
+Why this nails the resource constraint: the pop-out has its **own event loop**, so
+all canvas work is off crashDot's audio-clock thread. Main-window cost = one
+analyser read + a small BroadcastChannel post per tick.
+
+Next (from the theory below): in-page docked mode via Worker+OffscreenCanvas+SAB;
+map structural events (drop/solo/chaos) to scene/auto changes; optionally graduate
+to the full clift scene set.
+
+---
+
+**Original theory follows.**
 
 **Goal:** render clift-style ASCII/shader visuals live *inside* (or alongside)
 crashDot, reactive to (a) the audio we generate and (b) the code/beats we run —

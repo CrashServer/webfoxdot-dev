@@ -33,6 +33,7 @@
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
+      <button id="btn-visuals" title="pop out the audio + code reactive visuals window">▦</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -202,6 +203,7 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
+    import { openVisuals, startVisualsAudio, postCode } from './js/visuals/bridge.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -458,6 +460,7 @@
                 _fnCache.set(js, entry);
             }
             entry.fn(...Object.values(ctx));
+            postCode(raw.trim());           // code reactivity → visuals window
         } catch (e) {
             log(`Error: ${e.message}`, 'error');
             console.error('transpiled:\n' + js, e);
@@ -735,6 +738,7 @@
             setSuperSonic(sc);
             _scRef = sc;
             initDefsynth(sc, (name) => log(`synth "${name}" defined ✓`, 'ok'));
+            startVisualsAudio(sc, clock);   // feed the pop-out visuals window (if open)
             clock.start();
 
             dot.className = 'ready';
@@ -979,6 +983,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         editor.refresh();   // CodeMirror needs a refresh after its box resizes
     }
     document.getElementById('btn-zen').onclick = toggleZen;
+    document.getElementById('btn-visuals').onclick = () => openVisuals();
     document.addEventListener('keydown', (e) => {
         if (e.altKey && e.shiftKey && (e.key === 'Z' || e.key === 'z' || e.code === 'KeyZ')) {
             e.preventDefault(); toggleZen();

@@ -136,6 +136,9 @@ export const VERSION = 'alpha28';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
+        'New ▦ button pops out an audio + code reactive ASCII visuals window (clift-style). It runs in its own window/event-loop, so rendering never competes with the audio clock; the main window just taps one analyser on the scsynth output and posts beat/bpm/bands + each evaluated line over a BroadcastChannel. Scenes (plasma/tunnel/spectrum/code-rain) react to bass/mid/treble + the beat; space = next scene, a = auto, f = fullscreen.',
+    ]},
     { v: 'alpha27', title: 'Fixes & polish (user feedback)', items: [
         'Players now phase-lock to the global beat grid: two players started at different times stay in sync (a step is derived from the clock, not from when you pressed play). So b1 >> play(x.o.) and b2 >> play(x-o-) line up no matter when each is launched.',
         'Param coherence: atk/dec/rel are accepted as aliases of attack/decay/release on every synth.',
