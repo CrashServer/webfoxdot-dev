@@ -11,6 +11,7 @@ export function initCrashPanel(clock) {
     _clock = clock;
     _restoreSize();
     _initResize();
+    _initWidthResize();
     _initTap();
     _initTheme();
     _initScaleRoot();
@@ -189,6 +190,39 @@ function _initScaleRoot() {
 function _reflectScaleRoot() {
     if (_scaleEl && _scaleEl.value !== Scale._name) _scaleEl.value = Scale._name;
     if (_rootEl) { const r = String(Root.default ?? 0); if (_rootEl.value !== r) _rootEl.value = r; }
+}
+
+// ── Sidebar width resize ──────────────────────────────────────────────────────
+
+function _initWidthResize() {
+    const handle = document.getElementById('cp-resize');
+    const panel  = document.getElementById('crash-panel');
+    if (!handle || !panel) return;
+
+    const saved = localStorage.getItem('cpWidth');
+    if (saved) document.documentElement.style.setProperty('--cp-width', saved + 'px');
+
+    let dragging = false;
+    handle.addEventListener('mousedown', (e) => {
+        dragging = true;
+        panel.classList.add('resizing');
+        document.body.classList.add('cp-resizing');
+        document.body.style.cursor = 'col-resize';
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const w = Math.max(160, Math.min(window.innerWidth - e.clientX, 640));
+        document.documentElement.style.setProperty('--cp-width', w + 'px');
+    }, { passive: true });
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        panel.classList.remove('resizing');
+        document.body.classList.remove('cp-resizing');
+        document.body.style.cursor = '';
+        localStorage.setItem('cpWidth', parseInt(getComputedStyle(panel).width, 10));
+    });
 }
 
 // ── Theme selector ───────────────────────────────────────────────────────────

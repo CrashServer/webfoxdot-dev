@@ -65,6 +65,7 @@
 
   <!-- ── Right: crashpanel ─────────────────────────────────────────────── -->
   <div id="crash-panel">
+    <div id="cp-resize" title="drag to resize the panel"></div>
     <div id="cp-header">
       <div class="cp-title">crashDot</div>
       <div class="cp-subtitle">scsynth ▸ WASM</div>
@@ -884,7 +885,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         lineWrapping:     false,
         autofocus:        true,
         matchBrackets:    true,
-        autoCloseBrackets:true,
+        autoCloseBrackets:{ pairs: "()[]{}<>''\"\"", closeBefore: ")]}>'\":;,. " },
         styleActiveLine:  true,
         extraKeys: {
             'Ctrl-Enter':      () => runLineAtCursor(),
@@ -966,7 +967,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         sel.onchange = () => {
             const id = sel.value;
             if (id) setEditorContent(exampleCode(id));
-            sel.selectedIndex = 0;   // reset to the "examples ▾" placeholder
+            // keep the chosen example shown in the dropdown (don't snap back to ▾)
         };
     })();
     document.getElementById('btn-clear').onclick    = () => setEditorContent('');

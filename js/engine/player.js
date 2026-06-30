@@ -110,16 +110,23 @@ function addDegree(base, add, step) {
 // multiple of its dur — so dur=4 waits for a multiple of 4 (bar-locked), dur=1/4
 // starts almost immediately. Mirrors FoxDot's dur-grid alignment; keeps players
 // in sync. Only used on first activation (re-evals keep the running grid).
-function alignedStartBeat(clock, durVal) {
+// Returns { beat, step } for a fresh player:
+//   beat = the next point on the dur grid (so it starts on a musical boundary),
+//   step = a PHASE-LOCKED step index (beat/dur) so two players started at different
+//          times stay in sync on the global beat grid — like FoxDot, where a step is
+//          derived from the clock, not from when you pressed play. e.g. two dur=1
+//          play()s launched a beat apart still hit step 0,1,2,3 together.
+function alignedStart(clock, durVal) {
     let d = patGet(durVal, 0, durVal);
     if (isGroup(d)) d = patGet(d.__group[0], 0);
     d = Math.max(0.0625, Number(d) || 1);
-    const now = clock.now();
-    return Math.ceil((now + 0.001) / d) * d;
+    const now  = clock.now();
+    const beat = Math.ceil((now + 0.001) / d) * d;
+    return { beat, step: Math.round(beat / d) };
 }
 
 // FoxDot param shorthands → canonical names
-const PARAM_ALIASES = { atk: 'attack', rel: 'release' };
+const PARAM_ALIASES = { atk: 'attack', rel: 'release', dec: 'decay' };
 function applyAliases(obj) {
     for (const [a, canon] of Object.entries(PARAM_ALIASES)) {
         if (a in obj && !(canon in obj)) { obj[canon] = obj[a]; delete obj[a]; }
@@ -263,9 +270,9 @@ export class Player {
             if (!this._active) {
                 this._active   = true;
                 this._activeSince = Date.now();
-                this._step     = 0;
                 // FX chain is created lazily in _fireSample, only if an FX is used.
-                this._nextBeat = alignedStartBeat(this._clock, this._playOpts.dur);
+                { const a = alignedStart(this._clock, this._playOpts.dur);
+                  this._step = a.step; this._nextBeat = a.beat; }
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
             // Re-evaluating a play() without .drummer() stops any prior auto-drummer.
@@ -287,9 +294,9 @@ export class Player {
             if (!this._active) {
                 this._active   = true;
                 this._activeSince = Date.now();
-                this._step     = 0;
                 // FX chain is created lazily in _fireLoop, only if an FX is used.
-                this._nextBeat = alignedStartBeat(this._clock, this._loopOpts.dur);
+                { const a = alignedStart(this._clock, this._loopOpts.dur);
+                  this._step = a.step; this._nextBeat = a.beat; }
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
             this._applyCalls(synthCall);
@@ -309,8 +316,8 @@ export class Player {
             if (!this._active) {
                 this._active   = true;
                 this._activeSince = Date.now();
-                this._step     = 0;
-                this._nextBeat = alignedStartBeat(this._clock, this._midiOpts.dur);
+                { const a = alignedStart(this._clock, this._midiOpts.dur);
+                  this._step = a.step; this._nextBeat = a.beat; }
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
             this._applyCalls(synthCall);
@@ -342,9 +349,9 @@ export class Player {
         if (!wasActive) {
             this._active   = true;
             this._activeSince = Date.now();
-            this._step     = 0;
             // FX chain is created lazily in _fire, only if the player uses an FX.
-            this._nextBeat = alignedStartBeat(this._clock, this._args.dur);
+            { const a = alignedStart(this._clock, this._args.dur);
+              this._step = a.step; this._nextBeat = a.beat; }
             this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
         }
         this._applyCalls(synthCall);

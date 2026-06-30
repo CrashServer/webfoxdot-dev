@@ -369,6 +369,7 @@ body.zen #docs-panel { display: none !important; }
 #crash-panel {
     width: var(--cp-width);
     min-width: 160px;
+    position: relative;
     background: var(--bg-2);
     border-left: 1px solid var(--border-1);
     display: flex;
@@ -382,6 +383,13 @@ body.zen #docs-panel { display: none !important; }
     user-select: none;
     transition: width 0.2s;
 }
+#crash-panel.resizing { transition: none; }   /* no lag while dragging */
+/* drag handle on the panel's left edge */
+#cp-resize {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+    cursor: col-resize; z-index: 5; background: transparent;
+}
+#cp-resize:hover, body.cp-resizing #cp-resize { background: var(--blue); }
 #cp-header { position: sticky; top: 0; z-index: 2; background: var(--bg-2); }
 #crash-panel.hidden { width: 0; border: none; }
 

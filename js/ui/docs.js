@@ -136,6 +136,13 @@ export const VERSION = 'alpha27';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha27', title: 'Fixes & polish (user feedback)', items: [
+        'Players now phase-lock to the global beat grid: two players started at different times stay in sync (a step is derived from the clock, not from when you pressed play). So b1 >> play(x.o.) and b2 >> play(x-o-) line up no matter when each is launched.',
+        'Param coherence: atk/dec/rel are accepted as aliases of attack/decay/release on every synth.',
+        'The examples dropdown now shows the example you picked (instead of snapping back to the ▾ placeholder).',
+        'Autoclose brackets now includes <>: typing < gives you <>.',
+        'The right sidebar is resizable — drag its left edge. Width is remembered. (The sidebar-toggle button was removed last version.)',
+    ]},
     { v: 'alpha26', title: 'New synth + FX ports', items: [
         'New synth a_gesa — aggressive Gesaffelstein-style distorted sub-bass (saw + pulse + sub, tanh distortion, resonant env-swept LPF, softclip). Params: distortion, cutoff, resonance.',
         'New FX djf — a DJ isolator filter (one knob): djf=0.5 is flat, <0.5 sweeps a lowpass down, >0.5 sweeps a highpass up. djfq sets resonance. Great for live builds.',
