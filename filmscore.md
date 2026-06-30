@@ -33,6 +33,26 @@ v1 >> play("[---].[--].x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fb
 oj >> piano([4,6,12,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
 pt >> piano([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
 cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=(4, 5), dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0)
+
+# ── develop — the theme darkens; a low brass + sub enter under the piano ──
+oj >> piano([0,-2,3,-2], oct=3, dur=1, sus=0.9, amp=1, room=0.7, reverb=0.6)
+pt >> piano([0,3,5,8,7,5,3,0], oct=5, dur=var([1,1,0.5,0.5,1,1,1,2],[1,1,1,1,1,1,1,1]), sus=0.7, amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
+lo >> bass([0,0,-4,-2], oct=3, dur=4, sus=4, amp=0.5, lpf=600, attack=0.5, reverb=0.4)
+br >> brass([0,3,5,7], oct=4, dur=2, sus=var([1.8,1.8,1.8,3.5],[2,2,2,2]), amp=sinvar([0.2,0.5],16), bright=0.6, room=0.6, reverb=0.5)
+
+# ── climax — full choir + brass theme, timpani hits, wide CS-80 ──
+ch >> choir([(0,3,7),(5,8,12),(3,7,10),(4,7,11)], oct=5, dur=4, sus=5.5, amp=sinvar([0.4,0.7],16), room=0.99, reverb=0.95, lpf=linvar([1500,5000],16))
+br >> brass([0,5,7,12,7,5,7,3], oct=5, dur=var([1,0.5,0.5,1,0.5,0.5,1,2],[1,1,1,1,1,1,1,1]), sus=0.6, amp=sinvar([0.4,0.7],8), bright=0.9, room=0.6, reverb=0.5)
+ti >> play("X...X...X.X.X...", dur=0.25, sample=0, amp=0.9, lpf=300, room=0.5, reverb=0.4)
+cx >> cs80([(0,3,7),(5,8,12),(3,7,10),(4,7,11)], oct=(4,5), dur=4, sus=5, amp=sinvar([0.2,0.4],16), cutoff=sinvar([2000,6000],16), vibspeed=4, vibdepth=0.015, room=0.9, reverb=0.6)
+
+# ── resolve — strip back to solo piano, a high bell, a long pad tail ──
+ch.stop()
+br.stop()
+ti.stop()
+oj >> piano([0,3,2,0], oct=4, dur=2, sus=1.8, amp=0.7, room=0.8, reverb=0.7)
+cl >> bell([0,3,7,12], oct=6, dur=PRand([1,2,4],4), sus=PRand([1,2,3],4), amp=sinvar([0.1,0.25],8), cheapverb=0.8, cvdecay=4)
+al >> pads([0,3,7], oct=5, dur=8, attack=4, release=8, sus=8, amp=sinvar([0.05,0.2],16), room=0.99, reverb=0.95)
 ```
 
 ### Substitutions (filmscore)
@@ -43,9 +63,13 @@ cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=(4, 5), dur=4, sus=5, amp=sinv
 | `mix=` | `reverb=` | FoxDot reverb = `room`(size)+`mix`(wet); crashDot = `room`+`reverb` |
 
 Clean 1:1: `piano`, `karp`, `cs80` (incl. `vibspeed`/`vibdepth`/`cutoff`),
-`choir` (`vox`/`cutoff`), `play` (subdivided `[---]` hats + `fbdelay`), `room`,
-`cheapverb`/`cvdecay`, `lpf`, octave groups (`oct=(4,5)`), and all
-`var`/`sinvar`/`linvar`/`PRand` automation + chord groups.
+`choir` (`vox`/`cutoff`), `brass` (`bright`), `bass`, `bell`, `pads`, `play`
+(subdivided `[---]` hats + a timpani-ish kick), `room`, `cheapverb`/`cvdecay`,
+`lpf`, octave groups (`oct=(4,5)`), and all `var`/`sinvar`/`linvar`/`PRand`
+automation + chord groups.
+
+The piece now runs as a full arc: **intro → variation → develop → climax →
+resolve** — evaluate top to bottom, each block layering or swapping the last.
 
 ---
 
@@ -308,7 +332,46 @@ g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), du
 
 ---
 
-## Part 9 — minutesaredays (skipped)
+## Part 9 — consolation (acid techno, 120 bpm, C minor) — from codeBank
+
+A rolling 303 acid line over a unison sub, with a tempo-locked `chop` gate on the
+kick (`codeBank/consolation.py`). Simplified from the original (its `var.cho =
+var(PMarkov(I))` Markov source and `PStep(PRand(4,16)[:16], …)` are replaced with
+a fixed riff + steady sustain).
+
+```python
+#@#@ consolation
+# acid techno — 120 bpm, C minor
+Clock.bpm = 120
+Scale.default = "minor"
+Root.default = "C"
+
+t9 >> tb303([0,3,5,7,10,7,5,3], oct=3, dur=1/4, cutoff=linvar([500,4000],24), rq=PWhite(0.1,0.3), wave=linvar([0,1],128), sus=0.4, amp=0.7, pan=PWhite(-1,1), lpf=linvar([5000,12000],32)).unison(6)
+b4 >> dbass([0,0,3,5], lpf=linvar([464,1664],13), amp=1, dur=var([1/4,1/2],[6,2]), oct=3).unison(4)
+d1 >> play("x.", hpf=30, sample=4, amp=0.4, tanh=2, chop=1)
+
+# build — add clap + hat, open the 303 filter, busier sub
+d2 >> play("..o.", sample=2, amp=0.6, hpf=300)
+d3 >> play("-.-.-.-.", sample=0, amp=0.3, hpf=6000)
+t9.lpf = linvar([400, 8000], 32)
+b4 >> dbass([0,0,3,5,0,0,7,5], lpf=linvar([464,2400],13), amp=1, dur=1/4, oct=3, dist2=0.4).unison(4)
+```
+
+### Substitutions (consolation)
+
+| Original | Used | Note |
+|---|---|---|
+| `var.cho = var(PMarkov(I))` | fixed riff `[0,3,5,7,10,7,5,3]` | no Markov source |
+| `PArp(var.cho, 5)` | the riff directly | — |
+| `PStep(PRand(4,16)[:16], …)` | `sus=0.4` | (PStep needs a numeric first arg) |
+| `top`/`fx1`/`fx2`/`lpr`/`feedfreq` | dropped | not present |
+
+Clean 1:1: `tb303` (`cutoff`/`rq`/`wave`), `dbass`, `chop` (tempo-locked) + `tanh`
+on the kick, `.unison()`, `linvar`/`var`/`PWhite` automation.
+
+---
+
+## Part 10 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`
