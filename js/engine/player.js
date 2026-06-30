@@ -102,6 +102,18 @@ function addDegree(base, add, step) {
     return out.length === 1 ? out[0] : { __group: out };
 }
 
+// Quantised first beat: a player's first note lands on the next beat that is a
+// multiple of its dur — so dur=4 waits for a multiple of 4 (bar-locked), dur=1/4
+// starts almost immediately. Mirrors FoxDot's dur-grid alignment; keeps players
+// in sync. Only used on first activation (re-evals keep the running grid).
+function alignedStartBeat(clock, durVal) {
+    let d = patGet(durVal, 0, durVal);
+    if (isGroup(d)) d = patGet(d.__group[0], 0);
+    d = Math.max(0.0625, Number(d) || 1);
+    const now = clock.now();
+    return Math.ceil((now + 0.001) / d) * d;
+}
+
 // FoxDot param shorthands → canonical names
 const PARAM_ALIASES = { atk: 'attack', rel: 'release' };
 function applyAliases(obj) {
@@ -243,10 +255,10 @@ export class Player {
                 this._activeSince = Date.now();
                 this._step     = 0;
                 // FX chain is created lazily in _fireSample, only if an FX is used.
-                const now      = this._clock.now();
-                this._nextBeat = Math.ceil(now + 0.001);
+                this._nextBeat = alignedStartBeat(this._clock, this._playOpts.dur);
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
+            this._applyCalls(synthCall);
             this._applyEverys(synthCall);
             return this;
         }
@@ -265,10 +277,10 @@ export class Player {
                 this._activeSince = Date.now();
                 this._step     = 0;
                 // FX chain is created lazily in _fireLoop, only if an FX is used.
-                const now      = this._clock.now();
-                this._nextBeat = Math.ceil(now + 0.001);
+                this._nextBeat = alignedStartBeat(this._clock, this._loopOpts.dur);
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
+            this._applyCalls(synthCall);
             this._applyEverys(synthCall);
             return this;
         }
@@ -286,10 +298,10 @@ export class Player {
                 this._active   = true;
                 this._activeSince = Date.now();
                 this._step     = 0;
-                const now      = this._clock.now();
-                this._nextBeat = Math.ceil(now + 0.001);
+                this._nextBeat = alignedStartBeat(this._clock, this._midiOpts.dur);
                 this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
             }
+            this._applyCalls(synthCall);
             this._applyEverys(synthCall);
             return this;
         }
@@ -319,10 +331,10 @@ export class Player {
             this._activeSince = Date.now();
             this._step     = 0;
             // FX chain is created lazily in _fire, only if the player uses an FX.
-            const now      = this._clock.now();
-            this._nextBeat = Math.ceil(now + 0.001);
+            this._nextBeat = alignedStartBeat(this._clock, this._args.dur);
             this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
         }
+        this._applyCalls(synthCall);
         this._applyEverys(synthCall);
         return this;
     }
@@ -358,6 +370,12 @@ export class Player {
         if (!call._everys) return;
         this._every = [];
         for (const e of call._everys) this.every(e.beats, e.method, ...e.args);
+    }
+
+    // Apply call-chained player methods on activation — p1 >> saw(...).solo(4).
+    _applyCalls(call) {
+        if (!call?._calls) return;
+        for (const [m, ...a] of call._calls) { try { this[m]?.(...a); } catch (_) {} }
     }
 
     _fire() {
@@ -828,9 +846,10 @@ export class Player {
 
     // ── Player methods ──────────────────────────────────────────────────────
 
-    // stop() now, or stop(beats) after N beats (beat-aligned)
+    // stop() now, or stop(beats) at the next beat that's a multiple of `beats`
+    // (grid-aligned, like FoxDot's mod scheduling — so .stop(4) lands on a bar).
     stop(beats) {
-        if (beats) { this._clock._schedule(this._clock.now() + beats, () => this.stop()); return this; }
+        if (beats) { this._clock._schedule(nextMod(this._clock, beats), () => this.stop()); return this; }
         this._active = false;
         this._every  = [];
         emitStep(this.name, -1);   // clear the editor highlight
@@ -848,15 +867,25 @@ export class Player {
         this._bus = null;
     }
 
-    // solo() — mute all others indefinitely. solo(beats) — restore after N beats.
+    // solo() — mute all others indefinitely. solo(beats) — restore at the next
+    // beat that's a multiple of `beats` (grid-aligned, like FoxDot).
     solo(beats) {
         // Un-mute self, mute everyone else (self may already be muted from a
         // previous solo/drop — without this, soloing it would silence everything).
         this._clock._players.forEach((p, k) => { p._amplify = (k === this.name) ? 1 : 0; });
         if (beats) {
-            this._clock._schedule(this._clock.now() + beats,
+            this._clock._schedule(nextMod(this._clock, beats),
                 () => this._clock._players.forEach(p => { p._amplify = 1; }));
         }
+        return this;
+    }
+
+    // only() — stop every OTHER player now; only(beats) waits for the next beat
+    // that's a multiple of `beats` (grid-aligned), then stops the others.
+    only(beats) {
+        const act = () => this._clock._players.forEach((p, k) => { if (k !== this.name) p.stop(); });
+        if (beats) this._clock._schedule(nextMod(this._clock, beats), act);
+        else act();
         return this;
     }
 

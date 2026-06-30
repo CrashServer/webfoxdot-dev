@@ -213,6 +213,11 @@ export class SynthCall {
     degrade(prob = 0.5) { this._degrade = prob; return this; }
     // .penta() — constrain degrees to the (minor) pentatonic scale for this player
     penta() { this._penta = true; return this; }
+    // Chained player methods — applied to the player on activation. Lets you write
+    // p1 >> saw(...).solo(4) / .stop(8) / .only(8). Timed args grid-align (mult of N).
+    solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }
+    only(beats) { (this._calls ??= []).push(['only', beats]); return this; }
+    stop(beats) { (this._calls ??= []).push(['stop', beats]); return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);

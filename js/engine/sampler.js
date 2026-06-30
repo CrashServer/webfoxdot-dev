@@ -204,6 +204,10 @@ export class PlayStringCall {
     unison(n = 2, detune = 0.125, spread = 100) { this._unison = n ? unisonSpread(n, detune, spread) : null; return this; }
     // .degrade(prob) — randomly silence prob (0–1) of steps (default 0.5)
     degrade(prob = 0.5) { this._degrade = prob; return this; }
+    // Chained player methods (applied on activation): b1 >> play(...).solo(4) etc.
+    solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }
+    only(beats) { (this._calls ??= []).push(['only', beats]); return this; }
+    stop(beats) { (this._calls ??= []).push(['stop', beats]); return this; }
 }
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);
@@ -223,5 +227,8 @@ export class LoopCall {
     every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
     __add__() { return this; }
     degrade(prob = 0.5) { this._degrade = prob; return this; }
+    solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }
+    only(beats) { (this._calls ??= []).push(['only', beats]); return this; }
+    stop(beats) { (this._calls ??= []).push(['stop', beats]); return this; }
 }
 attachModifiers(LoopCall);
