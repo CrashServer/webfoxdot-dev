@@ -137,7 +137,8 @@ export const VERSION = 'alpha28';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
-        'New ▦ button pops out an audio + code reactive ASCII visuals window (clift-style). It runs in its own window/event-loop, so rendering never competes with the audio clock; the main window just taps one analyser on the scsynth output and posts beat/bpm/bands + each evaluated line over a BroadcastChannel. Scenes (plasma/tunnel/spectrum/code-rain) react to bass/mid/treble + the beat; space = next scene, a = auto, f = fullscreen.',
+        'New ▦ button pops out an audio + code reactive ASCII visuals window (clift-style). It runs in its own window/event-loop, so rendering never competes with the audio clock; the main window just taps one analyser on the scsynth output and posts beat/bpm/bands + each evaluated line + note attacks over a BroadcastChannel. Scenes (plasma/tunnel/spectrum/code-rain) react to bass/mid/treble + the beat; space = next scene, a = auto, f = fullscreen.',
+        'The visuals window shows your code stylishly (token-coloured, glowing, typewriter reveal of the newest line, older lines fading up) and the code drives the visuals: the synth type picks the scene (bass→tunnel, leads→plasma, play→spectrum, drums→code-rain), cutoff/oct set the hue, amp the brightness, dur the speed, and each note attack pulses the scene.',
     ]},
     { v: 'alpha27', title: 'Fixes & polish (user feedback)', items: [
         'Players now phase-lock to the global beat grid: two players started at different times stay in sync (a step is derived from the clock, not from when you pressed play). So b1 >> play(x.o.) and b2 >> play(x-o-) line up no matter when each is launched.',

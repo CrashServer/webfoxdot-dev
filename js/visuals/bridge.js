@@ -79,3 +79,14 @@ function _tick() {
 export function postCode(text) {
     if (text && _chan) chan().postMessage({ t: 'code', text: String(text).slice(0, 2000) });
 }
+
+// Per-note attack — call from the step listener. Throttled so dense 16th-note
+// patterns can't flood the channel; the visuals only need pulse triggers.
+let _lastStep = 0;
+export function postStep(name, step) {
+    if (!_chan) return;
+    const now = performance.now();
+    if (now - _lastStep < 35) return;          // ~28/s cap
+    _lastStep = now;
+    _chan.postMessage({ t: 'step', name, step });
+}

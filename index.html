@@ -203,7 +203,7 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, postCode } from './js/visuals/bridge.js';
+    import { openVisuals, startVisualsAudio, postCode, postStep } from './js/visuals/bridge.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -1329,7 +1329,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         _degMarks.set(name, marks);
         _markSig.set(name, sig);
     }
-    _setStepListener(highlightStep);
+    _setStepListener((name, step) => { highlightStep(name, step); postStep(name, step); });
 
     // ── User identity (multiplayer) — name + cursor colour ────────────────────
     function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }
