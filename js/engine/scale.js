@@ -48,12 +48,15 @@ export const Root = {
 };
 
 // scaleOverride: optional per-player scale array (e.g. from .penta()).
-export function toMidi(degree, oct, scaleOverride) {
+// rootOverride: optional per-player root semitone (e.g. from .gtr()); replaces the
+// global Root.default for that player. Pass null/undefined to use the global root.
+export function toMidi(degree, oct, scaleOverride, rootOverride) {
     if (degree === null || degree === undefined) return null;
     const scale = scaleOverride || Scale.default;
     const n     = scale.length;
     const d     = Math.round(degree);
     const scaleDeg  = ((d % n) + n) % n;
     const octShift  = Math.floor(d / n);
-    return oct * 12 + scale[scaleDeg] + octShift * 12 + Root.default;
+    const root  = rootOverride ?? Root.default;
+    return oct * 12 + scale[scaleDeg] + octShift * 12 + root;
 }

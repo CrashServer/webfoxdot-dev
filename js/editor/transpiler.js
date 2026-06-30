@@ -43,6 +43,10 @@ export function transpile(code) {
         // dbass([0, ., 4]) → dbass([0, null, 4])
         main = main.replace(RE_DOT_REST, 'null');
 
+        // Python slice that freezes a generator into a repeating phrase:
+        //   melody()[:8] / PWhite(0,1)[:8]  →  Pslice(melody(), null, 8)
+        main = convertSlice(main);
+
         // >> operator: [~]name >> synth(...)  [+ transpose ...]
         // A leading ~ resets the player to defaults (no attribute inheritance).
         const m = main.match(RE_RSHIFT);
@@ -113,6 +117,94 @@ function convertAlt(s) {
         out += c; i++;
     }
     return out;
+}
+
+// Python slice → Pslice(operand, start, stop). A "slice" bracket is a [...] whose
+// top-level content has a ':' but no ',' and no '?' (so arrays [0,2,4] and
+// ternaries are left alone). Rewrites the leftmost slice each pass until none
+// remain. Strings are skipped so play("k:.") is untouched.
+function convertSlice(s) {
+    let guard = 0;
+    while (guard++ < 100) {
+        const f = findSlice(s);
+        if (!f) break;
+        const opStart = captureOperandStart(s, f.openIdx);
+        const operand = s.slice(opStart, f.openIdx).trim();
+        if (!operand) break;                  // no operand to slice → leave verbatim
+        s = s.slice(0, opStart) + `Pslice(${operand}, ${f.start}, ${f.stop})` + s.slice(f.closeIdx + 1);
+    }
+    return s;
+}
+
+// First slice bracket in s → { openIdx, closeIdx, start, stop } (or null).
+function findSlice(s) {
+    let inStr = '';
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (inStr) { if (c === inStr) inStr = ''; continue; }
+        if (c === '"' || c === "'") { inStr = c; continue; }
+        if (c !== '[') continue;
+        // matching ] (respect nested brackets + strings)
+        let depth = 0, q = '', j = i;
+        for (; j < s.length; j++) {
+            const d = s[j];
+            if (q) { if (d === q) q = ''; continue; }
+            if (d === '"' || d === "'") { q = d; continue; }
+            if ('([{'.includes(d)) depth++;
+            else if (')]}'.includes(d)) { depth--; if (depth === 0) break; }
+        }
+        if (j >= s.length) continue;          // unmatched — give up on this one
+        const sl = parseSliceInner(s.slice(i + 1, j));
+        if (sl) return { openIdx: i, closeIdx: j, start: sl.start, stop: sl.stop };
+        i = j;                                 // not a slice — skip its interior
+    }
+    return null;
+}
+
+// "[:8]" inner "…" → { start, stop } ('null' when omitted), or null if not a slice.
+function parseSliceInner(inner) {
+    let depth = 0, q = '', hasComma = false, hasQ = false; const colons = [];
+    for (let i = 0; i < inner.length; i++) {
+        const c = inner[i];
+        if (q) { if (c === q) q = ''; continue; }
+        if (c === '"' || c === "'") { q = c; continue; }
+        if ('([{'.includes(c)) depth++;
+        else if (')]}'.includes(c)) depth--;
+        else if (depth === 0) {
+            if (c === ':') colons.push(i);
+            else if (c === ',') hasComma = true;
+            else if (c === '?') hasQ = true;
+        }
+    }
+    if (hasComma || hasQ || colons.length < 1 || colons.length > 2) return null;
+    const startStr = inner.slice(0, colons[0]).trim();
+    const stopStr  = inner.slice(colons[0] + 1, colons[1] ?? inner.length).trim();
+    return { start: startStr || 'null', stop: stopStr || 'null' };
+}
+
+// Walk backward from a '[' to the start of the expression it slices: a trailing
+// chain of identifiers/member access and balanced ()/[] (so melody(), PWhite(0,1),
+// b1.degree, arr all capture cleanly).
+function captureOperandStart(s, openIdx) {
+    let k = openIdx - 1;
+    while (k >= 0 && s[k] === ' ') k--;
+    const consumeClose = () => {
+        const close = s[k], open = close === ')' ? '(' : '[';
+        let depth = 0;
+        while (k >= 0) {
+            const c = s[k];
+            if (c === close) depth++;
+            else if (c === open) { depth--; if (depth === 0) { k--; return; } }
+            k--;
+        }
+    };
+    let moved = true;
+    while (moved && k >= 0) {
+        moved = false;
+        if (s[k] === ')' || s[k] === ']') { consumeClose(); moved = true; }
+        while (k >= 0 && /[A-Za-z0-9_$.]/.test(s[k])) { k--; moved = true; }
+    }
+    return k + 1;
 }
 
 // Cross-player attribute read on a player RHS: another player's live value, e.g.

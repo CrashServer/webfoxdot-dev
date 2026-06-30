@@ -86,6 +86,41 @@ export function PWhite(lo = 0, hi = 1) {
     return { get: () => lo + Math.random() * (hi - lo) };
 }
 
+// melody(range=7, maxStep=2) — a simple melodic generator: a bounded random walk
+// over scale degrees. On its own it wanders forever; freeze a fixed phrase that
+// repeats with a slice — melody()[:8] samples 8 degrees once and loops them.
+export function melody(range = 7, maxStep = 2) {
+    let cur = 0;
+    return { get: () => {
+        const v = cur;
+        const d = Math.floor(Math.random() * (2 * maxStep + 1)) - maxStep;
+        cur = Math.max(-range, Math.min(range, cur + d));
+        return v;
+    } };
+}
+
+// Pslice(pat, start, stop) — Python-style slice that FREEZES a generator into a
+// fixed, repeating pattern. melody()[:8] / PWhite(0,1)[:8] sample N values once
+// and loop them, so a random generator becomes a stable N-step phrase that
+// repeats — instead of a fresh random value every single step.
+//   - array in  → a plain sliced array (already fixed)
+//   - {get} in  → sample get(start..stop-1) once, return that frozen array
+// An open-ended slice on a generator (no stop) can't be materialised, so the
+// generator is returned unchanged.
+export function Pslice(pat, start, stop) {
+    const a = start == null ? 0 : start;
+    if (Array.isArray(pat)) {
+        return pat.slice(a, stop == null ? undefined : stop);
+    }
+    if (pat && typeof pat.get === 'function') {
+        if (stop == null) return pat;
+        const out = [];
+        for (let i = a; i < stop; i++) out.push(pat.get(i));
+        return out;
+    }
+    return pat;
+}
+
 // PWalk(max=7, step=1, start=0) — random walk bounded to ±max
 export function PWalk(max = 7, step = 1, start = 0) {
     let cur = start;

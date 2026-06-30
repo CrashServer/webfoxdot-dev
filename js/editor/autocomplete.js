@@ -9,7 +9,7 @@ const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
-    'stop()', 'solo()', 'soloDrop()', 'drummer()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
+    'stop()', 'solo()', 'soloDrop()', 'drummer()', 'gtr(5)', 'penta()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
     'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
     'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
 ];
@@ -96,7 +96,7 @@ const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','fi(','fo(','fb('];
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
-    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(',
+    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','melody(',
     'midi(','mlearn(','midiout(','link(',
 ];
 

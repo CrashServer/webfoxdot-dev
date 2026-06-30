@@ -38,6 +38,9 @@ for (const def of Object.values(SYNTH_DEFS)) {
 import { toMidi, SCALE_MAP }      from './scale.js';
 import { PlayStringCall, LoopCall, parsePattern, charToBufId } from './sampler.js';
 import { randomGroove, randomFill } from './drummer.js';
+
+// .gtr(string) guitar-string → root semitone offset (FoxDot/CrashServer submap).
+const GTR_STRINGS = { 0: -10, 1: -8, 2: -3, 3: 2, 4: 7, 5: 11, 6: 16 };
 import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut } from '../midi/midiout.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
@@ -225,7 +228,8 @@ export class Player {
         this._stutterN = 0;   // one-shot: repeat the next fired step N times
         this._degreeAdds = null;  // player `+` transposition addends
         this._degrade  = 0;       // .degrade(prob): chance to silence a step
-        this._scale    = null;    // per-player scale override (.penta())
+        this._scale    = null;    // per-player scale override (.penta()/.gtr())
+        this._root     = null;    // per-player root semitone override (.gtr())
         // .drummer() auto-drummer state
         this._drumming     = false;
         this._drummerEvery = false;
@@ -331,6 +335,7 @@ export class Player {
         this._degreeAdds = synthCall._degreeAdds ?? null;
         this._degrade    = synthCall._degrade ?? 0;
         this._scale      = synthCall._penta ? SCALE_MAP.minPentatonic : null;
+        this._root       = null;   // cleared each eval; .gtr() in the chain re-sets it
         this._scheduleAfter(synthCall._after);
         this._warnUnknown(userArgs);
 
@@ -469,7 +474,7 @@ export class Player {
                 const deg = va.degree ?? 0;
                 if (deg === null) continue;
                 const oct = va.oct ?? 5;
-                let midi = toMidi(deg, oct, this._scale);
+                let midi = toMidi(deg, oct, this._scale, this._root);
                 if (midi === null || midi < 0 || midi > 127) continue;
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
@@ -715,7 +720,7 @@ export class Player {
                     }
                     const deg = va.degree ?? 0;
                     if (deg === null) continue;
-                    let note = toMidi(deg, va.oct ?? 5, this._scale);
+                    let note = toMidi(deg, va.oct ?? 5, this._scale, this._root);
                     if (note === null) continue;
                     note += (va.pshift ?? 0);
                     if (note < 0 || note > 127) continue;
@@ -1006,6 +1011,16 @@ export class Player {
 
     // .penta() — constrain degrees to the minor pentatonic scale for this player.
     penta() { this._scale = SCALE_MAP.minPentatonic; return this; }
+
+    // .gtr(string) — tune the player like a guitar string (FoxDot/CrashServer port):
+    // chromatic scale + a per-player root at the string's open-pitch offset, so
+    // degrees act like frets. string 0–6 → E A D G B e (low→high). e.g. .gtr(5)
+    gtr(string = 1) {
+        const s = Array.isArray(string) ? string[0] : string;
+        this._root  = GTR_STRINGS[s] ?? 0;
+        this._scale = SCALE_MAP.chromatic;
+        return this;
+    }
 
     // Read another player's current value of an attr as a live pattern:
     //   i9 >> faim(b1.degree, …)   reads b1's degree each step.

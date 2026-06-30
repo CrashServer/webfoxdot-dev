@@ -72,6 +72,8 @@ export const PATTERNS = [
     { name: 'PZip(a, b)',               desc: 'Interleave two sequences: [a0,b0,a1,b1,…]' },
     { name: 'PReverse(seq)',            desc: 'The sequence reversed' },
     { name: 'PMorse(text, point, tiret)', desc: 'Morse-code rhythm as a dur pattern (dur=PMorse("sos"))' },
+    { name: 'melody(range, maxStep)',   desc: 'Simple melodic generator — a bounded random walk over scale degrees. Freeze a fixed phrase that repeats with a slice: melody()[:8]' },
+    { name: 'pat[:N]  (slice)',          desc: 'Freeze a generator: sample N values once and loop them, so a random source becomes a stable N-step phrase that repeats. e.g. PWhite(0,1)[:8], melody()[:8]. Returns Pslice(pat, start, stop) under the hood' },
 ];
 
 export const TIMEVARS = [
@@ -95,6 +97,7 @@ export const FUNCTIONS = [
     { name: 'genres()',                 desc: 'List the available pbuild/pkit drum genres' },
     { name: 'chaos(n, type)',           desc: 'Generate n random players (synth/drum mix) into g1,g2,… and PASTE them into the editor as a block — does NOT run them; review/edit then evaluate. type "synth"|"drum" forces one kind. Default n=4' },
     { name: '.drummer(durloop, durPlyr)', desc: 'Chain onto a play() player to turn it into a self-evolving rock drummer (FoxDot/CrashServer port). Picks a random groove + fill, swaps the fill in for the tail of each loop, then re-randomises the groove every durloop beats. durloop default 16, step dur default 0.5. e.g. b1 >> play("x").drummer()' },
+    { name: '.gtr(string)',             desc: 'Tune a player like a guitar string (FoxDot/CrashServer): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. string 0–6 → E A D G B e (low→high). e.g. p1 >> guit([0,3,5,7]).gtr(5)' },
     { name: 'drop(playTime, dropTime, nbloop)', desc: 'Silence a random subset of players for dropTime beats, then restore — bar-aligned. Default: 14, 2, 1' },
     { name: 'soloRnd(time)',            desc: 'Solo a random active player for `time` beats, beat-aligned. Default: 8' },
     { name: 'unsolo()',                 desc: 'Restore all players muted by solo / Alt+S' },
@@ -129,10 +132,16 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha23';
+export const VERSION = 'alpha24';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X · Thunderstruck', items: [
+        { t: 'Slice a generator to freeze it: pat[:N] samples N values once and loops them, so a random source becomes a stable N-step phrase that repeats — PWhite(0,1)[:8], melody()[:8], PRange(0,12)[:4]. Also added melody(), a simple melodic random-walk generator.', ex: 'patterns' },
+        { t: '.gtr(string) — tune a player like a guitar string (FoxDot/CrashServer port): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. e.g. guit([0,3,5,7]).gtr(5).', ex: 'thunder' },
+        'Alt+X now stops the player quantised — the line is commented immediately, but the audio stops on the next bar boundary instead of cutting out the instant you press it.',
+        { t: 'New example — Thunderstruck (AC/DC), a port of our first track using .gtr(), dist2/tube crunch, unison and .drummer().', ex: 'thunder' },
+    ]},
     { v: 'alpha23', title: 'Renamed to crashDot · split view · zen mode', items: [
         'Renamed: WebFoxDot → crashDot (display name).',
         { t: 'Quantised player start: a new player\'s first note now lands on the next beat that is a multiple of its dur (FoxDot-style) — so d1 >> dbass(dur=4) waits for a bar boundary while dur=1/4 starts almost instantly. Players stay in sync. (Re-evaluating a running player keeps its grid.)', ex: 'syncgen' },
@@ -640,6 +649,10 @@ p1 >> dbass([0,3,5]) + (0,3,7)                   # + a group = chord
 p1 >> saw([0,4,7], oct=4).unison(4, 0.4)         # 4 detuned voices, spread
 b1 >> play(x., amp=Pacc("ghost"))         # accent pattern
 b2 >> play(x-o-, amplify=PLife(0.5))            # cellular-automaton amp`)}
+        ${note('<b>Freeze a generator with a slice</b> — <code>[:N]</code> samples N values <b>once</b> and loops them, so a random source becomes a stable N-step phrase that repeats (instead of a fresh value every step). Works on <code>melody()</code>, <code>PWhite</code>, any pattern.')}
+        ${code(`d1 >> dbass(melody()[:8], dur=1/2)       # an 8-note melody, looped
+p1 >> saw([0,4,7], amp=PWhite(0.3, 1)[:8])   # 8 fixed random amps, repeating
+p1 >> saw(PRange(0, 12)[:4], oct=5)          # first 4 of a ramp`)}
     `, 'patterns');
 
     const perf = section('Performance', `
@@ -709,6 +722,25 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `, 'sections');
 
+    const thunder = section('Track — Thunderstruck (AC/DC)', `
+        ${note('A port of our first track, in B. <code>.gtr(string)</code> tunes a player like a guitar string — chromatic scale plus a root at that string open pitch — so the degrees are the <b>frets</b> of the riff. <code>dist2</code> + <code>tube</code> give the crunch and <code>.unison(3)</code> thickens it. Boot, load the kit, then run the lines top to bottom.')}
+        ${code(`Clock.bpm = 134
+Root.default = "B"
+Scale.default = "minor"
+
+# The intro riff — hammered 16ths high on the neck. .gtr(5) ≈ the B string,
+# so these degrees are the frets of the Thunderstruck lick.
+f1 >> guit([12,10,9,10,9,7,9,5,7,4,5,4,5,4,5,4], dur=1/4, oct=5, dist2=0.7, tube=0.9, tubegain=1.5, hpf=120).gtr(5).unison(3)
+
+# Pounding bass, tuned a few strings down
+b1 >> dbass(var([0,-3,-1,-5], 8), dur=1/4, oct=4, dist2=0.5).gtr(2)
+
+# Toms + kick build, then the full kit
+d1 >> play("(kmM-)-(kmM-)---(k-)---(k-)---(k-)-", dur=0.25, drcomp=0.8, mverb=0.5)
+a1 >> play("x.", sample=4, dur=0.5).sometimes("stutter")
+a2 >> play("k.").drummer()`)}
+    `, 'thunder');
+
     const showcase = section('Full composition — most features in one set', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
         ${code(`#@#@ showcase_set
@@ -761,7 +793,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + thunder + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
