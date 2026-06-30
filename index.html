@@ -185,6 +185,7 @@
     import { loadSamples, PlayStringCall, LoopCall, loadedSampleChars,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { chaosLines } from './js/engine/generator.js';
+    import { pbuild, pkit, genres } from './js/engine/drumpatterns.js';
     import { transpile, applyRenames }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { inspect, initInspect }      from './js/editor/inspect.js';
@@ -386,6 +387,10 @@
                 editor.focus();
                 log(`chaos: pasted ${lines.length} lines — review, then run (Ctrl+Alt+↵)`, 'info');
             },
+            // Genre drum-pattern generator → play() strings.
+            //   b1 >> play(pbuild("techno"), dur=0.25)
+            //   b1 >> play(pbuild("house", evolve=8, fill=4, density=0.8), dur=0.25)
+            pbuild, pkit, genres,
             softReload: () => softReload(),
             Server: { addFx: (opts = {}) => masterSet(opts), clearFx: () => masterClear() },
             Master: () => new Proxy({}, { set(_t, k, v) { masterSet({ [String(k)]: v }); return true; }, get() { return undefined; } }),

@@ -137,6 +137,7 @@ const CHANGELOG = [
         'Zen mode (⛶): hide all UI for a clean editor-only view (performing / projection). Toggle with the ⛶ button or Shift+Alt+Z (works while everything is hidden, to restore it).',
         'Clock panel now shows phrase counters — which bar of a 4/8/16/32/64-bar phrase you are on, jumping by integer bars (webTroop-style) so you can see a drop/change coming.',
         'Examples are now a dropdown (pick a category to load it), starting with Introduction (boot + load the webfoxdot-kit + a starter). New Terminal theme — pure black, green-phosphor + amber.',
+        { t: 'pbuild(genre) — genre drum-pattern generator (port of FoxDot DrumPatterns): play(pbuild("techno"), dur=0.25). 9 genres (techno/ebm/dnb/house/breaks/halftime/industrial/reggae/afro); evolve/fill/density/mute options; pkit() for per-layer access; genres() lists them.', ex: 'drums' },
         'Fix: nudging a value with Alt+↑/↓ now re-runs only the current line (was re-running the whole block, restarting every player in it).',
     ]},
     { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
@@ -462,6 +463,13 @@ b4 >> play((x*)..{o-}.., amp=0.8)          # together + random
 b5 >> play(<x.><[--]><x.>, amp=0.8)        # brackets nest
 b6 >> play(x-o-, lpf=1500, reverb=0.3)     # FX work on drums
 b7 >> play(x-o-).sometimes("stutter", 2)   # probabilistic`)}
+        ${note('<b>pbuild(genre)</b> generates a genre drum pattern as a play() string. Genres: techno · ebm · dnb · house · breaks · halftime · industrial · reggae · afro. <code>evolve</code> = bars before it loops (each a mutation, so the groove drifts) · <code>fill</code> every N bars · <code>density</code> 0–1 thins hits · <code>mute</code> a layer · per-layer access via <code>pkit()</code>.')}
+        ${code(`b1 >> play(pbuild("techno"), dur=0.25)
+b1 >> play(pbuild("house", evolve=8, fill=4, density=0.8), dur=0.25)
+b1 >> play(pbuild("dnb", 16), dur=0.25)              # positional: evolve=16
+kit = pkit("breaks")                                 # per-layer access
+b1 >> play(kit.kick, dur=0.25)
+h1 >> play(kit.hat, dur=0.25)`)}
     `, 'drums');
 
     const grooves = section('Grooves & accents', `
