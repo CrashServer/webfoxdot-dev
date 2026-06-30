@@ -96,7 +96,44 @@ Clean 1:1: `multicrush` (+ `mc*` drives/freqs), `fbdelay` chain, `rgate`,
 
 ---
 
-## Part 3 — minutesaredays (skipped)
+## Part 3 — score (Coldplay "Yellow", 86 bpm, B major)
+
+Clean nylon-guitar arpeggios, piano chords, emotional lead, strings swell.
+
+```python
+#@#@ score
+# Yellow — 86 bpm, B major, clean arpeggios + emotional swell
+Clock.bpm = 86
+Scale.default = "major"
+Root.default = "B"
+
+gt >> pluck([0,2,4,2,0,2,4,2, 4,6,8,6,4,6,8,6, 5,7,9,7,5,7,9,7, 3,5,7,5,3,5,7,5], oct=5, dur=0.5, sus=0.45, amp=0.5, room=0.65, reverb=0.55, chorus=0.2, pan=sinvar([-0.15,0.15],16))
+pd >> piano([(0,2,4),(4,6,8),(5,7,9),(3,5,7)], oct=4, dur=4, sus=3.6, amp=0.32, room=0.7, reverb=0.6)
+ba >> bass([0,4,5,3], oct=4, dur=4, sus=3.5, amp=0.5, lpf=400, cutoff=350, rq=0.4).unison(3)
+ml >> pluck([4,4,3,2,0,2,3,4,4,4,3,2,0], oct=6, dur=var([0.5,1],[8,5]), sus=PRand([0.5,0.7,1,1.5],5), amp=0.45, room=0.7, reverb=0.55, chorus=0.5, pan=0.1).unison(3)
+sw >> pads([-7,-5,0,4], oct=4, dur=4, sus=4.5, attack=2, amp=sinvar([0.05,0.18],32), room=0.9, reverb=0.8)
+vi >> pads([0,-2,3,2,0,-2], oct=4, dur=var([2,1,1,1,2,1],[4,2,2,2,4,2]), sus=var([1.8,0.8,0.8,0.8,1.8,0.8],[4,2,2,2,4,2]), amp=sinvar([0.15,0.35],16), room=0.9, reverb=0.8)
+cx >> cs80([0,4,5,3], oct=4, dur=4, sus=4.5, amp=sinvar([0.1,0.28],32), cutoff=sinvar([1500,3500],32), vibspeed=4, vibdepth=0.015, room=0.9, reverb=0.8)
+gt.only()   # isolate the guitar (intro); re-run the others to bring them back
+```
+
+### Substitutions (score)
+
+| Original | Used | Lost |
+|---|---|---|
+| `nylon` | `pluck` | nylon-string body |
+| `keys` | `pluck` | electric-piano timbre |
+| `fbass` | `bass` | finger-bass character |
+| `swell` | `pads` (slow attack) | bowed-string swell, `wide` |
+| `viola` | `pads` | strings, `vibrato` |
+| `mix=` | `reverb=` | (direct map) |
+
+Clean 1:1: `piano`, `cs80` (incl. vib/cutoff), `chorus`, `room`, `lpf`/`cutoff`/
+`rq`, `.unison()`, `.only()`, the `var`/`sinvar` automation + chord groups.
+
+---
+
+## Part 4 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`
