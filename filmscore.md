@@ -23,19 +23,16 @@ Scale.default = "minor"
 Root.default = "C"
 
 oj >> piano([0,6,5,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
-pt >> piano([0,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0.75, reverb=0.65, pan=sinvar([-0.2,0.2],16))
+pt >> piano([0,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
 hp >> karp([0,3,5,7,5,3, 6,1,3,6,3,1, 5,0,3,5,3,0, 4,6,1,4,1,6], oct=6, dur=0.5, sus=PRand([0.4,0.6,0.8],6), amp=0.28, cheapverb=0.5, cvdecay=2, pan=sinvar([-0.4,0.4],6))
-br >> brass([0,3,5,7,5,3,7,5, 0,3,5,7,9,7,5,3], oct=5, dur=var([1,0.5,0.5,1,0.5,0.5,1,2],[1,1,1,1,1,1,1,1]), sus=var([0.85,0.4,0.4,0.85,0.4,0.4,0.85,1.8],[1,1,1,1,1,1,1,1]), amp=sinvar([0.3,0.6],16), bright=0.75, room=0.6, reverb=0.5)
-cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0.8)
-ch >> choir([0,5,3,4], oct=4, dur=4, sus=sinvar([4,6],16), amp=sinvar([0,0.22],32), room=0.99, reverb=0.95, lpf=linvar([500,2000],64))
+cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0)
+ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=6, dur=4, sus=5.5, amp=sinvar([0.3,0.55],16), room=0.99, reverb=0.95, lpf=linvar([800,3000],32))
+v1 >> play("[---].[--].x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-# climax — choir to chords, shimmer pad, bells, soft perc
-ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5.5, amp=sinvar([0.3,0.55],16), room=0.99, reverb=0.95, lpf=linvar([800,3000],32))
-pt.stop()
-oj.stop()
-al >> pads([0,3,5,4], oct=6, dur=4, sus=6, amp=sinvar([0.05,0.22],16), room=0.99, reverb=0.95)
-cl >> bell([7,9,12,7,5,3,7,9,12], oct=6, dur=PRand([0.5,1,2],9), sus=PRand([0.3,0.5,1],9), amp=sinvar([0.1,0.3],8), cheapverb=0.7, cvdecay=3)
-pe >> play("..t...t.", dur=0.5, amp=sinvar([0.3,0.65],16), room=0.4, reverb=0.35)
+# variation — shift the motif, lift the CS-80 an octave
+oj >> piano([4,6,12,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
+pt >> piano([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
+cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=(4, 5), dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0)
 ```
 
 ### Substitutions (filmscore)
@@ -43,15 +40,11 @@ pe >> play("..t...t.", dur=0.5, amp=sinvar([0.3,0.65],16), room=0.4, reverb=0.35
 | Original | Used | Lost |
 |---|---|---|
 | `pianovel` | `piano` | velocity-curve nuance |
-| `brass2` | `brass` | `growl`, `vibrate`/`vibdepth`, `tight` |
-| `sinepad` | `pads` | `shimmer` |
-| `bell2` | `bell` | (close) |
-| `compperc` | `play("..t..")` | it's a sample, not the synth (`tone/body/noise/decay/drive`) |
 | `mix=` | `reverb=` | FoxDot reverb = `room`(size)+`mix`(wet); crashDot = `room`+`reverb` |
-| `swell` / `viola` / `gong` | dropped | were already commented in the source |
 
-Clean 1:1: `karp`, `cs80` (incl. `vibspeed`/`vibdepth`/`cutoff`), `choir`
-(`vox`/`cutoff`), `brass.bright`, `room`, `cheapverb`/`cvdecay`, `lpf`, and all
+Clean 1:1: `piano`, `karp`, `cs80` (incl. `vibspeed`/`vibdepth`/`cutoff`),
+`choir` (`vox`/`cutoff`), `play` (subdivided `[---]` hats + `fbdelay`), `room`,
+`cheapverb`/`cvdecay`, `lpf`, octave groups (`oct=(4,5)`), and all
 `var`/`sinvar`/`linvar`/`PRand` automation + chord groups.
 
 ---
@@ -188,12 +181,14 @@ Scale.default = "phrygian"
 Root.default = 0
 Clock.bpm = 126
 
-~t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
 k1 >> compkick(punch=1, comp=10, release=0.4, oct=4, click=8, drive=0.2, sub=1, body=15, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, tone=0.15, dur=1, multicrush=0.2, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
-
-h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat")*1.1, beat_dur=0.5, decay=0.04, hpf=9000)
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.04, hpf=9000)
 t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
-h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat")*1.3, beat_dur=0.5, decay=0.04, hpf=9000)
+
+# bring in the gated pumpbass + a busier a_daft + the hat reprise
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.04, hpf=9000)
 ```
 
 ### Notes (Pump)
@@ -275,7 +270,45 @@ Note: nested `[9,14]` / `[3,1,1]` *alternate* per cycle in crashDot synth lists
 
 ---
 
-## Part 8 — minutesaredays (skipped)
+## Part 8 — Climb (cs80 → a_gesa lead)
+
+A single melodic motif that morphs voice + octave as you re-evaluate it — start on
+the CS-80, climb the octaves with grouped `oct=(7,6,5)`, hand it to `bass`, then
+`a_gesa`, then `a_daft`. `oct=((3,5), PStep(4,5,6), 5)` spreads octaves across the
+unison voices; `dur=<1, 1/2>` alternates the pace. Pairs naturally with filmscore.
+
+```python
+#@#@ climb
+Clock.bpm = 60
+Scale.default = "minor"
+Root.default = "C"
+
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=6, dur=1, amp=0.44, room=0.60, reverb=0.65).unison(2)
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=(7, 6), dur=1, amp=0.44, room=0.60, reverb=0.65).unison(2)
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=(7, 6, 5), dur=1, amp=0.44, room=0.60, reverb=0.65).unison(0)
+
+g0 >> bass([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(0)
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=5, dur=4, amp=1, room=0.60, reverb=0.65).unison(0)
+
+# hand the motif to the distorted leads
+g3 >> a_gesa([4, 0, ., 1, (2,0,4), 0, (0,3,4), 4], oct=(4, 6, 7), dur=4, amp=0.44, room=0.2, reverb=0.2).unison(2)
+g0 >> a_gesa([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, lpf=1200, room=0.60, reverb=0.65, attack=0.2).unison(2).solo(8)
+g0 >> bass([4, 2, ., 4, 2, 3, (0,3,4), 4], oct=(7, PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=0.44, room=0.60, reverb=0.65).unison(2)
+g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(2)
+```
+
+### Notes (Climb)
+
+- `cs80`, `bass`, `a_gesa`, `a_daft` are all native — no substitution.
+- `oct=(7,6,5)` / `oct=((3,5), PStep(4,5,6), 5)` use **group voice-expansion**: each
+  unison/group voice takes one octave (a nested group like `(3,5)` on a single voice
+  resolves to its first member; `PStep(4,5,6)` cycles per step).
+- `dur=<1, 1/2>` is `<…>` alternation; `.solo(8)` isolates the lead on the next
+  multiple of 8 beats.
+
+---
+
+## Part 9 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`
