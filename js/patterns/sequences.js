@@ -6,7 +6,13 @@ import { isEnv, envValue } from './timevars.js';
 export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
     if (typeof val?.get === 'function') return val.get(step);
-    if (Array.isArray(val)) return val[((step % val.length) + val.length) % val.length];
+    if (Array.isArray(val)) {
+        const el = val[((step % val.length) + val.length) % val.length];
+        // Resolve a pattern nested inside the list (e.g. [0, {2,4}] → PRand picks
+        // each step) so {…}/P*[…] work in degree lists, like they do in play().
+        // Groups (chords) have no .get, so they survive for voice expansion.
+        return (el && typeof el.get === 'function') ? el.get(step) : el;
+    }
     return val;
 }
 

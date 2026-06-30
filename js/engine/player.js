@@ -475,7 +475,7 @@ export class Player {
                 if (deg === null) continue;
                 const oct = va.oct ?? 5;
                 let midi = toMidi(deg, oct, this._scale, this._root);
-                if (midi === null || midi < 0 || midi > 127) continue;
+                if (midi === null || !Number.isFinite(midi) || midi < 0 || midi > 127) continue;
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
@@ -723,7 +723,7 @@ export class Player {
                     let note = toMidi(deg, va.oct ?? 5, this._scale, this._root);
                     if (note === null) continue;
                     note += (va.pshift ?? 0);
-                    if (note < 0 || note > 127) continue;
+                    if (!Number.isFinite(note) || note < 0 || note > 127) continue;
                     const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
                     const vel = amp * 127;
                     const vch = Math.round(va.channel ?? chan);
