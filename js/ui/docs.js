@@ -733,6 +733,50 @@ b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
 #@end(8)`)}
     `, 'sections');
 
+    const journey = section('Track — moody → rock → techno', `
+        ${note('A full arrangement wired with <code>#@</code> sections that auto-advance: a moody pad intro builds, guitars take over for a rock section (<code>.gtr()</code> + <code>.drummer()</code>), then it drops into four-on-the-floor techno (<code>pbuild</code> with per-bar gates + a <code>rgate</code>). Commented player lines (<code># p1 >></code>) stop that player when the next section enters; <code>#@goto</code> loops the techno a random number of times. Boot, load the kit, then run <code>#@moody(32)</code>.')}
+        ${code(`#@#@ moody_to_techno
+
+#@moody(32)
+Clock.bpm = 126
+Root.default = "E"
+Scale.default = "minor"
+p1 >> pads([0, 3, (0,3,7), 5], oct=4, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=0.5)
+p2 >> sine([7, 5, 3, 0], oct=5, dur=4, amp=0.25, mverb=0.6)
+h1 >> play("-...-...-...-..-", hpf=4000, amp=0.3)
+
+#@build(16)
+# a heartbeat kick + a filtered counter-line; the pads stay
+b1 >> play("x       x       ", amp=0.6)
+p2 >> sine([0, 3, 5, 7], oct=5, dur=2, amp=0.3, lpf=sinvar([800, 5000], [8]))
+
+#@rock(32)
+# guitars take over — drop the pads, the drummer kicks in
+# p1 >>
+# p2 >>
+f1 >> guit([0, 3, 5, 7, 5, 3, 2, 0], dur=0.25, dist2=0.6, tube=0.8, tubegain=1.4, hpf=120).gtr(5).unison(3)
+b1 >> play("x").drummer()
+a1 >> play("x.", sample=4, dur=0.5).sometimes("stutter")
+
+#@techno(64)
+# four-on-the-floor, acid bass, rhythmic gate — guitars out
+# f1 >>
+# a1 >>
+b1 >> play(pbuild("techno", evolve=8, fill=4, snare=PBin(2)), dur=0.25, drcomp=0.6)
+d1 >> dbass([0, 0, 3, 0, 0, 5, 3, 0], oct=4, dur=0.25, dist2=0.4)
+p2 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3)
+p3 >> pads([0, (0,3,7)], oct=5, dur=8, reverb=0.5, room=0.9, amp=0.25)
+
+#@goto(techno, 0.7)   # 70% loop the techno, else resolve
+
+#@end(8)
+# wind down
+# b1 >>
+# d1 >>
+# p2 >>
+p3 >> pads([0], oct=4, dur=8, attack=4, release=8, reverb=0.7, amp=0.3)`)}
+    `, 'journey');
+
     const showcase = section('Full composition — most features in one set', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
         ${code(`#@#@ showcase_set
@@ -785,7 +829,7 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
-    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + showcase;
+    return welcome + start + drums + grooves + synths + tweak + axis1 + sometimes + axis2 + axis3 + defsynthEx + fx + samples + loop + patterns + perf + syncGen + midi + sections + journey + showcase;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
