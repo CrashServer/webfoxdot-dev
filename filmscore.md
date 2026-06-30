@@ -243,7 +243,39 @@ groups, `PWhite`/`PRand`/`linvar` automation.
 
 ---
 
-## Part 7 — minutesaredays (skipped)
+## Part 7 — Crazy Train (144 bpm, chromatic) — from codeBank
+
+The Ozzy riff as distorted `faim` leads (`codeBank/Crazy Train.py`). `.chroma()`
+puts each player on the chromatic scale so the degrees are exact semitones.
+
+```python
+#@#@ crazytrain
+# Crazy Train (cover) — 144 bpm, chromatic, distorted faim
+Clock.bpm = 144
+Scale.default = "chromatic"
+
+r0 >> faim([6, 6, ., [9, 14], [9,14], ., 4, 4, .], dur=[0.5, 0.5, [3,1,1]], amp=1, oct=3, dist2=1, beef=2).chroma()
+r1 >> faim([6,6,13,6,14,6,13,6,11,9,8,9,11,9,8,4], dur=1/2, amp=1, dist2=1, oct=4, beef=0).chroma()
+
+d1 >> play("<xx.>", dur=[0.5, 0.5, [3,1,1]], drcomp=1, amp=1)
+d2 >> play("<..u.><->", dur=1/2, sample=0, drcomp=1)
+```
+
+### Substitutions (Crazy Train)
+
+| Original | Used | Note |
+|---|---|---|
+| `.chroma()` | `.chroma()` | ✅ added native this round |
+| `vol=` | dropped | `amp` covers level |
+| `comp=` (play) | `drcomp` | drum compressor |
+| `loop("circlebreak16")` | dropped | no loop buffer for it |
+
+Note: nested `[9,14]` / `[3,1,1]` *alternate* per cycle in crashDot synth lists
+(FoxDot subdivides them) — the riff plays, with slightly different phrasing.
+
+---
+
+## Part 8 — minutesaredays (skipped)
 
 This part is **one synth, `faim`, all the way through**, driven by bespoke params:
 `vadiod*` (a diode-ladder filter), `tape*` (tape saturation/wobble), `tube*`

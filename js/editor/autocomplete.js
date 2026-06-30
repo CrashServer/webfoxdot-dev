@@ -9,7 +9,7 @@ const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
-    'stop()', 'solo()', 'soloDrop()', 'drummer()', 'gtr(5)', 'penta()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
+    'stop()', 'solo()', 'soloDrop()', 'drummer()', 'gtr(5)', 'penta()', 'chroma()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
     'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
     'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
 ];

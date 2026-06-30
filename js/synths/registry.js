@@ -248,6 +248,8 @@ export class SynthCall {
     penta() { this._penta = true; return this; }
     // .gtr(string) — tune the player like a guitar string (chromatic + string root)
     gtr(string = 1) { (this._calls ??= []).push(['gtr', string]); return this; }
+    // .chroma() — use the chromatic scale for this player (degrees = semitones)
+    chroma() { (this._calls ??= []).push(['chroma']); return this; }
     // Chained player methods — applied to the player on activation. Lets you write
     // p1 >> saw(...).solo(4) / .stop(8) / .only(8). Timed args grid-align (mult of N).
     solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }

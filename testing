@@ -1,0 +1,54 @@
+#@#@ filmscore
+# cinematic score — 60 bpm, C minor
+
+Clock.bpm = 60
+Scale.default = "minor"
+Root.default = "C"
+
+oj >> piano([0,6,5,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
+pt >> piano([0,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
+hp >> karp([0,3,5,7,5,3, 6,1,3,6,3,1, 5,0,3,5,3,0, 4,6,1,4,1,6], oct=6, dur=0.5, sus=PRand([0.4,0.6,0.8],6), amp=0.28, cheapverb=0.5, cvdecay=2, pan=sinvar([-0.4,0.4],6))
+cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0)
+ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=6, dur=4, sus=5.5, amp=sinvar([0.3,0.55],16), room=0.99, reverb=0.95, lpf=linvar([800,3000],32))
+
+
+
+```
+Clock.bpm = 106
+Scale.default = "minor"
+Root.default = "D"
+
+# p1 >> saw([0,4,7], dur=1/4, oct=4, fbdelay=1, lpf=linvar([2000, 12000],32), lpf_rq=linvar([0.2, 0.5], 32), fbtime=0.25, fbfeed=0.3, fbcutoff=3000, fbspread=0.02, amp=PWhite(0.3, 0.6)[:8])
+# ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=6, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.8, hpf=140, lpf=sinvar([400,2000],16))
+# ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=(4, 5), dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, hpf=120, lpf=sinvar([400,2000],16))
+# ba >> ebass([0,0,3,0,5,5,-5,-3], oct=6, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.8, hpf=140, lpf=sinvar([400,2000],16))
+
+
+dk >> play("X...X.X.X...X...", dur=0.25, amp=var([1,0.9,1,0.88],4), fbdelay=0.4, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.1)
+sn >> play("....o.......o...", dur=0.25, amp=0.85, sample=2, hpf=200)
+cl >> play("..o.", dur=0.5, sample=5, amp=0.7, amplify=PEuclid(5,8), hpf=3500, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
+~dk >> play(pbuild("industrial"), dur=0.25, amp=var([1,0.9,1,0.88],4), rgate=0.1, rgaterate=4, multicrush=4, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
+~dk >> play("X...X.X.X...X...", dur=0.25, amp=var([1,0.9,1,0.88],4), fbdelay=0.4, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.1)
+
+
+
+p1 >> saw([0,4,7], dur=1/4, amp=PWhite(0.3, 1)[:8])   # 8 fixed random amps, repeating
+
+v2 >> choir([0], oct=(6, 5), amp=2.0, dur=4, pan=0, attack=0.3, release=0.7, vox=0, cutoff=4000, dist2=0.3, dist2shape=1)
+p1 >> saw(PRange(0, 12)[:4], oct=3, multicrush=0.6, mclowdrive=2, mcmiddrive=2, mchighdrive=20, mclofreq=1300, mchifreq=2500)          # first 4 of a ramp
+
+Scale.default = "phrygian"
+Root.default = 0
+Clock.bpm = 126
+
+# k1 >> compkick(punch=1, comp=10, release=0.4, oct=4, click=8, drive=0.2, sub=1, body=15, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, tone=0.15, dur=1, multicrush=0.2, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
+# h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.04, hpf=9000)
+
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+
+
+# t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
+
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat")*1.3, beat_dur=0.5, decay=0.04, hpf=9000)
+```

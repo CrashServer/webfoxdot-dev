@@ -1018,6 +1018,9 @@ export class Player {
     // .penta() — constrain degrees to the minor pentatonic scale for this player.
     penta() { this._scale = SCALE_MAP.minPentatonic; return this; }
 
+    // .chroma() — use the chromatic scale for this player (degrees = semitones).
+    chroma() { this._scale = SCALE_MAP.chromatic; return this; }
+
     // .gtr(string) — tune the player like a guitar string (FoxDot/CrashServer port):
     // chromatic scale + a per-player root at the string's open-pitch offset, so
     // degrees act like frets. string 0–6 → E A D G B e (low→high). e.g. .gtr(5)
