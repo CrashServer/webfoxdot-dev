@@ -138,7 +138,9 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.2, cutoff: 6000 },
         extraParams: ['cutoff'],
     },
-    piano: {
+    // "basic" — an additive synth (was named "piano"; it doesn't really sound like
+    // a piano). `piano` is kept as an alias in the eval context for old code.
+    basic: {
         scName: 'fd_piano',
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.4, tone: 0.5, hammer: 0.5 },
         extraParams: ['tone', 'hammer'],

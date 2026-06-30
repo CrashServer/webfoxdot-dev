@@ -55,7 +55,7 @@ resize();
 
 // ── code parsing ────────────────────────────────────────────────────────────────
 const BASS = /bass|sub|303|tb|gesa|daft|pump|donk|moog|reese|wob/i;
-const LEAD = /saw|blip|pluck|pad|key|prophet|cs80|piano|bell|choir|brass|organ|guit|fm|plaits|lead|sine|pulse|arp|karp|lapin/i;
+const LEAD = /saw|blip|pluck|pad|key|prophet|cs80|piano|basic|bell|choir|brass|organ|guit|fm|plaits|lead|sine|pulse|arp|karp|lapin/i;
 
 // each synth category draws from a pool, picked at random per eval → variety
 const POOLS = {

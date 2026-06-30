@@ -247,6 +247,7 @@
 
     // ── Eval context ──────────────────────────────────────────────────────────
     const SYNTHS = Object.fromEntries(Object.keys(SYNTH_DEFS).map(n => [n, makeSynth(n)]));
+    SYNTHS.piano = SYNTHS.basic;   // alias: "piano" was renamed to "basic"; keep old code working
 
     const ScaleProxy = new Proxy(Scale, {
         set(t, k, v) { t[k] = v; if (k === 'default') log(`Scale.default = ${JSON.stringify(v)}`, 'ok'); return true; }

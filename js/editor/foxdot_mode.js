@@ -12,7 +12,7 @@
         'dubulse','ebass','elpfsaw','fail','faim','feel','fmpiano','fm2','fmvibe',
         'guit','gtr','gun','harp','hoover','jbass','jbass2','keys','kick','kik',
         'lapin','lazer','lead','looper','marimba','metronome','mirage','moog',
-        'moogpluck','nylon','organ','piano','pads','plaits','plaitsX','pluck',
+        'moogpluck','nylon','organ','piano','basic','pads','plaits','plaitsX','pluck',
         'prophet','reese','resonant','rhodes','risset','rsin','rustlead',
         'saw','sawbass','sax','sine','sinepad','sinebass','singer',
         'space','speaky','squarebass','stab','steel','stellar','stepper',
