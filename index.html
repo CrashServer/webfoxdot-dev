@@ -1237,6 +1237,18 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 const r = arraySpans(lineText, k);
                 if (r && r.spans.length) { out.push(r.spans); k = r.end; }
             }
+            else if (c === '{' && pdepth === 1) {
+                // {a,b,c} random group: the pick is random in the engine, so we can't
+                // know which element sounded — highlight the whole group as one span
+                // (and skip its interior so we don't track a nested [..] by accident).
+                let depth = 0, j = k;
+                for (; j < lineText.length; j++) {
+                    const d = lineText[j];
+                    if ('([{'.includes(d)) depth++;
+                    else if (')]}'.includes(d)) { depth--; if (depth === 0) break; }
+                }
+                if (j < lineText.length) { out.push([[k, j + 1]]); k = j; }
+            }
         }
         return out.length ? out : null;
     }
