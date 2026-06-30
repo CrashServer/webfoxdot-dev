@@ -14,9 +14,13 @@ const FPS  = 30;
 const CELL = 13;
 const SCENES = ['plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain',
                 'aurora', 'cells', 'starfield', 'fire', 'ripple', 'interference',
-                'helix', 'spiral'];
+                'helix', 'spiral', 'nebula', 'flow', 'lissajous', 'attractor'];
+const POINT = new Set(['lissajous', 'attractor']);   // plotted, not per-cell field
 // warm/over-ridden hue for a few scenes; null = use the code-driven hue
-const SCENE_HUE = { fire: 0.04, aurora: 0.42 };
+const SCENE_HUE = { fire: 0.04, aurora: 0.42, nebula: 0.62 };
+
+// post-FX (clift-style) — toggled with keys, or pushed by code (chaos/drop)
+const fx = { trails: false, scan: false, chroma: false, vignette: false, invert: false, posterize: 0 };
 
 // ── state ──────────────────────────────────────────────────────────────────────
 const A = { bass: 0, mid: 0, treble: 0, level: 0, bpm: 120, beat: 0, bar: 0 };
@@ -42,6 +46,7 @@ function hexHue(hex) {
     return (((h * 60) + 360) % 360) / 360;
 }
 
+let vgrad = null;
 function resize() {
     W = cv.width  = Math.floor(window.innerWidth);
     H = cv.height = Math.floor(window.innerHeight);
@@ -49,6 +54,9 @@ function resize() {
     rows = Math.max(6, Math.floor(H / CELL));
     ctx.font = `${CELL}px monospace`;
     ctx.textBaseline = 'top';
+    vgrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.72);
+    vgrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vgrad.addColorStop(1, 'rgba(0,0,0,0.72)');
 }
 window.addEventListener('resize', resize);
 resize();
@@ -59,8 +67,8 @@ const LEAD = /saw|blip|pluck|pad|key|prophet|cs80|piano|basic|bell|choir|brass|o
 
 // each synth category draws from a pool, picked at random per eval → variety
 const POOLS = {
-    bass: ['tunnel', 'spiral', 'helix', 'ripple'],
-    lead: ['plasma', 'interference', 'wave', 'aurora', 'cells'],
+    bass: ['tunnel', 'spiral', 'helix', 'ripple', 'attractor'],
+    lead: ['plasma', 'interference', 'wave', 'aurora', 'cells', 'nebula', 'flow', 'lissajous'],
     drum: ['spectrum', 'grid', 'starfield', 'fire', 'rain'],
 };
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
@@ -145,6 +153,12 @@ addEventListener('keydown', (e) => {
     else if (e.key === 'a') { auto = !auto; }
     else if (e.key === 'g') { glitch = 1.3; }
     else if (e.key === 'f') { document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.(); }
+    // post-FX toggles (clift-style)
+    else if (e.key === 't') { fx.trails = !fx.trails; }
+    else if (e.key === 's') { fx.scan = !fx.scan; }
+    else if (e.key === 'v') { fx.vignette = !fx.vignette; }
+    else if (e.key === 'i') { fx.invert = !fx.invert; }
+    else if (e.key === 'p') { fx.posterize = (fx.posterize + 1) % 4; }
 });
 
 let curHue = 0.5;                            // per-frame: scene override or code hue
@@ -234,9 +248,51 @@ function fieldVal(name, x, y, t) {
         const v = Math.sin(ang * arms + r * 18 * z - t * 2 + A.bass * 6);
         return Math.max(0, v) * (0.4 + A.level * 1.4) * (1 - r * 0.4);
     }
+    if (name === 'nebula') {
+        // soft drifting clouds — 3 octaves of sine "fbm"
+        const v = Math.sin(u * 5 + t * 0.3) * 0.5
+                + Math.sin((u * 11 - w * 9) + t * 0.5 + A.bass * 4) * 0.3
+                + Math.sin((u * 23 + w * 19) - t * 0.8 + A.treble * 5) * 0.2;
+        return Math.max(0, v * 0.5 + 0.5 - r * 0.3) * (0.4 + A.level * 1.3);
+    }
+    if (name === 'flow') {
+        // advected flow field — domain warped, gives streaky organic motion
+        const fxw = u + 0.22 * Math.sin(w * 5 + t);
+        const fyw = w + 0.22 * Math.sin(u * 5 - t * 0.8);
+        const v = Math.sin(fxw * 11 + t) * Math.sin(fyw * 11 - t * 1.3 + A.mid * 5);
+        return Math.max(0, v) * (0.45 + A.level * 1.3);
+    }
     const col = Math.sin(x * 12.9898) * 43758.5453, seed = col - Math.floor(col);
     const head = (w + t * (0.2 + seed * 0.5 + A.level * 0.6)) % 1;
     return Math.max(0, 1 - Math.abs(w - ((seed + head) % 1)) * 8) * (0.4 + A.level);
+}
+
+// ── plotted (point) scenes ───────────────────────────────────────────────────────
+function drawPoints(name, t) {
+    if (name === 'lissajous') {
+        const a = 2 + Math.floor(A.bass * 5), b = 3 + Math.floor(A.treble * 5), N = 900;
+        for (let i = 0; i < N; i++) {
+            const th = i / N * Math.PI * 2;
+            const px = (Math.sin(a * th + t) * 0.45 + 0.5) * W;
+            const py = (Math.sin(b * th) * 0.45 + 0.5) * H;
+            ctx.fillStyle = color(0.5 + 0.5 * Math.sin(th * 3 + t));
+            ctx.fillText('•', px, py);
+        }
+    } else {                                   // strange attractor (de Jong)
+        const a = -2.1 + Math.sin(t * 0.3) + A.bass, b = -2.0 + Math.cos(t * 0.21);
+        const c = -1.2 + A.mid, d = 2.0 - A.treble;
+        let xx = 0.1, yy = 0.1; const N = 1700;
+        for (let i = 0; i < N; i++) {
+            const nx = Math.sin(a * yy) - Math.cos(b * xx);
+            yy = Math.sin(c * xx) - Math.cos(d * yy); xx = nx;
+            ctx.fillStyle = color(0.35 + 0.65 * (i / N));
+            ctx.fillText('·', (xx * 0.22 + 0.5) * W, (yy * 0.22 + 0.5) * H);
+        }
+    }
+}
+function drawScanlines() {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
 }
 
 // ── stylised code overlay ────────────────────────────────────────────────────────
@@ -307,25 +363,39 @@ function frame(ts) {
     flash = Math.max(flash, bpmFlash);
     const name = SCENES[scene];
     curHue = SCENE_HUE[name] != null ? SCENE_HUE[name] : live.hue;
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-    const useCode = name === 'rain' && codeLines.length;
-    const flat = useCode ? codeLines[codeLines.length - 1].runs.map(r => r.s).join('') : '';
-    const cw = W / cols, ch = H / rows;
-    for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-            const v = fieldVal(name, x, y, t);
-            if (v <= 0.06) continue;
-            let g = RAMP[Math.min(RAMP.length - 1, Math.max(0, Math.floor(v * RAMP.length)))];
-            if (useCode && g !== ' ' && flat.length) g = flat[(x + y * cols) % flat.length];
-            if (g === ' ') continue;
-            ctx.fillStyle = color(v);
-            ctx.fillText(g, x * cw, y * ch);
+    // clear — translucent when trails are on (feedback), opaque otherwise
+    ctx.fillStyle = fx.trails ? 'rgba(0,0,0,0.18)' : '#000';
+    ctx.fillRect(0, 0, W, H);
+    if (POINT.has(name)) {
+        drawPoints(name, t);
+    } else {
+        const useCode = name === 'rain' && codeLines.length;
+        const flat = useCode ? codeLines[codeLines.length - 1].runs.map(r => r.s).join('') : '';
+        const post = [0, 6, 4, 2][fx.posterize];
+        const cw = W / cols, ch = H / rows;
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                let v = fieldVal(name, x, y, t);
+                if (v <= 0.06) continue;
+                if (post) v = Math.round(v * post) / post;          // posterize levels
+                let g = RAMP[Math.min(RAMP.length - 1, Math.max(0, Math.floor(v * RAMP.length)))];
+                if (useCode && g !== ' ' && flat.length) g = flat[(x + y * cols) % flat.length];
+                if (g === ' ') continue;
+                ctx.fillStyle = color(v);
+                ctx.fillText(g, x * cw, y * ch);
+            }
         }
     }
     if (glitch > 0.05) applyGlitch();
+    // post-FX overlays (under the code so it stays readable)
+    if (fx.invert) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }
+    if (fx.scan) drawScanlines();
+    if (fx.vignette && vgrad) { ctx.fillStyle = vgrad; ctx.fillRect(0, 0, W, H); }
     drawCode(ts);
     if (bigFlash > 0.02) { ctx.fillStyle = `rgba(255,255,255,${bigFlash * 0.5})`; ctx.fillRect(0, 0, W, H); }
+    const onfx = Object.entries({ t: fx.trails, s: fx.scan, v: fx.vignette, i: fx.invert, p: fx.posterize })
+        .filter(([, on]) => on).map(([k]) => k).join('');
     hud.textContent = `${name}  ·  ${A.bpm | 0} bpm  ·  ${live.player || '—'} ▸ ${live.synth || '—'}`
-                    + `  ·  ${'▮'.repeat(Math.round(A.level * 10))}${auto ? '  · auto' : ''}`;
+                    + `  ·  ${'▮'.repeat(Math.round(A.level * 10))}${auto ? '  · auto' : ''}${onfx ? '  · fx:' + onfx : ''}`;
 }
 requestAnimationFrame(frame);
