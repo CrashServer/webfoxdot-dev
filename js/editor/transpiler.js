@@ -54,11 +54,12 @@ export function transpile(code) {
             const [, indent, tilde, player, rhs] = m;
             // Player arithmetic: synth(...) + N / + (a,b,c) adds to the degree.
             const parts = splitTopLevelPlus(rhs.trim());
-            // convertAlt after autoQuotePlay (so play strings are already quoted &
-            // skipped) but before kwargify (so dur=<1 2> → {dur:_alt(1,2)} parses).
-            let expr = kwargify(convertAlt(autoQuotePlay(parts[0].trim())));
+            // convertAlt/convertCurly after autoQuotePlay (so play strings are
+            // already quoted & skipped) but before kwargify (so dur=<1 2> →
+            // {dur:_alt(1,2)} parses and {2,4} → PRand([2,4]) before kwargs run).
+            let expr = kwargify(convertCurly(convertAlt(autoQuotePlay(parts[0].trim()))));
             for (let i = 1; i < parts.length; i++) {
-                expr = `(${expr}).__add__(${kwargify(convertAlt(parts[i].trim()))})`;
+                expr = `(${expr}).__add__(${kwargify(convertCurly(convertAlt(parts[i].trim())))})`;
             }
             const resetArg = tilde ? ', true' : '';
             return `${indent}__p('${player}').__rshift__(${convertPlayerRefs(expr)}${resetArg})${tail}`;
@@ -69,7 +70,7 @@ export function transpile(code) {
         const am = main.match(RE_ATTR);
         if (am && !RE_RESERVED.test(am[2])) {
             const [, indent, player, attr, value] = am;
-            return `${indent}__p('${player}').setAttr('${attr}', ${patMath(kwargify(convertAlt(value.trim())))})${tail}`;
+            return `${indent}__p('${player}').setAttr('${attr}', ${patMath(kwargify(convertCurly(convertAlt(value.trim()))))})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
@@ -117,6 +118,53 @@ function convertAlt(s) {
         out += c; i++;
     }
     return out;
+}
+
+// FoxDot inline random choice: {a, b, c} → PRand([a, b, c]) (pick one each step).
+// A "{...}" is a random group only when its top-level content has no ':' (so dicts
+// like PChain({0:[1]}) and kwarg objects survive) and no ';' / '=>' (code blocks /
+// arrow bodies). Strings are skipped; nested {...} convert recursively. Run on a
+// player RHS / attr value only, before kwargify.
+function convertCurly(s) {
+    let out = '', i = 0, inStr = '';
+    while (i < s.length) {
+        const c = s[i];
+        if (inStr) { out += c; if (c === inStr) inStr = ''; i++; continue; }
+        if (c === '"' || c === "'") { inStr = c; out += c; i++; continue; }
+        if (c !== '{') { out += c; i++; continue; }
+        // matching } (respect nested brackets + strings)
+        let depth = 0, q = '', j = i;
+        for (; j < s.length; j++) {
+            const d = s[j];
+            if (q) { if (d === q) q = ''; continue; }
+            if (d === '"' || d === "'") { q = d; continue; }
+            if ('([{'.includes(d)) depth++;
+            else if (')]}'.includes(d)) { depth--; if (depth === 0) break; }
+        }
+        if (j >= s.length) { out += s.slice(i); break; }   // unmatched — leave rest
+        const inner = s.slice(i + 1, j);
+        out += isRandChoice(inner) ? `PRand([${convertCurly(inner)}])` : `{${convertCurly(inner)}}`;
+        i = j + 1;
+    }
+    return out;
+}
+
+// True if "{inner}" is a FoxDot random-choice group rather than a dict / code block.
+function isRandChoice(inner) {
+    if (!inner.trim()) return false;
+    let depth = 0, q = '';
+    for (let i = 0; i < inner.length; i++) {
+        const c = inner[i];
+        if (q) { if (c === q) q = ''; continue; }
+        if (c === '"' || c === "'") { q = c; continue; }
+        if ('([{'.includes(c)) depth++;
+        else if (')]}'.includes(c)) depth--;
+        else if (depth === 0) {
+            if (c === ':' || c === ';') return false;            // dict / statements
+            if (c === '=' && inner[i + 1] === '>') return false;  // arrow body
+        }
+    }
+    return true;
 }
 
 // Python slice → Pslice(operand, start, stop). A "slice" bracket is a [...] whose

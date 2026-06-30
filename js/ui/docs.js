@@ -132,11 +132,14 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha24';
+export const VERSION = 'alpha25';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X · Thunderstruck', items: [
+    { v: 'alpha25', title: 'Pattern fixes', items: [
+        { t: 'Inline random choice with braces now works in degree/param patterns: {a, b, c} picks one each step (like P*[a,b,c]). e.g. v1 >> dbass([0, 2, (4, 2), {2, 4}]) or saw([0,4,7], oct={4,5,6}). Dicts (PChain({0:[1]})) and defsynth bodies are left untouched.', ex: 'patterns' },
+    ]},
+    { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X', items: [
         { t: 'Slice a generator to freeze it: pat[:N] samples N values once and loops them, so a random source becomes a stable N-step phrase that repeats — PWhite(0,1)[:8], melody()[:8], PRange(0,12)[:4]. Also added melody(), a simple melodic random-walk generator.', ex: 'patterns' },
         '.gtr(string) — tune a player like a guitar string (FoxDot/CrashServer port): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. e.g. guit([0,3,5,7]).gtr(5).',
         'Alt+X now stops the player quantised — the line is commented immediately, but the audio stops on the next bar boundary instead of cutting out the instant you press it.',
@@ -637,11 +640,12 @@ b1 >> loop("break", dur=8).every(8, "reverse")    # player methods work too`)}
     `, 'loop');
 
     const patterns = section('Patterns', `
-        ${note('Pattern objects produce a new value each step. P shorthands: <code>P*[a,b,c]</code> random pick · <code>P[a,b,c]</code> cyclic list · <code>P(a,b,c)</code> chord. TimeVars can hold patterns.')}
+        ${note('Pattern objects produce a new value each step. P shorthands: <code>P*[a,b,c]</code> random pick · <code>P[a,b,c]</code> cyclic list · <code>P(a,b,c)</code> chord. Inline in a list: <code>(a,b)</code> = chord, <code>{a,b}</code> = random pick. TimeVars can hold patterns.')}
         ${code(`p1 >> saw([0,2,4,7], amp=PWhite(0.4, 0.9))      # random float
 p1 >> pluck([0,4,7], oct=PRand(4, 6))           # random int
 p1 >> sine(PRange(0, 7), dur=0.5)               # 0..7 ramp
 p1 >> saw([0, 3, 5, P*[7,10,5]], oct=4)         # P*[...] = random pick
+v1 >> dbass([0, 2, (4, 2), {2, 4}])             # (chord) + {random pick}
 p1 >> saw([0,4,7], dur=var([P*[1,2], 1/4]))     # pattern inside a var
 p1 >> saw([0,4,7], oct=4) + 7                    # transpose up
 p1 >> dbass([0,3,5]) + (0,3,7)                   # + a group = chord
