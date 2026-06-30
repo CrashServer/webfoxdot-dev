@@ -131,6 +131,7 @@ const CHANGELOG = [
     { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
         'Collab server now logs a [status] line after each change — total instances, the live sessions with per-room counts, and how many people are using it solo. e.g. [status] instances: 4 · sessions: myjam(2) · solo: 2',
         'Solo-usage visibility: running without a ?session= now registers a lightweight presence with the collab server (a keepalive ping only — no audio or edit data) so solo players show up in the count. Silent no-op if the collab server isn\'t reachable',
+        'Fixes: a commented-out player line with a body (# v1 >> sine(...)) in a #@ section now stops that player cleanly instead of erroring (the synth call was left dangling); stop-all (stop button / Ctrl+. / Ctrl+;) now also cancels the autoplay sequence, so a pending section advance can no longer restart playback after you stop',
     ]},
     { v: 'alpha21', title: 'MIDI out, control curves, loops + per-effect FX engine', items: [
         'FX engine rebuilt to per-effect on-demand nodes: each effect is its own SynthDef (fd_fx_*) instead of one always-on chain computing all 32 effects every block. A player runs only the effects it uses — absent effects cost zero CPU, so stacking multiple FX-heavy players no longer drops out. A bare player (no FX) bypasses the FX graph entirely; FX n_set updates are diffed; per-step/per-eval overhead trimmed',

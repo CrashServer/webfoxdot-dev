@@ -208,12 +208,13 @@ function getSectionCode(sectionLine) {
 // ── Player-stop transform ─────────────────────────────────────────────────────
 
 /**
- * Lines matching `# playerName >>` (at the start, possibly indented) become
- * `__p('playerName').stop()`.
+ * Lines matching `# playerName >> ...` (at the start, possibly indented) become
+ * `__p('playerName').stop()`. The rest of the line (the commented-out synth call)
+ * is consumed — otherwise it would be left dangling after .stop() and break eval.
  */
 function applyPlayerStop(code) {
     return code.replace(
-        /^(\s*)#\s*([a-zA-Z]\w*)\s*>>/gm,
+        /^(\s*)#\s*([a-zA-Z]\w*)\s*>>.*$/gm,
         (_match, indent, playerName) => `${indent}__p('${playerName}').stop()`
     );
 }

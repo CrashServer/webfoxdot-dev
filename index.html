@@ -262,6 +262,13 @@
         log('autoplay stopped — players keep running', 'warn');
     }
 
+    // Stop all: cancel the autoplay sequence FIRST (so a pending scheduled section
+    // advance can't restart playback) then stop every player.
+    function stopAll() {
+        cancelSection();
+        clock.clear();
+    }
+
     // Soft reload — recover from a stuck engine without a page refresh.
     function softReload() {
         try {
@@ -848,7 +855,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Alt-S':          (cm) => { const n = soloPlayerAtCursor(cm, clock); if (n) broadcastAction('solo', { name: n }); },
             'Ctrl-Alt-S':     ()   => { _unsoloFn(clock); broadcastAction('unsolo'); },
             'Alt-O':          (cm) => { const n = soloDropAtCursor(cm, clock, 8); if (n) broadcastAction('soloDrop', { name: n, beats: 8 }); },
-            'Ctrl-;':         ()   => clock.clear(),
+            'Ctrl-;':         ()   => stopAll(),
             'Ctrl-Alt-;':     ()   => stopAutoplay(),
             'Ctrl-Alt-P':     ()   => { if (!jumpToActive()) log('no active part', 'info'); },
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
@@ -869,7 +876,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // ── UI wiring ─────────────────────────────────────────────────────────────
     document.getElementById('btn-boot').onclick  = bootAudio;
     document.getElementById('btn-run').onclick   = runSelected;
-    document.getElementById('btn-stop').onclick  = () => clock.clear();
+    document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
     document.getElementById('bpm-input').oninput = (e) => { clock.bpm = Number(e.target.value); };
 
@@ -920,7 +927,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === '.' || e.code === 'Period')) {
             e.preventDefault();
-            clock.clear();   // same as the "stop all" button (local, like the button)
+            stopAll();   // same as the "stop all" button (local, like the button)
             log('stopped all', 'info');
         }
     });
