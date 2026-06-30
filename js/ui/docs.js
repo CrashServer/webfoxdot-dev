@@ -124,11 +124,17 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha21';
+export const VERSION = 'alpha22';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha21', title: 'MIDI out + more control curves + loops', items: [
+    { v: 'alpha22', title: 'Server usage logging (sessions + solo)', items: [
+        'Collab server now logs a [status] line after each change — total instances, the live sessions with per-room counts, and how many people are using it solo. e.g. [status] instances: 4 · sessions: myjam(2) · solo: 2',
+        'Solo-usage visibility: running without a ?session= now registers a lightweight presence with the collab server (a keepalive ping only — no audio or edit data) so solo players show up in the count. Silent no-op if the collab server isn\'t reachable',
+    ]},
+    { v: 'alpha21', title: 'MIDI out, control curves, loops + per-effect FX engine', items: [
+        'FX engine rebuilt to per-effect on-demand nodes: each effect is its own SynthDef (fd_fx_*) instead of one always-on chain computing all 32 effects every block. A player runs only the effects it uses — absent effects cost zero CPU, so stacking multiple FX-heavy players no longer drops out. A bare player (no FX) bypasses the FX graph entirely; FX n_set updates are diffed; per-step/per-eval overhead trimmed',
+        'Fixes: multi-line defsynth; synth params that collided with FX-key names (choir/organ/compkick → vox/cutoff/crunch); boot matches the audio device sample rate (fixes a Firefox hang when another tab held the device)',
         { t: 'MIDI out — drive external/virtual MIDI gear from a player: m1 >> midiout([0,2,4], channel=1, oct=5, dur=1) sends note-on/off to a MIDI port. Velocity follows amp, note length follows sus/leg, groups make chords ((0,4,7)), and degree/transposition/.every/.stutter all work like a synth. Notes are scheduled sub-beat-accurate (performance.now() timestamps) so they stay phase-locked to the internal synths. Pick the output port in the MIDI panel; route through a virtual port (IAC / loopMIDI / ALSA-JACK) to reach a DAW. Stop / Ctrl+. sends all-notes-off', ex: 'midi' },
         { t: 'midi()/mlearn() curves — beyond lin and exp: log, quad, cubic, sqrt, and s (smoothstep). exp now eases-in on 0-based ranges instead of going linear. The MIDI panel lists the curves and labels each active binding', ex: 'midi' },
         { t: 'loop() — beat-synced audio-loop player. loadloop(name, url) registers a loop buffer; b1 >> loop("break", dur=8) plays it time-stretched to lock to 8 beats. opts: amp/pan/rate/sample/pos/stretch/looping. (Ported from FoxDot loop; included here for the first published build.)', ex: 'loop' },

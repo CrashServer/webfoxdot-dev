@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">WebFoxDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α21</span>
+      <span id="version-tag" class="version-tag" title="changelog">α22</span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -181,6 +181,7 @@
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
+    import { initSoloPresence }          from './js/collab/presence.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
 
@@ -1277,6 +1278,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }).catch(err => {
             log(`Collab failed: ${err.message}`, 'error');
         });
+    } else {
+        // Solo (no session) — register lightweight presence so the collab server
+        // can count solo usage. Silent no-op if the collab server isn't reachable.
+        initSoloPresence();
     }
 
     // ── Load / latency meter ──────────────────────────────────────────────────
