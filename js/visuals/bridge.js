@@ -75,9 +75,21 @@ function _tick() {
     });
 }
 
-// Code reactivity — call when a line/block is evaluated.
-export function postCode(text) {
-    if (text && _chan) chan().postMessage({ t: 'code', text: String(text).slice(0, 2000) });
+// Code reactivity — call when a line/block is evaluated. name/color identify the
+// author (self or a session peer) so the visuals can colour per performer.
+export function postCode(text, name = '', color = '') {
+    if (text && _chan) chan().postMessage({ t: 'code', text: String(text).slice(0, 2000), name, color });
+}
+
+// Instant code — the line currently under the cursor, streamed as you type/move
+// (throttled). Shows a live "now editing" line in the visuals before you evaluate.
+let _lastInstant = 0;
+export function postInstant(text, line, name = '', color = '') {
+    if (!_chan) return;
+    const now = performance.now();
+    if (now - _lastInstant < 80) return;       // ~12/s
+    _lastInstant = now;
+    chan().postMessage({ t: 'instant', text: String(text || '').slice(0, 200), line, name, color });
 }
 
 // Per-note attack — call from the step listener. Throttled so dense 16th-note

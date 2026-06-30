@@ -23,6 +23,20 @@ let scene = 0, auto = true;
 let flash = 0, pulse = 0, beatPulse = 0;   // bar / attack / beat transients
 let glitch = 0, bigFlash = 0, calm = 0;    // structural triggers
 let lastBeat = -1;
+let editing = null;                        // {runs, text, name, color} — instant code
+let bpmFlash = 0;                          // transient on a tempo change
+
+// hex "#rrggbb" → hue 0..1 (used so each performer's cursor colour tints the scene)
+function hexHue(hex) {
+    if (!hex || hex[0] !== '#' || hex.length < 7) return null;
+    const r = parseInt(hex.slice(1, 3), 16) / 255,
+          g = parseInt(hex.slice(3, 5), 16) / 255,
+          b = parseInt(hex.slice(5, 7), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d === 0) return null;
+    let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (((h * 60) + 360) % 360) / 360;
+}
 
 function resize() {
     W = cv.width  = Math.floor(window.innerWidth);
@@ -68,8 +82,8 @@ function tokenise(text) {
 }
 const TOKCOL = { player: '#39d8ff', synth: '#ffd23f', fn: '#7ee787', num: '#ff5fae', str: '#c08bff', word: '#a8b4be', dim: '#5a6a74' };
 
-function onCode(text) {
-    text = text.trim().split('\n').pop();
+function onCode(m) {
+    let text = (m.text || '').trim().split('\n').pop();
     if (!text || text.startsWith('#')) return;
     // structural triggers
     if (/\bchaos\s*\(/.test(text))                     glitch = 1.3;
@@ -79,8 +93,10 @@ function onCode(text) {
     if (pm) { live.player = pm[1]; live.synth = pm[2]; }
     const p = {};
     for (const mm of text.matchAll(/([a-zA-Z_]\w*)\s*=\s*(-?\d+\.?\d*)/g)) p[mm[1]] = parseFloat(mm[2]);
-    // hue: player identity, nudged by cutoff / oct
-    live.hue = live.player ? playerHue(live.player) : (live.hue + 0.13) % 1;
+    // hue: the author's cursor colour (multiplayer identity) first, else the player
+    // name; cutoff / oct then nudge it.
+    const ah = hexHue(m.color);
+    live.hue = ah != null ? ah : (live.player ? playerHue(live.player) : (live.hue + 0.13) % 1);
     if (p.cutoff != null) live.hue = (live.hue + Math.min(0.5, p.cutoff / 18000)) % 1;
     else if (p.oct != null) live.hue = (live.hue + (p.oct % 8) / 16) % 1;
     if (p.amp != null) live.bright = 0.4 + Math.min(1.4, p.amp);
@@ -88,7 +104,7 @@ function onCode(text) {
     const s = sceneFor(live.synth);
     if (auto && s) scene = SCENES.indexOf(s);
     flash = 1; calm = Math.max(0, calm - 0.6);
-    codeLines.push({ runs: tokenise(text), born: performance.now(), len: text.length });
+    codeLines.push({ runs: tokenise(text), born: performance.now(), len: text.length, name: m.name || '', color: m.color || '' });
     if (codeLines.length > 9) codeLines.shift();
 }
 
@@ -100,10 +116,15 @@ chan.onmessage = (e) => {
     if (m.t === 'audio') {
         A.bass = lerp(A.bass, m.bass, 0.5); A.mid = lerp(A.mid, m.mid, 0.5);
         A.treble = lerp(A.treble, m.treble, 0.5); A.level = lerp(A.level, m.level, 0.5);
+        if (Math.abs(m.bpm - A.bpm) >= 1) bpmFlash = 1;   // tempo changed → transient
         A.bpm = m.bpm; A.beat = m.beat;
         const fb = Math.floor(m.beat);
         if (fb !== lastBeat) { lastBeat = fb; beatPulse = 1; if (m.bar !== A.bar) { A.bar = m.bar; flash = 1; } }
-    } else if (m.t === 'code') { onCode(m.text); }
+    } else if (m.t === 'code') { onCode(m); }
+    else if (m.t === 'instant') {
+        const text = (m.text || '').trim();
+        editing = text ? { runs: tokenise(text), text, name: m.name || '', color: m.color || '' } : null;
+    }
     else if (m.t === 'step')   { pulse = 1; }
 };
 
@@ -162,7 +183,10 @@ function drawCode(ts) {
     const fs = Math.max(13, Math.round(H / 34));
     ctx.font = `bold ${fs}px monospace`; ctx.textBaseline = 'alphabetic';
     ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
-    const x0 = Math.round(W * 0.06), baseY = Math.round(H * 0.9);
+    const x0 = Math.round(W * 0.06);
+    // the live "editing" line sits at the very bottom; evaluated lines stack above it
+    const editY = Math.round(H * 0.93);
+    const baseY = editing ? editY - fs * 1.6 : editY;
     for (let i = codeLines.length - 1; i >= 0; i--) {
         const cl = codeLines[i], fromBottom = codeLines.length - 1 - i, age = (ts - cl.born) / 1000;
         const y = baseY - fromBottom * (fs * 1.5) - Math.min(age * 4, 8);
@@ -170,7 +194,9 @@ function drawCode(ts) {
         if (alpha <= 0.02 || y < 0) continue;
         const reveal = fromBottom === 0 ? Math.min(cl.len, Math.ceil(age / 0.35 * cl.len)) : cl.len;
         ctx.globalAlpha = alpha;
-        let cx = x0, shown = 0;
+        let cx = x0;
+        if (cl.name) { ctx.fillStyle = cl.color || '#39d8ff'; ctx.fillText(cl.name + ' ', cx, y); cx += ctx.measureText(cl.name + ' ').width; }
+        let shown = 0;
         for (const run of cl.runs) {
             let s = run.s;
             if (shown + s.length > reveal) s = s.slice(0, Math.max(0, reveal - shown));
@@ -182,6 +208,15 @@ function drawCode(ts) {
             ctx.fillStyle = '#39d8ff'; ctx.globalAlpha = alpha * (0.4 + 0.6 * Math.abs(Math.sin(ts / 120)));
             ctx.fillText('▌', cx, y);
         }
+    }
+    // live "now editing" line (instant code) — dim, prompt + blinking caret
+    if (editing) {
+        ctx.globalAlpha = 0.65;
+        let cx = x0;
+        ctx.fillStyle = editing.color || '#5a6a74'; ctx.fillText('› ', cx, editY); cx += ctx.measureText('› ').width;
+        for (const run of editing.runs) { ctx.fillStyle = TOKCOL[run.cls] || '#a8b4be'; ctx.fillText(run.s, cx, editY); cx += ctx.measureText(run.s).width; }
+        ctx.fillStyle = '#39d8ff'; ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(ts / 110));
+        ctx.fillText('▌', cx, editY);
     }
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     ctx.font = `${CELL}px monospace`; ctx.textBaseline = 'top';
@@ -203,9 +238,11 @@ function frame(ts) {
     requestAnimationFrame(frame);
     if (document.hidden || ts - last < 1000 / FPS) return;
     last = ts;
-    flash *= 0.82; pulse *= 0.8; beatPulse *= 0.78; glitch *= 0.9; bigFlash *= 0.86; calm *= 0.98;
+    flash *= 0.82; pulse *= 0.8; beatPulse *= 0.78; glitch *= 0.9; bigFlash *= 0.86; calm *= 0.98; bpmFlash *= 0.9;
     live.speed = lerp(live.speed, 1, 0.02);
-    const t = ts / 1000 * live.speed;
+    // tempo drives animation speed: faster BPM → faster motion
+    const t = ts / 1000 * live.speed * ((A.bpm || 120) / 120);
+    flash = Math.max(flash, bpmFlash);
     const name = SCENES[scene];
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     const useCode = name === 'rain' && codeLines.length;

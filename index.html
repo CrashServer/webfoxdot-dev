@@ -203,7 +203,7 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, postCode, postStep } from './js/visuals/bridge.js';
+    import { openVisuals, startVisualsAudio, postCode, postStep, postInstant } from './js/visuals/bridge.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -446,7 +446,7 @@
     // time. Keyed by transpiled source + ctx key-count (a new defsynth appends a
     // key → count changes → recompile; same block, no new synth → cache hit).
     const _fnCache = new Map();
-    function runCode(raw, { fromRemote = false } = {}) {
+    function runCode(raw, { fromRemote = false, author = '', color = '' } = {}) {
         let js = transpile(raw.trim());
         js = applyRenames(js);
         log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');
@@ -460,7 +460,8 @@
                 _fnCache.set(js, entry);
             }
             entry.fn(...Object.values(ctx));
-            postCode(raw.trim());           // code reactivity → visuals window
+            // code reactivity → visuals window (tagged with the author: self or peer)
+            { const u = getUser(); postCode(raw.trim(), author || u.name, color || u.color); }
         } catch (e) {
             log(`Error: ${e.message}`, 'error');
             console.error('transpiled:\n' + js, e);
@@ -923,6 +924,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             }, 400);
         });
     }
+
+    // Stream the line under the cursor to the visuals window as you type/move it
+    // ("instant code"). Throttled inside the bridge.
+    editor.on('cursorActivity', () => {
+        const c = editor.getCursor();
+        const u = getUser();
+        postInstant(editor.getLine(c.line) || '', c.line, u.name, u.color);
+    });
 
     // ── UI wiring ─────────────────────────────────────────────────────────────
     document.getElementById('btn-boot').onclick  = bootAudio;
@@ -1432,7 +1441,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
-            runCode(msg.code, { fromRemote: true });
+            runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color });
         }, applyAction, renderPeers, appendChat).then(collab => {
             _collab = collab;
             log(`Session ready. Share: ${location.href}`, 'ok');
