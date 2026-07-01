@@ -34,6 +34,9 @@ let curHue = 0.5, hueTarget = 0.5;
 let flash = 0, pulse = 0, beatPulse = 0, glitch = 0, bigFlash = 0, calm = 0, bpmFlash = 0;
 let lastBeat = -1, editing = null;
 const codeLines = [];
+let mode = 'scenes';                              // 'scenes' (audio autopilot) | 'code' (per-player)
+let players = [];                                 // live snapshot from the bridge
+const pmap = {};                                  // name → { step, pulse } for step flashes
 let cols = 0, rows = 0, W = 0, H = 0, vgrad = null;
 // post-FX as smoothed intensities (0..1), driven by the director (or keys when manual)
 const fx  = { trails: 0, scan: 0, vignette: 0.2, invert: false, posterize: 0 };
@@ -144,10 +147,15 @@ chan.onmessage = (e) => {
     } else if (m.t === 'code') { onCode(m); }
     else if (m.t === 'instant') { const x = (m.text || '').trim(); editing = x ? { runs: tokenise(x), name: m.name || '', color: m.color || '' } : null; }
     else if (m.t === 'step') { pulse = 1; }
+    else if (m.t === 'players') {
+        players = m.list || [];
+        for (const pl of players) { const s = pmap[pl.name] || (pmap[pl.name] = { step: -1, pulse: 0 }); if (pl.step !== s.step) { s.step = pl.step; s.pulse = 1; } }
+    }
 };
 
 // ── keys (optional overrides; touching one drops out of auto) ────────────────────
 addEventListener('keydown', (e) => {
+    if (e.key === 'm') { mode = mode === 'scenes' ? 'code' : 'scenes'; return; }
     if (e.key === 'a') { auto = !auto; return; }
     if (e.key === ' ') { auto = false; startTransition((scene + 1) % SCENES.length); }
     else if (e.key === 'g') { glitch = 1.3; }
@@ -330,6 +338,50 @@ function drawCode(ts) {
     ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.font = `${CELL}px monospace`; ctx.textBaseline = 'top';
 }
 
+// ── code-truthful mode: one panel per active player, reactive to its own code ────
+function drawCodeMode(t) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    if (!players.length) {
+        ctx.fillStyle = '#5a6a74'; ctx.font = '16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('code mode — run some players', W / 2, H / 2);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `${CELL}px monospace`;
+        return;
+    }
+    const n = players.length, gc = Math.ceil(Math.sqrt(n)), gr = Math.ceil(n / gc), cw = W / gc, ch = H / gr;
+    for (let i = 0; i < n; i++) drawPlayerCell(players[i], (i % gc) * cw, Math.floor(i / gc) * ch, cw, ch, t);
+}
+function drawPlayerCell(pl, x, y, w, h, t) {
+    const idHue = playerHue(pl.name);                 // player identity
+    const octHue = (pl.oct * 0.08 + 0.55) % 1;        // octave → colour
+    const pz = (pmap[pl.name] || {}).pulse || 0;      // step flash
+    ctx.fillStyle = `hsl(${idHue * 360} 55% ${7 + pz * 10}%)`; ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+    ctx.lineWidth = 1.5 + pz * 4; ctx.strokeStyle = `hsl(${idHue * 360} 85% ${45 + pz * 30}%)`; ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+    // reactive wave: degree → frequency + vertical position, oct → hue/speed, amp → amplitude, step → pulse
+    const freq = Math.abs(pl.deg || 0) + 1;
+    const degOff = pl.deg == null ? 0 : -(pl.deg / 14);
+    const midY = y + h * (0.55 + degOff * 0.3);
+    const amp = h * 0.26 * (0.35 + pl.amp) * (1 + pz * 0.7);
+    ctx.beginPath();
+    for (let px = 3; px < w - 3; px += 3) {
+        const yy = midY + Math.sin((px / w) * freq * 3.2 + t * (2 + pl.oct * 0.25)) * amp;
+        px === 3 ? ctx.moveTo(x + px, yy) : ctx.lineTo(x + px, yy);
+    }
+    ctx.strokeStyle = `hsl(${octHue * 360} 90% ${58 + pz * 22}%)`; ctx.lineWidth = 2; ctx.stroke();
+    // labels — the actual code state
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = `hsl(${idHue * 360} 90% 72%)`; ctx.font = 'bold 14px monospace';
+    ctx.fillText(`${pl.name} ▸ ${pl.synth}`, x + 8, y + 7);
+    ctx.fillStyle = '#cdd6dd'; ctx.font = '12px monospace';
+    ctx.fillText(`deg ${pl.deg == null ? '·' : Math.round(pl.deg)}   oct ${pl.oct}   amp ${pl.amp.toFixed(2)}`, x + 8, y + 25);
+    // fx tags — which effects are on this player
+    const keys = Object.keys(pl.fx || {}); let fxx = x + 8; ctx.font = '11px monospace';
+    for (const k of keys) {
+        const tag = k + ' '; if (fxx + ctx.measureText(tag).width > x + w - 8) break;
+        ctx.fillStyle = `hsl(${octHue * 360} 70% 62%)`; ctx.fillText(k, fxx, y + h - 20); fxx += ctx.measureText(tag).width;
+    }
+    ctx.font = `${CELL}px monospace`;
+}
+
 // ── render loop ──────────────────────────────────────────────────────────────────
 let last = 0;
 function frame(ts) {
@@ -337,8 +389,17 @@ function frame(ts) {
     if (document.hidden || ts - last < 1000 / FPS) return;
     const dt = Math.min(60, ts - last); last = ts;
     flash *= 0.82; pulse *= 0.8; beatPulse *= 0.78; glitch *= 0.9; bigFlash *= 0.86; calm *= 0.98; bpmFlash *= 0.9;
+    for (const k in pmap) pmap[k].pulse *= 0.85;
     flash = Math.max(flash, bpmFlash);
     if (sceneStart === 0) sceneStart = ts;
+
+    // code-truthful mode: a panel per active player, driven by its own degree/oct/fx
+    if (mode === 'code') {
+        const tt = ts / 1000 * ((A.bpm || 120) / 120);
+        drawCodeMode(tt);
+        hud.textContent = `code mode  ·  ${players.length} player${players.length === 1 ? '' : 's'}  ·  ${A.bpm | 0} bpm  ·  [m] scenes`;
+        return;
+    }
     // smooth hue toward target (or a scene's fixed hue)
     const sceneName = SCENES[mix < 1 ? nextScene : scene];
     const hTo = SCENE_HUE[sceneName] != null ? SCENE_HUE[sceneName] : hueTarget;

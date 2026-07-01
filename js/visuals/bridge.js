@@ -7,6 +7,12 @@
 //   openVisuals()              → open (or focus) the visuals.html pop-up window
 //   startVisualsAudio(sc,clock)→ tap scsynth output + start pushing audio/beat
 //   postCode(text)             → push an evaluated line (code reactivity)
+//
+// It also pushes a per-tick snapshot of every ACTIVE player (name, synth, current
+// degree/oct/amp, FX values, step) for the code-truthful visualisation mode.
+
+import { patGet, isGroup } from '../patterns/sequences.js';
+import { FX_KEYS }         from '../fx/registry.js';
 
 let _chan  = null;
 let _win   = null;
@@ -73,6 +79,32 @@ function _tick() {
         beat: now,
         bar: Math.floor(now / 4),
     });
+    chan().postMessage({ t: 'players', list: _snapshotPlayers() });
+}
+
+// A live descriptor of every active player — for the code-truthful mode.
+function _snapshotPlayers() {
+    const cl = _clock;
+    if (!cl || !cl._players) return [];
+    const out = [];
+    for (const [name, p] of cl._players) {
+        if (!p._active) continue;
+        const a = p._mode === 'synth' ? p._args
+                : p._mode === 'sample' ? p._playOpts
+                : p._mode === 'loop'   ? p._loopOpts
+                : p._midiOpts;
+        if (!a) continue;
+        const at = (v) => isGroup(v) ? patGet(v.__group[0], p._step) : patGet(v, p._step);
+        let deg = null;
+        if (p._mode === 'synth' || p._mode === 'midiout') { const d = at(a.degree); deg = typeof d === 'number' ? d : null; }
+        const fx = {};
+        for (const k of Object.keys(a)) if (FX_KEYS.has(k)) { const v = at(a[k]); if (typeof v === 'number') fx[k] = v; }
+        out.push({
+            name, synth: p._mode === 'synth' ? p._synth : p._mode, step: p._step,
+            deg, oct: Number(at(a.oct)) || 5, amp: Number(at(a.amp)) || 0.7, dur: Number(at(a.dur)) || 1, fx,
+        });
+    }
+    return out;
 }
 
 // Code reactivity — call when a line/block is evaluated. name/color identify the
