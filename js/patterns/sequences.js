@@ -673,6 +673,160 @@ export function PLife(chaos = 0, low = 0, high = 1, steps = 16) {
     }};
 }
 
+// ── Harmony & chords ──────────────────────────────────────────────────────────
+// Chords are built diatonically — as offsets in SCALE DEGREES from a root degree
+// (stack of thirds = +0,+2,+4…), so the quality follows the current Scale/Root
+// automatically (PChord(0) in major = major triad, PChord(1) = the ii minor).
+// Each chord is a _group → its notes fire simultaneously.
+const _CHORD_TYPES = {
+    '': [0, 2, 4], 'triad': [0, 2, 4], '3': [0, 2, 4],
+    '5': [0, 4], 'power': [0, 4], 'oct': [0, 7],
+    '6': [0, 2, 4, 5], '7': [0, 2, 4, 6], 'maj7': [0, 2, 4, 6], 'm7': [0, 2, 4, 6],
+    '9': [0, 2, 4, 6, 8], '11': [0, 2, 4, 6, 8, 10], '13': [0, 2, 4, 6, 8, 10, 12],
+    'sus2': [0, 1, 4], 'sus4': [0, 3, 4], 'add9': [0, 2, 4, 7],
+};
+
+// PChord(degree, type) — a diatonic chord group on `degree`. e.g. PChord(0, "7").
+export function PChord(degree = 0, type = '') {
+    const off = _CHORD_TYPES[String(type).toLowerCase().trim()] || _CHORD_TYPES[''];
+    return _group(...off.map(o => degree + o));
+}
+
+// Roman-numeral → scale degree (I/i=0 … VII/vii=6). Case is ignored (quality is
+// diatonic anyway); a trailing suffix (7, 9, sus4…) selects the chord type.
+const _ROMAN = { i: 0, ii: 1, iii: 2, iv: 3, v: 4, vi: 5, vii: 6 };
+function _parseRoman(tok) {
+    const m = String(tok).trim().match(/^([ivx]+)(.*)$/i);
+    if (!m) return null;
+    const deg = _ROMAN[m[1].toLowerCase()];
+    if (deg === undefined) return null;
+    return { deg, type: m[2] };
+}
+
+// PRoman("I IV V vi") — a progression: each numeral becomes a diatonic chord
+// group, stepping one chord per step. Suffixes work: "V7", "ii7", "Isus4".
+export function PRoman(str) {
+    return String(str).split(/[\s,|]+/).filter(Boolean).map(t => {
+        const p = _parseRoman(t); return p ? PChord(p.deg, p.type) : 0;
+    });
+}
+
+// PProg(name) — a named chord progression (→ PRoman). Unknown names are treated
+// as a roman string. e.g. PProg("50s"), PProg("251"), PProg("I V vi IV").
+const _PROGS = {
+    '50s': 'I vi IV V', 'doowop': 'I vi IV V',
+    'pop': 'I V vi IV', 'axis': 'I V vi IV',
+    '251': 'ii V I', 'jazz': 'ii V I',
+    'blues': 'I I I I IV IV I I V IV I V',
+    'andalusian': 'i VII VI V', 'andalus': 'i VII VI V',
+    'minor': 'i iv v', 'canon': 'I V vi iii IV I IV V', 'pachelbel': 'I V vi iii IV I IV V',
+};
+export function PProg(name = '50s') {
+    return PRoman(_PROGS[String(name).toLowerCase()] || name);
+}
+
+// ── Rhythm vocabulary ─────────────────────────────────────────────────────────
+
+// Classic clave / bell onset positions on a 16-step grid.
+const _CLAVES = {
+    'son': [0, 3, 6, 10, 12], 'rumba': [0, 3, 7, 10, 12], 'bossa': [0, 3, 6, 10, 13],
+    'shiko': [0, 4, 6, 10, 12], 'soukous': [0, 3, 6, 10, 11], 'gahu': [0, 3, 6, 10, 14],
+    'son23': [4, 6, 10, 13, 16].map(x => x % 16), 'rumba23': [4, 7, 10, 13, 16].map(x => x % 16),
+};
+// PClave(name, hit, rest) — a 16-step clave play() string. e.g. play(PClave("son")).
+export function PClave(name = 'son', hit = 'x', rest = '.') {
+    const set = new Set(_CLAVES[String(name).toLowerCase()] || _CLAVES['son']);
+    let s = ''; for (let i = 0; i < 16; i++) s += set.has(i) ? hit : rest;
+    return s;
+}
+
+// PRhythm([1, (3,8)]) — FoxDot's rhythm parser: any (a,b) tuple/group or [a,b]
+// list expands to its PDur(a,b) durations inline; plain numbers pass through.
+export function PRhythm(durations) {
+    const arr = Array.isArray(durations) ? durations : [durations];
+    const out = [];
+    for (const item of arr) {
+        const grp = isGroup(item) ? item.__group : (Array.isArray(item) ? item : null);
+        if (grp && grp.length >= 2) { for (const d of PDur(grp[0], grp[1])) out.push(d); }
+        else out.push(item);
+    }
+    return out;
+}
+
+// PPoly(a, b, span=1) — cross-rhythm: merge an a-pulse and a b-pulse evenly over
+// `span` beats, returning the gap durations. PPoly(3, 4) → a 3-against-4 groove.
+export function PPoly(a, b, span = 1) {
+    const pts = new Set();
+    for (let i = 0; i < a; i++) pts.add(i / a);
+    for (let i = 0; i < b; i++) pts.add(i / b);
+    const s = [...pts].sort((x, y) => x - y), out = [];
+    for (let i = 0; i < s.length; i++) out.push(((i + 1 < s.length ? s[i + 1] : 1) - s[i]) * span);
+    return out;
+}
+
+// ── Chaos & dynamical systems ─────────────────────────────────────────────────
+// Value streams from chaotic maps, normalised into [lo, hi]. Deterministic once
+// seeded, but non-repeating — great for organic drift on any param.
+
+// PLogistic(r, x0, lo, hi) — the logistic map x←r·x·(1-x). r≈3.6–4 is chaotic.
+export function PLogistic(r = 3.9, x0 = 0.5, lo = 0, hi = 1) {
+    let x = x0;
+    return { get: () => { x = r * x * (1 - x); return lo + (hi - lo) * Math.min(1, Math.max(0, x)); } };
+}
+
+// PBrown(lo, hi, step) — brownian random walk (float), reflecting at the bounds.
+export function PBrown(lo = 0, hi = 1, step = 0.1) {
+    let x = (lo + hi) / 2;
+    return { get: () => {
+        x += (Math.random() * 2 - 1) * step * (hi - lo);
+        if (x < lo) x = lo + (lo - x); if (x > hi) x = hi - (x - hi);
+        x = Math.min(hi, Math.max(lo, x)); return x;
+    } };
+}
+
+// PHenon(lo, hi, a, b) / PLorenz(lo, hi, dt) — strange-attractor coordinate
+// streams (the classic Hénon map / Lorenz system), mapped into [lo, hi].
+export function PHenon(lo = 0, hi = 1, a = 1.4, b = 0.3) {
+    let x = 0, y = 0;
+    return { get: () => { const nx = 1 - a * x * x + y; y = b * x; x = nx; return lo + (hi - lo) * Math.min(1, Math.max(0, (x + 1.3) / 2.6)); } };
+}
+export function PLorenz(lo = 0, hi = 1, dt = 0.01) {
+    let x = 0.1, y = 0, z = 0; const s = 10, rr = 28, bb = 8 / 3;
+    return { get: () => {
+        for (let k = 0; k < 8; k++) { const dx = s * (y - x), dy = x * (rr - z) - y, dz = x * y - bb * z; x += dx * dt; y += dy * dt; z += dz * dt; }
+        return lo + (hi - lo) * Math.min(1, Math.max(0, (x + 20) / 40));
+    } };
+}
+
+// ── Number sequences ──────────────────────────────────────────────────────────
+
+// PPrime(start=2) — successive prime numbers from `start`.
+export function PPrime(start = 2) {
+    const isP = (n) => { if (n < 2) return false; for (let i = 2; i * i <= n; i++) if (n % i === 0) return false; return true; };
+    const cache = []; let n = Math.max(2, Math.floor(start));
+    return { get: (i) => { i = i | 0; while (cache.length <= i) { while (!isP(n)) n++; cache.push(n++); } return cache[i]; } };
+}
+
+// PThue() — the Thue–Morse sequence (parity of set bits): 0,1,1,0,1,0,0,1,…
+// Self-similar and non-periodic — a great gate for evolving rhythms/amps.
+export function PThue() { return { get: (i) => { let b = 0, x = i | 0; while (x) { b ^= (x & 1); x >>= 1; } return b; } }; }
+
+// PGrowArp(seq) — a growing arpeggio: [a], [a,b], [a,b,c]… flattened.
+//   PGrowArp([0,2,4,7]) → 0, 0,2, 0,2,4, 0,2,4,7
+export function PGrowArp(seq) {
+    const a = Array.isArray(seq) ? seq : [seq], out = [];
+    for (let n = 1; n <= a.length; n++) for (let j = 0; j < n; j++) out.push(a[j]);
+    return out;
+}
+
+// PTree(seed, depth, step) — a self-similar melody (L-system): each degree d
+// expands to [d, d+step], applied `depth` times. PTree([0],3,2) → 0,2,2,4,2,4,4,6.
+export function PTree(seed = [0], depth = 3, step = 2) {
+    let cur = (Array.isArray(seed) ? seed : [seed]).slice();
+    for (let d = 0; d < depth; d++) { const next = []; for (const v of cur) next.push(v, v + step); cur = next; }
+    return cur;
+}
+
 // unison(n, detune, spread) — pan positions + semitone pshift offsets (FoxDot
 // formula). spread (0–100, default 100) scales the stereo width of the voices.
 export function unisonSpread(n, detune, spread = 100) {

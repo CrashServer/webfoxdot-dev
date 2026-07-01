@@ -97,6 +97,7 @@ const PATTERN_NAMES = [
     'Pacc','PSwing','PBin','PFDur','PLife','PEuclid2','PFr','PGauss','PArp','PStretch','PZip','PReverse','PMorse',
     'PDrum','PwRand','PxRand','PLog','PTime','PSum','PDelta','PIndex','PSquare','PFib','PBeat','PJoin','PDelay',
     'P10','PSaw','PSq','PZero','PBool','PFibMod','PPairs','PChar','PQuicken','PStrum','PZip2','PZ12',
+    'PChord','PRoman','PProg','PClave','PRhythm','PPoly','PLogistic','PBrown','PHenon','PLorenz','PPrime','PThue','PGrowArp','PTree',
 ];
 
 // Autocomplete inserts a full, closed call with coherent default values (0 when
@@ -117,6 +118,10 @@ const PATTERN_TEMPLATES = {
     PZero: 'PZero()', PBool: 'PBool([1, 0, 1, 1])', PFibMod: 'PFibMod()', PPairs: 'PPairs([0, 2, 4])',
     PChar: 'PChar("hello")', PQuicken: 'PQuicken(0.5, 3, 6)', PStrum: 'PStrum(4)',
     PZip2: 'PZip2([0, 2], [4, 7])', PZ12: 'PZ12([1, 0], [1, 0.5])',
+    PChord: 'PChord(0, "7")', PRoman: 'PRoman("I V vi IV")', PProg: 'PProg("50s")',
+    PClave: 'PClave("son")', PRhythm: 'PRhythm([1, (3, 8)])', PPoly: 'PPoly(3, 4)',
+    PLogistic: 'PLogistic(3.9)', PBrown: 'PBrown(0, 8)', PHenon: 'PHenon(0, 8)', PLorenz: 'PLorenz(0, 8)',
+    PPrime: 'PPrime(2)', PThue: 'PThue()', PGrowArp: 'PGrowArp([0, 2, 4, 7])', PTree: 'PTree([0], 3, 2)',
 };
 const patItem = (n) => item(PATTERN_TEMPLATES[n] || (n + '('), 'hint-pattern', n);
 
