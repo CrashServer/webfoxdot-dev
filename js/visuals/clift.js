@@ -35,6 +35,7 @@ let flash = 0, pulse = 0, beatPulse = 0, glitch = 0, bigFlash = 0, calm = 0, bpm
 let lastBeat = -1, editing = null;
 const codeLines = [];
 let mode = 'scenes';                              // 'scenes' (audio autopilot) | 'code' (per-player)
+let lastMsgTs = 0;                                 // when the bridge last sent anything (connection status)
 let players = [];                                 // live snapshot from the bridge
 const pmap = {};                                  // name → { step, pulse } for step flashes
 let cols = 0, rows = 0, W = 0, H = 0, vgrad = null;
@@ -131,6 +132,7 @@ function maybeSwitch(nowMs) {              // called on each new bar
 // ── data in ───────────────────────────────────────────────────────────────────
 const chan = new BroadcastChannel('crashdot-visuals');
 chan.onmessage = (e) => {
+    lastMsgTs = performance.now();
     const m = e.data;
     if (m.t === 'audio') {
         A.bass = lerp(A.bass, m.bass, 0.5); A.mid = lerp(A.mid, m.mid, 0.5);
@@ -382,6 +384,25 @@ function drawPlayerCell(pl, x, y, w, h, t) {
     ctx.font = `${CELL}px monospace`;
 }
 
+// connection status: a corner dot, plus a centred hint while no data is arriving
+function drawStatus(ts) {
+    const waiting = ts - lastMsgTs > 1500;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(W - 16, 16, 5, 0, Math.PI * 2);
+    ctx.fillStyle = waiting ? '#e0a030' : '#3fb950';
+    if (!waiting) { ctx.shadowColor = '#3fb950'; ctx.shadowBlur = 8; }
+    ctx.fill(); ctx.shadowBlur = 0;
+    if (waiting) {
+        ctx.globalAlpha = 0.85; ctx.fillStyle = '#000'; ctx.fillRect(0, H / 2 - 34, W, 68);
+        ctx.fillStyle = '#e0a030'; ctx.font = '18px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('◌  waiting for crashDot', W / 2, H / 2 - 10);
+        ctx.fillStyle = '#8a97a0'; ctx.font = '13px monospace';
+        ctx.fillText('boot audio + run code in the main window', W / 2, H / 2 + 14);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `${CELL}px monospace`;
+    }
+    ctx.restore();
+}
+
 // ── render loop ──────────────────────────────────────────────────────────────────
 let last = 0;
 function frame(ts) {
@@ -397,6 +418,7 @@ function frame(ts) {
     if (mode === 'code') {
         const tt = ts / 1000 * ((A.bpm || 120) / 120);
         drawCodeMode(tt);
+        drawStatus(ts);
         hud.textContent = `code mode  ·  ${players.length} player${players.length === 1 ? '' : 's'}  ·  ${A.bpm | 0} bpm  ·  [m] scenes`;
         return;
     }
@@ -433,6 +455,7 @@ function frame(ts) {
     if (fx.vignette > 0.02 && vgrad) { ctx.globalAlpha = fx.vignette; ctx.fillStyle = vgrad; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     drawCode(ts);
     if (bigFlash > 0.02) { ctx.fillStyle = `rgba(255,255,255,${bigFlash * 0.5})`; ctx.fillRect(0, 0, W, H); }
+    drawStatus(ts);
 
     hud.textContent = `${SCENES[scene]}${mix < 1 ? '→' + SCENES[nextScene] : ''}  ·  ${A.bpm | 0} bpm  ·  `
                     + `${live.player || '—'} ▸ ${live.synth || '—'}  ·  e${(energy * 99) | 0} ${momentum > 0.03 ? '↑' : momentum < -0.03 ? '↓' : '·'}`
