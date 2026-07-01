@@ -751,6 +751,22 @@ b2 >> play(x-o-, amplify=PLife(0.5))            # cellular-automaton amp`)}
         ${code(`d1 >> dbass(melody()[:8], dur=1/2)       # an 8-note melody, looped
 p1 >> saw([0,4,7], amp=PWhite(0.3, 1)[:8])   # 8 fixed random amps, repeating
 p1 >> saw(PRange(0, 12)[:4], oct=5)          # first 4 of a ramp`)}
+        ${note('<b>Chords &amp; progressions</b> — built in scale degrees, so the quality follows the current <code>Scale</code>/<code>Root</code>. <code>PChord</code> is one chord, <code>PRoman</code>/<code>PProg</code> are progressions, <code>PCircle</code> walks the diatonic circle of fifths (stays in key automatically).')}
+        ${code(`Scale.default = "minor"
+k1 >> pads(PRoman("i VI III VII"), oct=4, dur=4, reverb=0.4, amp=0.5)
+k2 >> prophet(PProg("251"), oct=4, dur=2)             # ii–V–I as chords
+p1 >> pluck(PCircle(8), oct=5, dur=1)                 # circle-of-fifths roots
+p2 >> organ(PCircle(8, 0, "7"), oct=4, dur=2)         # …as 7th chords
+b1 >> play(PClave("son"))                             # son clave`)}
+        ${note('<b>Melody generators</b> (like <code>melody()</code>) — <code>motif(n)</code> is a frozen repeating phrase, <code>arp()</code> arpeggiates a chord, <code>PContour(shape)</code> draws a melodic shape and the scale keeps it sweet.')}
+        ${code(`p1 >> pluck(motif(4), oct=5, dur=1/2)                 # fixed 4-note motif
+p2 >> saw(PContour("arch", 8, 7), oct=5, dur=1/2)     # rise then fall
+p3 >> blip(arp([0,4,7,11], "updown"), oct=6, dur=1/4) # arpeggio up/down`)}
+        ${note('<b>Chaos &amp; feels</b> — dynamical-system streams (<code>PLogistic/PBrown/PHenon/PLorenz</code>) give organic drift on any param; <code>PGroove</code> is named dur feels; <code>PThue</code>/<code>PEuclid</code> shape accents.')}
+        ${code(`p1 >> saw([0,4,7], oct=5, lpf=PLorenz(400, 4000))     # chaotic filter drift
+p2 >> pluck([0,2,4,7], oct=5, dur=PGroove("gallop"))  # galloping durations
+b1 >> play(x.x.x., amp=PThue()*0.4 + 0.4)             # Thue–Morse accents
+d1 >> dbass([0,3,5], oct=4, dur=PDur(3, 8, rotate=1)) # euclid dur, rotated`)}
     `, 'patterns');
 
     const perf = section('Performance', `
