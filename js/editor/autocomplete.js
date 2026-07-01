@@ -59,6 +59,8 @@ const COMMON_PARAMS = ['degree','oct','amp','dur','sus','pan','attack','release'
 const FX_GROUPS = [
     { name: 'lpf',       on: 2000, params: ['lpf', 'lpf_rq'] },
     { name: 'hpf',       on: 400,  params: ['hpf', 'hpf_rq'] },
+    { name: 'bpf',       on: 1200, params: ['bpf', 'bpf_rq'] },
+    { name: 'eq3',       on: 1,    params: ['eq3', 'eqlow', 'eqmid', 'eqhigh'] },
     { name: 'crush',     on: 0.6,  params: ['crush', 'bits', 'srate'] },
     { name: 'resonbank', on: 0.3,  params: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'] },
     { name: 'rgate',     on: 0.8,  params: ['rgate', 'rgaterate', 'rgatewave'] },
@@ -88,7 +90,7 @@ function fxItem(g) {
 // FX grouped into families — the fx category unfolds into these sub-menus.
 // Anything not listed falls into an "other" bucket at the end.
 const FX_SUBCATS = [
-    ['filters',    ['lpf', 'hpf', 'resonbank', 'formant']],
+    ['filters',    ['lpf', 'hpf', 'bpf', 'eq3', 'resonbank', 'formant']],
     ['reverbs',    ['reverb', 'mverb', 'cheapverb']],
     ['delays',     ['echo', 'fbdelay']],
     ['distortion', ['crush', 'multicrush', 'tanh', 'shape', 'dist2']],

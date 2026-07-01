@@ -338,4 +338,24 @@ SynthDef(\fd_fx_sbrk, {|in_bus=64, sbrk=0, sbrkdur=0.5|
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, sbrk.clip(0, 1) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── bpf — resonant band-pass (center Hz, 0 = bypass) ────────────────────────
+// bpf_rq = bandwidth ratio (small = narrow/resonant). A mild makeup gain keeps
+// narrow bands from disappearing.
+SynthDef(\fd_fx_bpf, {|in_bus=64, bpf=0, bpf_rq=0.5|
+    var sig = In.ar(in_bus, 2), wet, rq = bpf_rq.clip(0.01, 2.0);
+    wet = BPF.ar(sig, (bpf > 0).if(bpf.clip(20, 18000), 1000), rq) * rq.reciprocal.sqrt.clip(1, 3);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (bpf > 0) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── eq3 — 3-band EQ (low shelf / mid peak / high shelf, gains in dB) ─────────
+// eq3 = dry→wet mix (0 = off). eqlow/eqmid/eqhigh in dB (±24). Frequencies and
+// mid-Q are tweakable (eqlowf/eqmidf/eqmidq/eqhighf).
+SynthDef(\fd_fx_eq3, {|in_bus=64, eq3=0, eqlow=0, eqmid=0, eqhigh=0, eqlowf=200, eqmidf=1000, eqmidq=1, eqhighf=5000|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = BLowShelf.ar(sig, eqlowf.clip(40, 2000), 1, eqlow.clip(-24, 24));
+    wet = BPeakEQ.ar(wet, eqmidf.clip(200, 8000), eqmidq.clip(0.1, 4), eqmid.clip(-24, 24));
+    wet = BHiShelf.ar(wet, eqhighf.clip(1000, 16000), 1, eqhigh.clip(-24, 24));
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, eq3.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
 "fd_fx_effects done".postln;

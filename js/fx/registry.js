@@ -18,6 +18,20 @@ export const FX_REGISTRY = {
     hpf:       { scParam: 'hpf',     default: 0,   desc: 'HPF cutoff Hz (0=off, e.g. 400)' },
     hpf_rq:    { scParam: 'hpf_rq',  default: 0.7, desc: 'HPF resonance' },
 
+    // Band-pass filter — bpf = center Hz (0 = off)
+    bpf:       { scParam: 'bpf',     default: 0,   desc: 'BPF center Hz (0=off, e.g. 1200)' },
+    bpf_rq:    { scParam: 'bpf_rq',  default: 0.5, desc: 'BPF bandwidth (0.05=narrow/resonant, 1=wide)' },
+
+    // 3-band EQ — eq3 = dry→wet mix (0 = off); low/mid/high gains in dB (±24)
+    eq3:       { scParam: 'eq3',     default: 0,    desc: '3-band EQ mix (0=off)' },
+    eqlow:     { scParam: 'eqlow',   default: 0,    desc: 'Low-shelf gain dB (±24)' },
+    eqmid:     { scParam: 'eqmid',   default: 0,    desc: 'Mid peak gain dB (±24)' },
+    eqhigh:    { scParam: 'eqhigh',  default: 0,    desc: 'High-shelf gain dB (±24)' },
+    eqlowf:    { scParam: 'eqlowf',  default: 200,  desc: 'Low-shelf frequency Hz' },
+    eqmidf:    { scParam: 'eqmidf',  default: 1000, desc: 'Mid peak frequency Hz' },
+    eqmidq:    { scParam: 'eqmidq',  default: 1,    desc: 'Mid peak Q' },
+    eqhighf:   { scParam: 'eqhighf', default: 5000, desc: 'High-shelf frequency Hz' },
+
     // DJ isolator filter (CrashServer port) — one knob, 0.5 = flat
     djf:       { scParam: 'djf',     default: 0.5, desc: 'DJ filter: 0.5=flat, <0.5 lowpass down, >0.5 highpass up' },
     djfq:      { scParam: 'djfq',    default: 0.3, desc: 'DJ filter resonance/Q' },
@@ -184,6 +198,8 @@ export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));
 export const FX_EFFECTS = [
     { scName: 'fd_fx_lpf',        keys: ['lpf', 'lpf_rq'], trig: ['lpf'] },
     { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
+    { scName: 'fd_fx_bpf',        keys: ['bpf', 'bpf_rq'], trig: ['bpf'] },
+    { scName: 'fd_fx_eq3',        keys: ['eq3', 'eqlow', 'eqmid', 'eqhigh', 'eqlowf', 'eqmidf', 'eqmidq', 'eqhighf'], trig: ['eq3'] },
     { scName: 'fd_fx_djf',        keys: ['djf', 'djfq'], trig: ['djf'] },
     { scName: 'fd_fx_crush',      keys: ['crush', 'bits', 'srate'], trig: ['crush'] },
     { scName: 'fd_fx_resonbank',  keys: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'], trig: ['resonbank'] },
