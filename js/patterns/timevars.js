@@ -55,6 +55,11 @@ export function _var(vals, durs) {
 }
 
 // Linear interpolation between adjacent values
+// lininf/expinf — ramp from start→finish over `time` beats, then hold at finish
+// (FoxDot's linvar([start,finish],[time, inf])). A huge second duration ≈ forever.
+export function lininf(start = 0, finish = 1, time = 32) { return _linvar([start, finish, finish], [time, 1e9, 1e9]); }
+export function expinf(start = 0, finish = 1, time = 32) { return _expvar([start, finish, finish], [time, 1e9, 1e9]); }
+
 export function _linvar(vals, durs) {
     const { vals: vs, durs: ds, total } = normDurs(vals, durs);
     return { isTimeVar: true, get(_) {

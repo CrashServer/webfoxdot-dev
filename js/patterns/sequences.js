@@ -147,7 +147,9 @@ export function PWalk(max = 7, step = 1, start = 0) {
 }
 
 // PDur(k, n, dur=1) — Euclidean durations: k pulses in n steps
-export function PDur(k, n, dur = 1) {
+// PDur(k, n, rotate=0, dur=1) — Euclidean durations: k pulses in n steps. `rotate`
+// cyclically shifts the resulting duration list (FoxDot's `start`).
+export function PDur(k, n, rotate = 0, dur = 1) {
     const steps = Array(n).fill(0);
     for (let i = 0; i < k; i++) steps[Math.round(i * n / k)] = 1;
     const durs = [];
@@ -157,7 +159,179 @@ export function PDur(k, n, dur = 1) {
         else acc++;
     }
     if (acc > 0) durs.push(acc * dur / n);
+    if (rotate) { const r = ((Math.round(rotate) % durs.length) + durs.length) % durs.length; return durs.slice(r).concat(durs.slice(0, r)); }
     return durs;
+}
+
+// PDrum(k, n, char) — a Euclidean drum play() string: k pulses spread over n steps.
+//   play(PDrum(5, 8))  →  "x.xx.xx."
+export function PDrum(k = 3, n = 8, char = 'x') {
+    return _euclid(n, k).map(s => (s ? char : '.')).join('');
+}
+
+// PwRand(values, weights) — weighted random pick each step (FoxDot P*[...]-style
+// with weights). PwRand([0, 4, 7], [8, 2, 1]) favours 0.
+export function PwRand(values, weights) {
+    const vals = Array.isArray(values) ? values : [values];
+    const wts  = Array.isArray(weights) ? weights : vals.map(() => 1);
+    const total = wts.reduce((a, b, i) => a + (b ?? 1), 0) || vals.length;
+    return { get: () => { let r = Math.random() * total; for (let i = 0; i < vals.length; i++) { r -= (wts[i] ?? 1); if (r <= 0) return vals[i]; } return vals[vals.length - 1]; } };
+}
+
+// PxRand(lo, hi) / PxRand([values]) — random with no immediate repeat.
+export function PxRand(lo, hi) {
+    const arr = Array.isArray(lo) ? lo : null;
+    if (!arr && hi === undefined) { hi = lo; lo = 0; }
+    let last = null;
+    const pick = () => arr ? arr[Math.floor(Math.random() * arr.length)] : Math.floor(Math.random() * (hi - lo)) + lo;
+    return { get: () => { let v, g = 0; do { v = pick(); } while (v === last && ++g < 8); last = v; return v; } };
+}
+
+// PLog(mean=0, deviation=1) — log-normal random floats (int if mean is an integer).
+export function PLog(mean = 0, deviation = 1) {
+    return { get: () => {
+        const u1 = Math.random() || 1e-9, u2 = Math.random();
+        const n = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        const v = Math.exp(mean + deviation * n);
+        return Number.isInteger(mean) ? Math.round(v) : v;
+    } };
+}
+
+// PTime(low=0, high=0, rnd=1) — digits of the current wall-clock second as a pattern
+// (a quirky "the machine's clock" generator). With low/high, map digits into [low,hi].
+export function PTime(low = 0, high = 0, rnd = 1) {
+    const digits = String(Math.floor(Date.now() / 1000)).split('').map(Number);
+    if (low === 0 && high === 0) return digits;
+    return digits.map(d => { const v = low + (d / 9) * (high - low); return Math.round(v / rnd) * rnd; });
+}
+
+// PSum(n, total) — n durations that sum to total, e.g. PSum(3,8) → [3,3,2].
+export function PSum(n, total, lim = 0.125) {
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    let data = [total + 1], step = 1;
+    while (sum(data) > total) { data = Array(n).fill(step); step *= 0.5; }
+    let i = 0;
+    while (sum(data) < total && step >= lim) {
+        if (sum(data) + step > total) step *= 0.5;
+        else { data[i % n] += step; i++; }
+    }
+    return data;
+}
+
+// PDelta(deltas, start=0) — cumulative sum: start, start+d0, start+d0+d1, …
+export function PDelta(deltas, start = 0) {
+    const arr = Array.isArray(deltas) ? deltas : [deltas];
+    return { get: (i) => { let v = start; for (let j = 0; j < i; j++) v += Number(arr[j % arr.length]) || 0; return v; } };
+}
+
+// PIndex() — the step index. PSquare() — the index squared. PFib() — Fibonacci.
+export function PIndex()  { return { get: (i) => i }; }
+export function PSquare() { return { get: (i) => i * i }; }
+export function PFib()    { const c = [0, 1]; return { get: (i) => { while (c.length <= i) c.push(c[c.length - 1] + c[c.length - 2]); return c[i]; } }; }
+
+// PBeat(string, start=0, dur=0.5) — durations from a pulse string (non " "/"." = hit):
+//   PBeat("x xxx x") → [1, 0.5, 0.5, 1, 0.5]
+export function PBeat(string, start = 0, dur = 0.5) {
+    const data = [...String(string)].map(c => (c !== ' ' && c !== '.') ? 1 : 0);
+    const out = []; let cur = 0;
+    for (const d of data) { if (d === 1) { if (cur > 0) out.push(cur); cur = 1; } else cur += 1; }
+    if (cur > 0) out.push(cur);
+    let res = out.map(d => d * dur);
+    if (start && res.length) { const r = ((Math.round(start) % res.length) + res.length) % res.length; res = res.slice(r).concat(res.slice(0, r)); }
+    return res;
+}
+
+// PJoin(...patterns) — concatenate several lists into one.
+export function PJoin(...patterns) {
+    const out = [];
+    for (const p of patterns) for (const x of (Array.isArray(p) ? p : [p])) out.push(x);
+    return out;
+}
+
+// PDelay(k, n, rotate=0, dur=1) — a group of onset offsets (delay times) from a
+// Euclidean rhythm, e.g. use as delay=PDelay(3, 8).
+export function PDelay(k, n, rotate = 0, dur = 1) {
+    const durs = PDur(k, n, rotate, dur);
+    const out = []; let acc = 0;
+    for (const d of durs) { out.push(acc); acc += d; }
+    return _group(...out);
+}
+
+// ── More FoxDot generators ────────────────────────────────────────────────────
+
+// P10(n) — n-length list of random 1s and 0s (FoxDot P10). e.g. play(P10(8)).
+export function P10(n = 8) { const out = []; for (let i = 0; i < (n | 0); i++) out.push(Math.random() < 0.5 ? 0 : 1); return out; }
+
+// PSaw(lo, hi, steps) — rising sawtooth ramp (companion to PSine/PTri).
+export function PSaw(lo = 0, hi = 1, steps = 16) {
+    return { get: (step) => { const t = ((((step | 0) % steps) + steps) % steps) / steps; return lo + (hi - lo) * t; } };
+}
+
+// PSq(a, b, c) — powers: [a^b, (a+1)^b, … ] for c terms (FoxDot PSq).
+export function PSq(a = 1, b = 2, c = 3) { const out = []; for (let x = a; x < a + c; x++) out.push(Math.pow(x, b)); return out; }
+
+// PZero() — a constant 0 generator. PBool(seq) — every nonzero → 1, else 0.
+export function PZero() { return { get: () => 0 }; }
+export function PBool(seq) { return (Array.isArray(seq) ? seq : [seq]).map(x => (x ? 1 : 0)); }
+
+// PFibMod — FoxDot's Fibonacci generator (same series as PFib).
+export const PFibMod = PFib;
+
+// PPairs(seq, func) — lace a sequence with a second obtained by func(item);
+// default func is n → 8 - n. PPairs([0,2,4]) → [0,8,2,6,4,4].
+export function PPairs(seq, func = (n) => 8 - n) {
+    const out = [];
+    for (const item of (Array.isArray(seq) ? seq : [seq])) { out.push(item); out.push(func(item)); }
+    return out;
+}
+
+// PChar(string, start=0) — letters → degrees (a=0, b=1, …), non-letters → 0.
+export function PChar(string, start = 0) {
+    const out = [];
+    for (const ch of String(string)) { const c = ch.toLowerCase(); out.push((c >= 'a' && c <= 'z') ? c.charCodeAt(0) - 97 + start : 0); }
+    return out;
+}
+
+// PQuicken(dur, stepsize, steps) — a group of delay amounts that gradually
+// accelerate (FoxDot). Use as delay=PQuicken() for a ritardando/accel feel.
+export function PQuicken(dur = 0.5, stepsize = 3, steps = 6) {
+    const delay = []; let count = 0, d = dur;
+    for (let i = 0; i < steps; i++) { for (let j = 0; j < stepsize - 1; j++) { delay.push(count); count += d / stepsize; } d /= stepsize; }
+    return _group(...(delay.length ? delay : [0]));
+}
+
+// PStrum(n, spread) — a group of onset delays that fan out like a guitar strum.
+export function PStrum(n = 4, spread = 1 / 8) {
+    const out = []; for (let i = 0; i < Math.max(1, n | 0); i++) out.push(i * spread);
+    return _group(...out);
+}
+
+// PZip2(a, b) — zip two lists into a group per step over their LCM length
+// (FoxDot). Each step fires (a_i, b_i) as a chord/group.
+export function PZip2(a, b) {
+    const A = Array.isArray(a) ? a : [a], B = Array.isArray(b) ? b : [b];
+    const gcd = (x, y) => (y ? gcd(y, x % y) : x);
+    const n = (A.length * B.length) / (gcd(A.length, B.length) || 1);
+    const out = []; for (let i = 0; i < n; i++) out.push(_group(A[i % A.length], B[i % B.length]));
+    return out;
+}
+
+// PZ12(tokens=[1,0], p=[1,0.5]) — FoxDot's "dearth" algorithm: emits tokens so
+// their running frequency tracks the target probabilities p (evenly spread, not
+// clumped like plain random). Works with two tokens.
+export function PZ12(tokens = [1, 0], p = [1, 0.5]) {
+    const maxp = Math.max(...p) || 1;
+    const probs = p.map(v => v / maxp);
+    const prev = [], dearth = tokens.map(() => 0);
+    return { get: () => {
+        const index = prev.length;
+        for (let i = 0; i < tokens.length; i++) {
+            const d1 = prev.reduce((a, x) => a + (x === tokens[i] ? 1 : 0), 0);
+            dearth[i] = probs[i] * (index + 1) - d1;
+        }
+        let bi = 0; for (let i = 1; i < dearth.length; i++) if (dearth[i] > dearth[bi]) bi = i;
+        const value = tokens[bi]; prev.push(value); return value;
+    }};
 }
 
 // PPing(arr) — ping-pong through array [0,1,2,3,2,1,0,1,...]

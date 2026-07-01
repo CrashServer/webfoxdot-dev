@@ -95,7 +95,30 @@ const PATTERN_NAMES = [
     'PRand','PWhite','PWalk','PDur','PPing','PStutter','PAlt','PShuf','PBern','PCoin',
     'PEuclid','PRange','PStep','PSine','PTri','PChain','PMarkov',
     'Pacc','PSwing','PBin','PFDur','PLife','PEuclid2','PFr','PGauss','PArp','PStretch','PZip','PReverse','PMorse',
+    'PDrum','PwRand','PxRand','PLog','PTime','PSum','PDelta','PIndex','PSquare','PFib','PBeat','PJoin','PDelay',
+    'P10','PSaw','PSq','PZero','PBool','PFibMod','PPairs','PChar','PQuicken','PStrum','PZip2','PZ12',
 ];
+
+// Autocomplete inserts a full, closed call with coherent default values (0 when
+// unsure), so a pick is immediately runnable — e.g. picking PDur gives PDur(3, 8).
+const PATTERN_TEMPLATES = {
+    PRand: 'PRand(0, 8)', PWhite: 'PWhite(0, 1)', PWalk: 'PWalk(8, 1, 1)', PDur: 'PDur(3, 8)',
+    PPing: 'PPing(0, 7)', PStutter: 'PStutter([0, 2, 4], 2)', PAlt: 'PAlt([0, 2], [4, 7])',
+    PShuf: 'PShuf([0, 2, 4, 7])', PBern: 'PBern(0.5)', PCoin: 'PCoin(0.5)', PEuclid: 'PEuclid(3, 8)',
+    PRange: 'PRange(0, 8)', PStep: 'PStep(4, 7, 0)', PSine: 'PSine(0, 1, 16)', PTri: 'PTri(0, 1, 16)',
+    PChain: 'PChain({0: [1, 2], 1: [0]})', PMarkov: 'PMarkov([0, 2, 4, 2, 0])', Pacc: 'Pacc("offbeat")',
+    PSwing: 'PSwing(0.5)', PBin: 'PBin(16)', PFDur: 'PFDur((3, 8))', PLife: 'PLife(0.5)',
+    PEuclid2: 'PEuclid2(3, 8, ".", "x")', PFr: 'PFr(0, 7)', PGauss: 'PGauss(0, 1)', PArp: 'PArp([0, 4, 7], 5)',
+    PStretch: 'PStretch([0, 2, 4], 8)', PZip: 'PZip([0, 2], [4, 7])', PReverse: 'PReverse([0, 2, 4, 7])',
+    PMorse: 'PMorse("sos")', PDrum: 'PDrum(3, 8)', PwRand: 'PwRand([0, 4, 7], [8, 2, 1])', PxRand: 'PxRand(0, 8)',
+    PLog: 'PLog(0, 1)', PTime: 'PTime(0, 8)', PSum: 'PSum(3, 8)', PDelta: 'PDelta([1, 2, 1], 0)',
+    PIndex: 'PIndex()', PSquare: 'PSquare()', PFib: 'PFib()', PBeat: 'PBeat("x xx x")', PJoin: 'PJoin([0, 2], [4, 7])',
+    PDelay: 'PDelay(3, 8)', P10: 'P10(8)', PSaw: 'PSaw(0, 1, 16)', PSq: 'PSq(1, 2, 3)',
+    PZero: 'PZero()', PBool: 'PBool([1, 0, 1, 1])', PFibMod: 'PFibMod()', PPairs: 'PPairs([0, 2, 4])',
+    PChar: 'PChar("hello")', PQuicken: 'PQuicken(0.5, 3, 6)', PStrum: 'PStrum(4)',
+    PZip2: 'PZip2([0, 2], [4, 7])', PZ12: 'PZ12([1, 0], [1, 0.5])',
+};
+const patItem = (n) => item(PATTERN_TEMPLATES[n] || (n + '('), 'hint-pattern', n);
 
 const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','fi(','fo(','fb('];
 
@@ -276,7 +299,7 @@ function hintFn(cm) {
         // After `param=` — suggest pattern / timevar values
         list = [
             sep('— patterns —'),
-            ...PATTERN_NAMES.map(n => item(n + '(', 'hint-pattern', n)),
+            ...PATTERN_NAMES.map(patItem),
             sep('— timevars —'),
             ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
         ];
@@ -306,7 +329,7 @@ function hintFn(cm) {
             sep('— synths —'),
             ...SYNTH_NAMES.map(n => item(n, 'hint-synth')),
             sep('— patterns —'),
-            ...PATTERN_NAMES.map(n => item(n + '(', 'hint-pattern', n)),
+            ...PATTERN_NAMES.map(patItem),
             sep('— timevars —'),
             ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
             sep('— globals —'),

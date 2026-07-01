@@ -28,7 +28,7 @@
         'PStrum','PQuicken','PRhythm','PJoin','PBin','PSaw','PTime','PTimebin',
         'PFrac','PFr','PDrum','PChords','PGauss','PLog','PTrir','PCoin','PChar',
         'PMarkov','PZero','PBool','PPing','PLife','PBal','PFDur','Pacc','PSwing',
-        'PwRand',
+        'PwRand','PCoin','PArp','PReverse','PMorse','PFib','PZ12','P10','PGauss','PFr','PStretch','PZip','PMarkov',
     ];
 
     const TIMEVARS = ['linvar','sinvar','expvar','Pvar','lininf','expinf','linbpm','linmod'];
