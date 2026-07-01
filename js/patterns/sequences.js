@@ -720,6 +720,9 @@ const _PROGS = {
     'blues': 'I I I I IV IV I I V IV I V',
     'andalusian': 'i VII VI V', 'andalus': 'i VII VI V',
     'minor': 'i iv v', 'canon': 'I V vi iii IV I IV V', 'pachelbel': 'I V vi iii IV I IV V',
+    // cadences (functional endings)
+    'perfect': 'V I', 'authentic': 'V I', 'plagal': 'IV I', 'amen': 'IV I',
+    'half': 'I V', 'deceptive': 'V vi', 'interrupted': 'V vi',
 };
 export function PProg(name = '50s') {
     return PRoman(_PROGS[String(name).toLowerCase()] || name);
@@ -825,6 +828,98 @@ export function PTree(seed = [0], depth = 3, step = 2) {
     let cur = (Array.isArray(seed) ? seed : [seed]).slice();
     for (let d = 0; d < depth; d++) { const next = []; for (const v of cur) next.push(v, v + step); cur = next; }
     return cur;
+}
+
+// ── Curve shapes ──────────────────────────────────────────────────────────────
+// Per-step LFO curves over `steps` steps — like PSine/PTri, for any continuous
+// param (great on dur/sus too: PSlide for swells, PPulse for stabs).
+
+// PExp(lo, hi, steps) — exponential ramp (geometric when lo,hi > 0).
+export function PExp(lo = 0, hi = 1, steps = 16) {
+    return { get: (step) => {
+        const t = ((((step | 0) % steps) + steps) % steps) / steps;
+        if (lo > 0 && hi > 0) return lo * Math.pow(hi / lo, t);
+        return lo + (hi - lo) * (Math.exp(2 * t) - 1) / (Math.exp(2) - 1);
+    } };
+}
+
+// PPulse(lo, hi, steps, width=0.5) — square/pulse wave; width is the duty cycle
+// (fraction of the cycle spent at hi). width=0.1 → short stabs.
+export function PPulse(lo = 0, hi = 1, steps = 16, width = 0.5) {
+    return { get: (step) => (((((step | 0) % steps) + steps) % steps) / steps < width ? hi : lo) };
+}
+
+// PSlide(lo, hi, steps) — smoothstep-eased ramp (soft S-curve lo→hi).
+export function PSlide(lo = 0, hi = 1, steps = 16) {
+    return { get: (step) => {
+        const t = ((((step | 0) % steps) + steps) % steps) / steps;
+        return lo + (hi - lo) * t * t * (3 - 2 * t);
+    } };
+}
+
+// ── Melody / note generators ──────────────────────────────────────────────────
+
+// motif(n, range, maxStep) — a FROZEN n-note motif (a random walk, sampled once)
+// that then repeats. Like melody()[:n] but in one call — a stable phrase.
+export function motif(n = 4, range = 7, maxStep = 2) {
+    const m = melody(range, maxStep), notes = [];
+    for (let i = 0; i < n; i++) notes.push(m.get(i));
+    return { get: (step) => notes[(((step | 0) % n) + n) % n] };
+}
+
+// arp(degrees, mode) — arpeggiate a set of chord degrees continuously.
+// mode: up | down | updown | downup | random. e.g. arp([0, 4, 7], "updown").
+export function arp(degrees, mode = 'up') {
+    let seq = (Array.isArray(degrees) ? degrees : [degrees]).slice();
+    mode = String(mode).toLowerCase();
+    if (mode === 'down') seq.reverse();
+    else if (mode === 'updown') seq = seq.concat(seq.slice(1, -1).reverse());
+    else if (mode === 'downup') seq = seq.slice().reverse().concat(seq.slice(1, -1));
+    if (mode === 'random' || mode === 'rand') return { get: () => seq[Math.floor(Math.random() * seq.length)] };
+    return { get: (step) => seq[((((step | 0) % seq.length) + seq.length) % seq.length)] };
+}
+
+// PContour(shape, n, range) — a melodic contour: n scale degrees in [0,range]
+// following a shape. shape: up | down | arch | valley | wave. Great to sketch a
+// phrase whose overall direction you control, leaving the scale to keep it sweet.
+export function PContour(shape = 'arch', n = 8, range = 7) {
+    shape = String(shape).toLowerCase();
+    const curve = (t) => shape === 'up' ? t
+        : shape === 'down' ? 1 - t
+        : shape === 'arch' ? Math.sin(t * Math.PI)
+        : shape === 'valley' ? 1 - Math.sin(t * Math.PI)
+        : shape === 'wave' ? (Math.sin(t * Math.PI * 2) * 0.5 + 0.5)
+        : t;
+    const notes = [];
+    for (let i = 0; i < n; i++) notes.push(Math.round(curve(n > 1 ? i / (n - 1) : 0) * range));
+    return { get: (step) => notes[(((step | 0) % n) + n) % n] };
+}
+
+// ── Duration feels ────────────────────────────────────────────────────────────
+// Named rhythmic feels as a cyclic dur pattern (works for sus too).
+const _GROOVES = {
+    straight: [1], eighths: [0.5], sixteenths: [0.25],
+    swing: [2 / 3, 1 / 3], shuffle: [2 / 3, 1 / 3], triplet: [1 / 3, 1 / 3, 1 / 3],
+    dotted: [0.75, 0.25], gallop: [0.5, 0.25, 0.25], revgallop: [0.25, 0.25, 0.5],
+    tresillo: [0.75, 0.75, 0.5], habanera: [0.75, 0.25, 0.5, 0.5], clave: [0.75, 0.75, 0.5],
+};
+// PGroove(name) — a dur pattern for a named feel. e.g. dur=PGroove("swing").
+export function PGroove(name = 'swing') {
+    return cyc((_GROOVES[String(name).toLowerCase()] || _GROOVES['straight']).slice());
+}
+
+// ── Composition helpers ───────────────────────────────────────────────────────
+
+// PCircle(n, start, type) — the DIATONIC circle of fifths as scale degrees:
+// each step moves down a fifth (+3 scale degrees), giving I IV vii iii vi ii V …
+// Because these are scale degrees, it stays coherent with the current Root/Scale
+// automatically. Pass a chord `type` to get chord groups instead of single roots.
+//   d1 >> pluck(PCircle(8))            # roots around the circle
+//   k1 >> keys(PCircle(8, 0, "7"))     # a turnaround of 7th chords
+export function PCircle(n = 8, start = 0, type = null) {
+    const degs = [];
+    for (let i = 0, d = start; i < n; i++, d += 3) degs.push(((d % 7) + 7) % 7);
+    return type != null ? degs.map(x => PChord(x, type)) : degs;
 }
 
 // unison(n, detune, spread) — pan positions + semitone pshift offsets (FoxDot

@@ -110,6 +110,14 @@ export const PATTERNS = [
     { name: 'PThue()',                  desc: 'Thue–Morse sequence (0,1,1,0,1,0,0,1,…) — self-similar gate for evolving rhythms' },
     { name: 'PGrowArp(seq)',            desc: 'Growing arpeggio: [a],[a,b],[a,b,c]… flattened. PGrowArp([0,2,4,7])' },
     { name: 'PTree(seed, depth, step)', desc: 'Self-similar melody (L-system): each d → [d, d+step], depth times. PTree([0],3,2)' },
+    { name: 'PExp(lo, hi, len)',        desc: 'Exponential ramp over len steps (geometric when lo,hi>0)' },
+    { name: 'PPulse(lo, hi, len, w)',   desc: 'Square/pulse wave; w=duty cycle (fraction at hi). w=0.1 → short stabs. Good on dur/sus' },
+    { name: 'PSlide(lo, hi, len)',      desc: 'Smoothstep-eased ramp lo→hi (soft S-curve). Good for swells' },
+    { name: 'motif(n, range, maxStep)', desc: 'A frozen n-note motif (random walk sampled once) that repeats — like melody()[:n] in one call' },
+    { name: 'arp(degrees, mode)',       desc: 'Arpeggiate chord degrees: mode up/down/updown/downup/random. e.g. arp([0,4,7],"updown")' },
+    { name: 'PContour(shape, n, range)', desc: 'Melodic contour — n scale degrees in [0,range] following shape: up/down/arch/valley/wave' },
+    { name: 'PGroove(name)',            desc: 'Named dur feel: straight/eighths/sixteenths/swing/shuffle/triplet/dotted/gallop/tresillo/habanera. e.g. dur=PGroove("swing")' },
+    { name: 'PCircle(n, start, type)',  desc: 'Diatonic circle of fifths as scale degrees (I IV vii iii vi ii V…) — stays coherent with Root/Scale. Pass a chord type for chord groups' },
     { name: 'melody(range, maxStep)',   desc: 'Simple melodic generator — a bounded random walk over scale degrees. Freeze a fixed phrase that repeats with a slice: melody()[:8]' },
     { name: 'pat[:N]  (slice)',          desc: 'Freeze a generator: sample N values once and loop them, so a random source becomes a stable N-step phrase that repeats. e.g. PWhite(0,1)[:8], melody()[:8]. Returns Pslice(pat, start, stop) under the hood' },
 ];
@@ -178,6 +186,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+        { t: 'Curve shapes + composition helpers. Curves (per-step LFOs, good on dur/sus too): PExp (exponential), PPulse (square/pulse with a width/duty knob), PSlide (smoothstep swell). Note generators like melody(): motif(n) (a frozen repeating motif), arp([0,4,7],"updown") (directional arpeggiator), PContour("arch",8,7) (a melody following a shape). Duration feels: PGroove("swing"/"gallop"/"triplet"…). Composition: PCircle(8) walks the diatonic circle of fifths (I IV vii iii vi ii V…) staying coherent with the current Root/Scale — pass a chord type for a turnaround of chords; PProg also learned cadences ("perfect"/"plagal"/"half"/"deceptive").', ex: 'patterns' },
         { t: 'Four new pattern families. Harmony: PChord(0,"7") builds a diatonic chord group (quality follows the Scale), PRoman("I V vi IV") a numeral progression, PProg("50s"/"251"/"blues"…) a named one. Rhythm: PClave("son"/"rumba"/"bossa"…) 16-step clave strings, PRhythm([1,(3,8)]) expands tuples to PDur durations, PPoly(3,4) a cross-rhythm. Chaos: PLogistic, PBrown, PHenon, PLorenz — dynamical-system value streams for organic drift. Number sequences: PPrime, PThue (Thue-Morse), PGrowArp (growing arpeggio), PTree (self-similar L-system melody).', ex: 'patterns' },
         { t: 'Many more pattern generators (FoxDot ports): PDrum (Euclidean drum play-string), PwRand (weighted random), PxRand (no-repeat random), PLog (log-normal), PTime (wall-clock digits), PSum (durations summing to a total), PDelta (cumulative), PIndex/PSquare/PFib (index/index²/Fibonacci), PBeat (durations from a pulse string), PJoin (concat), PDelay/PQuicken/PStrum (delay groups), P10 (random bits), PSaw (sawtooth), PSq (powers), PZero/PBool, PPairs, PChar (letters→degrees), PZip2, PZ12 (evenly-spread "dearth" tokens). Plus lininf/expinf timevars (ramp then hold forever).', ex: 'patterns' },
         'Renamed the piano synth to "basic" — it is an additive synth, not a convincing piano. Old code keeps working: piano is kept as an alias for basic.',

@@ -30,12 +30,13 @@
         'PMarkov','PZero','PBool','PPing','PLife','PBal','PFDur','Pacc','PSwing',
         'PwRand','PCoin','PArp','PReverse','PMorse','PFib','PZ12','P10','PGauss','PFr','PStretch','PZip','PMarkov',
         'PChord','PRoman','PProg','PClave','PRhythm','PPoly','PLogistic','PBrown','PHenon','PLorenz','PPrime','PThue','PGrowArp','PTree','PFibMod','PPairs','PChar','PQuicken','PStrum','PZip2','PSaw','PSq',
+        'PExp','PPulse','PSlide','PContour','PGroove','PCircle',
     ];
 
     const TIMEVARS = ['linvar','sinvar','expvar','Pvar','lininf','expinf','linbpm','linmod'];
 
     const KEYWORDS = [
-        'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','chaos',
+        'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','motif','arp','chaos',
         'unsolo','solo','once','norm','clamp','lmap','drummer','fill','brk',
         'renv','clone','switch','start','midi','mlearn','midiout','link',
     ];

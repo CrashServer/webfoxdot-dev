@@ -98,6 +98,7 @@ const PATTERN_NAMES = [
     'PDrum','PwRand','PxRand','PLog','PTime','PSum','PDelta','PIndex','PSquare','PFib','PBeat','PJoin','PDelay',
     'P10','PSaw','PSq','PZero','PBool','PFibMod','PPairs','PChar','PQuicken','PStrum','PZip2','PZ12',
     'PChord','PRoman','PProg','PClave','PRhythm','PPoly','PLogistic','PBrown','PHenon','PLorenz','PPrime','PThue','PGrowArp','PTree',
+    'PExp','PPulse','PSlide','PContour','PGroove','PCircle','motif','arp',
 ];
 
 // Autocomplete inserts a full, closed call with coherent default values (0 when
@@ -122,6 +123,9 @@ const PATTERN_TEMPLATES = {
     PClave: 'PClave("son")', PRhythm: 'PRhythm([1, (3, 8)])', PPoly: 'PPoly(3, 4)',
     PLogistic: 'PLogistic(3.9)', PBrown: 'PBrown(0, 8)', PHenon: 'PHenon(0, 8)', PLorenz: 'PLorenz(0, 8)',
     PPrime: 'PPrime(2)', PThue: 'PThue()', PGrowArp: 'PGrowArp([0, 2, 4, 7])', PTree: 'PTree([0], 3, 2)',
+    PExp: 'PExp(0, 1, 16)', PPulse: 'PPulse(0, 1, 16, 0.5)', PSlide: 'PSlide(0, 1, 16)',
+    PContour: 'PContour("arch", 8, 7)', PGroove: 'PGroove("swing")', PCircle: 'PCircle(8)',
+    motif: 'motif(4)', arp: 'arp([0, 4, 7], "up")',
 };
 const patItem = (n) => item(PATTERN_TEMPLATES[n] || (n + '('), 'hint-pattern', n);
 
