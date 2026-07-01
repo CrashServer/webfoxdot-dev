@@ -82,7 +82,7 @@ const FX_GROUPS = [
 ];
 function fxItem(g) {
     const parts = g.params.map((p, i) => `${p}=${i === 0 ? g.on : FX_REGISTRY[p].default}`);
-    return item(parts.join(', '), 'hint-fx', g.name + ' …');
+    return item(parts.join(', '), 'hint-fx', g.name);
 }
 
 const SCALE_NAMES = [
@@ -271,13 +271,7 @@ function hintFn(cm) {
                     editor.replaceRange(insertion, { line: cursor.line, ch: 0 }, { line: cursor.line, ch: line.length });
                     editor.setCursor({ line: cursor.line, ch: insertion.length });
                     // Show synth list immediately after inserting player name
-                    setTimeout(() => {
-                        editor.showHint({
-                            hint:           synthHint,
-                            completeSingle: false,
-                            alignWithWord:  true,
-                        });
-                    }, 30);
+                    setTimeout(() => openMenu(editor, synthHint), 30);
                 },
             }],
             from: { line: cursor.line, ch: 0 },
@@ -316,7 +310,7 @@ function hintFn(cm) {
     } else if (ctx.type === 'param') {
         let synthParams;
         if (ctx.synth === 'play') {
-            synthParams = ['amp=','dur=','pan=','rate=','sample=','amplify=','sus='].map(p => item(p, 'hint-param'));
+            synthParams = ['amp=','dur=','pan=','rate=','sample=','amplify=','sus='].map(p => item(p, 'hint-param', p.replace(/=$/, '')));
             // pbuild(…) generates a genre drum pattern as the play() string — offer
             // the full call (every knob exposed) so it can be tweaked in place.
             const gen = [sep('— generators —'), pbuildItem(), pkitInPlayItem()];
@@ -325,9 +319,9 @@ function hintFn(cm) {
                                  .filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
             return { list, from, to };
         } else if (ctx.synth) {
-            synthParams = Object.keys(SYNTH_DEFS[ctx.synth]?.defaults ?? {}).map(p => item(p + '=', 'hint-param'));
+            synthParams = Object.keys(SYNTH_DEFS[ctx.synth]?.defaults ?? {}).map(p => item(p + '=', 'hint-param', p));
         } else {
-            synthParams = COMMON_PARAMS.map(p => item(p + '=', 'hint-param'));
+            synthParams = COMMON_PARAMS.map(p => item(p + '=', 'hint-param', p));
         }
         // FX as groups — picking one inserts all its params (FX work on play() too)
         const fxItems = FX_GROUPS.map(fxItem);
@@ -371,12 +365,180 @@ function synthHint(cm) {
     return { list, from, to: cursor };
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Nested flyout menu ────────────────────────────────────────────────────────
+// A custom completion popup: categories (the "— … —" separators) become rows
+// that unfold a submenu to the RIGHT (hover, or →). Leaves insert on click / ↵.
+// Reuses hintFn's {list, from, to} output (seps delimit categories).
 
-export function triggerAutocomplete(cm) {
-    cm.showHint({
-        hint:           hintFn,
-        completeSingle: false,
-        alignWithWord:  true,
+const CM = () => window.CodeMirror;
+let menuState = null;
+
+function cleanLabel(s) { return String(s).replace(/—/g, '').replace(/…/g, '').trim(); }
+
+// Group a flat {list} (with hint-sep headers) into ordered entries:
+//   { kind:'leaf', item } | { kind:'cat', label, items:[…] }
+function toEntries(list) {
+    const entries = []; let cur = null;
+    for (const it of list) {
+        if (it.className === 'hint-sep') { cur = { kind: 'cat', label: cleanLabel(it.displayText), items: [] }; entries.push(cur); }
+        else if (cur) cur.items.push(it);
+        else entries.push({ kind: 'leaf', item: it });
+    }
+    return entries;
+}
+
+const wrap = (i, n) => ((i % n) + n) % n;
+
+function closeMenu() {
+    const s = menuState; if (!s) return;
+    menuState = null;
+    if (s.keyMap)   s.cm.removeKeyMap(s.keyMap);
+    if (s.onChange) s.cm.off('changes', s.onChange);
+    if (s.onBlur)   s.cm.off('blur', s.onBlur);
+    if (s.onDocDown) document.removeEventListener('mousedown', s.onDocDown, true);
+    s.parentEl.remove(); s.subEl.remove();
+}
+
+function rowEl(entry, onEnter, onClick) {
+    const el = document.createElement('div');
+    if (entry.kind === 'cat') {
+        el.className = 'cd-menu-row cd-menu-cat';
+        const t = document.createElement('span'); t.textContent = entry.label; el.appendChild(t);
+        const a = document.createElement('span'); a.className = 'cd-menu-arrow'; a.textContent = '›'; el.appendChild(a);
+    } else {
+        const it = entry.item;
+        el.className = 'cd-menu-row ' + (it.className || '');
+        el.textContent = it.displayText ?? it.text;
+    }
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mousedown', (e) => { e.preventDefault(); onClick(); });
+    return el;
+}
+
+function renderParent(s) {
+    const el = s.parentEl; el.innerHTML = '';
+    s.rowEls = s.entries.map((entry, i) => {
+        const r = rowEl(entry,
+            () => { if (s.activeCol === 0) { s.pIndex = i; } if (entry.kind === 'cat') openSub(s, i, false); else closeSub(s); paint(s); },
+            () => { if (entry.kind === 'leaf') pick(s, entry.item); else { s.pIndex = i; openSub(s, i, true); paint(s); } });
+        el.appendChild(r); return r;
+    });
+    paint(s);
+}
+
+function renderSub(s) {
+    const el = s.subEl; el.innerHTML = '';
+    const cat = s.entries[s.openCat];
+    s.subEls = cat.items.map((it, i) => {
+        const r = rowEl({ kind: 'leaf', item: it },
+            () => { s.activeCol = 1; s.cIndex = i; paint(s); },
+            () => pick(s, it));
+        el.appendChild(r); return r;
     });
 }
+
+function paint(s) {
+    (s.rowEls || []).forEach((r, i) => r.classList.toggle('active', (s.activeCol === 0 && i === s.pIndex) || (s.subOpen && i === s.openCat)));
+    if (s.subOpen) (s.subEls || []).forEach((r, i) => r.classList.toggle('active', s.activeCol === 1 && i === s.cIndex));
+}
+
+function openSub(s, i, focus) {
+    s.openCat = i; s.subOpen = true;
+    renderSub(s);
+    const sub = s.subEl; sub.style.display = 'block';
+    const anchor = s.rowEls[i].getBoundingClientRect();
+    sub.style.top = (anchor.top + window.scrollY) + 'px';
+    sub.style.left = (anchor.right + window.scrollX + 2) + 'px';
+    sub.style.visibility = 'hidden';
+    requestAnimationFrame(() => {
+        const w = sub.offsetWidth;
+        if (anchor.right + w + 6 > window.innerWidth) sub.style.left = (anchor.left + window.scrollX - w - 2) + 'px';
+        sub.style.visibility = 'visible';
+    });
+    if (focus) { s.activeCol = 1; s.cIndex = 0; }
+}
+
+function closeSub(s) { s.subOpen = false; s.openCat = -1; s.subEl.style.display = 'none'; }
+
+function move(s, dir) {
+    if (s.activeCol === 1 && s.subOpen) { const n = s.entries[s.openCat].items.length; s.cIndex = wrap(s.cIndex + dir, n); }
+    else { s.pIndex = wrap(s.pIndex + dir, s.entries.length); closeSub(s); }
+    paint(s);
+}
+
+function pick(s, item) {
+    const { cm, from, to } = s; closeMenu();
+    if (typeof item.hint === 'function') item.hint(cm, { from, to });
+    else cm.replaceRange(item.text, from, to);
+}
+
+function rebuild(s) {
+    const data = s.provide();
+    if (!data || !data.list || !data.list.length) { closeMenu(); return; }
+    s.from = data.from; s.to = data.to;
+    s.entries = toEntries(data.list);
+    if (!s.entries.length) { closeMenu(); return; }
+    if (s.pIndex >= s.entries.length) s.pIndex = s.entries.length - 1;
+    if (s.subOpen && (s.openCat >= s.entries.length || s.entries[s.openCat].kind !== 'cat')) { closeSub(s); s.activeCol = 0; }
+    position(s);
+    renderParent(s);
+    if (s.subOpen) { openSub(s, s.openCat, false); s.activeCol = Math.min(s.activeCol, 1); paint(s); }
+}
+
+function position(s) {
+    const coords = s.cm.cursorCoords(s.from, 'page');
+    s.parentEl.style.top = coords.bottom + 'px';
+    s.parentEl.style.left = coords.left + 'px';
+}
+
+function openMenu(cm, provider = hintFn) {
+    closeMenu();
+    const data = provider(cm);
+    if (!data || !data.list || !data.list.length) return;
+
+    const s = { cm, provide: () => provider(cm), from: data.from, to: data.to,
+        entries: toEntries(data.list), activeCol: 0, pIndex: 0, cIndex: 0, subOpen: false, openCat: -1 };
+    if (!s.entries.length) return;
+    menuState = s;
+
+    s.parentEl = document.createElement('div'); s.parentEl.className = 'cd-menu';
+    s.subEl = document.createElement('div'); s.subEl.className = 'cd-menu cd-submenu'; s.subEl.style.display = 'none';
+    document.body.appendChild(s.parentEl); document.body.appendChild(s.subEl);
+
+    position(s); renderParent(s);
+
+    const Pass = CM().Pass;
+    s.keyMap = {
+        Down:  () => move(s, 1),
+        Up:    () => move(s, -1),
+        'Ctrl-N': () => move(s, 1),
+        'Ctrl-P': () => move(s, -1),
+        Right: () => {
+            if (s.activeCol === 1) return;                       // already in the submenu
+            const e = s.entries[s.pIndex];
+            if (e && e.kind === 'cat') { openSub(s, s.pIndex, true); paint(s); }
+            else { closeMenu(); return Pass; }
+        },
+        Left:  () => { if (s.activeCol === 1) { s.activeCol = 0; closeSub(s); paint(s); } else { closeMenu(); return Pass; } },
+        Enter: () => choose(s),
+        Tab:   () => choose(s),
+        Esc:   () => closeMenu(),
+    };
+    cm.addKeyMap(s.keyMap);
+    s.onChange = () => rebuild(s);            cm.on('changes', s.onChange);
+    s.onBlur   = () => closeMenu();           cm.on('blur', s.onBlur);
+    s.onDocDown = (e) => { if (!s.parentEl.contains(e.target) && !s.subEl.contains(e.target)) closeMenu(); };
+    setTimeout(() => document.addEventListener('mousedown', s.onDocDown, true), 0);
+}
+
+function choose(s) {
+    if (s.activeCol === 1 && s.subOpen) return pick(s, s.entries[s.openCat].items[s.cIndex]);
+    const e = s.entries[s.pIndex];
+    if (!e) return;
+    if (e.kind === 'leaf') pick(s, e.item);
+    else { openSub(s, s.pIndex, true); paint(s); }
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function triggerAutocomplete(cm) { openMenu(cm, hintFn); }
