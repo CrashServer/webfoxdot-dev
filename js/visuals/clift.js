@@ -36,6 +36,7 @@ let lastBeat = -1, editing = null;
 const codeLines = [];
 let mode = 'scenes';                              // 'scenes' (audio autopilot) | 'code' (per-player)
 let lastMsgTs = 0;                                 // when the bridge last sent anything (connection status)
+const meta = { section: '', autoplay: false };    // active #@ section + autoplay
 let players = [];                                 // live snapshot from the bridge
 const pmap = {};                                  // name → { step, pulse } for step flashes
 let cols = 0, rows = 0, W = 0, H = 0, vgrad = null;
@@ -141,6 +142,7 @@ chan.onmessage = (e) => {
         momentum = energy - energyLong;
         if (Math.abs(m.bpm - A.bpm) >= 1) bpmFlash = 1;
         A.bpm = m.bpm; A.beat = m.beat;
+        meta.section = m.section || ''; meta.autoplay = !!m.autoplay;
         const fb = Math.floor(m.beat);
         if (fb !== lastBeat) {
             lastBeat = fb; beatPulse = 1;
@@ -375,6 +377,18 @@ function drawPlayerCell(pl, x, y, w, h, t) {
     ctx.fillText(`${pl.name} ▸ ${pl.synth}`, x + 8, y + 7);
     ctx.fillStyle = '#cdd6dd'; ctx.font = '12px monospace';
     ctx.fillText(`deg ${pl.deg == null ? '·' : Math.round(pl.deg)}   oct ${pl.oct}   amp ${pl.amp.toFixed(2)}`, x + 8, y + 25);
+    // pattern strip — the sequence with the current step lit (synth: height = degree)
+    if (h > 78 && pl.len > 0) {
+        const len = Math.min(pl.len, 16), pos = pl.pos % len;
+        const sw = (w - 16) / len, sy = y + h - 40;
+        for (let i = 0; i < len; i++) {
+            const on = i === pos;
+            let ch = 6;
+            if (pl.seq && pl.seq.length) ch = 4 + Math.min(15, Math.abs(pl.seq[i % pl.seq.length]) * 1.3);
+            ctx.fillStyle = on ? `hsl(${octHue * 360} 90% ${66 + pz * 20}%)` : `hsl(${octHue * 360} 45% 26%)`;
+            ctx.fillRect(x + 8 + i * sw, sy - ch, Math.max(2, sw - 2), ch);
+        }
+    }
     // fx tags — which effects are on this player
     const keys = Object.keys(pl.fx || {}); let fxx = x + 8; ctx.font = '11px monospace';
     for (const k of keys) {
@@ -382,6 +396,25 @@ function drawPlayerCell(pl, x, y, w, h, t) {
         ctx.fillStyle = `hsl(${octHue * 360} 70% 62%)`; ctx.fillText(k, fxx, y + h - 20); fxx += ctx.measureText(tag).width;
     }
     ctx.font = `${CELL}px monospace`;
+}
+
+// transport: active #@ section + a beat grid (bar phase) at the top — for performers
+function drawTransport() {
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    let y = 9;
+    if (meta.section) {
+        ctx.font = 'bold 13px monospace'; ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 4;
+        ctx.fillStyle = '#39d8ff'; ctx.fillText(`◈ ${meta.section}${meta.autoplay ? '  ▶ auto' : ''}`, W / 2, y);
+        ctx.shadowBlur = 0; y += 19;
+    }
+    const bpb = 4, gap = 16, x0 = W / 2 - (bpb - 1) * gap / 2;
+    const bib = ((Math.floor(A.beat) % bpb) + bpb) % bpb;
+    for (let i = 0; i < bpb; i++) {
+        ctx.beginPath(); ctx.arc(x0 + i * gap, y + 6, i === bib ? 4 + beatPulse * 2 : 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = i === bib ? `hsl(200 90% ${62 + beatPulse * 22}%)` : '#26323b'; ctx.fill();
+    }
+    ctx.fillStyle = '#5a6a74'; ctx.font = '10px monospace'; ctx.fillText(`bar ${A.bar}`, W / 2, y + 14);
+    ctx.restore(); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `${CELL}px monospace`;
 }
 
 // connection status: a corner dot, plus a centred hint while no data is arriving
@@ -418,6 +451,7 @@ function frame(ts) {
     if (mode === 'code') {
         const tt = ts / 1000 * ((A.bpm || 120) / 120);
         drawCodeMode(tt);
+        drawTransport();
         drawStatus(ts);
         hud.textContent = `code mode  ·  ${players.length} player${players.length === 1 ? '' : 's'}  ·  ${A.bpm | 0} bpm  ·  [m] scenes`;
         return;
@@ -455,6 +489,7 @@ function frame(ts) {
     if (fx.vignette > 0.02 && vgrad) { ctx.globalAlpha = fx.vignette; ctx.fillStyle = vgrad; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     drawCode(ts);
     if (bigFlash > 0.02) { ctx.fillStyle = `rgba(255,255,255,${bigFlash * 0.5})`; ctx.fillRect(0, 0, W, H); }
+    drawTransport();
     drawStatus(ts);
 
     hud.textContent = `${SCENES[scene]}${mix < 1 ? '→' + SCENES[nextScene] : ''}  ·  ${A.bpm | 0} bpm  ·  `

@@ -740,7 +740,18 @@
             setSuperSonic(sc);
             _scRef = sc;
             initDefsynth(sc, (name) => log(`synth "${name}" defined ✓`, 'ok'));
-            startVisualsAudio(sc, clock);   // feed the pop-out visuals window (if open)
+            // feed the pop-out visuals window (audio + beat + the active #@ section)
+            startVisualsAudio(sc, clock, () => {
+                try {
+                    const info = getActiveInfo();
+                    let section = '';
+                    if (info && info.line >= 0) {
+                        const m = (editor.getLine(info.line) || '').match(/#@\s*(\w+)/);
+                        section = m ? m[1] : '';
+                    }
+                    return { section, autoplay: isAutoplaying() };
+                } catch (_) { return {}; }
+            });
             clock.start();
 
             dot.className = 'ready';

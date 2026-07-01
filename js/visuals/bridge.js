@@ -16,8 +16,9 @@ import { FX_KEYS }         from '../fx/registry.js';
 
 let _chan  = null;
 let _win   = null;
-let _sc    = null;
-let _clock = null;
+let _sc      = null;
+let _clock   = null;
+let _getMeta = null;      // () => { section, autoplay }
 let _an    = null;
 let _freq  = null;
 let _timer = null;
@@ -37,8 +38,8 @@ export function openVisuals() {
 
 // Tap the scsynth worklet output with an analyser (sc.node → analyser; the worklet
 // stays connected to the destination too, so this only *reads* the signal).
-export function startVisualsAudio(sc, clock) {
-    _sc = sc; _clock = clock;
+export function startVisualsAudio(sc, clock, getMeta) {
+    _sc = sc; _clock = clock; _getMeta = getMeta || null;
     try {
         const ac = sc.audioContext;
         _an = ac.createAnalyser();
@@ -72,12 +73,16 @@ function _bands() {
 function _tick() {
     if (!_chan) return;                     // nobody listening yet
     const now = _clock?.now?.() ?? 0;
+    let meta = {};
+    try { meta = _getMeta ? (_getMeta() || {}) : {}; } catch (_) {}
     chan().postMessage({
         t: 'audio',
         ..._bands(),
         bpm: _clock?.bpm ?? 120,
         beat: now,
         bar: Math.floor(now / 4),
+        section: meta.section || '',
+        autoplay: !!meta.autoplay,
     });
     chan().postMessage({ t: 'players', list: _snapshotPlayers() });
 }
@@ -99,9 +104,18 @@ function _snapshotPlayers() {
         if (p._mode === 'synth' || p._mode === 'midiout') { const d = at(a.degree); deg = typeof d === 'number' ? d : null; }
         const fx = {};
         for (const k of Object.keys(a)) if (FX_KEYS.has(k)) { const v = at(a[k]); if (typeof v === 'number') fx[k] = v; }
+        // pattern strip: the degree sequence (synth) or the play pattern length (sample)
+        let len = 1, seq = null;
+        if (Array.isArray(a.degree)) {
+            len = a.degree.length || 1;
+            seq = a.degree.slice(0, 16).map(d => { const x = isGroup(d) ? d.__group[0] : (Array.isArray(d) ? d[0] : d); const v = patGet(x, p._step); return typeof v === 'number' ? v : 0; });
+        } else if (p._mode === 'sample' && p._pattern) {
+            len = p._pattern.length || 1;
+        }
+        const pos = ((p._step % len) + len) % len;
         out.push({
             name, synth: p._mode === 'synth' ? p._synth : p._mode, step: p._step,
-            deg, oct: Number(at(a.oct)) || 5, amp: Number(at(a.amp)) || 0.7, dur: Number(at(a.dur)) || 1, fx,
+            deg, oct: Number(at(a.oct)) || 5, amp: Number(at(a.amp)) || 0.7, dur: Number(at(a.dur)) || 1, fx, len, pos, seq,
         });
     }
     return out;
