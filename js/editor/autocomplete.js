@@ -85,6 +85,17 @@ function fxItem(g) {
     return item(parts.join(', '), 'hint-fx', g.name);
 }
 
+// FX grouped into families — the fx category unfolds into these sub-menus.
+// Anything not listed falls into an "other" bucket at the end.
+const FX_SUBCATS = [
+    ['filters',    ['lpf', 'hpf', 'resonbank', 'formant']],
+    ['reverbs',    ['reverb', 'mverb', 'cheapverb']],
+    ['delays',     ['echo', 'fbdelay']],
+    ['distortion', ['crush', 'multicrush', 'tanh', 'shape', 'dist2']],
+    ['modulation', ['chorus', 'tremolo', 'vibrato', 'flanger', 'phaser', 'ringmod']],
+    ['rhythmic',   ['rgate', 'chop']],
+];
+
 const SCALE_NAMES = [
     'major','minor','dorian','phrygian','lydian','mixolydian',
     'pentatonic','minPentatonic','chromatic','diminished','bhairav',
@@ -299,11 +310,10 @@ function hintFn(cm) {
     } else if (ctx.type === 'scale') {
         list = filter(SCALE_NAMES.map(n => item(`"${n}"`, 'hint-param', n)));
     } else if (ctx.type === 'value') {
-        // After `param=` — suggest pattern / timevar values
+        // After `param=` — suggest pattern / timevar values (one category)
         list = [
             sep('— patterns —'),
             ...PATTERN_NAMES.map(patItem),
-            sep('— timevars —'),
             ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
         ];
         list = dropEmptySeps(list.filter(it => it.className === "hint-sep" || filter([it]).length > 0));
@@ -333,7 +343,6 @@ function hintFn(cm) {
             ...SYNTH_NAMES.map(n => item(n, 'hint-synth')),
             sep('— patterns —'),
             ...PATTERN_NAMES.map(patItem),
-            sep('— timevars —'),
             ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
             sep('— globals —'),
             ...GLOBALS.map(g => item(g, 'hint-keyword')),
@@ -366,47 +375,67 @@ function synthHint(cm) {
 }
 
 // ── Nested flyout menu ────────────────────────────────────────────────────────
-// A custom completion popup: categories (the "— … —" separators) become rows
-// that unfold a submenu to the RIGHT (hover, or →). Leaves insert on click / ↵.
-// Reuses hintFn's {list, from, to} output (seps delimit categories).
+// A custom completion popup. hintFn's "— … —" separators become category rows
+// that unfold a submenu to the RIGHT; categories can nest arbitrarily (the fx
+// category unfolds again into filters/reverbs/delays/…). Navigation uses a stack
+// of columns: hover or → opens deeper, ← pops back, ↑/↓ move, ↵/Tab pick.
+// A node is  { kind:'leaf', item }  or  { kind:'cat', label, children:[node…] }.
 
 const CM = () => window.CodeMirror;
 let menuState = null;
 
 function cleanLabel(s) { return String(s).replace(/—/g, '').replace(/…/g, '').trim(); }
+const wrap = (i, n) => ((i % n) + n) % n;
+const leaf = (item) => ({ kind: 'leaf', item });
 
-// Group a flat {list} (with hint-sep headers) into ordered entries:
-//   { kind:'leaf', item } | { kind:'cat', label, items:[…] }
-function toEntries(list) {
-    const entries = []; let cur = null;
-    for (const it of list) {
-        if (it.className === 'hint-sep') { cur = { kind: 'cat', label: cleanLabel(it.displayText), items: [] }; entries.push(cur); }
-        else if (cur) cur.items.push(it);
-        else entries.push({ kind: 'leaf', item: it });
+// Split the fx items into family sub-categories (FX_SUBCATS + an "other" bucket).
+function groupFx(items) {
+    const byName = new Map(items.map(it => [it.displayText, it]));
+    const used = new Set(), cats = [];
+    for (const [label, names] of FX_SUBCATS) {
+        const kids = names.filter(n => byName.has(n)).map(n => { used.add(n); return leaf(byName.get(n)); });
+        if (kids.length) cats.push({ kind: 'cat', label, children: kids });
     }
-    return entries;
+    const rest = items.filter(it => !used.has(it.displayText)).map(leaf);
+    if (rest.length) cats.push({ kind: 'cat', label: 'other', children: rest });
+    return cats;
 }
 
-const wrap = (i, n) => ((i % n) + n) % n;
+// Build the node tree from hintFn's flat {list}. `subgroup` nests the fx category
+// (skipped while type-filtering, so matches show as a flat list).
+function toTree(list, subgroup) {
+    const roots = []; let cur = null;
+    for (const it of list) {
+        if (it.className === 'hint-sep') { cur = { label: cleanLabel(it.displayText), items: [] }; roots.push(cur); }
+        else if (cur) cur.items.push(it);
+        else roots.push(leaf(it));
+    }
+    return roots.map(node => {
+        if (node.kind === 'leaf') return node;
+        const isFx = node.items.length > 1 && node.items.every(i => i.className === 'hint-fx');
+        const children = (isFx && subgroup) ? groupFx(node.items) : node.items.map(leaf);
+        return { kind: 'cat', label: node.label, children };
+    });
+}
 
 function closeMenu() {
     const s = menuState; if (!s) return;
     menuState = null;
-    if (s.keyMap)   s.cm.removeKeyMap(s.keyMap);
-    if (s.onChange) s.cm.off('changes', s.onChange);
-    if (s.onBlur)   s.cm.off('blur', s.onBlur);
+    if (s.keyMap)    s.cm.removeKeyMap(s.keyMap);
+    if (s.onChange)  s.cm.off('changes', s.onChange);
+    if (s.onBlur)    s.cm.off('blur', s.onBlur);
     if (s.onDocDown) document.removeEventListener('mousedown', s.onDocDown, true);
-    s.parentEl.remove(); s.subEl.remove();
+    (s.colDivs || []).forEach(d => d.remove());
 }
 
-function rowEl(entry, onEnter, onClick) {
+function rowEl(node, onEnter, onClick) {
     const el = document.createElement('div');
-    if (entry.kind === 'cat') {
+    if (node.kind === 'cat') {
         el.className = 'cd-menu-row cd-menu-cat';
-        const t = document.createElement('span'); t.textContent = entry.label; el.appendChild(t);
+        const t = document.createElement('span'); t.textContent = node.label; el.appendChild(t);
         const a = document.createElement('span'); a.className = 'cd-menu-arrow'; a.textContent = '›'; el.appendChild(a);
     } else {
-        const it = entry.item;
+        const it = node.item;
         el.className = 'cd-menu-row ' + (it.className || '');
         el.textContent = it.displayText ?? it.text;
     }
@@ -415,55 +444,72 @@ function rowEl(entry, onEnter, onClick) {
     return el;
 }
 
-function renderParent(s) {
-    const el = s.parentEl; el.innerHTML = '';
-    s.rowEls = s.entries.map((entry, i) => {
-        const r = rowEl(entry,
-            () => { if (s.activeCol === 0) { s.pIndex = i; } if (entry.kind === 'cat') openSub(s, i, false); else closeSub(s); paint(s); },
-            () => { if (entry.kind === 'leaf') pick(s, entry.item); else { s.pIndex = i; openSub(s, i, true); paint(s); } });
-        el.appendChild(r); return r;
-    });
-    paint(s);
+// Hover row j of column i: cut deeper columns, select it, and (if a category)
+// unfold its child column — so the mouse cascades through the tree.
+function hoverTo(s, i, j) {
+    s.cols.length = i + 1;
+    s.cols[i].sel = j;
+    const node = s.cols[i].entries[j];
+    if (node.kind === 'cat') s.cols.push({ entries: node.children, sel: 0 });
+    render(s);
 }
 
-function renderSub(s) {
-    const el = s.subEl; el.innerHTML = '';
-    const cat = s.entries[s.openCat];
-    s.subEls = cat.items.map((it, i) => {
-        const r = rowEl({ kind: 'leaf', item: it },
-            () => { s.activeCol = 1; s.cIndex = i; paint(s); },
-            () => pick(s, it));
-        el.appendChild(r); return r;
-    });
+function clickRow(s, i, j) {
+    const node = s.cols[i].entries[j];
+    if (node.kind === 'leaf') { hoverTo(s, i, j); pick(s, node.item); }
+    else hoverTo(s, i, j);
 }
 
-function paint(s) {
-    (s.rowEls || []).forEach((r, i) => r.classList.toggle('active', (s.activeCol === 0 && i === s.pIndex) || (s.subOpen && i === s.openCat)));
-    if (s.subOpen) (s.subEls || []).forEach((r, i) => r.classList.toggle('active', s.activeCol === 1 && i === s.cIndex));
+function render(s) {
+    (s.colDivs || []).forEach(d => d.remove());
+    s.colDivs = []; s.colEls = [];
+    for (let i = 0; i < s.cols.length; i++) {
+        const col = s.cols[i];
+        const div = document.createElement('div');
+        div.className = 'cd-menu' + (i > 0 ? ' cd-submenu' : '');
+        const rows = col.entries.map((node, j) => {
+            const r = rowEl(node, () => hoverTo(s, i, j), () => clickRow(s, i, j));
+            r.classList.toggle('active', j === col.sel);
+            div.appendChild(r); return r;
+        });
+        document.body.appendChild(div);
+        s.colDivs.push(div); s.colEls.push(rows);
+        if (i === 0) {
+            const c = s.cm.cursorCoords(s.from, 'page');
+            div.style.top = c.bottom + 'px'; div.style.left = c.left + 'px';
+        } else {
+            const a = s.colEls[i - 1][s.cols[i - 1].sel].getBoundingClientRect();
+            div.style.top = (a.top + window.scrollY) + 'px';
+            div.style.left = (a.right + window.scrollX + 2) + 'px';
+            if (a.right + div.offsetWidth + 6 > window.innerWidth) div.style.left = (a.left + window.scrollX - div.offsetWidth - 2) + 'px';
+        }
+    }
 }
 
-function openSub(s, i, focus) {
-    s.openCat = i; s.subOpen = true;
-    renderSub(s);
-    const sub = s.subEl; sub.style.display = 'block';
-    const anchor = s.rowEls[i].getBoundingClientRect();
-    sub.style.top = (anchor.top + window.scrollY) + 'px';
-    sub.style.left = (anchor.right + window.scrollX + 2) + 'px';
-    sub.style.visibility = 'hidden';
-    requestAnimationFrame(() => {
-        const w = sub.offsetWidth;
-        if (anchor.right + w + 6 > window.innerWidth) sub.style.left = (anchor.left + window.scrollX - w - 2) + 'px';
-        sub.style.visibility = 'visible';
-    });
-    if (focus) { s.activeCol = 1; s.cIndex = 0; }
-}
-
-function closeSub(s) { s.subOpen = false; s.openCat = -1; s.subEl.style.display = 'none'; }
+const lastCol = (s) => s.cols[s.cols.length - 1];
 
 function move(s, dir) {
-    if (s.activeCol === 1 && s.subOpen) { const n = s.entries[s.openCat].items.length; s.cIndex = wrap(s.cIndex + dir, n); }
-    else { s.pIndex = wrap(s.pIndex + dir, s.entries.length); closeSub(s); }
-    paint(s);
+    const c = lastCol(s);
+    c.sel = wrap(c.sel + dir, c.entries.length);
+    render(s);
+}
+
+function right(s, Pass) {
+    const c = lastCol(s), node = c.entries[c.sel];
+    if (node && node.kind === 'cat') { s.cols.push({ entries: node.children, sel: 0 }); render(s); }
+    else { closeMenu(); return Pass; }
+}
+
+function left(s, Pass) {
+    if (s.cols.length > 1) { s.cols.pop(); render(s); }
+    else { closeMenu(); return Pass; }
+}
+
+function choose(s) {
+    const c = lastCol(s), node = c.entries[c.sel];
+    if (!node) return;
+    if (node.kind === 'leaf') pick(s, node.item);
+    else { s.cols.push({ entries: node.children, sel: 0 }); render(s); }
 }
 
 function pick(s, item) {
@@ -472,23 +518,19 @@ function pick(s, item) {
     else cm.replaceRange(item.text, from, to);
 }
 
+function typedLen(s) {
+    const before = s.cm.getLine(s.from.line).slice(s.from.ch, s.to.ch);
+    return before.length;
+}
+
 function rebuild(s) {
     const data = s.provide();
     if (!data || !data.list || !data.list.length) { closeMenu(); return; }
     s.from = data.from; s.to = data.to;
-    s.entries = toEntries(data.list);
-    if (!s.entries.length) { closeMenu(); return; }
-    if (s.pIndex >= s.entries.length) s.pIndex = s.entries.length - 1;
-    if (s.subOpen && (s.openCat >= s.entries.length || s.entries[s.openCat].kind !== 'cat')) { closeSub(s); s.activeCol = 0; }
-    position(s);
-    renderParent(s);
-    if (s.subOpen) { openSub(s, s.openCat, false); s.activeCol = Math.min(s.activeCol, 1); paint(s); }
-}
-
-function position(s) {
-    const coords = s.cm.cursorCoords(s.from, 'page');
-    s.parentEl.style.top = coords.bottom + 'px';
-    s.parentEl.style.left = coords.left + 'px';
+    const roots = toTree(data.list, typedLen(s) === 0);
+    if (!roots.length) { closeMenu(); return; }
+    s.cols = [{ entries: roots, sel: 0 }];   // collapse to root on edit
+    render(s);
 }
 
 function openMenu(cm, provider = hintFn) {
@@ -496,47 +538,32 @@ function openMenu(cm, provider = hintFn) {
     const data = provider(cm);
     if (!data || !data.list || !data.list.length) return;
 
-    const s = { cm, provide: () => provider(cm), from: data.from, to: data.to,
-        entries: toEntries(data.list), activeCol: 0, pIndex: 0, cIndex: 0, subOpen: false, openCat: -1 };
-    if (!s.entries.length) return;
+    const s = { cm, provide: () => provider(cm), from: data.from, to: data.to };
+    const before = cm.getLine(data.from.line).slice(data.from.ch, data.to.ch);
+    const roots = toTree(data.list, before.length === 0);
+    if (!roots.length) return;
+    s.cols = [{ entries: roots, sel: 0 }];
     menuState = s;
 
-    s.parentEl = document.createElement('div'); s.parentEl.className = 'cd-menu';
-    s.subEl = document.createElement('div'); s.subEl.className = 'cd-menu cd-submenu'; s.subEl.style.display = 'none';
-    document.body.appendChild(s.parentEl); document.body.appendChild(s.subEl);
-
-    position(s); renderParent(s);
+    render(s);
 
     const Pass = CM().Pass;
     s.keyMap = {
-        Down:  () => move(s, 1),
-        Up:    () => move(s, -1),
+        Down: () => move(s, 1),
+        Up: () => move(s, -1),
         'Ctrl-N': () => move(s, 1),
         'Ctrl-P': () => move(s, -1),
-        Right: () => {
-            if (s.activeCol === 1) return;                       // already in the submenu
-            const e = s.entries[s.pIndex];
-            if (e && e.kind === 'cat') { openSub(s, s.pIndex, true); paint(s); }
-            else { closeMenu(); return Pass; }
-        },
-        Left:  () => { if (s.activeCol === 1) { s.activeCol = 0; closeSub(s); paint(s); } else { closeMenu(); return Pass; } },
+        Right: () => right(s, Pass),
+        Left: () => left(s, Pass),
         Enter: () => choose(s),
-        Tab:   () => choose(s),
-        Esc:   () => closeMenu(),
+        Tab: () => choose(s),
+        Esc: () => closeMenu(),
     };
     cm.addKeyMap(s.keyMap);
-    s.onChange = () => rebuild(s);            cm.on('changes', s.onChange);
-    s.onBlur   = () => closeMenu();           cm.on('blur', s.onBlur);
-    s.onDocDown = (e) => { if (!s.parentEl.contains(e.target) && !s.subEl.contains(e.target)) closeMenu(); };
+    s.onChange  = () => rebuild(s);   cm.on('changes', s.onChange);
+    s.onBlur    = () => closeMenu();  cm.on('blur', s.onBlur);
+    s.onDocDown = (e) => { if (!s.colDivs.some(d => d.contains(e.target))) closeMenu(); };
     setTimeout(() => document.addEventListener('mousedown', s.onDocDown, true), 0);
-}
-
-function choose(s) {
-    if (s.activeCol === 1 && s.subOpen) return pick(s, s.entries[s.openCat].items[s.cIndex]);
-    const e = s.entries[s.pIndex];
-    if (!e) return;
-    if (e.kind === 'leaf') pick(s, e.item);
-    else { openSub(s, s.pIndex, true); paint(s); }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
