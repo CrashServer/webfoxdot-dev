@@ -345,6 +345,9 @@
             Scale: ScaleProxy,
             Root:  RootProxy,
             __stopAll: () => { clock._players.forEach(p => p.stop()); },
+            // Tempo automation helpers (Clock.bpm now accepts a TimeVar).
+            linbpm:  (from, to, beats = 16) => { clock.bpm = lininf(from, to, beats); },
+            dropbpm: (to, beats = 8)        => { clock.bpm = lininf(clock.bpm, to, beats); },
             cancelSection,
             __p,
             ...SYNTHS,

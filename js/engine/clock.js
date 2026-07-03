@@ -22,6 +22,9 @@ export const LOOKAHEAD_S = 0.12;
 export class Clock {
     constructor() {
         this._bpm     = 120;
+        this._bpmVar  = null;  // if set, a TimeVar sampled each tick (tempo automation)
+        this._bpmShown = 120;  // last value pushed to the UI (avoids spamming _onBpm)
+        this._meter   = 4;     // beats per bar
         this._beat    = 0;
         this._lastMs  = null;
         this._events  = [];   // { beat, fn }[]
@@ -72,6 +75,17 @@ export class Clock {
         // the backlog in order over the next ticks (the beat just shifts later by
         // the stall — fine for a live instrument).
         if (dt > 0.1) dt = 0.1;
+        // Tempo automation: Clock.bpm = linvar([120,140],[16]) — sample the TimeVar
+        // each tick so the beat advances at the ramped tempo. UI is notified only
+        // when the rounded value changes.
+        if (this._bpmVar) {
+            const v = Number(this._bpmVar.get(Math.floor(this._beat)));
+            if (isFinite(v) && v > 0) {
+                this._bpm = v;
+                const r = Math.round(v);
+                if (r !== this._bpmShown) { this._bpmShown = r; if (this._onBpm) this._onBpm(this._bpm); }
+            }
+        }
         this._beat += dt * this._bpm / 60;
 
         // ~80ms alignment window for at-beat (control) events.
@@ -114,9 +128,35 @@ export class Clock {
     // lead (seconds): dispatch fn this far before `b`, for timestamped audio events.
     _schedule(b, fn, lead = 0) { this._events.push({ beat: b, fn, lead }); }
 
+    // ── User-facing scheduling ────────────────────────────────────────────────
+    // Run fn `dur` beats from now (one-shot). Clock.future(8, () => p1.stop())
+    future(dur, fn)     { if (typeof fn === 'function') this._schedule(this._beat + Math.max(0, dur), fn); }
+    // Run fn at an absolute beat.
+    schedule(beat, fn)  { if (typeof fn === 'function') this._schedule(beat, fn); }
+    // Run fn at the next beat that is a multiple of n (+ optional offset).
+    mod(n, fn, offset = 0) {
+        if (typeof fn !== 'function' || !(n > 0)) return;
+        let nb = Math.ceil((this._beat - offset) / n) * n + offset;
+        if (nb <= this._beat + 1e-6) nb += n;
+        this._schedule(nb, fn);
+    }
+    // Run fn at the next bar boundary.
+    nextBar(fn)         { this.mod(this._meter, fn); }
+    // Current bar index and beats-per-bar.
+    bar()               { return Math.floor(this._beat / this._meter); }
+    get meter()         { return this._meter; }
+    set meter(n)        { this._meter = Math.max(1, Math.round(n)); }
+
     get bpm()  { return this._bpm; }
     set bpm(v) {
+        // A TimeVar/pattern → tempo automation (sampled each tick in _tick).
+        if (v && typeof v === 'object' && (v.isTimeVar || typeof v.get === 'function')) {
+            this._bpmVar = v;
+            return;
+        }
+        this._bpmVar = null;
         this._bpm = Number(v);
+        this._bpmShown = Math.round(this._bpm);
         if (this._onBpm) this._onBpm(this._bpm);
     }
 
