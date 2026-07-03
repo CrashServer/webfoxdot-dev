@@ -194,7 +194,7 @@
     import { _var, _linvar, _sinvar, _expvar, lininf, expinf, Pvar, _fperlin, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall, LoopCall, loadedSampleChars,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
-    import { chaosLines } from './js/engine/generator.js';
+    import { chaosLines, JamBot } from './js/engine/generator.js';
     import { pbuild, pkit, genres } from './js/engine/drumpatterns.js';
     import { transpile, applyRenames }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
@@ -241,6 +241,7 @@
 
     // ── Clock + TimeVar ───────────────────────────────────────────────────────
     const clock = new Clock();
+    let _jamBot = null;   // generative jam bot (son/soff), created on first son()
     clock._onBpm = (bpm) => {
         const inp = document.getElementById('bpm-input');
         if (inp && Number(inp.value) !== bpm) inp.value = bpm;
@@ -406,6 +407,17 @@
                 editor.focus();
                 log(`chaos: pasted ${lines.length} lines — review, then run (Ctrl+Alt+↵)`, 'info');
             },
+            // Generative jam bot — adds/stops/mutates its own g* players over time.
+            //   son()            start (g* players, kept apart from yours)
+            //   son({max:6})     tune bounds/weights: synth, drum, min, max, every:[lo,hi]
+            //   soff()           stop the loop (leaves players)   soff(true) also stops g*
+            son:  (opts = {}) => {
+                if (document.getElementById('status-dot')?.className !== 'ready')
+                    return log('son(): boot audio first (top-left)', 'info');
+                if (!_jamBot) _jamBot = new JamBot({ clock, run: (l) => runCode(l), sampleChars: loadedSampleChars });
+                return log(_jamBot.start(opts), 'info');
+            },
+            soff: (clear = false) => log(_jamBot ? _jamBot.stop(clear) : 'jam bot not running', 'info'),
             // Genre drum-pattern generator → play() strings.
             //   b1 >> play(pbuild("techno"), dur=0.25)
             //   b1 >> play(pbuild("house", evolve=8, fill=4, density=0.8), dur=0.25)

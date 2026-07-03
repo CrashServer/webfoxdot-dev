@@ -36,7 +36,7 @@
     const TIMEVARS = ['linvar','sinvar','expvar','Pvar','lininf','expinf','linbpm','linmod'];
 
     const KEYWORDS = [
-        'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','motif','arp','chaos',
+        'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','motif','arp','chaos','son','soff','linbpm','dropbpm',
         'unsolo','solo','once','norm','clamp','lmap','drummer','fill','brk',
         'renv','clone','switch','start','midi','mlearn','midiout','link',
     ];

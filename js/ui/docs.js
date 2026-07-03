@@ -146,6 +146,7 @@ export const FUNCTIONS = [
     { name: 'pkit(genre, opts)',        desc: 'Like pbuild but returns a kit for per-layer access: kit = pkit("house"); b1 >> play(kit.kick, dur=0.25); h1 >> play(kit.hat, dur=0.25). Layers: kick, snare, hat, perc' },
     { name: 'genres()',                 desc: 'List the available pbuild/pkit drum genres' },
     { name: 'chaos(n, type)',           desc: 'Generate n random players (synth/drum mix) into g1,g2,… and PASTE them into the editor as a block — does NOT run them; review/edit then evaluate. type "synth"|"drum" forces one kind. Default n=4' },
+    { name: 'son(opts) / soff(clear)',  desc: 'Generative jam bot: over time it adds/stops/mutates its own g* players (kept apart from yours; broadcasts to peers in a session). opts: {synth, drum} weights, {min,max} voices, {every:[lo,hi]} beats/tick. soff() stops the loop; soff(true) also stops the g* players. Boot audio first' },
     { name: '.drummer(durloop, durPlyr)', desc: 'Chain onto a play() player to turn it into a self-evolving rock drummer (FoxDot/CrashServer port). Picks a random groove + fill, swaps the fill in for the tail of each loop, then re-randomises the groove every durloop beats. durloop default 16, step dur default 0.5. e.g. b1 >> play("x").drummer()' },
     { name: '.gtr(string)',             desc: 'Tune a player like a guitar string (FoxDot/CrashServer): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. string 0–6 → E A D G B e (low→high). e.g. p1 >> guit([0,3,5,7]).gtr(5)' },
     { name: 'Clock.bpm = linvar(...)',  desc: 'Tempo automation — Clock.bpm now accepts a TimeVar/pattern, so it ramps: Clock.bpm = linvar([120,140],[32]). A plain number still sets it instantly' },
@@ -193,6 +194,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+{ t: 'New son() / soff() — a generative jam bot. Over time it adds, stops, and mutates its own g* players (kept apart from your p1/b1 so it never fights your code), holding between min and max voices; in a session its lines broadcast to peers. son({min:2, max:5, drum:0.5, every:[4,8]}) tunes it; soff() stops the loop, soff(true) also stops its players. Boot audio first.', ex: 'syncgen' },
 'Tempo automation: Clock.bpm now accepts a TimeVar, so the tempo can ramp — Clock.bpm = linvar([120,140],[32]), or the helpers linbpm(120,140,32) / dropbpm(90,8). Plus new scheduling: Clock.future(dur, fn), Clock.schedule(beat, fn), Clock.mod(n, fn), Clock.nextBar(fn), and Clock.meter (beats/bar).',
 { t: 'Patterns are now chainable (FoxDot metaPattern methods): P[…] and list generators (PDur/PBeat/PCircle/PProg/PGrowArp/PTree/PPairs/PSum/PJoin…) return a Pattern you can transform — .rotate(n) .reverse() .mirror() .palindrome() .accum() .stretch(n) .trim/.ltrim .loop(n) .stutter(n) .shuffle() .sort() .add(v) .offadd(v)/.offmul(v) .zip(other) .amen(n). e.g. d1 >> pluck(P[0,2,4,7].rotate(1).palindrome()). Also new Pvar([patterns], durs): a pattern-valued timevar that swaps whole phrases over clock time while the player keeps stepping.', ex: 'patterns' },
 'New FX (FoxDot/CrashServer ports): bpf — resonant band-pass sweep (bpf=center Hz, bpf_rq=bandwidth, small=narrow/resonant); and eq3 — a 3-band EQ (eq3=mix, eqlow/eqmid/eqhigh in dB ±24, with eqlowf/eqmidf/eqmidq/eqhighf to place the bands). Both live in the fx › filters submenu. e.g. p1 >> saw([0,4,7], bpf=1200, bpf_rq=0.2) · b1 >> play(x.o., eq3=1, eqlow=4, eqhigh=-3).',
@@ -806,6 +808,13 @@ p1.soloDrop(8)                                   # solo-drop 8 beats (method for
         ${code(`chaos(4)             # 4 random players (synth + drum mix)
 chaos(2, "synth")    # 2 random melodic/bass players
 chaos(3, "drum")     # 3 random drum patterns`)}
+        ${note('<b>son() / soff()</b> — a generative <b>jam bot</b>. Unlike <code>chaos</code> (which pastes text for you to run), <code>son()</code> runs itself: every couple of beats it adds, stops, or mutates one of its own <code>g*</code> players, keeping between <code>min</code> and <code>max</code> voices. It never touches your own players, and in a session its lines broadcast to peers. <code>soff()</code> stops the loop; <code>soff(true)</code> also stops its players. Boot audio first.')}
+        ${code(`son()                       # start the bot (3–8 g* voices)
+son({min:2, max:5, drum:0.5})   # fewer voices, more drums
+son({every:[4, 8]})             # a change every 4–8 beats (slower)
+soff()                          # stop the loop (leaves g* playing)
+soff(true)                      # stop the loop AND its players`)}
+        ${note('<b>Tempo automation</b> — <code>Clock.bpm</code> now takes a TimeVar, so the tempo can ramp: <code>Clock.bpm = linvar([120,140],[32])</code>, or the helpers <code>linbpm(120,140,32)</code> / <code>dropbpm(90,8)</code>. And you can schedule one-shots: <code>Clock.future(8, fn)</code>, <code>Clock.mod(4, fn)</code>, <code>Clock.nextBar(fn)</code>.')}
     `, 'syncgen');
 
     const midi = section('MIDI — control in, notes out', `

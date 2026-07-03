@@ -147,7 +147,7 @@ const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','lininf(','expinf(',
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
-    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','melody(',
+    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(','melody(',
     'midi(','mlearn(','midiout(','link(',
 ];
 
