@@ -12,6 +12,7 @@ const PLAYER_METHODS = [
     'stop()', 'solo()', 'soloDrop()', 'once()', 'drummer()', 'gtr(5)', 'penta()', 'chroma()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
     'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
     'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
+    'follow("p1")', 'accompany("p1")', 'map("p1", {0: 5, 4: 7})',
 ];
 
 // Params common to every synth — uniform defaults, so we don't clutter the

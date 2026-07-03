@@ -1047,6 +1047,43 @@ export class Player {
         return this;
     }
 
+    // ── Cross-player modulation (take a player NAME as a string) ──────────────
+    // .follow("p1") — track another player's degree each step.
+    follow(name) {
+        const other = this._clock._players.get(String(name));
+        if (other) this.setAttr('degree', other.getAttr('degree'));
+        return this;
+    }
+
+    // .accompany("p1", [0,2,4]) — harmonise around another player's degree,
+    // cycling the given scale-degree intervals. e.g. p2 >> pluck([0]).accompany("p1")
+    accompany(name, intervals = [0, 2, 4]) {
+        const other = this._clock._players.get(String(name));
+        if (!other) return this;
+        const base = other.getAttr('degree');
+        const iv = Array.isArray(intervals) ? intervals : [intervals];
+        this.setAttr('degree', { get: (step) => {
+            const d = patGet(base, step);
+            return (Number(d) || 0) + iv[(((step % iv.length) + iv.length) % iv.length)];
+        } });
+        return this;
+    }
+
+    // .map("p1", {0:5, 4:7}, "degree") — drive one of THIS player's attrs from
+    // another player's degree through a lookup table (missing keys pass through).
+    map(name, mapping = {}, attr = 'degree') {
+        const other = this._clock._players.get(String(name));
+        if (!other) return this;
+        const src = other.getAttr('degree');
+        this.setAttr(attr, { get: (step) => {
+            const k = patGet(src, step);
+            if (mapping[k] !== undefined) return mapping[k];
+            const r = Math.round(k);
+            return mapping[r] !== undefined ? mapping[r] : k;
+        } });
+        return this;
+    }
+
     // Read another player's current value of an attr as a live pattern:
     //   i9 >> faim(b1.degree, …)   reads b1's degree each step.
     getAttr(attr) {

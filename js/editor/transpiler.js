@@ -57,12 +57,15 @@ export function transpile(code) {
             // convertAlt/convertCurly after autoQuotePlay (so play strings are
             // already quoted & skipped) but before kwargify (so dur=<1 2> →
             // {dur:_alt(1,2)} parses and {2,4} → PRand([2,4]) before kwargs run).
-            let expr = kwargify(convertCurly(convertAlt(autoQuotePlay(parts[0].trim()))));
+            // convertPlayerRefs runs BEFORE kwargify so a player ref becomes
+            // getAttr(...) — a pattern token — and any arithmetic on it (b1.degree+2)
+            // is then wrapped in Pmath instead of evaluating to NaN.
+            let expr = kwargify(convertCurly(convertAlt(convertPlayerRefs(autoQuotePlay(parts[0].trim())))));
             for (let i = 1; i < parts.length; i++) {
-                expr = `(${expr}).__add__(${kwargify(convertCurly(convertAlt(parts[i].trim())))})`;
+                expr = `(${expr}).__add__(${kwargify(convertCurly(convertAlt(convertPlayerRefs(parts[i].trim()))))})`;
             }
             const resetArg = tilde ? ', true' : '';
-            return `${indent}__p('${player}').__rshift__(${convertPlayerRefs(expr)}${resetArg})${tail}`;
+            return `${indent}__p('${player}').__rshift__(${expr}${resetArg})${tail}`;
         }
 
         // Player attribute assignment: p1.lpf = linvar(...)  (live-tweak one attr
@@ -70,7 +73,7 @@ export function transpile(code) {
         const am = main.match(RE_ATTR);
         if (am && !RE_RESERVED.test(am[2])) {
             const [, indent, player, attr, value] = am;
-            return `${indent}__p('${player}').setAttr('${attr}', ${patMath(kwargify(convertCurly(convertAlt(value.trim()))))})${tail}`;
+            return `${indent}__p('${player}').setAttr('${attr}', ${patMath(kwargify(convertCurly(convertAlt(convertPlayerRefs(value.trim())))))})${tail}`;
         }
 
         // p1.method(...) → __p('p1').method(...)
@@ -317,7 +320,7 @@ function findCommentChar(line) {
 // +/- below */). Pure-scalar arithmetic (1/4, 2400/600) is left as native JS.
 // P[A-Za-z] (not just P[A-Z]) so lowercase-second-letter patterns like Pacc are
 // recognised — otherwise Pacc("offbeat")*1.3 stays raw JS ({get}*num = NaN).
-const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb)\s*\(/;
+const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb|getAttr)\s*\(/;
 
 function patMath(s) {
     return PATTERN_TOKEN.test(s) ? compilePatternMath(s) : s;
