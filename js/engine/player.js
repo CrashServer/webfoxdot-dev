@@ -1022,6 +1022,15 @@ export class Player {
     // .degrade(prob) — randomly silence prob (0–1) of steps. degrade(0) clears it.
     degrade(prob = 0.5) { this._degrade = prob; return this; }
 
+    // .once() — play a single event (one step), then stop. Great for one-shot
+    // stabs/hits: p1 >> stab([0,4,7]).once()
+    once() {
+        const dur = Number(this._args?.dur ?? this._playOpts?.dur ?? this._loopOpts?.dur ?? 1) || 1;
+        const at  = (this._nextBeat ?? this._clock.now()) + dur * 0.9;
+        this._clock.schedule(at, () => this.stop());
+        return this;
+    }
+
     // .penta() — constrain degrees to the minor pentatonic scale for this player.
     penta() { this._scale = SCALE_MAP.minPentatonic; return this; }
 

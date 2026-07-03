@@ -242,6 +242,16 @@
     // ── Clock + TimeVar ───────────────────────────────────────────────────────
     const clock = new Clock();
     let _jamBot = null;   // generative jam bot (son/soff), created on first son()
+    // Mode brightness order (Lydian brightest → Locrian darkest) for darker()/lighter().
+    const SCALE_BRIGHT = {
+        order: ['lydian', 'major', 'mixolydian', 'dorian', 'minor', 'phrygian', 'locrian'],
+        step(dir) {
+            let i = this.order.indexOf(Scale._name);
+            if (i < 0) i = this.order.indexOf('major');
+            i = Math.max(0, Math.min(this.order.length - 1, i + dir));
+            Scale.default = this.order[i];
+        },
+    };
     clock._onBpm = (bpm) => {
         const inp = document.getElementById('bpm-input');
         if (inp && Number(inp.value) !== bpm) inp.value = bpm;
@@ -349,6 +359,33 @@
             // Tempo automation helpers (Clock.bpm now accepts a TimeVar).
             linbpm:  (from, to, beats = 16) => { clock.bpm = lininf(from, to, beats); },
             dropbpm: (to, beats = 8)        => { clock.bpm = lininf(clock.bpm, to, beats); },
+            // ── Live-control helpers (CrashServer ports) ──────────────────────
+            // say(text) — speak via the browser (Web Speech API, not scsynth).
+            say: (text, opts = {}) => {
+                try {
+                    const u = new SpeechSynthesisUtterance(String(text));
+                    if (opts.rate   != null) u.rate   = opts.rate;
+                    if (opts.pitch  != null) u.pitch  = opts.pitch;
+                    if (opts.volume != null) u.volume = opts.volume;
+                    if (opts.voice) { const v = speechSynthesis.getVoices().find(v => v.name.toLowerCase().includes(String(opts.voice).toLowerCase())); if (v) u.voice = v; }
+                    speechSynthesis.speak(u);
+                } catch (e) { log('say(): speech synthesis unavailable', 'info'); }
+                return text;
+            },
+            // darker()/lighter() — walk Scale.default along the mode brightness list.
+            darker:  () => { SCALE_BRIGHT.step(1);  log(`Scale.default = ${JSON.stringify(Scale._name)}`, 'ok'); },
+            lighter: () => { SCALE_BRIGHT.step(-1); log(`Scale.default = ${JSON.stringify(Scale._name)}`, 'ok'); },
+            // shutup() — stop every player (and the jam bot). A softer panic.
+            shutup: () => { clock.clear(); if (_jamBot) _jamBot.stop(true); log('shutup — all players stopped', 'info'); },
+            // swap(a, b, key) — swap one attribute between two named players live.
+            // (FoxDot calls this `switch`, but that's a reserved word in JS.)
+            swap: (aName, bName, key) => {
+                const A = clock._players.get(aName), B = clock._players.get(bName);
+                if (!A || !B) return log('swap: unknown player', 'info');
+                const ta = A._mode === 'sample' ? A._playOpts : A._args;
+                const tb = B._mode === 'sample' ? B._playOpts : B._args;
+                const tmp = ta[key]; ta[key] = tb[key]; tb[key] = tmp;
+            },
             cancelSection,
             __p,
             ...SYNTHS,
