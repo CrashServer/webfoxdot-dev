@@ -83,9 +83,18 @@ function _bindInputs() {
     _changed();
 }
 
+// Note-input handler — set by onMidiNote(). fn(note, velocity0to1, isOn).
+let _noteHandler = null;
+export function onMidiNote(fn) { _noteHandler = fn; }
+
 function _onMessage(ev) {
     const [status, d1, d2] = ev.data;
-    if ((status & 0xf0) !== 0xb0) return;        // Control Change only (v1)
+    const type = status & 0xf0;
+    // Note on/off → the note-input handler (midiin). A note-on with velocity 0 is
+    // the common "note off" encoding.
+    if (type === 0x90 && d2 > 0) { _noteHandler?.(d1, d2 / 127, true);  return; }
+    if (type === 0x80 || (type === 0x90 && d2 === 0)) { _noteHandler?.(d1, 0, false); return; }
+    if (type !== 0xb0) return;                   // Control Change only (v1)
     const channel = (status & 0x0f) + 1;
     const cc = d1;
     const value = d2 / 127;                       // 0..1

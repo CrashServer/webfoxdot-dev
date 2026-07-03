@@ -39,7 +39,7 @@
         'Clock','Scale','Root','drop','rest','print','play','loop','loadloop','melody','motif','arp','chaos','son','soff','linbpm','dropbpm',
         'say','darker','lighter','shutup','swap',
         'unsolo','solo','once','norm','clamp','lmap','drummer','fill','brk',
-        'renv','clone','switch','start','midi','mlearn','midiout','link',
+        'renv','clone','switch','start','midi','midiin','mlearn','midiout','link','follow','accompany',
     ];
 
     // Build a fast lookup: word → cm class name

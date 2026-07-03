@@ -62,6 +62,19 @@ export function busStats() { return { used: _nextSlot - _freeBuses.length, peak:
 let _sc = null;
 export function setSuperSonic(sc) { _sc = sc; }
 
+// One-shot synth note for MIDI note-input — fires `synthName` at MIDI note `midi`
+// immediately to the main output (no per-player FX/bus; a simple keyboard voice).
+// sus is in seconds; amp 0..~1.5. Returns the node id.
+export function playSynthNote(synthName, midi, opts = {}) {
+    if (!_sc) return;
+    // secPerBeat=1 so buildParams treats sus (default 0.5) as seconds directly.
+    const result = buildParams(synthName, midi, { sus: opts.sus ?? 0.5, amp: opts.amp ?? 0.7 }, 1, 0);
+    if (!result) return;
+    const id = _sc.nextNodeId();
+    try { _sc.sendOSC(osc.encodeSingleBundle(osc.ntpNow(), '/s_new', [result.scName, id, 0, PLAYER_GROUP, ...result.params])); } catch (_) {}
+    return id;
+}
+
 // Per-step UI signal: (playerName, step). step < 0 means "stopped — clear".
 // Wrapped so a UI error can never break audio scheduling (it fires mid-_fire).
 let _onStep = null;

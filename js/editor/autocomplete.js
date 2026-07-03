@@ -150,7 +150,7 @@ const GLOBALS = [
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
     'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(',
     'say(','darker()','lighter()','shutup()','swap(','melody(',
-    'midi(','mlearn(','midiout(','link(',
+    'midi(','midiin(','mlearn(','midiout(','link(',
 ];
 
 // ── Player name generation ───────────────────────────────────────────────────

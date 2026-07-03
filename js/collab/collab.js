@@ -43,7 +43,10 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     const ydoc     = new Y.Doc();
     const provider = new WebsocketProvider(wsBase, sessionSlug, ydoc);
     const ytext    = ydoc.getText('code');
-    const binding  = new CodemirrorBinding(ytext, editor, provider.awareness);
+    // Scoped per-user undo: a Y.UndoManager so Ctrl-Z reverts only YOUR edits, not a
+    // collaborator's (y-codemirror wires CM undo/redo to it when passed).
+    const undoManager = new Y.UndoManager(ytext);
+    const binding  = new CodemirrorBinding(ytext, editor, provider.awareness, { yUndoManager: undoManager });
 
     // User identity — persisted across reloads. A stable `id` (separate from the
     // per-connection Yjs clientID) survives refreshes, so peers de-dupe on it and

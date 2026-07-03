@@ -178,7 +178,7 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { FX_SYNTHDEFS }   from './js/fx/registry.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
@@ -203,7 +203,7 @@
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
-    import { enableMidi, makeMidi }      from './js/midi/midi.js';
+    import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
@@ -469,6 +469,19 @@
             // via assignment: p1.lpf = midi(74, 100, 8000, 'exp')
             midi:   (cc, lo = 0, hi = 1, curve = 'lin') => { _ensureMidi(); return makeMidi(cc, lo, hi, curve); },
             mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
+            // midiin(synth, opts) — play incoming MIDI keyboard notes through a synth.
+            // opts: amp (velocity scale), sus (note length secs), transpose (semitones).
+            // Notes are fixed-length (synths self-release); pass 0/false to unbind.
+            midiin: (synth = 'saw', opts = {}) => {
+                if (synth === 0 || synth === false) { onMidiNote(null); return log('midiin: off', 'info'); }
+                if (document.getElementById('status-dot')?.className !== 'ready') return log('midiin: boot audio first', 'info');
+                _ensureMidi();
+                onMidiNote((note, vel, on) => {
+                    if (!on) return;
+                    playSynthNote(synth, note + (opts.transpose ?? 0), { amp: (opts.amp ?? 1) * vel, sus: opts.sus ?? 0.5 });
+                });
+                return log(`midiin: MIDI keyboard → ${synth}`, 'info');
+            },
             // MIDI out: m1 >> midiout([0,2,4], channel=1, oct=5) sends notes to an
             // external/virtual MIDI port (velocity from amp, length from sus/leg).
             midiout: (deg, opts = {}) => { _ensureMidiOut(); return _midiout(deg, opts); },
