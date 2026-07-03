@@ -142,7 +142,7 @@ const PATTERN_TEMPLATES = {
 };
 const patItem = (n) => item(PATTERN_TEMPLATES[n] || (n + '('), 'hint-pattern', n);
 
-const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','fi(','fo(','fb('];
+const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','lininf(','expinf(','Pvar(','fperlin(','fi(','fo(','fb('];
 
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',

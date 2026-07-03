@@ -60,6 +60,25 @@ export function _var(vals, durs) {
 export function lininf(start = 0, finish = 1, time = 32) { return _linvar([start, finish, finish], [time, 1e9, 1e9]); }
 export function expinf(start = 0, finish = 1, time = 32) { return _expvar([start, finish, finish], [time, 1e9, 1e9]); }
 
+// Pvar(patterns, durs) — a PATTERN-valued TimeVar: holds whole patterns and swaps
+// the ACTIVE one over clock time (durs beats each), while the player keeps stepping
+// through whichever pattern is live. e.g. p1 >> pluck(Pvar([[0,2,4], [7,4,2,0]], 8))
+// plays the first phrase for 8 beats, then the second, looping.
+export function Pvar(patterns, durs) {
+    if (!Array.isArray(patterns)) patterns = [patterns];
+    const { durs: ds, total } = normDurs(patterns, durs);
+    const res = (p, step) => {
+        if (p == null) return p;
+        if (typeof p.get === 'function') return p.get(step);
+        if (Array.isArray(p)) { const L = p.length || 1; return res(p[((step % L) + L) % L], step); }
+        return p;
+    };
+    return { isTimeVar: true, get(step) {
+        const { idx } = tpos(ds, total);
+        return res(patterns[idx % patterns.length], step | 0);
+    }};
+}
+
 export function _linvar(vals, durs) {
     const { vals: vs, durs: ds, total } = normDurs(vals, durs);
     return { isTimeVar: true, get(_) {

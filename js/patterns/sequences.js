@@ -23,6 +23,53 @@ export function patGet(val, step, def) {
     return val;
 }
 
+// ── Pattern class — chainable transforms ─────────────────────────────────────
+// A Pattern is a real Array subclass (so it stays fully array-compatible: spread,
+// map, Array.isArray, patGet's array branch all work) that ALSO carries FoxDot's
+// chainable transform methods. P[a,b,c] transpiles to Ppat([a,b,c]); many list
+// generators (PDur, PBeat, PCircle, …) return one too, so you can write
+//   d1 >> pluck(P[0,2,4,7].rotate(1).palindrome())
+//   b1 >> play(PDur(3,8).mirror())
+export class Pattern extends Array {
+    // reversed copy (non-mutating, unlike Array.prototype.reverse)
+    reverse()      { return Ppat([...this].reverse()); }
+    mirror()       { return this.reverse(); }
+    // self followed by its reverse
+    palindrome()   { return Ppat([...this, ...[...this].reverse()]); }
+    // cyclic shift by n (negative = left)
+    rotate(n = 1)  { const L = this.length || 1, r = ((Math.round(n) % L) + L) % L; return Ppat([...this.slice(r), ...this.slice(0, r)]); }
+    // running cumulative sum: [1,2,1] → [start, start+1, start+3]
+    accum(start = 0) { let a = start; return Ppat(this.map(x => { const v = a; a += Number(x) || 0; return v; })); }
+    // repeat cyclically to exactly `size` steps
+    stretch(size)  { const out = []; for (let i = 0; i < size; i++) out.push(this[i % this.length]); return Ppat(out); }
+    // first / last `size` elements
+    trim(size)     { return Ppat(this.slice(0, size)); }
+    ltrim(size)    { return Ppat(this.slice(-size)); }
+    // repeat the whole pattern n times
+    loop(n = 2)    { const out = []; for (let i = 0; i < n; i++) out.push(...this); return Ppat(out); }
+    dup(n = 2)     { return this.loop(n); }
+    // each element repeated n times in place
+    stutter(n = 2) { const out = []; for (const x of this) for (let i = 0; i < n; i++) out.push(x); return Ppat(out); }
+    // shuffled / sorted copies
+    shuffle()      { const a = [...this]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return Ppat(a); }
+    sort()         { return Ppat([...this].sort((x, y) => x - y)); }
+    // add an interval as a simultaneous grace layer: each step plays x AND x+v
+    offadd(v = 0)  { return Ppat(this.map(x => _group(x, (Number(x) || 0) + v))); }
+    offmul(v = 1)  { return Ppat(this.map(x => _group(x, (Number(x) || 0) * v))); }
+    // interleave with another list into per-step groups (chords)
+    zip(other)     { const b = Array.isArray(other) ? other : [other]; return Ppat(this.map((x, i) => _group(x, b[i % b.length]))); }
+    // add a scalar/interval to every element
+    add(v = 0)     { return Ppat(this.map(x => (Number(x) || 0) + v)); }
+    // amen-break slice reorder over `size` equal parts (iconic breakbeat shuffle)
+    amen(size = 4) {
+        const n = this.length, p = Math.max(1, Math.floor(n / size)), part = (i) => this.slice(i * p, (i + 1) * p);
+        if (size < 4) return Ppat([...this]);
+        return Ppat([...part(0), ...part(1), ...part(0), ...part(3), ...part(2), ...part(1), ...part(2), ...part(3)].slice(0, n));
+    }
+}
+// Wrap any array/value into a Pattern. Emitted by the transpiler for P[…].
+export function Ppat(a) { return Pattern.from(Array.isArray(a) ? a : [a]); }
+
 // ── Groups / chords ──────────────────────────────────────────────────────────
 // (a, b, c) in a param position → a group: values fired SIMULTANEOUSLY (chord),
 // or zipped across layered voices when several params are groups. Distinct from
@@ -159,8 +206,8 @@ export function PDur(k, n, rotate = 0, dur = 1) {
         else acc++;
     }
     if (acc > 0) durs.push(acc * dur / n);
-    if (rotate) { const r = ((Math.round(rotate) % durs.length) + durs.length) % durs.length; return durs.slice(r).concat(durs.slice(0, r)); }
-    return durs;
+    if (rotate) { const r = ((Math.round(rotate) % durs.length) + durs.length) % durs.length; return Ppat(durs.slice(r).concat(durs.slice(0, r))); }
+    return Ppat(durs);
 }
 
 // PDrum(k, n, char) — a Euclidean drum play() string: k pulses spread over n steps.
@@ -215,7 +262,7 @@ export function PSum(n, total, lim = 0.125) {
         if (sum(data) + step > total) step *= 0.5;
         else { data[i % n] += step; i++; }
     }
-    return data;
+    return Ppat(data);
 }
 
 // PDelta(deltas, start=0) — cumulative sum: start, start+d0, start+d0+d1, …
@@ -238,14 +285,14 @@ export function PBeat(string, start = 0, dur = 0.5) {
     if (cur > 0) out.push(cur);
     let res = out.map(d => d * dur);
     if (start && res.length) { const r = ((Math.round(start) % res.length) + res.length) % res.length; res = res.slice(r).concat(res.slice(0, r)); }
-    return res;
+    return Ppat(res);
 }
 
 // PJoin(...patterns) — concatenate several lists into one.
 export function PJoin(...patterns) {
     const out = [];
     for (const p of patterns) for (const x of (Array.isArray(p) ? p : [p])) out.push(x);
-    return out;
+    return Ppat(out);
 }
 
 // PDelay(k, n, rotate=0, dur=1) — a group of onset offsets (delay times) from a
@@ -282,7 +329,7 @@ export const PFibMod = PFib;
 export function PPairs(seq, func = (n) => 8 - n) {
     const out = [];
     for (const item of (Array.isArray(seq) ? seq : [seq])) { out.push(item); out.push(func(item)); }
-    return out;
+    return Ppat(out);
 }
 
 // PChar(string, start=0) — letters → degrees (a=0, b=1, …), non-letters → 0.
@@ -706,9 +753,9 @@ function _parseRoman(tok) {
 // PRoman("I IV V vi") — a progression: each numeral becomes a diatonic chord
 // group, stepping one chord per step. Suffixes work: "V7", "ii7", "Isus4".
 export function PRoman(str) {
-    return String(str).split(/[\s,|]+/).filter(Boolean).map(t => {
+    return Ppat(String(str).split(/[\s,|]+/).filter(Boolean).map(t => {
         const p = _parseRoman(t); return p ? PChord(p.deg, p.type) : 0;
-    });
+    }));
 }
 
 // PProg(name) — a named chord progression (→ PRoman). Unknown names are treated
@@ -725,7 +772,7 @@ const _PROGS = {
     'half': 'I V', 'deceptive': 'V vi', 'interrupted': 'V vi',
 };
 export function PProg(name = '50s') {
-    return PRoman(_PROGS[String(name).toLowerCase()] || name);
+    return Ppat(PRoman(_PROGS[String(name).toLowerCase()] || name));
 }
 
 // ── Rhythm vocabulary ─────────────────────────────────────────────────────────
@@ -753,7 +800,7 @@ export function PRhythm(durations) {
         if (grp && grp.length >= 2) { for (const d of PDur(grp[0], grp[1])) out.push(d); }
         else out.push(item);
     }
-    return out;
+    return Ppat(out);
 }
 
 // PPoly(a, b, span=1) — cross-rhythm: merge an a-pulse and a b-pulse evenly over
@@ -819,7 +866,7 @@ export function PThue() { return { get: (i) => { let b = 0, x = i | 0; while (x)
 export function PGrowArp(seq) {
     const a = Array.isArray(seq) ? seq : [seq], out = [];
     for (let n = 1; n <= a.length; n++) for (let j = 0; j < n; j++) out.push(a[j]);
-    return out;
+    return Ppat(out);
 }
 
 // PTree(seed, depth, step) — a self-similar melody (L-system): each degree d
@@ -827,7 +874,7 @@ export function PGrowArp(seq) {
 export function PTree(seed = [0], depth = 3, step = 2) {
     let cur = (Array.isArray(seed) ? seed : [seed]).slice();
     for (let d = 0; d < depth; d++) { const next = []; for (const v of cur) next.push(v, v + step); cur = next; }
-    return cur;
+    return Ppat(cur);
 }
 
 // ── Curve shapes ──────────────────────────────────────────────────────────────
@@ -919,7 +966,7 @@ export function PGroove(name = 'swing') {
 export function PCircle(n = 8, start = 0, type = null) {
     const degs = [];
     for (let i = 0, d = start; i < n; i++, d += 3) degs.push(((d % 7) + 7) % 7);
-    return type != null ? degs.map(x => PChord(x, type)) : degs;
+    return Ppat(type != null ? degs.map(x => PChord(x, type)) : degs);
 }
 
 // unison(n, detune, spread) — pan positions + semitone pshift offsets (FoxDot

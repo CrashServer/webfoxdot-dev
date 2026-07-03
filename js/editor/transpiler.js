@@ -33,10 +33,10 @@ export function transpile(code) {
 
         // FoxDot P object (no JS operator overloading, so rewrite the syntax):
         //   P*[a,b,c] → PRand([a,b,c])   (random pick from the list)
-        //   P[a,b,c]  → [a,b,c]          (plain cyclic pattern)
+        //   P[a,b,c]  → Ppat([a,b,c])    (cyclic pattern with chainable methods)
         //   P(a,b,c)  → __group(a,b,c)   (simultaneous group)
         main = main.replace(RE_P_RAND, 'PRand([$1])');
-        main = main.replace(RE_P_LIST, '[$1]');
+        main = main.replace(RE_P_LIST, 'Ppat([$1])');
         main = main.replace(RE_P_GROUP, '__group($1)');
 
         // Standalone . used as rest → null in array/argument positions

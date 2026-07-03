@@ -120,6 +120,7 @@ export const PATTERNS = [
     { name: 'PCircle(n, start, type)',  desc: 'Diatonic circle of fifths as scale degrees (I IV vii iii vi ii V…) — stays coherent with Root/Scale. Pass a chord type for chord groups' },
     { name: 'melody(range, maxStep)',   desc: 'Simple melodic generator — a bounded random walk over scale degrees. Freeze a fixed phrase that repeats with a slice: melody()[:8]' },
     { name: 'pat[:N]  (slice)',          desc: 'Freeze a generator: sample N values once and loop them, so a random source becomes a stable N-step phrase that repeats. e.g. PWhite(0,1)[:8], melody()[:8]. Returns Pslice(pat, start, stop) under the hood' },
+    { name: 'P[…].method()  (chain)',    desc: 'P[…] and list generators (PDur, PBeat, PCircle, PProg…) are chainable: .rotate(n) .reverse() .mirror() .palindrome() .accum(start) .stretch(n) .trim(n)/.ltrim(n) .loop(n) .stutter(n) .shuffle() .sort() .add(v) .offadd(v)/.offmul(v) (add a grace layer) .zip(other) .amen(n). e.g. P[0,2,4,7].rotate(1).palindrome()' },
 ];
 
 export const TIMEVARS = [
@@ -129,6 +130,7 @@ export const TIMEVARS = [
     { name: 'expvar(values, durs)',     desc: 'Exponential interpolation (useful for freq/amp)' },
     { name: 'lininf(start, finish, time)', desc: 'Linear ramp start→finish over time beats, then holds at finish forever' },
     { name: 'expinf(start, finish, time)', desc: 'Exponential ramp start→finish over time beats, then holds forever' },
+    { name: 'Pvar([patterns], durs)',   desc: 'Pattern-valued timevar: swaps the whole active pattern over clock time (durs beats each) while the player keeps stepping. e.g. Pvar([[0,2,4],[7,4,2,0]], 8)' },
     { name: 'fi(beats, a, b)',          desc: 'Envelope (use with _ suffix): fade in a→b over beats, holds at b. e.g. lpf_=fi(0.5, 400, 4000)' },
     { name: 'fo(beats, a, b)',          desc: 'Envelope (_ suffix): fade out b→a over beats, holds at a' },
     { name: 'fb(beats, a, b)',          desc: 'Envelope (_ suffix): bounce a↔b every beats (wobble). Loops within sus' },
@@ -186,6 +188,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+{ t: 'Patterns are now chainable (FoxDot metaPattern methods): P[…] and list generators (PDur/PBeat/PCircle/PProg/PGrowArp/PTree/PPairs/PSum/PJoin…) return a Pattern you can transform — .rotate(n) .reverse() .mirror() .palindrome() .accum() .stretch(n) .trim/.ltrim .loop(n) .stutter(n) .shuffle() .sort() .add(v) .offadd(v)/.offmul(v) .zip(other) .amen(n). e.g. d1 >> pluck(P[0,2,4,7].rotate(1).palindrome()). Also new Pvar([patterns], durs): a pattern-valued timevar that swaps whole phrases over clock time while the player keeps stepping.', ex: 'patterns' },
 'New FX (FoxDot/CrashServer ports): bpf — resonant band-pass sweep (bpf=center Hz, bpf_rq=bandwidth, small=narrow/resonant); and eq3 — a 3-band EQ (eq3=mix, eqlow/eqmid/eqhigh in dB ±24, with eqlowf/eqmidf/eqmidq/eqhighf to place the bands). Both live in the fx › filters submenu. e.g. p1 >> saw([0,4,7], bpf=1200, bpf_rq=0.2) · b1 >> play(x.o., eq3=1, eqlow=4, eqhigh=-3).',
 'Autocomplete is now a nested flyout menu: category headers (synths · patterns · params · fx …) are rows you unfold to the RIGHT — hover or press → to open, ← to go back, ↑/↓ to move, ↵/Tab to pick, Esc to close. The fx category unfolds a second level by family (filters · reverbs · delays · distortion · modulation · rhythmic). Param/FX names show clean (no trailing = or …) but still insert the full amp= / lpf=2000, … form. Typing filters as a flat list.',
         { t: 'Curve shapes + composition helpers. Curves (per-step LFOs, good on dur/sus too): PExp (exponential), PPulse (square/pulse with a width/duty knob), PSlide (smoothstep swell). Note generators like melody(): motif(n) (a frozen repeating motif), arp([0,4,7],"updown") (directional arpeggiator), PContour("arch",8,7) (a melody following a shape). Duration feels: PGroove("swing"/"gallop"/"triplet"…). Composition: PCircle(8) walks the diatonic circle of fifths (I IV vii iii vi ii V…) staying coherent with the current Root/Scale — pass a chord type for a turnaround of chords; PProg also learned cadences ("perfect"/"plagal"/"half"/"deceptive").', ex: 'patterns' },
@@ -763,7 +766,9 @@ b1 >> play(PClave("son"))                             # son clave`)}
         ${note('<b>Melody generators</b> (like <code>melody()</code>) — <code>motif(n)</code> is a frozen repeating phrase, <code>arp()</code> arpeggiates a chord, <code>PContour(shape)</code> draws a melodic shape and the scale keeps it sweet.')}
         ${code(`p1 >> pluck(motif(4), oct=5, dur=1/2)                 # fixed 4-note motif
 p2 >> saw(PContour("arch", 8, 7), oct=5, dur=1/2)     # rise then fall
-p3 >> blip(arp([0,4,7,11], "updown"), oct=6, dur=1/4) # arpeggio up/down`)}
+p3 >> blip(arp([0,4,7,11], "updown"), oct=6, dur=1/4) # arpeggio up/down
+p4 >> pluck(P[0,2,4,7].rotate(1).palindrome(), oct=5, dur=1/4)  # chainable transforms
+p5 >> saw(Pvar([[0,2,4], [7,4,2,0]], 8), oct=5, dur=1/2)        # swap phrase every 8 beats`)}
         ${note('<b>Chaos &amp; feels</b> — dynamical-system streams (<code>PLogistic/PBrown/PHenon/PLorenz</code>) give organic drift on any param; <code>PGroove</code> is named dur feels; <code>PThue</code>/<code>PEuclid</code> shape accents.')}
         ${code(`p1 >> saw([0,4,7], oct=5, lpf=PLorenz(400, 4000))     # chaotic filter drift
 p2 >> pluck([0,2,4,7], oct=5, dur=PGroove("gallop"))  # galloping durations
