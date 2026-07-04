@@ -358,4 +358,26 @@ SynthDef(\fd_fx_eq3, {|in_bus=64, eq3=0, eqlow=0, eqmid=0, eqhigh=0, eqlowf=200,
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, eq3.clip(0, 1) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── spin — stereo auto-pan (rotates the stereo image with an LFO) ────────────
+// spin = dry→wet mix (0 = off). spinrate = rotations/sec.
+SynthDef(\fd_fx_spin, {|in_bus=64, spin=0, spinrate=2|
+    var sig = In.ar(in_bus, 2), wet, lfo = SinOsc.kr(spinrate.clip(0.01, 40));
+    wet = Rotate2.ar(sig[0], sig[1], lfo);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (spin > 0) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── pong — ping-pong stereo delay (echoes bounce L↔R) ────────────────────────
+// pong = mix. pongtime = delay in BEATS (tempo-locked via beat_dur). pongfeed =
+// feedback 0–0.9. A cross-fed LocalIn/LocalOut loop makes each echo swap sides.
+SynthDef(\fd_fx_pong, {|in_bus=64, pong=0, pongtime=0.25, pongfeed=0.5, beat_dur=0.5|
+    var sig = In.ar(in_bus, 2), wet, l, r,
+        dt = (pongtime * beat_dur).clip(0.01, 1.5), fb = pongfeed.clip(0, 0.9),
+        fbk = LocalIn.ar(2);
+    l = DelayL.ar(sig[0] + (fbk[1] * fb), 1.5, dt);
+    r = DelayL.ar(sig[1] + (fbk[0] * fb), 1.5, dt);
+    LocalOut.ar([l, r]);
+    wet = sig + [l, r];
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (pong > 0) * 2 - 1));
+}).writeDefFile(~outDir);
+
 "fd_fx_effects done".postln;

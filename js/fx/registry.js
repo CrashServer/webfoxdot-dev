@@ -32,6 +32,15 @@ export const FX_REGISTRY = {
     eqmidq:    { scParam: 'eqmidq',  default: 1,    desc: 'Mid peak Q' },
     eqhighf:   { scParam: 'eqhighf', default: 5000, desc: 'High-shelf frequency Hz' },
 
+    // spin — stereo auto-pan (rotates the image with an LFO)
+    spin:      { scParam: 'spin',     default: 0, desc: 'Auto-pan mix (0=off)' },
+    spinrate:  { scParam: 'spinrate', default: 2, desc: 'Rotation rate Hz' },
+
+    // pong — ping-pong stereo delay (echoes bounce L↔R)
+    pong:      { scParam: 'pong',     default: 0,    desc: 'Ping-pong delay mix (0=off)' },
+    pongtime:  { scParam: 'pongtime', default: 0.25, desc: 'Delay in beats (tempo-locked)' },
+    pongfeed:  { scParam: 'pongfeed', default: 0.5,  desc: 'Feedback 0–0.9' },
+
     // DJ isolator filter (CrashServer port) — one knob, 0.5 = flat
     djf:       { scParam: 'djf',     default: 0.5, desc: 'DJ filter: 0.5=flat, <0.5 lowpass down, >0.5 highpass up' },
     djfq:      { scParam: 'djfq',    default: 0.3, desc: 'DJ filter resonance/Q' },
@@ -200,6 +209,8 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
     { scName: 'fd_fx_bpf',        keys: ['bpf', 'bpf_rq'], trig: ['bpf'] },
     { scName: 'fd_fx_eq3',        keys: ['eq3', 'eqlow', 'eqmid', 'eqhigh', 'eqlowf', 'eqmidf', 'eqmidq', 'eqhighf'], trig: ['eq3'] },
+    { scName: 'fd_fx_spin',       keys: ['spin', 'spinrate'], trig: ['spin'] },
+    { scName: 'fd_fx_pong',       keys: ['pong', 'pongtime', 'pongfeed', 'beat_dur'], trig: ['pong'] },
     { scName: 'fd_fx_djf',        keys: ['djf', 'djfq'], trig: ['djf'] },
     { scName: 'fd_fx_crush',      keys: ['crush', 'bits', 'srate'], trig: ['crush'] },
     { scName: 'fd_fx_resonbank',  keys: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'], trig: ['resonbank'] },

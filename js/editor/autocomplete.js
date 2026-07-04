@@ -83,6 +83,8 @@ const FX_GROUPS = [
     { name: 'phaser',    on: 0.6,  params: ['phaser', 'phaser_rate'] },
     { name: 'formant',   on: 0.6,  params: ['formant', 'formant_vowel'] },
     { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
+    { name: 'pong',      on: 0.5,  params: ['pong', 'pongtime', 'pongfeed'] },
+    { name: 'spin',      on: 0.6,  params: ['spin', 'spinrate'] },
 ];
 function fxItem(g) {
     const parts = g.params.map((p, i) => `${p}=${i === 0 ? g.on : FX_REGISTRY[p].default}`);
@@ -94,9 +96,9 @@ function fxItem(g) {
 const FX_SUBCATS = [
     ['filters',    ['lpf', 'hpf', 'bpf', 'eq3', 'resonbank', 'formant']],
     ['reverbs',    ['reverb', 'mverb', 'cheapverb']],
-    ['delays',     ['echo', 'fbdelay']],
+    ['delays',     ['echo', 'fbdelay', 'pong']],
     ['distortion', ['crush', 'multicrush', 'tanh', 'shape', 'dist2']],
-    ['modulation', ['chorus', 'tremolo', 'vibrato', 'flanger', 'phaser', 'ringmod']],
+    ['modulation', ['chorus', 'tremolo', 'vibrato', 'flanger', 'phaser', 'ringmod', 'spin']],
     ['rhythmic',   ['rgate', 'chop']],
 ];
 
