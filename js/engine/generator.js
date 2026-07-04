@@ -7,50 +7,111 @@ import { SYNTH_DEFS } from '../synths/registry.js';
 const pick   = (a) => a[Math.floor(Math.random() * a.length)];
 const rint   = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 const chance = (p) => Math.random() < p;
+const flt    = (lo, hi, d = 2) => (lo + Math.random() * (hi - lo)).toFixed(d);
+// pick n DISTINCT thunks from a list and call each (so we never emit lpf= twice).
+const pickN  = (a, n) => { const c = [...a], out = []; for (let i = 0; i < n && c.length; i++) out.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]); return out; };
 
 // Melodic/tonal synths worth generating (skip the sampler/loop/master helpers).
-const GEN_SYNTHS = Object.keys(SYNTH_DEFS)
-    .filter(n => !/sampler|loop|master|fx/.test(n));
+const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx/.test(n));
 
-function randDegrees() {
-    const n = pick([2, 3, 4, 4, 5, 8]);
-    const out = [];
-    for (let i = 0; i < n; i++) {
-        if (chance(0.15))      out.push('(' + [0, rint(2, 4), rint(4, 7)].join(',') + ')'); // chord
-        else if (chance(0.1))  out.push('.');                                               // rest
-        else                   out.push(rint(0, 7));
-    }
-    return '[' + out.join(', ') + ']';
-}
+// Rough role → so we pick musically-appropriate patterns/octaves per synth.
+const ROLES = {
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft'],
+    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm'],
+    pad:   ['pads', 'choir', 'brass', 'organ'],
+    keys:  ['bell', 'basic', 'karp'],
+    pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin'],
+};
+const roleOf = (n) => { for (const [r, list] of Object.entries(ROLES)) if (list.includes(n)) return r; return 'lead'; };
 
-function randFx() {
-    return pick([
-        `lpf=${rint(400, 6000)}`,
-        `mverb=${(0.2 + Math.random() * 0.5).toFixed(2)}`,
-        `room=${(0.4 + Math.random() * 0.5).toFixed(2)}, reverb=${(0.3 + Math.random() * 0.4).toFixed(2)}`,
-        `chorus=${(0.3 + Math.random() * 0.5).toFixed(2)}`,
-        `drive=${(1 + Math.random() * 4).toFixed(1)}, tanh=${(0.3 + Math.random() * 0.4).toFixed(2)}`,
-        `echo=${(0.2 + Math.random() * 0.4).toFixed(2)}, echo_time=${pick(['0.25', '0.375', '0.5'])}`,
-    ]);
+const CHORDLIST = () => pick(['[0,4,7]', '[0,3,7]', '[0,4,7,11]', '[0,2,4,7]', '[0,3,5,7]', '[0,4,7,10]']);
+const ROMAN     = () => pick(['"I V vi IV"', '"i VI III VII"', '"ii V I"', '"I vi IV V"', '"i iv VII"', '"i iv v"']);
+const randList  = (n, lo, hi) => '[' + Array.from({ length: n }, () => rint(lo, hi)).join(', ') + ']';
+
+// Degree strategies — the clever bit: draw from the pattern library per role.
+function degBass() {
+    return pick([`[0]`, `[0, 0, ${rint(3, 7)}, 0]`, `[0, ${rint(-3, 0)}, ${rint(3, 7)}, 0]`,
+                 `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`]);
 }
+function degLead() {
+    return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
+                 `PGrowArp(${CHORDLIST()})`, `melody()[:${rint(4, 8)}]`, `PContour("${pick(['arch', 'wave', 'up', 'valley'])}", 8, 7)`,
+                 `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, randList(rint(3, 6), 0, 9)]);
+}
+function degPad() {
+    return pick([`PRoman(${ROMAN()})`, `PProg("${pick(['50s', '251', 'pop', 'andalusian'])}")`,
+                 `PChord(0, "${pick(['7', '9', 'sus4', 'add9'])}")`, `PCircle(8, 0, "7")`,
+                 `[0, (0,4,7), 5, (2,5,9)]`, `(0,4,7,11)`]);
+}
+const degForRole = (role) => role === 'bass' ? degBass()
+    : (role === 'pad' || role === 'keys') ? degPad()
+    : role === 'pluck' ? (chance(0.5) ? degLead() : pick([`PCircle(8)`, `arp(${CHORDLIST()}, "up")`, randList(rint(3, 6), 0, 9)]))
+    : degLead();
+
+const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)'])
+    : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1'])
+    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")']);
+const octForRole = (role) => role === 'bass' ? pick([3, 3, 4]) : role === 'pluck' ? pick([5, 6]) : (role === 'pad' || role === 'keys') ? pick([4, 5]) : pick([5, 5, 6]);
+const ampForRole = (role) => role === 'bass' ? flt(0.5, 0.8) : (role === 'pad' || role === 'keys') ? flt(0.3, 0.45) : flt(0.28, 0.42);
+
+// FX ideas — many use a TimeVar sweep, so filters move. Each is a distinct thunk.
+const FX = [
+    () => `lpf=linvar([${rint(300, 800)}, ${rint(2500, 6000)}], [${pick([8, 16])}])`,
+    () => `lpf=sinvar([${rint(400, 900)}, ${rint(2500, 5000)}], [${pick([4, 8])}])`,
+    () => `bpf=${rint(600, 3000)}, bpf_rq=${flt(0.1, 0.5)}`,
+    () => `mverb=${flt(0.3, 0.7)}, mverbmix=0.6`,
+    () => `room=${flt(0.5, 0.9)}, reverb=${flt(0.3, 0.6)}`,
+    () => `chorus=${flt(0.3, 0.7)}`,
+    () => `echo=${flt(0.2, 0.5)}, echo_time=${pick(['0.25', '0.375', '0.5'])}`,
+    () => `pong=${flt(0.3, 0.6)}, pongtime=${pick(['0.25', '0.375'])}`,
+    () => `spin=${flt(0.4, 0.8)}`,
+    () => `chop=${pick([2, 4, 4, 8])}`,
+    () => `drive=${flt(1, 5, 1)}, tanh=${flt(0.3, 0.6)}`,
+    () => `crush=${flt(0.4, 0.7)}, bits=${rint(3, 8)}`,
+    () => `rgate=${flt(0.5, 0.9)}, rgaterate=${pick([4, 8])}`,
+    () => `eq3=1, eqlow=${rint(-4, 5)}, eqhigh=${rint(-4, 5)}`,
+];
+// Live transforms + fatteners chained onto the player.
+const METHODS = [
+    () => `.every(${pick([4, 8, 8, 16])}, "${pick(['rotate', 'reverse', 'mirror'])}")`,
+    () => `.sometimes("${pick(['stutter', 'mirror', 'reverse'])}"${chance(0.5) ? ', ' + rint(2, 4) : ''})`,
+    () => `.unison(${pick([2, 2, 3, 4])}${chance(0.4) ? ', ' + flt(0.2, 0.5) : ''})`,
+    () => `.penta()`,
+    () => `.human(${rint(15, 35)}, ${rint(4, 10)})`,
+];
 
 function synthLine(name) {
     const synth = pick(GEN_SYNTHS);
-    const dur   = pick(['1/4', '1/2', '1', '1', '2']);
-    const oct   = pick([3, 4, 4, 5, 5, 6]);
-    const amp   = (0.3 + Math.random() * 0.35).toFixed(2);
-    const fx    = chance(0.6) ? ', ' + randFx() : '';
-    const uni   = chance(0.3) ? '.unison(2)' : '';
-    return `${name} >> ${synth}(${randDegrees()}, oct=${oct}, dur=${dur}, amp=${amp}${fx})${uni}`;
+    const role  = roleOf(synth);
+    const fxN   = chance(0.75) ? (chance(0.35) ? 2 : 1) : 0;
+    const fx    = fxN ? ', ' + pickN(FX, fxN).map(f => f()).join(', ') : '';
+    const mN    = chance(0.6) ? (chance(0.3) ? 2 : 1) : 0;
+    const meth  = pickN(METHODS, mN).map(f => f()).join('');
+    return `${name} >> ${synth}(${degForRole(role)}, oct=${octForRole(role)}, dur=${durForRole(role)}, amp=${ampForRole(role)}${fx})${meth}`;
 }
 
 function drumLine(name, chars) {
-    const len = pick([4, 8, 8]);
-    let s = '';
-    for (let i = 0; i < len; i++) s += chance(0.5) ? '.' : pick(chars);
-    if (!/[^.]/.test(s)) s = pick(chars) + s.slice(1);   // ensure at least one hit
-    const fx = chance(0.3) ? ', ' + randFx() : '';
-    return `${name} >> play("${s}", amp=${(0.5 + Math.random() * 0.4).toFixed(2)}${fx})`;
+    const hit = () => pick(chars);
+    let patt;
+    if (chance(0.4)) {
+        // a Euclidean drum pattern using a real loaded char
+        patt = `PEuclid2(${rint(3, 5)}, ${pick([8, 16])}, ".", "${hit()}")`;
+        patt = `play(${patt}`;
+    } else {
+        // a hand-rolled string, sometimes with a [subdivided] or (layered) step
+        const len = pick([8, 8, 16]); let s = '';
+        for (let i = 0; i < len; i++) {
+            if (chance(0.12) && i < len - 1) s += '[' + hit() + hit() + ']';
+            else if (chance(0.08)) s += '(' + hit() + hit() + ')';
+            else s += chance(0.5) ? '.' : hit();
+        }
+        if (!/[^.[\]()]/.test(s)) s = hit() + s.slice(1);
+        patt = `play("${s}"`;
+    }
+    const dur  = pick(['1/4', '1/2', '1/2']);
+    const fx   = chance(0.35) ? ', ' + pick(FX)() : '';
+    const meth = chance(0.3) ? `.sometimes("stutter", ${rint(2, 4)})` : '';
+    return `${name} >> ${patt}, dur=${dur}, amp=${flt(0.55, 0.9)}${fx})${meth}`;
 }
 
 // Generate `n` random player lines. type: 'synth' | 'drum' | null (mix).
