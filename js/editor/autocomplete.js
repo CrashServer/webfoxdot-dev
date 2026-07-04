@@ -29,6 +29,28 @@ function fullSynthCall(name) {
     return params ? `${name}([0], ${params})` : `${name}([0])`;
 }
 
+// True when a call `(…)` already follows the cursor — e.g. the player name was
+// deleted from `v1 >> foo(…)`. Then a synth pick should replace just the NAME,
+// not paste a second ([0], …) template on top of the existing args.
+function callFollows(cm, data) {
+    return /^\s*\(/.test(cm.getLine(data.to.line).slice(data.to.ch));
+}
+
+// Build the synth-context list grouped by family: sep(family), …synthItems.
+// Families come from SYNTH_SUBCATS; anything unlisted lands in "other".
+function synthFamilyList() {
+    const out = [], used = new Set();
+    for (const [fam, names] of SYNTH_SUBCATS) {
+        const have = names.filter(n => SYNTH_DEFS[n]);
+        if (!have.length) continue;
+        out.push(sep(fam));
+        have.forEach(n => { used.add(n); out.push(synthItem(n)); });
+    }
+    const rest = SYNTH_NAMES.filter(n => !used.has(n));
+    if (rest.length) { out.push(sep('other')); rest.forEach(n => out.push(synthItem(n))); }
+    return out;
+}
+
 // A synth completion that inserts the full call and selects the degree ([0]).
 function synthItem(name) {
     const text = fullSynthCall(name);
@@ -36,6 +58,11 @@ function synthItem(name) {
     return {
         text, displayText: name, className: 'hint-synth',
         hint(cm, data) {
+            if (callFollows(cm, data)) {                       // just swap the name in
+                cm.replaceRange(name, data.from, data.to);
+                cm.setCursor({ line: data.from.line, ch: data.from.ch + name.length });
+                return;
+            }
             cm.replaceRange(text, data.from, data.to);
             const ch = data.from.ch + bracket + 1;           // inside the first [ ]
             cm.setSelection({ line: data.from.line, ch }, { line: data.from.line, ch: ch + 1 });
@@ -48,6 +75,11 @@ function playItem() {
     return {
         text: 'play()', displayText: 'play', className: 'hint-keyword',
         hint(cm, data) {
+            if (callFollows(cm, data)) {                       // args already there
+                cm.replaceRange('play', data.from, data.to);
+                cm.setCursor({ line: data.from.line, ch: data.from.ch + 4 });
+                return;
+            }
             cm.replaceRange('play()', data.from, data.to);
             cm.setCursor({ line: data.from.line, ch: data.from.ch + 5 });
         },
@@ -100,6 +132,18 @@ const FX_SUBCATS = [
     ['distortion', ['crush', 'multicrush', 'tanh', 'shape', 'dist2']],
     ['modulation', ['chorus', 'tremolo', 'vibrato', 'flanger', 'phaser', 'ringmod', 'spin']],
     ['rhythmic',   ['rgate', 'chop']],
+];
+
+// Synths grouped into families — the long synth list unfolds into these sub-menus
+// (like fx). Anything not listed falls into an "other" bucket at the end.
+const SYNTH_SUBCATS = [
+    ['bass',  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft']],
+    ['lead',  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim']],
+    ['keys',  ['bell', 'organ', 'basic', 'karp']],
+    ['pads',  ['pads', 'choir', 'brass']],
+    ['pluck', ['pluck', 'moogpluck', 'guit', 'donk', 'lapin']],
+    ['perc',  ['compkick', 'a_hhat']],
+    ['tone',  ['fm', 'sine', 'rsin']],
 ];
 
 const SCALE_NAMES = [
@@ -312,8 +356,10 @@ function hintFn(cm) {
         list = filter(PLAYER_METHODS.map(m => item(m, 'hint-method')));
     } else if (ctx.type === 'synth') {
         // Picking a synth inserts the full call (all params); play() opens parens.
-        list = [playItem(), ...SYNTH_NAMES.map(synthItem)];
-        list = list.filter(it => filter([it]).length > 0);
+        // Synths are grouped into families (bass/lead/keys/…) so the list is
+        // browsable; typing filters across all of them (dropEmptySeps prunes).
+        list = [playItem(), ...synthFamilyList()];
+        list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
     } else if (ctx.type === 'scale') {
         list = filter(SCALE_NAMES.map(n => item(`"${n}"`, 'hint-param', n)));
     } else if (ctx.type === 'value') {
@@ -395,11 +441,12 @@ function cleanLabel(s) { return String(s).replace(/—/g, '').replace(/…/g, ''
 const wrap = (i, n) => ((i % n) + n) % n;
 const leaf = (item) => ({ kind: 'leaf', item });
 
-// Split the fx items into family sub-categories (FX_SUBCATS + an "other" bucket).
-function groupFx(items) {
+// Split a list of items into family sub-categories (by displayText) + an "other"
+// bucket. Used for both fx (FX_SUBCATS) and synths (SYNTH_SUBCATS).
+function groupByFamily(items, families) {
     const byName = new Map(items.map(it => [it.displayText, it]));
     const used = new Set(), cats = [];
-    for (const [label, names] of FX_SUBCATS) {
+    for (const [label, names] of families) {
         const kids = names.filter(n => byName.has(n)).map(n => { used.add(n); return leaf(byName.get(n)); });
         if (kids.length) cats.push({ kind: 'cat', label, children: kids });
     }
@@ -408,8 +455,21 @@ function groupFx(items) {
     return cats;
 }
 
-// Build the node tree from hintFn's flat {list}. `subgroup` nests the fx category
-// (skipped while type-filtering, so matches show as a flat list).
+// Collapse needless nesting so single options don't require a submenu:
+//  - a lone wrapping category unwraps to its children (recursively);
+//  - a category with a single leaf child becomes that leaf.
+function collapse(nodes) {
+    while (nodes.length === 1 && nodes[0].kind === 'cat') nodes = nodes[0].children;
+    return nodes.map(n => {
+        if (n.kind !== 'cat') return n;
+        const kids = collapse(n.children);
+        if (kids.length === 1 && kids[0].kind === 'leaf') return kids[0];
+        return { ...n, children: kids };
+    });
+}
+
+// Build the node tree from hintFn's flat {list}. `subgroup` nests the fx/synth
+// categories into families (skipped while type-filtering, so matches stay flat).
 function toTree(list, subgroup) {
     const roots = []; let cur = null;
     for (const it of list) {
@@ -417,12 +477,19 @@ function toTree(list, subgroup) {
         else if (cur) cur.items.push(it);
         else roots.push(leaf(it));
     }
-    return roots.map(node => {
+    const tree = roots.map(node => {
         if (node.kind === 'leaf') return node;
-        const isFx = node.items.length > 1 && node.items.every(i => i.className === 'hint-fx');
-        const children = (isFx && subgroup) ? groupFx(node.items) : node.items.map(leaf);
+        const allFx    = node.items.length > 1  && node.items.every(i => i.className === 'hint-fx');
+        // Only auto-group a BIG flat synth list (the general context's "synths"
+        // category). The synth-after->> context emits its own family seps, which
+        // are already small — don't re-group those into families-of-one.
+        const allSynth = node.items.length > 10 && node.items.every(i => i.className === 'hint-synth');
+        const children = (subgroup && allFx)    ? groupByFamily(node.items, FX_SUBCATS)
+                       : (subgroup && allSynth) ? groupByFamily(node.items, SYNTH_SUBCATS)
+                       : node.items.map(leaf);
         return { kind: 'cat', label: node.label, children };
     });
+    return collapse(tree);
 }
 
 function closeMenu() {
@@ -489,6 +556,14 @@ function render(s) {
             div.style.top = (a.top + window.scrollY) + 'px';
             div.style.left = (a.right + window.scrollX + 2) + 'px';
             if (a.right + div.offsetWidth + 6 > window.innerWidth) div.style.left = (a.left + window.scrollX - div.offsetWidth - 2) + 'px';
+        }
+        // Keep the active row visible when the column overflows (scroll the div,
+        // not the page) — so ↑/↓ past the fold works and wrap-around is visible.
+        const arow = rows[col.sel];
+        if (arow) {
+            const rt = arow.offsetTop, rb = rt + arow.offsetHeight;
+            if (rt < div.scrollTop) div.scrollTop = rt;
+            else if (rb > div.scrollTop + div.clientHeight) div.scrollTop = rb - div.clientHeight;
         }
     }
 }
