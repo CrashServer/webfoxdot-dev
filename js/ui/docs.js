@@ -1035,10 +1035,9 @@ v1 >> play("X", amp=4)
 o9.amp = linvar([0.3, 0], [16])`)}
     `, 'darkchill');
 
-    const score = section('Score', `
-        ${note('A cinematic two-part live set. A slow 60-bpm C-minor SCORE (a keys ostinato, cs80 + choir chord swells, a soft feedback-delay pulse) that hard-cuts to VIRTUALREALITY — a 106-bpm D-minor industrial build (multicrushed ebass, gated pbuild drums, a reese ssaw→dbass, distorted a_gesa/hoover leads). Evaluate top to bottom, a few lines at a time. Boot + load the kit first.')}
-        ${code(`#@#@ filmscore
-# cinematic score — 60 bpm, C minor
+    const filmscore = section('Film Score', `
+        ${note('A slow cinematic score (60 bpm, C minor) — a keys ostinato, a moving pad line, cs80 + choir chord swells on slow filter/amp sweeps, a soft feedback-delay pulse. Evaluate top to bottom.')}
+        ${code(`# cinematic score — 60 bpm, C minor
 Clock.bpm = 60
 Scale.default = "minor"
 Root.default = "C"
@@ -1051,10 +1050,12 @@ ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=6, dur=4, sus=5.5, amp=sinvar
 v1 >> play("[---].[--].x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
 oj >> choir([4,6,12,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
-pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
+pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))`)}
+    `, 'filmscore');
 
-#@ virtualReality
-Clock.bpm = 106
+    const virtualreality = section('Virtual Reality', `
+        ${note('A 106-bpm D-minor industrial build — multicrushed ebass, a blip lead with PStep octave stairs, gated pbuild drums, a reese ssaw→dbass, distorted a_gesa/hoover leads and a brass motif, evolved live via .stop()/.oct=/.rate=.')}
+        ${code(`Clock.bpm = 106
 Scale.default = "minor"
 Root.default = "D"
 
@@ -1095,7 +1096,68 @@ v4 >> play("X[--]X{o[--]}", dist2=0.5, dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed
 wr >> hoover([0,0,-5,-5,-7,-7,0,0], oct=6, dur=0.5, sus=0.1, amp=0.2, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 
 wr >> a_hhat()`)}
-    `, 'score');
+    `, 'virtualreality');
+
+    const paddingbells = section('Padding the Bells', `
+        ${note('Long-drone ambient (68, D dorian) — pads and random bell voices on huge cheapverb tails, a slow sub underneath.')}
+        ${code(`Clock.bpm = 68
+Scale.default = "dorian"
+Root.default = "D"
+
+m1 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.8, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
+r1 >> bell(PRand([0,4,7,11,2,9]), dur=PWhite(6,20), sus=PWhite(4,12), oct=5, amp=0.4, cheapverb=0.75, cvdecay=4, hpf=600, pan=PRand([-0.75,-0.35,0.35,0.75]))
+g1 >> bell(PRand([0,4,7,11]), dur=PWhite(18,48), sus=PWhite(12,30), oct=4, amp=0.2, cheapverb=0.8, cvdecay=5, hpf=300, pan=PRand([-0.6,0.6]))
+m3 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.35, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
+m2 >> pads([(0,1,4),(0,3,6),(0,1,7),(-1,2,5)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.42, cutoff=linvar([600,2400],96), cheapverb=0.8, cvdecay=3.5, hpf=240)
+b1 >> dbass([0,0,0,4,0,0,-3,0], dur=PWhite(6,16), sus=PWhite(8,24), oct=4, amp=1.3, lpf=260, hpf=35, pan=0)`)}
+    `, 'paddingbells');
+
+    const tenebrae = section('Tenebrae', `
+        ${note('Slow evolving chord clusters (60, C minor) — cs80 / bass / a_gesa / a_daft with grouped per-voice octaves and <1 1/2> alternating durations.')}
+        ${code(`Clock.bpm = 60
+Scale.default = "minor"
+Root.default = "C"
+
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=6, dur=1, amp=0.44, room=0.60, reverb=0.65).unison(2)
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=(7, 6), dur=1, amp=0.44, room=0.60, reverb=0.65).unison(2)
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=(7, 6, 5), dur=1, amp=0.44, room=0.60, reverb=0.65).unison(0)
+g0 >> bass([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(0)
+g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=5, dur=4, amp=1, room=0.60, reverb=0.65).unison(0)
+g3 >> a_gesa([4, 0, ., 1, (2,0,4), 0, (0,3,4), 4], oct=(4, 6, 7), dur=4, amp=0.44, room=0.2, reverb=0.2).unison(2)
+g0 >> a_gesa([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, lpf=1200, room=0.60, reverb=0.65, attack=0.2).unison(2)
+g0 >> bass([4, 2, ., 4, 2, 3, (0,3,4), 4], oct=(7, PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=0.44, room=0.60, reverb=0.65).unison(2)
+g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(2)`)}
+    `, 'tenebrae');
+
+    const scorched = section('Scorched', `
+        ${note('Hard techno (126, phrygian) — a tuned compkick, gated pumpbass, a distorted a_daft acid lead that morphs over the take, industrial hits.')}
+        ${code(`Scale.default = "phrygian"
+Root.default = 0
+Clock.bpm = 126
+
+k1 >> compkick(punch=1, comp=1, release=0.4, oct=4, click=120, drive=0, sub=40, body=10, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.01, tone=var([2, 4, 6, 8, 16], 2), dur=1)
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.04, hpf=9000)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.3, oct=6, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=1, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.9, hpf=1080, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
+h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.4, hpf=9000)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=6, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+v2 >> play("X ", amp=2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+t1.lpf=1200
+t2.stop()
+t1.oct=7
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t2 >> blip([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=0, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
+v3 >> play("Xx")
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=1/2, oct=6, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.15, punch=12, dist2=0.0, dist2shape=0.6, hpf=20).unison(2)
+k1 >> compkick(punch=1, comp=1, release=0.6, oct=3, click=1200, drive=4, sub=40, body=100, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=1, tone=var([20, 4, 6, 8, 16], 2), dur=1)
+v5 >> play("X", amp=4, sample=1)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.15, punch=12, dist2=0.0, dist2shape=0.6, hpf=20).unison(3)
+t2 >> dbass(dist2=1)`)}
+    `, 'scorched');
+
+
 
     const whatsNew = section('New in alpha28', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
@@ -1315,7 +1377,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     const cat = (name) => `<div class="docs-cat">${name}</div>`;
     return [
         cat('New in alpha28'),   whatsNew,
-        cat('Live sets'),        rise, showcase, nocturne, darkchill, score,
+        cat('Live sets'),        rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
