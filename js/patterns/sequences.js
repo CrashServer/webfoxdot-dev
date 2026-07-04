@@ -576,6 +576,14 @@ export function PRange(lo, hi, step = 1) {
 // `default` otherwise → PStep(4,7,6) = [7,6,6,6]. If the first arg is an object it
 // falls back to the sparse {stepIndex: value} map form: PStep({0:7, 4:2}, cycle).
 export function PStep(n, value = 1, dflt = 0) {
+    // Period `n` may be a pattern/timevar (or list) → resolve it per step, so
+    // PStep(var([4,2,3], 2), 7, 9) shifts its accent grid over time.
+    if (n != null && typeof n === 'object' && (typeof n.get === 'function' || Array.isArray(n))) {
+        return { get: (step) => {
+            const len = Math.max(1, Math.round(patGet(n, step)) || 1);
+            return (((step % len) + len) % len === 0) ? patGet(value, step) : patGet(dflt, step);
+        } };
+    }
     if (typeof n === 'number') {
         const len = Math.max(1, Math.round(n));
         return { get: (step) => (((step % len) + len) % len === 0 ? value : dflt) };
