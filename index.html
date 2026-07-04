@@ -1052,8 +1052,18 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push({ id, title });
         }
+        // Move the panel to <body> so the toolbar's overflow-x:auto can't clip it and
+        // no stacking context can bury it under the editor. Positioned from the button.
+        document.body.appendChild(pop);
         const onDoc = (e) => { if (!pop.contains(e.target) && e.target !== btn) close(); };
-        function open()  { pop.hidden = false; setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0); }
+        function open()  {
+            const r = btn.getBoundingClientRect();
+            pop.style.top   = (r.bottom + 4) + 'px';
+            pop.style.left  = 'auto';
+            pop.style.right = Math.max(4, window.innerWidth - r.right) + 'px';
+            pop.hidden = false;
+            setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
+        }
         function close() { pop.hidden = true;  document.removeEventListener('mousedown', onDoc, true); }
         const pick = (id, label) => { setEditorContent(exampleCode(id)); btn.textContent = label + ' ▾'; close(); };
         const mkItem = (id, label, full) => {

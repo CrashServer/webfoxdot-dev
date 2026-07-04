@@ -255,19 +255,16 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 }
 #examples-btn:hover { border-color: var(--blue); background: var(--bg-2); }
 #examples-pop {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 4px;
+    position: fixed;          /* lives on <body>, positioned from the button in JS */
     min-width: 210px;
-    max-height: 62vh;
+    max-height: 70vh;
     overflow-y: auto;
     background: var(--bg-2);
     border: 1px solid var(--border-1);
     border-radius: 6px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.55);
     padding: 4px;
-    z-index: 10000;
+    z-index: 100000;
 }
 #examples-pop[hidden] { display: none; }
 #examples-pop .ex-cat {
