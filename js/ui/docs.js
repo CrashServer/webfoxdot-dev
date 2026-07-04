@@ -208,6 +208,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+'son() now holds a HARD cap of 5 of its own g* players (default range 3–5; your manual players never count) and actively retires voices — even fresh ones at the cap — to keep turning over. Tune with son({min, max}).',
 { t: 'Fix: the new player methods (accompany/follow/map/jump/rotate/mirror/strum/offbeat/multiply/once) are now chainable directly on a synth/play call — p2 >> pluck([0]).accompany("b1") no longer errors. New .mirror() (reverse the degree, a toggle). To transform a pattern LIVE and actually hear it, use .every(4, "rotate") / .sometimes("mirror"); P[…].rotate() is a static compose-time reorder.', ex: 'alpha28new' },
 'Long lines now WRAP instead of running off the right edge (the horizontal scrollbar was hidden, so a big call like a full pumpbass(...) was unreachable). A wrapped line is still ONE logical line — Ctrl+Enter evaluates the whole thing.',
 { t: 'New FX: spin — stereo auto-pan that rotates the image (spin=mix, spinrate=Hz); and pong — a ping-pong stereo delay whose echoes bounce L↔R (pong=mix, pongtime in beats, pongfeed 0–0.9). Both in the fx submenus (spin→modulation, pong→delays). e.g. p1 >> saw([0,4,7], spin=0.6) · b1 >> play(x.o., pong=0.5, pongtime=0.375).', ex: 'alpha28new' },
@@ -830,7 +831,7 @@ p1.soloDrop(8)                                   # solo-drop 8 beats (method for
 chaos(2, "synth")    # 2 random melodic/bass players
 chaos(3, "drum")     # 3 random drum patterns`)}
         ${note('<b>son() / soff()</b> — a generative <b>jam bot</b>. Unlike <code>chaos</code> (which pastes text for you to run), <code>son()</code> runs itself: every couple of beats it adds, stops, or mutates one of its own <code>g*</code> players, keeping between <code>min</code> and <code>max</code> voices. It never touches your own players, and in a session its lines broadcast to peers. <code>soff()</code> stops the loop; <code>soff(true)</code> also stops its players. Boot audio first.')}
-        ${code(`son()                       # start the bot (3–8 g* voices)
+        ${code(`son()                       # start the bot (3–5 g* voices)
 son({min:2, max:5, drum:0.5})   # fewer voices, more drums
 son({every:[4, 8]})             # a change every 4–8 beats (slower)
 soff()                          # stop the loop (leaves g* playing)

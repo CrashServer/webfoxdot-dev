@@ -99,7 +99,11 @@ export class JamBot {
     }
 
     start(opts = {}) {
-        this.opts = { synth: 0.5, drum: 0.35, min: 3, max: 8, every: [2, 6], ...opts };
+        // max is a HARD cap on the bot's own g* players (your manual players don't
+        // count). Default 3–5 — it keeps turning voices over to stay under it.
+        this.opts = { synth: 0.5, drum: 0.35, min: 3, max: 5, every: [2, 6], ...opts };
+        if (this.opts.max < 1) this.opts.max = 1;
+        if (this.opts.min > this.opts.max) this.opts.min = this.opts.max;
         if (this.running) return `jam bot already running (${this.active.size} players)`;
         this.running = true;
         this._next();
@@ -123,10 +127,17 @@ export class JamBot {
         // Prune names whose players the user/Alt+X stopped out from under us.
         for (const n of [...this.active]) { const p = this.clock._players.get(n); if (!p || p._active === false) this._forget(n); }
         const n = this.active.size;
-        let action;
-        if (n < this.opts.min) action = 'add';
-        else if (n >= this.opts.max) action = pick(['stop', 'mutate', 'fx']);
-        else action = pick(['add', 'add', 'stop', 'mutate', 'mutate', 'fx', 'fx']);
+        if (n >= this.opts.max) {
+            // At the hard cap → make room by retiring a voice (even a fresh one), or
+            // just tweak an existing one. NEVER add.
+            if (Math.random() < 0.55) this._stopOne(true);
+            else if (Math.random() < 0.5) this._mutate();
+            else this._fx();
+            return;
+        }
+        if (n < this.opts.min) { this._add(); return; }
+        // In-band: mostly add/tweak, but regularly stop one so voices keep turning over.
+        const action = pick(['add', 'add', 'stop', 'stop', 'mutate', 'mutate', 'fx', 'fx']);
         if (action === 'add') this._add();
         else if (action === 'stop') this._stopOne();
         else if (action === 'mutate') this._mutate();
@@ -148,11 +159,12 @@ export class JamBot {
         this.run(line);
     }
 
-    _stopOne() {
-        // Only retire players that have lived at least 2 ticks (let fresh ones breathe).
-        const old = [...this.active].filter(n => this.tick - (this.born.get(n) ?? this.tick) >= 2);
-        if (!old.length) return this._add();
-        this._stopByName(pick(old));
+    _stopOne(force = false) {
+        // Prefer retiring players that have lived a couple ticks (let fresh ones
+        // breathe). At the cap (force) we retire even a fresh one to make room.
+        let pool = [...this.active].filter(n => this.tick - (this.born.get(n) ?? this.tick) >= 2);
+        if (!pool.length && force) pool = [...this.active];
+        if (pool.length) this._stopByName(pick(pool));
     }
 
     _stopByName(name) {
