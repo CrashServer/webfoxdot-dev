@@ -28,47 +28,87 @@ const CHORDLIST = () => pick(['[0,4,7]', '[0,3,7]', '[0,4,7,11]', '[0,2,4,7]', '
 const ROMAN     = () => pick(['"I V vi IV"', '"i VI III VII"', '"ii V I"', '"I vi IV V"', '"i iv VII"', '"i iv v"']);
 const randList  = (n, lo, hi) => '[' + Array.from({ length: n }, () => rint(lo, hi)).join(', ') + ']';
 
-// Degree strategies — the clever bit: draw from the pattern library per role.
+// Degree strategies — the clever bit: draw widely from the pattern library per role.
 function degBass() {
     return pick([`[0]`, `[0, 0, ${rint(3, 7)}, 0]`, `[0, ${rint(-3, 0)}, ${rint(3, 7)}, 0]`,
-                 `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`]);
+                 `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`,
+                 `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, <0 5>, ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`]);
 }
 function degLead() {
-    return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
-                 `PGrowArp(${CHORDLIST()})`, `melody()[:${rint(4, 8)}]`, `PContour("${pick(['arch', 'wave', 'up', 'valley'])}", 8, 7)`,
-                 `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, randList(rint(3, 6), 0, 9)]);
+    return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown', 'downup'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
+                 `PGrowArp(${CHORDLIST()})`, `melody()[:${rint(4, 8)}]`, `motif(${rint(3, 5)})`,
+                 `PContour(${rint(0, 4)}, 8, 7)`, `PContour(${randList(rint(3, 5), 0, 7)}, 8, 7)`,
+                 `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, `PWalk(${rint(5, 9)}, 1)`, `PxRand(0, ${rint(6, 10)})`,
+                 `PShuf(${CHORDLIST()})`, `PStutter(${randList(rint(3, 4), 0, 7)}, 2)`, `PAlt(${randList(2, 0, 4)}, ${randList(2, 4, 9)})`,
+                 `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9)]);
 }
 function degPad() {
-    return pick([`PRoman(${ROMAN()})`, `PProg("${pick(['50s', '251', 'pop', 'andalusian'])}")`,
-                 `PChord(0, "${pick(['7', '9', 'sus4', 'add9'])}")`, `PCircle(8, 0, "7")`,
-                 `[0, (0,4,7), 5, (2,5,9)]`, `(0,4,7,11)`]);
+    return pick([`PRoman(${ROMAN()})`, `PProg("${pick(['50s', '251', 'pop', 'andalusian', 'canon'])}")`,
+                 `PChord(0, "${pick(['7', '9', 'sus4', 'add9', '11'])}")`, `PCircle(8, 0, "7")`,
+                 `[0, (0,4,7), 5, (2,5,9)]`, `(0,4,7,11)`, `PZip(${CHORDLIST()}, ${randList(3, 4, 9)})`]);
 }
 const degForRole = (role) => role === 'bass' ? degBass()
     : (role === 'pad' || role === 'keys') ? degPad()
-    : role === 'pluck' ? (chance(0.5) ? degLead() : pick([`PCircle(8)`, `arp(${CHORDLIST()}, "up")`, randList(rint(3, 6), 0, 9)]))
+    : role === 'pluck' ? (chance(0.5) ? degLead() : pick([`PCircle(8)`, `arp(${CHORDLIST()}, "up")`, `PGrowArp(${CHORDLIST()})`, randList(rint(3, 6), 0, 9)]))
     : degLead();
 
-const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)'])
-    : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1'])
-    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")']);
-const octForRole = (role) => role === 'bass' ? pick([3, 3, 4]) : role === 'pluck' ? pick([5, 6]) : (role === 'pad' || role === 'keys') ? pick([4, 5]) : pick([5, 5, 6]);
-const ampForRole = (role) => role === 'bass' ? flt(0.5, 0.8) : (role === 'pad' || role === 'keys') ? flt(0.3, 0.45) : flt(0.28, 0.42);
+const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)', 'PDur(<3,5>,8)'])
+    : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1', '<2 4>'])
+    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")', 'PBeat("x xx x")', '<1/4 1/2>']);
+// oct — usually a number, sometimes an alternation for movement.
+const octForRole = (role) => {
+    const base = role === 'bass' ? [3, 3, 4] : role === 'pluck' ? [5, 6] : (role === 'pad' || role === 'keys') ? [4, 5] : [5, 5, 6];
+    if (chance(0.18)) { const a = pick(base); return `<${a} ${a + 1}>`; }
+    return String(pick(base));
+};
+// amp — usually a float, sometimes a random/accent pattern for dynamics.
+const ampForRole = (role) => {
+    const lo = role === 'bass' ? 0.5 : (role === 'pad' || role === 'keys') ? 0.3 : 0.28;
+    const hi = role === 'bass' ? 0.8 : (role === 'pad' || role === 'keys') ? 0.45 : 0.42;
+    if (chance(0.2)) return `PWhite(${flt(lo, lo + 0.1)}, ${flt(hi - 0.05, hi)})`;
+    if (chance(0.12)) return `Pacc("${pick(['offbeat', 'ghost', 'backbeat'])}")`;
+    return flt(lo, hi);
+};
+// Occasional extra param that is itself a pattern/timevar — pan movement, a transpose.
+const panExtra = () => !chance(0.3) ? '' : ', ' + pick([
+    `pan=PGauss(0, ${flt(0.3, 0.6)})`, `pan=sinvar([-1, 1], [${pick([8, 16])}])`, `pan=PWhite(-0.7, 0.7)`, `pan=<-0.5 0.5>`,
+]);
+const transposeExtra = () => !chance(0.22) ? '' : ' + ' + pick([`${rint(2, 7)}`, `(0,4,7)`, `(0,3,7)`, `<0 ${rint(2, 5)}>`]);
 
-// FX ideas — many use a TimeVar sweep, so filters move. Each is a distinct thunk.
+// FX ideas — a broad palette; many use a TimeVar sweep so the sound moves. Each
+// is a distinct thunk (pickN never picks the same one twice, so no doubled keys).
 const FX = [
     () => `lpf=linvar([${rint(300, 800)}, ${rint(2500, 6000)}], [${pick([8, 16])}])`,
-    () => `lpf=sinvar([${rint(400, 900)}, ${rint(2500, 5000)}], [${pick([4, 8])}])`,
+    () => `lpf=sinvar([${rint(400, 900)}, ${rint(2500, 5000)}], [${pick([4, 8])}]), lpf_rq=${flt(0.2, 0.6)}`,
+    () => `hpf=${rint(200, 1200)}`,
     () => `bpf=${rint(600, 3000)}, bpf_rq=${flt(0.1, 0.5)}`,
+    () => `djf=${pick([flt(0.15, 0.4), flt(0.6, 0.85)])}`,
     () => `mverb=${flt(0.3, 0.7)}, mverbmix=0.6`,
     () => `room=${flt(0.5, 0.9)}, reverb=${flt(0.3, 0.6)}`,
-    () => `chorus=${flt(0.3, 0.7)}`,
+    () => `cheapverb=${flt(0.4, 0.7)}`,
+    () => `chorus=${flt(0.3, 0.7)}, chorus_rate=${flt(0.2, 0.8)}`,
     () => `echo=${flt(0.2, 0.5)}, echo_time=${pick(['0.25', '0.375', '0.5'])}`,
+    () => `fbdelay=${flt(0.4, 0.6)}, fbtime=0.25, fbfeed=${flt(0.3, 0.6)}, fbcutoff=3000`,
     () => `pong=${flt(0.3, 0.6)}, pongtime=${pick(['0.25', '0.375'])}`,
     () => `spin=${flt(0.4, 0.8)}`,
     () => `chop=${pick([2, 4, 4, 8])}`,
-    () => `drive=${flt(1, 5, 1)}, tanh=${flt(0.3, 0.6)}`,
-    () => `crush=${flt(0.4, 0.7)}, bits=${rint(3, 8)}`,
     () => `rgate=${flt(0.5, 0.9)}, rgaterate=${pick([4, 8])}`,
+    () => `tremolo=${flt(0.4, 0.7)}, trem_rate=${pick([4, 8])}`,
+    () => `vibrato=${flt(0.4, 0.8)}, vib_rate=${rint(4, 8)}`,
+    () => `flanger=${flt(0.4, 0.7)}, flanger_rate=${flt(0.2, 0.6)}`,
+    () => `phaser=${flt(0.4, 0.7)}, phaser_rate=${flt(0.2, 0.6)}`,
+    () => `ringmod=${flt(0.3, 0.6)}, ringmod_freq=${rint(100, 900)}`,
+    () => `formant=${flt(0.4, 0.8)}, formant_vowel=${rint(0, 4)}`,
+    () => `vowel=${flt(0.4, 0.7)}`,
+    () => `drive=${flt(1, 5, 1)}, tanh=${flt(0.3, 0.6)}`,
+    () => `shape=${flt(0.4, 0.7)}`,
+    () => `dist2=${flt(0.4, 0.7)}, dist2shape=${flt(0.1, 0.5)}`,
+    () => `crush=${flt(0.4, 0.7)}, bits=${rint(3, 8)}`,
+    () => `multicrush=${flt(0.4, 0.7)}`,
+    () => `fold=${flt(0.3, 0.6)}, symetry=${rint(1, 3)}`,
+    () => `lofi=${flt(0.4, 0.7)}`,
+    () => `tube=${flt(0.4, 0.8)}`,
+    () => `resonbank=${flt(0.2, 0.4)}, rbfreq=${rint(40, 80)}`,
     () => `eq3=1, eqlow=${rint(-4, 5)}, eqhigh=${rint(-4, 5)}`,
 ];
 // Live transforms + fatteners chained onto the player.
@@ -83,11 +123,11 @@ const METHODS = [
 function synthLine(name) {
     const synth = pick(GEN_SYNTHS);
     const role  = roleOf(synth);
-    const fxN   = chance(0.75) ? (chance(0.35) ? 2 : 1) : 0;
+    const fxN   = chance(0.78) ? (chance(0.4) ? 2 : 1) : 0;
     const fx    = fxN ? ', ' + pickN(FX, fxN).map(f => f()).join(', ') : '';
     const mN    = chance(0.6) ? (chance(0.3) ? 2 : 1) : 0;
     const meth  = pickN(METHODS, mN).map(f => f()).join('');
-    return `${name} >> ${synth}(${degForRole(role)}, oct=${octForRole(role)}, dur=${durForRole(role)}, amp=${ampForRole(role)}${fx})${meth}`;
+    return `${name} >> ${synth}(${degForRole(role)}, oct=${octForRole(role)}, dur=${durForRole(role)}, amp=${ampForRole(role)}${panExtra()}${fx})${meth}${transposeExtra()}`;
 }
 
 function drumLine(name, chars) {

@@ -953,7 +953,21 @@ export function arp(degrees, mode = 'up') {
 // PContour(shape, n, range) — a melodic contour: n scale degrees in [0,range]
 // following a shape. shape: up | down | arch | valley | wave. Great to sketch a
 // phrase whose overall direction you control, leaving the scale to keep it sweet.
+// shape may be a NAME (up/down/arch/valley/wave), a NUMBER (index into that list),
+// or an ARRAY of control points to interpolate your own contour over n steps.
+const _CONTOURS = ['up', 'down', 'arch', 'valley', 'wave'];
 export function PContour(shape = 'arch', n = 8, range = 7) {
+    // Custom contour: interpolate the control points across n steps.
+    if (Array.isArray(shape)) {
+        const pts = shape.map(Number), notes = [];
+        for (let i = 0; i < n; i++) {
+            const x = (n > 1 ? i / (n - 1) : 0) * (pts.length - 1);
+            const a = Math.floor(x), b = Math.min(pts.length - 1, a + 1);
+            notes.push(Math.round(pts[a] + (pts[b] - pts[a]) * (x - a)));
+        }
+        return { get: (step) => notes[(((step | 0) % n) + n) % n] };
+    }
+    if (typeof shape === 'number') shape = _CONTOURS[((Math.round(shape) % _CONTOURS.length) + _CONTOURS.length) % _CONTOURS.length];
     shape = String(shape).toLowerCase();
     const curve = (t) => shape === 'up' ? t
         : shape === 'down' ? 1 - t
