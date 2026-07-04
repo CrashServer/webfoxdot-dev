@@ -13,6 +13,7 @@ const PLAYER_METHODS = [
     'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
     'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
     'follow("p1")', 'accompany("p1")', 'map("p1", {0: 5, 4: 7})',
+    'jump(1)', 'rotate(1)', 'strum(0.05)', 'offbeat()', 'multiply(2)',
 ];
 
 // Params common to every synth — uniform defaults, so we don't clutter the

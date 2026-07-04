@@ -394,6 +394,8 @@ export class Player {
         this._modifiers  = null;
         this._unison     = null;
         this._stutterN   = 0;
+        this._strum      = 0;
+        this._multiply   = 1;
         // Free the FX chain entirely (not just bypass): a reset player with no FX
         // routes straight to output again; _fire rebuilds the chain if FX reappear.
         if (this._fxChain && _sc) { this._fxChain.free(_sc); this._fxChain = null; }
@@ -483,10 +485,13 @@ export class Player {
         let voices = 1;
         for (const v of Object.values(sArgs)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
 
-        // stutter: fire this step `reps` times within its duration (roll)
-        const reps    = Math.max(1, this._stutterN || 1);
+        // stutter/multiply: fire this step `reps` times within its duration (roll).
+        // stutter is one-shot; multiply is persistent (.multiply(n)).
+        const reps    = Math.max(1, this._stutterN || 1, this._multiply || 1);
         this._stutterN = 0;
         const repDur  = dur / reps;
+        // strum: spread a chord's voices over `_strum` beats (arpeggiated onset).
+        const strumSec = (this._strum || 0) * secPerBeat;
         const fireVoices = (whenNTP) => {
             for (let vi = 0; vi < voices; vi++) {
                 const va = {};
@@ -501,7 +506,7 @@ export class Player {
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
-                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP, outBus, secPerBeat);
+                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP + vi * strumSec, outBus, secPerBeat);
             }
         };
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
@@ -996,6 +1001,29 @@ export class Player {
         }
         return this;
     }
+
+    // .jump(n) — nudge the playhead forward n steps once (live glitch/fill).
+    jump(n = 1) { this._step += Math.round(n); return this; }
+
+    // .rotate(n) — cyclically rotate the degree array live (n>0 left, n<0 right).
+    rotate(n = 1) {
+        const d = this._args?.degree;
+        if (Array.isArray(d)) {
+            const k = ((Math.round(n) % d.length) + d.length) % d.length;
+            this._args.degree = [...d.slice(k), ...d.slice(0, k)];
+        }
+        return this;
+    }
+
+    // .strum(spread) — spread a chord/group's notes over `spread` beats (arpeggiated
+    // strum) instead of firing them all at once. e.g. p1 >> keys((0,4,7)).strum(0.05)
+    strum(spread = 0.04) { this._strum = spread; return this; }
+
+    // .offbeat(amt) — push every note late by `amt` beats (0.5 = land on the offbeat).
+    offbeat(amt = 0.5) { this.setAttr('delay', amt); return this; }
+
+    // .multiply(n) — persistently repeat each step n times within its duration (roll).
+    multiply(n = 2) { this._multiply = Math.max(1, Math.round(n)); return this; }
 
     // .drummer(durloop, durPlyr) — turn a play() player into a self-evolving rock
     // drummer (FoxDot/CrashServer port). Picks a random groove + fill, swaps the
