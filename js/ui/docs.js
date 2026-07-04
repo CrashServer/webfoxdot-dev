@@ -1009,15 +1009,6 @@ p3 >> pluck(PGrowArp([0,2,4,7]), oct=5, dur=0.5, amp=0.3)
 b1 >> play(x., amp=0.7)   # a short play string just repeats (x. = x.x.x.x.…)`)}
     `, 't_arps');
 
-    const t_euclid = section('Euclidean rhythms', `
-        ${note('PEuclid2 spreads k hits over n steps as a play string, PClave gives classic claves, PDur turns a euclid grid into note durations, PBeat reads a pulse string.')}
-        ${code(`Clock.bpm = 120
-b1 >> play(PEuclid2(5,8,".","x"), amp=0.8)
-h1 >> play(PClave("son"), hpf=6000, amp=0.5)
-p1 >> pluck([0,3,5,7], oct=5, dur=PDur(3,8), echo=0.3, amp=0.35)
-p2 >> bass([0], oct=3, dur=PBeat("x xx x"), amp=0.5)`)}
-    `, 't_euclid');
-
     const t_cross = section('Cross-player modulation', `
         ${note('Read another player live (arithmetic works), or follow / accompany / map to lock parts together. Pass the other name as a string to the methods.')}
         ${code(`b1 >> bass([0,3,5,7], oct=3, dur=1, amp=0.5)
@@ -1049,7 +1040,7 @@ b1 >> play(x., amp=PThue()*0.4 + 0.5)
     return [
         cat('New in alpha28'),   whatsNew,
         cat('Live sets'),        rise, showcase,
-        cat('Techniques'),       t_chords, t_arps, t_euclid, t_cross, t_live, t_gen,
+        cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
