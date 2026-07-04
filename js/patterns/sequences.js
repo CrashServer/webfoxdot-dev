@@ -760,6 +760,11 @@ const _CHORD_TYPES = {
 // PChord(degree, type) — a diatonic chord group on `degree`. e.g. PChord(0, "7").
 export function PChord(degree = 0, type = '') {
     const off = _CHORD_TYPES[String(type).toLowerCase().trim()] || _CHORD_TYPES[''];
+    // A pattern/timevar/list root → each voice resolves (root + offset) per step, so
+    // the whole chord can move: PChord(var([1,2,3]), "9").
+    if (degree != null && typeof degree === 'object' && (typeof degree.get === 'function' || Array.isArray(degree))) {
+        return _group(...off.map(o => ({ get: (step) => (Number(patGet(degree, step)) || 0) + o })));
+    }
     return _group(...off.map(o => degree + o));
 }
 
