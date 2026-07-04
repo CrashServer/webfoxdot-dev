@@ -195,10 +195,9 @@ export function PWalk(max = 7, step = 1, start = 0) {
     };
 }
 
-// PDur(k, n, dur=1) — Euclidean durations: k pulses in n steps
-// PDur(k, n, rotate=0, dur=1) — Euclidean durations: k pulses in n steps. `rotate`
-// cyclically shifts the resulting duration list (FoxDot's `start`).
-export function PDur(k, n, rotate = 0, dur = 1) {
+// The euclidean-duration list for k pulses in n steps (rotate cyclically shifts it).
+function _pdurList(k, n, rotate = 0, dur = 1) {
+    k = Math.max(1, Math.round(Number(k) || 1));
     const steps = Array(n).fill(0);
     for (let i = 0; i < k; i++) steps[Math.round(i * n / k)] = 1;
     const durs = [];
@@ -208,8 +207,23 @@ export function PDur(k, n, rotate = 0, dur = 1) {
         else acc++;
     }
     if (acc > 0) durs.push(acc * dur / n);
-    if (rotate) { const r = ((Math.round(rotate) % durs.length) + durs.length) % durs.length; return Ppat(durs.slice(r).concat(durs.slice(0, r))); }
-    return Ppat(durs);
+    if (rotate && durs.length) { const r = ((Math.round(rotate) % durs.length) + durs.length) % durs.length; return durs.slice(r).concat(durs.slice(0, r)); }
+    return durs;
+}
+
+// PDur(k, n, rotate=0, dur=1) — Euclidean durations: k pulses in n steps. `rotate`
+// cyclically shifts the resulting duration list (FoxDot's `start`). `k` may be a
+// pattern/alternation — PDur(<3,5>, 8) plays the 3-in-8 rhythm one cycle, the
+// 5-in-8 the next, and so on (k is re-resolved each time the cycle completes).
+export function PDur(k, n, rotate = 0, dur = 1) {
+    if (k != null && typeof k === 'object' && typeof k.get === 'function') {
+        let durs = _pdurList(patGet(k, 0), n, rotate, dur), i = 0;
+        return { get() {
+            if (i >= durs.length) { durs = _pdurList(patGet(k, 0), n, rotate, dur); i = 0; }
+            return durs[i++] ?? 1;
+        } };
+    }
+    return Ppat(_pdurList(k, n, rotate, dur));
 }
 
 // PDrum(k, n, char) — a Euclidean drum play() string: k pulses spread over n steps.
@@ -300,7 +314,7 @@ export function PJoin(...patterns) {
 // PDelay(k, n, rotate=0, dur=1) — a group of onset offsets (delay times) from a
 // Euclidean rhythm, e.g. use as delay=PDelay(3, 8).
 export function PDelay(k, n, rotate = 0, dur = 1) {
-    const durs = PDur(k, n, rotate, dur);
+    const durs = _pdurList(k, n, rotate, dur);
     const out = []; let acc = 0;
     for (const d of durs) { out.push(acc); acc += d; }
     return _group(...out);
@@ -807,7 +821,7 @@ export function PRhythm(durations) {
     const out = [];
     for (const item of arr) {
         const grp = isGroup(item) ? item.__group : (Array.isArray(item) ? item : null);
-        if (grp && grp.length >= 2) { for (const d of PDur(grp[0], grp[1])) out.push(d); }
+        if (grp && grp.length >= 2) { for (const d of _pdurList(grp[0], grp[1])) out.push(d); }
         else out.push(item);
     }
     return Ppat(out);
