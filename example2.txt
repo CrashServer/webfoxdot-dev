@@ -1,0 +1,41 @@
+# crashDot — example2 · HEAVY
+# trap · gesaffelstein · hardtechno · gabber  @ 170 bpm
+# ------------------------------------------------------------------
+# Boot + load the kit. Evaluate top to bottom, a few lines at a time,
+# and let each layer land before adding the next. Ctrl+; stops all.
+# A scratch pad — NOT wired into the in-app examples.
+
+Clock.bpm = 170
+Root.default = "F"
+Scale.default = "phrygian"
+
+# ── 808 sub — Gesaffelstein-style distorted sub-bass, moving darkly ──
+b1 >> a_gesa([0, 0, 3, 0, 0, -2, 5, 0], oct=2, dur=1, distortion=5, cutoff=1400, resonance=0.2, tanh=0.4, amp=0.9)
+
+# ── trap hats — 16th roll, ghosted dynamics, random bursts ──
+h1 >> play(-, dur=1/4, hpf=8000, amp=Pacc("ghost")).sometimes("stutter", 3)
+
+# ── gabber / hardtechno kick — distorted 4-on-the-floor (two layers) ──
+k1 >> compkick([0], oct=2, dur=1, punch=8, crunch=220, body=0.8, tone=3, amp=1)
+k2 >> dbass([0], oct=2, dur=1, drive=7, tanh=0.7, shape=0.6, crush=0.5, bits=5, amp=0.6)
+
+# ── halftime snare/clap on the backbeat ──
+d1 >> play("....o...", dur=0.5, room=0.4, reverb=0.3, amp=0.9)
+
+# ── Gesaffelstein dark electro stab — mean, detuned, on the offbeat ──
+p1 >> hoover([0, (0,3,7)], oct=4, dur=1, dist2=0.6, dist2shape=1, lpf=sinvar([500, 3500], [8]), amp=0.4).offbeat()
+
+# ── acid line — resonant, gated, sweeping, flipped every 8 beats ──
+p2 >> tb303([0, 0, 3, 0, 7, 0, 5, 3], oct=3, dur=0.25, lpf=linvar([400, 5000], [8]), lpf_rq=0.12, dist2=0.4, rgate=0.6, rgaterate=4, amp=0.35).every(8, "reverse")
+
+# ── tension — a noise riser + a stutter fill on the sub every 4 bars ──
+n1 >> a_hhat([0], oct=5, dur=8, tone=linvar([200, 5000], [8]), open=1, distortion=2, amp=linvar([0, 0.5], [8]))
+b1 >> a_gesa([0, 0, 3, 0, 0, -2, 5, 7], oct=2, dur=1, distortion=6, cutoff=1800, tanh=0.5, amp=0.9).every(16, "stutter", 8)
+
+# ── the drop — pumping fuzz bass + crushed industrial percussion ──
+b2 >> pumpbass([0, 0, 3, 0], oct=2, dur=0.5, cutoff=sinvar([300, 2500], [4]), fuzz=6, growl=0.3, pump=1, amp=0.8)
+v1 >> play(pbuild("industrial", kick=0, density=1), dur=0.25, multicrush=0.5, amp=0.7)
+
+# ── double-time flip — hats to 32nds, kick rolls ──
+h1 >> play(-, dur=1/8, hpf=9000, amp=Pacc("ghost")).sometimes("stutter", 4)
+k1 >> compkick([0, ., ., 0], oct=2, dur=0.5, punch=8, crunch=220, tone=3, amp=1)
