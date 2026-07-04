@@ -999,9 +999,8 @@ p2 >> ebass([0, 0, 7, 4], oct=6, dur=0.25, dist2=0.6, dist2shape=1, lpf=sinvar([
     `, 'nocturne');
 
     const darkchill = section('Dark Chill', `
-        ${note('A live build that grows from a dark 92-bpm downtempo groove into full techno and back out again — evaluate it top to bottom, a few lines at a time, re-running the same player slots to evolve them. It rides the tempo up with linbpm, moves the acid root and the chord progression (note evolution), peaks with modulating supersaw/a_gesa + a noise riser, breaks on a frozen reverb, then filters down and fades. Boot + load the kit first; Ctrl+; (or shutup()) stops all.')}
-        ${code(`# — the dark downtempo build (92, A minor) —
-Clock.bpm = 92
+        ${note('A live build that grows from a dark 92-bpm downtempo groove into full techno and back out again — evaluate it top to bottom, a few lines at a time, re-running the same player slots to evolve them. It rides the tempo up with linbpm, moves the acid root and the chord progression (note evolution), peaks with a modulating supersaw/a_gesa + a noise riser, breaks on a frozen reverb, then filters down and fades. Boot + load the kit first; Ctrl+; (or shutup()) stops all.')}
+        ${code(`Clock.bpm = 92
 Root.default = "A"
 Scale.default = "minor"
 m0 >> bass(var([0, -2, -4], [32]), oct=3, dur=8, lpf=sinvar([180, 500], [16]), tanh=0.15, amp=0.6).unison(2)
@@ -1018,35 +1017,22 @@ p3 >> rhodes([0, 4, 7, 5], oct=5, dur=2, cutoff=2200, echo=0.4, echo_time=0.375,
 q2 >> play("x", dur=1/2, amp=0.9, sample=2)
 g17 >> a_gesa([0, <0 5>, 4, 0], oct=6, dur=1/2, amp=0.79, pan=<-0.5 0.5>, pong=0.35, pongtime=0.375, fbdelay=0.46, fbtime=0.25, fbfeed=0.44, fbcutoff=3000)
 v2 >> play("X[--]", sample=4, amp=1, dur=1/2)
-
-# — ramp up into techno; the acid root starts to MOVE —
-linbpm(92, 128, 32)
 q2 >> play("x", dur=1, amp=1, drive=2, tanh=0.3)
 s2 >> play("....o.......o.o.", dur=0.25, room=0.3, amp=0.6).sometimes("stutter", 2)
-e2 >> acidbass(var([0, 5, 6, 3], [8, 4, 4, 4]) + var([0, -2], [7, 1]), oct=3, dur=0.25, lpf=PFr(600, 5000), lpf_rq=0.12, dist2=0.5, rgate=0.7, rgaterate=8, chorus=0.4, amp=0.5).unison(3)
 h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=5, dur=0.25, cutoff=sinvar([600, 5000], [4]), spin=0.5, drive=3, tanh=0.4, amp=0.32).every(8, "rotate")
-
-# — crazyness: glitch lead + drums, the pad becomes a progression —
 p1 >> blip(PxRand(0, 12), oct=6, dur=PRand([1/4, 1/8]), crush=0.5, bits=4, squiz=0.4, squizpitch=3, bpf=PLorenz(600, 5000), amp=0.25).every(4, "shuffle")
-t0 >> play("{x-}{Xo}[cc]{ x}[--]", dur=PRand([1/4, 1/8]), drop=0.5, dropof=24, pan=PBrown(-1, 1), rate=PwRand([1, 2, 4, -1], [6, 3, 1, 1]), amp=Pacc("ghost")).sometimes("stutter", 8)
 o9 >> prophet(PRoman("i VI iv v"), oct=5, dur=4, sus=3, mverb=0.7, lpf=linvar([800, 4000], [16]), amp=0.3)
 m0 >> bass(var([0, 3, 5, 2], [16]), oct=2, dur=4, lpf=sinvar([200, 1200], [8]), tanh=0.3, dist2=0.3, amp=0.6).unison(2)
-
-# — peak: everything modulating —
 h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=6, dur=0.25, cutoff=linvar([600, 6000, 600], [4, 4]), spin=0.6, drive=4, tanh=0.5, chop=8, amp=0.34).every(4, "rotate")
 e2.rgaterate = 16
 n1 >> a_hhat([0], oct=6, dur=16, tone=linvar([200, 8000], [16]), open=1, distortion=2, amp=linvar([0, 0.5], [16]))
-
-# — break, then out —
-# p1 >>
-# t0 >>
 o9 >> prophet((0,3,7), oct=5, dur=8, sus=7, mverb=0.9, mverbfreeze=1, lpf=linvar([5000, 400], [16]), amp=0.35)
 e2 >> acidbass([0], oct=3, dur=0.5, lpf=linvar([4000, 400], [16]), lpf_rq=0.15, amp=0.4)
 Clock.bpm = 124
 m0 >> bass([0], oct=2, dur=8, lpf=linvar([1200, 200], [16]), amp=linvar([0.6, 0], [16]))
 h4 >> supersaw([0, 3, 7], oct=5, dur=1, lpf=linvar([5000, 300], [16]), amp=linvar([0.3, 0], [16]))
-o9.amp = linvar([0.3, 0], [16])
-# shutup()`)}
+v1 >> play("X", amp=4)
+o9.amp = linvar([0.3, 0], [16])`)}
     `, 'darkchill');
 
     const whatsNew = section('New in alpha28', `
