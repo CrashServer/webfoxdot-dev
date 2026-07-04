@@ -34,6 +34,30 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, tone: 8000, decay: 0.1, metallic: 1, distortion: 2, open: 0 },
         extraParams: ['tone', 'decay', 'metallic', 'distortion', 'open'],
     },
+    // a_bd — electro bass-drum / kick (CrashServer port). Percussive; play it low.
+    a_bd: {
+        scName: 'fd_a_bd',
+        defaults: { oct: 3, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, click: 1, punch: 1, sub: 1, distortion: 3 },
+        extraParams: ['click', 'punch', 'sub', 'distortion'],
+    },
+    // rhodes — Rhodes-style electric piano (CrashServer port)
+    rhodes: {
+        scName: 'fd_rhodes',
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.1, cutoff: 2000, rq: 0.5 },
+        extraParams: ['cutoff', 'rq'],
+    },
+    // supersaw — fat detuned saw stack (CrashServer port)
+    supersaw: {
+        scName: 'fd_supersaw',
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 2000, rq: 0.7 },
+        extraParams: ['cutoff', 'rq'],
+    },
+    // wobble — dubstep wobble bass (CrashServer port; MoogFF LFO-swept). Play it low.
+    wobble: {
+        scName: 'fd_wobble',
+        defaults: { oct: 4, amp: 1, dur: 1, pan: 0, attack: 0.02, release: 0.1, rate: 6, cutoff: 8500, wphase: 0.5 },
+        extraParams: ['rate', 'cutoff', 'wphase'],
+    },
     // pumpbass — pumping filter bass (crashDot original; sidechain-style per-note duck)
     pumpbass: {
         scName: 'fd_pumpbass',

@@ -138,12 +138,12 @@ const FX_SUBCATS = [
 // Synths grouped into families — the long synth list unfolds into these sub-menus
 // (like fx). Anything not listed falls into an "other" bucket at the end.
 const SYNTH_SUBCATS = [
-    ['bass',  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft']],
-    ['lead',  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim']],
-    ['keys',  ['bell', 'organ', 'basic', 'karp']],
+    ['bass',  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'wobble', 'tb303', 'a_gesa', 'a_daft']],
+    ['lead',  ['saw', 'ssaw', 'supersaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim']],
+    ['keys',  ['bell', 'organ', 'basic', 'karp', 'rhodes']],
     ['pads',  ['pads', 'choir', 'brass']],
     ['pluck', ['pluck', 'moogpluck', 'guit', 'donk', 'lapin']],
-    ['perc',  ['compkick', 'a_hhat']],
+    ['perc',  ['compkick', 'a_hhat', 'a_bd']],
     ['tone',  ['fm', 'sine', 'rsin']],
 ];
 
