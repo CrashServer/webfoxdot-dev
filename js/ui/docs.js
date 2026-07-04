@@ -967,6 +967,36 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
+    const nocturne = section('Nocturne', `
+        ${note('A slow build from an ambient chord bed into a driving industrial coda — evaluate it top to bottom, a few lines at a time, and let each layer settle before adding the next. Boot + load the kit first. Shows a PRoman chord progression, TimeVar filter/pan sweeps, .accompany harmony, chord groups, human/unison, and pbuild drums.')}
+        ${code(`Clock.bpm = 68
+Root.default = "A"
+Scale.default = "dorian"
+p1 >> pads(PRoman("i VII VI III"), oct=4, dur=8, attack=3, release=6, lpf=linvar([400, 2600], [32]), mverb=0.7, mverbmix=0.6, amp=0.42)
+p2 >> sine([0, 4, 2, 7], oct=5, dur=2, amp=0.22, lpf=sinvar([800, 4000], [16]), pan=sinvar([-0.6, 0.6], [12]), pong=0.4, pongtime=0.5, room=0.7)
+p3 >> bell(PContour(4, 6, 7), oct=6, dur=3, mverb=0.8, spin=0.5, amp=0.2).sometimes("mirror")
+
+b1 >> dbass([0, 0, -2, 3], oct=4, dur=8, tanh=0.25, lpf=600, amp=0.5)
+~p4 >> pluck([0], oct=6, dur=1, amp=0.13, echo=0.4, echo_time=0.375, room=0.6).accompany("p2", [4, 7, 11])
+
+g21 >> brass([0, (0,4,7), 5, (2,5,9)], oct=5, dur=4, amp=0.35, room=0.74, reverb=0.32, pong=0.44, pongtime=0.25).human(32, 6)
+g55 >> choir([3, 2], oct=6, dur=1/4, amp=0.59, mverb=0.62).unison(2)
+
+g15 >> basic([4, ., 5, (0,3,4), 0], oct=4, dur=1/4, amp=0.3, chorus=0.59, tanh=0.2).unison(3)
+g24 >> pumpbass([5, 7, 4, (0,3,6), 7], oct=6, dur=1, amp=1)
+
+g21 >> brass([4, (0,4,7), 5, (2,5,9)], oct=4, a=0.5, dur=4, amp=1, hpf=1200, room=0, reverb=0, pong=0.44)
+
+g39 >> a_hhat([(0,2,5), 7, 2, 2], oct=5, dur=1/2, amp=0.50, drive=2.6, tanh=0.41).unison(2)
+v1 >> play([--------], amp=Pacc("offbeat"))
+v2 >> play("X ", echo=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+p2 >> ebass([0, 0, 7, 0], oct=5, dur=0.25, dist2=0.5, dist2shape=1, lpf=sinvar([400, 3500], [8]), rgate=0.7, rgaterate=4, amp=0.4)
+b2 >> play(pbuild("industrial", kick=0, snare=1, hat=1, perc=1), dur=0.25, amp=0.8)
+
+p2 >> ebass([0, 0, 7, 4], oct=6, dur=0.25, dist2=0.6, dist2shape=1, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, amp=1)`)}
+    `, 'nocturne');
+
     const whatsNew = section('New in alpha28', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
         ${note('<b>Transform a pattern LIVE</b> — .every(n, "rotate") / .sometimes("mirror") reshape the degree each time they fire, so you HEAR it change. (rotate = cyclic shift, mirror = play it backwards.)')}
@@ -1185,7 +1215,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     const cat = (name) => `<div class="docs-cat">${name}</div>`;
     return [
         cat('New in alpha28'),   whatsNew,
-        cat('Live sets'),        rise, showcase,
+        cat('Live sets'),        rise, showcase, nocturne,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
