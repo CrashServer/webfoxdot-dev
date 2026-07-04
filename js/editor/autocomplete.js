@@ -118,6 +118,9 @@ const FX_GROUPS = [
     { name: 'echo',      on: 0.4,  params: ['echo', 'echo_time', 'echo_dec'] },
     { name: 'pong',      on: 0.5,  params: ['pong', 'pongtime', 'pongfeed'] },
     { name: 'spin',      on: 0.6,  params: ['spin', 'spinrate'] },
+    { name: 'squiz',     on: 0.6,  params: ['squiz', 'squizpitch'] },
+    { name: 'drop',      on: 0.5,  params: ['drop', 'dropof'] },
+    { name: 'comp',      on: 0.6,  params: ['comp', 'compthresh', 'compratio'] },
 ];
 function fxItem(g) {
     const parts = g.params.map((p, i) => `${p}=${i === 0 ? g.on : FX_REGISTRY[p].default}`);
@@ -132,6 +135,8 @@ const FX_SUBCATS = [
     ['delays',     ['echo', 'fbdelay', 'pong']],
     ['distortion', ['crush', 'multicrush', 'tanh', 'shape', 'dist2']],
     ['modulation', ['chorus', 'tremolo', 'vibrato', 'flanger', 'phaser', 'ringmod', 'spin']],
+    ['glitch',     ['squiz', 'drop']],
+    ['dynamics',   ['comp']],
     ['rhythmic',   ['rgate', 'chop']],
 ];
 

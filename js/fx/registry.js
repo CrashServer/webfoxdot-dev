@@ -195,6 +195,20 @@ export const FX_REGISTRY = {
     // sbrk — stutter / beat-repeat (clocked RecordBuf/PlayBuf), CrashServer port
     sbrk:     { scParam: 'sbrk',     default: 0,   desc: 'Stutter/beat-repeat mix (0=off)' },
     sbrkdur:  { scParam: 'sbrkdur',  default: 0.5, desc: 'Stutter fragment length (s); smaller = faster' },
+
+    // squiz — zero-crossing pitch-up glitch (Squiz)
+    squiz:      { scParam: 'squiz',      default: 0, desc: 'Squiz glitch mix (0=off)' },
+    squizpitch: { scParam: 'squizpitch', default: 2, desc: 'Pitch-up ratio (1–8)' },
+    squizzc:    { scParam: 'squizzc',    default: 1, desc: 'Zero-crossings averaged' },
+
+    // drop — waveform dropout / decimate glitch (WaveLoss)
+    drop:     { scParam: 'drop',   default: 0,  desc: 'Waveform dropout mix (0=off)' },
+    dropof:   { scParam: 'dropof', default: 40, desc: 'Dropout window size' },
+
+    // comp — compressor (Compander) with makeup gain
+    comp:       { scParam: 'comp',       default: 0,   desc: 'Compressor mix (0=off)' },
+    compthresh: { scParam: 'compthresh', default: 0.3, desc: 'Threshold' },
+    compratio:  { scParam: 'compratio',  default: 4,   desc: 'Ratio (2–20:1)' },
 };
 
 export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));
@@ -242,6 +256,9 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_vowel',      keys: ['vowel', 'vowelf', 'vowelq'], trig: ['vowel'] },
     { scName: 'fd_fx_feed',       keys: ['feed', 'feedfreq'], trig: ['feed'] },
     { scName: 'fd_fx_sbrk',       keys: ['sbrk', 'sbrkdur'], trig: ['sbrk'] },
+    { scName: 'fd_fx_squiz',      keys: ['squiz', 'squizpitch', 'squizzc'], trig: ['squiz'] },
+    { scName: 'fd_fx_drop',       keys: ['drop', 'dropof'], trig: ['drop'] },
+    { scName: 'fd_fx_comp',       keys: ['comp', 'compthresh', 'compratio'], trig: ['comp'] },
 ];
 
 // Names to preload: the router + every per-effect def.

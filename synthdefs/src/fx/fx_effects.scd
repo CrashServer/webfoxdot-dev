@@ -380,4 +380,28 @@ SynthDef(\fd_fx_pong, {|in_bus=64, pong=0, pongtime=0.25, pongfeed=0.5, beat_dur
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (pong > 0) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── squiz — zero-crossing pitch-up glitch (Squiz) ───────────────────────────
+// squiz = mix, squizpitch = pitch ratio (1–8), squizzc = zero-crossings averaged.
+SynthDef(\fd_fx_squiz, {|in_bus=64, squiz=0, squizpitch=2, squizzc=1|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = Squiz.ar(sig, squizpitch.clip(1, 8), squizzc.clip(1, 16).round);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (squiz > 0) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── drop — waveform dropout / decimate glitch (WaveLoss) ─────────────────────
+// drop = mix (also how aggressively it drops), dropof = window size.
+SynthDef(\fd_fx_drop, {|in_bus=64, drop=0, dropof=40|
+    var sig = In.ar(in_bus, 2), wet, n = dropof.clip(2, 100).round;
+    wet = WaveLoss.ar(sig, (drop.clip(0, 1) * n).round, n, 2);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (drop > 0) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── comp — compressor (Compander) with makeup gain ──────────────────────────
+// comp = dry→wet mix, compthresh = threshold, compratio = ratio (2–20:1).
+SynthDef(\fd_fx_comp, {|in_bus=64, comp=0, compthresh=0.3, compratio=4|
+    var sig = In.ar(in_bus, 2), wet, ratio = compratio.clip(1, 20);
+    wet = Compander.ar(sig, sig, compthresh.clip(0.01, 1.0), 1, 1 / ratio, 0.01, 0.1) * ratio.sqrt;
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, comp.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
 "fd_fx_effects done".postln;
