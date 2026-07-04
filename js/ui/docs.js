@@ -208,6 +208,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+{ t: 'New reference tutorials — ~70 bite-size, one-per-feature examples grouped in the dropdown under Tut · Rhythm / Notes / Harmony / Random & chaos / Time / Player methods / Functions & live / FX. Each is a tiny runnable snippet with a one-line explanation of how it works (PDur, PEuclid2, PChord, PLorenz, var, .every, .drummer, drop, son, pong, chop…). Load one from the ▾ dropdown to learn a feature at a time.', ex: 'u_pdur' },
 'Play-position highlight upgrades: a chord group as a direct arg now lights up — dbass((0,4,7)) highlights the whole chord; <a b c> alternation now MOVES the highlight through its items instead of lighting the whole group. And a player line briefly flashes yellow when a .sometimes/.every modifier actually fires, so you can see the transform happen. The Examples dropdown is restyled (wider, coloured optgroups).',
 { t: 'The Examples menu has 6 new technique showcases — Chords & progressions · Arpeggios · Euclidean rhythms · Cross-player modulation · Live transforms · Generative & chaos — each a short runnable set. Pick one from the ▾ dropdown or the Examples tab to load it into the editor.', ex: 't_chords' },
 'son() now holds a HARD cap of 5 of its own g* players (default range 3–5; your manual players never count) and actively retires voices — even fresh ones at the cap — to keep turning over. Tune with son({min, max}).',
@@ -1034,6 +1035,100 @@ b1 >> play(x., amp=PThue()*0.4 + 0.5)
 # son()     # start the jam bot   —   soff()  stops it`)}
     `, 't_gen');
 
+    // ── Reference tutorials — one tiny runnable example per feature ───────────
+    // Data-driven: [id, title, note, code]. Kept short so each is a bite-size lesson
+    // you can load from the dropdown and evaluate line by line.
+    const tut = (id, title, noteText, codeText) => section(title, note(noteText) + code(codeText), id);
+    const TUT_CATS = [
+        ['Tut · Rhythm', [
+            tut('u_pdur',   'PDur',   'PDur(k, n) — k note-durations spread evenly over n steps (a Euclidean rhythm as durations).', `p1 >> pluck([0,2,4,7], oct=5, dur=PDur(3,8), amp=0.4)`),
+            tut('u_peuclid','PEuclid2','PEuclid2(k, n, ".", "x") — a Euclidean rhythm as a play() string: k hits over n steps.', `b1 >> play(PEuclid2(5,8,".","x"), amp=0.8)`),
+            tut('u_pbeat',  'PBeat',  'PBeat("x xx x") — durations from a pulse string (a hit starts a new note).', `p1 >> bass([0], oct=3, dur=PBeat("x xx x"), amp=0.5)`),
+            tut('u_pbin',   'PBin',   'PBin(n) — the binary digits of n as a 1/0 pattern (great as a gate). PBin(0) is random.', `b1 >> play(x., amplify=PBin(11), amp=0.8)`),
+            tut('u_pdrum',  'PDrum',  'PDrum(k, n) — a Euclidean drum play-string, k hits over n steps.', `b1 >> play(PDrum(5,8), amp=0.8)`),
+            tut('u_pacc',   'Pacc',   'Pacc(name) — an accent pattern for amp/amplify: backbeat, offbeat, ghost, tresillo…', `h1 >> play(-., amp=Pacc("offbeat"))`),
+            tut('u_pclave', 'PClave', 'PClave(name) — a classic clave play-string: son, rumba, bossa, shiko…', `h1 >> play(PClave("son"), hpf=6000, amp=0.5)`),
+            tut('u_pgroove','PGroove','PGroove(name) — a named dur feel: swing, shuffle, gallop, triplet, dotted…', `p1 >> pluck([0,2,4], oct=5, dur=PGroove("gallop"), amp=0.4)`),
+        ]],
+        ['Tut · Notes', [
+            tut('u_prand',  'PRand',  'PRand(lo, hi) — a random integer each step. PRand([a,b,c]) picks from a list.', `p1 >> pluck(PRand(0,8), oct=5, dur=0.5, amp=0.4)`),
+            tut('u_pwalk',  'PWalk',  'PWalk(max, step) — a random walk that drifts up and down within ±max.', `p1 >> saw(PWalk(7,1), oct=5, dur=0.5, amp=0.35)`),
+            tut('u_prange', 'PRange', 'PRange(lo, hi) — a rising ramp lo…hi that repeats.', `p1 >> blip(PRange(0,8), oct=6, dur=0.25, amp=0.3)`),
+            tut('u_pstep',  'PStep',  'PStep(n, value, default) — value every n steps, default otherwise. An accent grid.', `p1 >> pluck([0,4,3], oct=5, dur=0.5, amp=PStep(4, 0.7, 0.3))`),
+            tut('u_pshuf',  'PShuf',  'PShuf(list) — shuffles the list once at eval, then loops that order.', `p1 >> pluck(PShuf([0,2,4,7]), oct=5, dur=0.5, amp=0.4)`),
+            tut('u_pstutter','PStutter','PStutter(list, n) — repeats each value n times.', `p1 >> pluck(PStutter([0,4,7], 2), oct=5, dur=0.25, amp=0.4)`),
+            tut('u_palt',   'PAlt',   'PAlt(a, b) — alternates one step from a, one from b.', `p1 >> saw(PAlt([0,2], [7,5]), oct=5, dur=0.5, amp=0.35)`),
+            tut('u_psine',  'PSine',  'PSine(lo, hi, len) — a sine sweep over len steps (nice on a param).', `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=PSine(400, 3000, 16), amp=0.35)`),
+            tut('u_melody', 'melody', 'melody() — a wandering random-walk melody. Freeze it with [:n] to loop a fixed phrase.', `p1 >> pluck(melody()[:8], oct=5, dur=0.5, amp=0.4)`),
+            tut('u_motif',  'motif',  'motif(n) — a fixed n-note phrase (sampled once) that repeats.', `p1 >> pluck(motif(4), oct=5, dur=0.5, amp=0.4)`),
+            tut('u_pcontour','PContour','PContour(shape, n, range) — a melody following a shape: up, down, arch, valley, wave.', `p1 >> saw(PContour("arch", 8, 7), oct=5, dur=0.5, amp=0.35)`),
+        ]],
+        ['Tut · Harmony', [
+            tut('u_pchord', 'PChord', 'PChord(deg, type) — a diatonic chord group on a scale degree. type: 7, 9, sus4…', `k1 >> pads(PChord(0, "7"), oct=4, dur=2, amp=0.4)`),
+            tut('u_proman', 'PRoman', 'PRoman("I V vi IV") — a roman-numeral chord progression, in key.', `k1 >> organ(PRoman("i VI III VII"), oct=4, dur=4, amp=0.35)`),
+            tut('u_pprog',  'PProg',  'PProg(name) — a named progression: 50s, pop, 251, blues, andalusian…', `k1 >> pads(PProg("50s"), oct=4, dur=4, amp=0.4)`),
+            tut('u_pcircle','PCircle','PCircle(n) — walks the diatonic circle of fifths as scale degrees (stays in key).', `p1 >> pluck(PCircle(8), oct=5, dur=1, amp=0.35)`),
+            tut('u_arp',    'arp',    'arp(chord, mode) — arpeggiate a chord up / down / updown / random.', `p1 >> pluck(arp([0,4,7,11], "updown"), oct=5, dur=0.25, amp=0.35)`),
+            tut('u_pgrowarp','PGrowArp','PGrowArp(chord) — grows the chord note by note: [a],[a,b],[a,b,c]…', `p1 >> pluck(PGrowArp([0,2,4,7]), oct=5, dur=0.5, amp=0.35)`),
+        ]],
+        ['Tut · Random & chaos', [
+            tut('u_pwrand', 'PwRand', 'PwRand(values, weights) — a weighted random pick (first values more likely).', `p1 >> pluck(PwRand([0,4,7],[8,2,1]), oct=5, dur=0.5, amp=0.4)`),
+            tut('u_pxrand', 'PxRand', 'PxRand(lo, hi) — random with no immediate repeat.', `p1 >> pluck(PxRand(0,8), oct=5, dur=0.5, amp=0.4)`),
+            tut('u_pgauss', 'PGauss', 'PGauss(mean, dev) — Gaussian random (clusters near mean). Great on pan.', `p1 >> saw([0,4,7], oct=5, dur=0.25, pan=PGauss(0, 0.4), amp=0.35)`),
+            tut('u_pbrown', 'PBrown', 'PBrown(lo, hi) — a brownian random walk (smooth drift) for organic params.', `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=PBrown(500, 3500), amp=0.35)`),
+            tut('u_plorenz','PLorenz','PLorenz(lo, hi) — a chaotic Lorenz-attractor stream, mapped into a range.', `p1 >> pluck(PLorenz(0, 7), oct=5, dur=0.5, amp=0.35)`),
+            tut('u_pthue',  'PThue',  'PThue() — the Thue-Morse sequence (0,1,1,0,1,0,0,1…): a self-similar gate.', `b1 >> play(x., amp=PThue()*0.4 + 0.5)`),
+        ]],
+        ['Tut · Time (vars)', [
+            tut('u_var',    'var',    'var([a,b], [d1,d2]) — steps through values, holding each for d beats (clock time).', `p1 >> saw([0,4,7], oct=var([4,5],[8]), dur=0.5, amp=0.35)`),
+            tut('u_linvar', 'linvar', 'linvar([a,b], [dur]) — ramps smoothly a…b over dur beats, then loops. Great on cutoff.', `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=linvar([400,4000],[8]), amp=0.35)`),
+            tut('u_sinvar', 'sinvar', 'sinvar([a,b], [dur]) — a smooth sine ease between values (LFO-like).', `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=sinvar([500,3000],[8]), amp=0.35)`),
+            tut('u_pvar',   'Pvar',   'Pvar([patA, patB], dur) — swaps whole phrases over time while the player keeps stepping.', `p1 >> pluck(Pvar([[0,2,4], [7,4,2,0]], 8), oct=5, dur=0.5, amp=0.4)`),
+            tut('u_bpmvar', 'Clock.bpm ramp', 'Clock.bpm accepts a TimeVar so the tempo can ramp. linbpm(from, to, beats) is a shortcut.', `linbpm(120, 140, 32)`),
+        ]],
+        ['Tut · Player methods', [
+            tut('u_every',  '.every',  '.every(n, "method") — call a player method every n beats. Try rotate/reverse/stutter.', `p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(4, "rotate")`),
+            tut('u_sometimes','.sometimes','.sometimes("method", …) — a 50% chance per cycle to apply a method (the line flashes when it fires).', `p1 >> pluck([0,2,4,7,9], oct=5, dur=0.25, amp=0.35).sometimes("mirror")`),
+            tut('u_stutter','.stutter','.stutter(n) — roll the next step n times within its own duration.', `b1 >> play(x., amp=0.8).every(4, "stutter", 4)`),
+            tut('u_reverse','.reverse','.reverse() — play the degree array backwards for one cycle.', `p1 >> blip([0,2,4,7], oct=6, dur=0.25, amp=0.3).every(4, "reverse")`),
+            tut('u_rotate', '.rotate', '.rotate(n) — cyclically shift the degree array live (hear it move with .every).', `p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(4, "rotate")`),
+            tut('u_degrade','.degrade','.degrade(p) — randomly silence a fraction p of steps (thins a pattern out).', `b1 >> play(x.x.x.x., amp=0.8).degrade(0.3)`),
+            tut('u_unison', '.unison', '.unison(n, detune) — n detuned, stereo-spread voices for a fat sound.', `p1 >> saw([0,4,7], oct=4, dur=1, amp=0.35).unison(4, 0.4)`),
+            tut('u_drummer','.drummer','.drummer() — turn a play() player into a self-evolving rock drummer.', `b1 >> play("x").drummer()`),
+            tut('u_solo',   '.solo',   '.solo(beats) — mute everyone else; restore after beats (grid-aligned).', `p1 >> saw([0,4,7], oct=5, dur=0.5, amp=0.4).solo(8)`),
+            tut('u_gtr',    '.gtr',    '.gtr(string) — tune a player like a guitar string (chromatic frets). 0–6 = E A D G B e.', `p1 >> guit([0,3,5,7], dur=0.5, amp=0.4).gtr(5)`),
+            tut('u_penta',  '.penta',  '.penta() — snap the degrees to the minor pentatonic (always sounds sweet).', `p1 >> pluck(PRand(0,10), oct=5, dur=0.5, amp=0.4).penta()`),
+            tut('u_follow', '.follow', '.follow("p1") — track another player degree each step (pass the name as a string).', `b1 >> bass([0,3,5,7], oct=3, dur=1, amp=0.5)
+d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
+            tut('u_jump',   '.jump',   '.jump(n) — nudge the playhead forward n steps once (a live fill).', `p1 >> saw([0,2,4,7,9,11], oct=5, dur=0.25, amp=0.35).every(3, "jump", 2)`),
+            tut('u_strum',  '.strum',  '.strum(spread) — spread a chord over spread beats (an arpeggiated strum).', `p1 >> pads((0,4,7), oct=5, dur=2, amp=0.4).strum(0.06)`),
+            tut('u_human',  '.human',  '.human(vel, timing) — humanise dynamics and micro-timing.', `p1 >> pluck([0,2,4,7], oct=5, dur=0.5, amp=0.4).human(20, 8)`),
+        ]],
+        ['Tut · Functions & live', [
+            tut('u_play',   'play',    'play("string") — a drum/sample pattern. A short string repeats: play(x.) = x.x.x.x…', `b1 >> play(x.o., amp=0.8)`),
+            tut('u_pbuild', 'pbuild',  'pbuild(genre) — a genre drum-pattern generator: techno, house, dnb, breaks…', `b1 >> play(pbuild("techno"), dur=0.25)`),
+            tut('u_loop',   'loop',    'loop(name, dur) — a beat-synced audio loop (register the buffer with loadloop first).', `b1 >> loop("break", dur=8)`),
+            tut('u_chaos',  'chaos',   'chaos(n) — paste n random players into the editor to review, then run.', `chaos(3)`),
+            tut('u_son',    'son / soff','son() — a generative jam bot that builds and turns over its own g* players (max 5).', `son()
+# soff()   to stop`),
+            tut('u_drop',   'drop',    'drop(playTime, dropTime) — silence a random subset of players, then restore (bar-aligned).', `drop(14, 2)`),
+            tut('u_say',    'say',     'say("text") — speak text via the browser (Web Speech API).', `say("welcome to crashdot")`),
+            tut('u_darker', 'darker / lighter','darker() / lighter() — shift Scale.default one mode darker or brighter, live.', `darker()`),
+            tut('u_midiin', 'midiin',  'midiin(synth) — play incoming MIDI-keyboard notes through a synth. midiin(0) unbinds.', `midiin("prophet")`),
+        ]],
+        ['Tut · FX', [
+            tut('u_lpf',    'lpf / hpf','lpf / hpf = cutoff Hz — low/high-pass filter. Sweep it with a TimeVar.', `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=linvar([400,4000],[8]), amp=0.35)`),
+            tut('u_bpf',    'bpf',     'bpf = center Hz — a resonant band-pass. bpf_rq sets the width (small = narrow).', `p1 >> saw([0,4,7], oct=5, dur=0.25, bpf=1200, bpf_rq=0.2, amp=0.35)`),
+            tut('u_eq3',    'eq3',     'eq3 = mix — a 3-band EQ. eqlow/eqmid/eqhigh in dB.', `b1 >> play(x.o., eq3=1, eqlow=4, eqhigh=-3, amp=0.8)`),
+            tut('u_reverb', 'reverb',  'reverb = mix — room reverb. room sets size, damp the tone.', `p1 >> pads([0,4,7], oct=5, dur=4, reverb=0.5, room=0.9, amp=0.4)`),
+            tut('u_echo',   'echo',    'echo = mix — a delay. echo_time in beats.', `p1 >> blip([0,4,7], oct=6, dur=0.5, echo=0.4, echo_time=0.375, amp=0.3)`),
+            tut('u_pong',   'pong',    'pong = mix — a ping-pong delay that bounces L↔R. pongtime in beats.', `p1 >> pluck([0,4,7], oct=6, dur=0.5, pong=0.5, pongtime=0.375, amp=0.3)`),
+            tut('u_spin',   'spin',    'spin = mix — a stereo auto-pan that rotates the sound. spinrate in Hz.', `p1 >> saw([0,4,7], oct=5, dur=0.5, spin=0.6, amp=0.35)`),
+            tut('u_chop',   'chop',    'chop = slices per beat — a tempo-locked gate that chops the sound rhythmically.', `p1 >> saw([0,4,7], oct=4, dur=2, chop=4, amp=0.4)`),
+            tut('u_crush',  'crush',   'crush = mix — bitcrush. bits sets the depth (lower = grittier).', `p1 >> pluck([0,4,7], oct=5, dur=0.5, crush=0.6, bits=4, amp=0.35)`),
+        ]],
+    ];
+
     // Grouped into categories — a <div class="docs-cat"> header precedes each group.
     // exampleList() reads these headers so the dropdown (optgroups) and this page
     // show the exact same sets in the same order.
@@ -1046,6 +1141,7 @@ b1 >> play(x., amp=PThue()*0.4 + 0.5)
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
         cat('Perform & MIDI'),   sections, midi, perf,
+        ...TUT_CATS.flatMap(([c, secs]) => [cat(c), ...secs]),
     ].join('');
 }
 
