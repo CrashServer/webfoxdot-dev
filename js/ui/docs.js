@@ -1006,7 +1006,7 @@ b1 >> bass([0,5,2,6], oct=3, dur=4, amp=0.5)`)}
         ${code(`p1 >> pluck(arp([0,4,7,11], "updown"), oct=5, dur=0.25, echo=0.3, amp=0.35)
 p2 >> blip(PArp([0,4,7], 5), oct=6, dur=0.25, room=0.5, amp=0.25)
 p3 >> pluck(PGrowArp([0,2,4,7]), oct=5, dur=0.5, amp=0.3)
-b1 >> play(x.x.x.x., amp=0.7)`)}
+b1 >> play(x., amp=0.7)   # a short play string just repeats (x. = x.x.x.x.…)`)}
     `, 't_arps');
 
     const t_euclid = section('Euclidean rhythms', `
@@ -1031,14 +1031,14 @@ d3 >> blip([0], oct=6, dur=1, amp=0.25).follow("b1")`)}
         ${code(`p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(4, "rotate")
 p2 >> pluck([0,2,4,7,9], oct=5, dur=0.25, amp=0.3).sometimes("mirror")
 p3 >> blip([0,4,7], oct=6, dur=0.5, amp=0.25).every(8, "reverse")
-b1 >> play(x.x.x.x., amp=0.8).sometimes("stutter", 2)`)}
+b1 >> play(x., amp=0.8).sometimes("stutter", 2)`)}
     `, 't_live');
 
     const t_gen = section('Generative & chaos', `
         ${note('Chaotic maps (PBrown / PLorenz / PLogistic) drift params organically; PThue gives a self-similar accent; son() is a jam bot that builds its own g* players. Boot audio first.')}
         ${code(`p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=PLorenz(400, 4000), amp=0.35)
 p2 >> pluck(PBrown(0, 7), oct=5, dur=0.5, room=0.5, amp=0.3)
-b1 >> play(x.x.x.x., amp=PThue()*0.4 + 0.5)
+b1 >> play(x., amp=PThue()*0.4 + 0.5)
 # son()     # start the jam bot   —   soff()  stops it`)}
     `, 't_gen');
 
