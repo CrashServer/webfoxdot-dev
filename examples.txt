@@ -1,0 +1,99 @@
+# crashDot — scratch compositions
+# ================================
+# Three complete pieces. Boot + load the kit first. Evaluate lines top to bottom
+# (Ctrl+Enter per line, or Ctrl+Alt+Enter for a block). Ctrl+; stops everything.
+# These are a scratch pad — NOT wired into the in-app examples.
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  1 · NOCTURNE  —  slow ambient / cinematic (no drums)
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 68
+Root.default = "A"
+Scale.default = "dorian"
+
+# a slow chord bed drifting on a big reverb, filter opening over 32 beats
+p1 >> pads(PRoman("i VII VI III"), oct=4, dur=8, attack=3, release=6, lpf=linvar([400, 2600], [32]), mverb=0.7, mverbmix=0.6, amp=0.42)
+
+# a sine counter-melody, a third above, panning gently
+p2 >> sine([0, 4, 2, 7], oct=5, dur=2, amp=0.22, lpf=sinvar([800, 4000], [16]), pan=sinvar([-0.6, 0.6], [12]), pong=0.4, pongtime=0.5, room=0.7)
+
+# a bell motif — an arch contour, sparse, high, drenched; sometimes reversed
+p3 >> bell(PContour("arch", 6, 7), oct=6, dur=3, mverb=0.8, spin=0.5, amp=0.2).sometimes("mirror")
+
+# a deep, patient sub — moving under the chords
+b1 >> dbass([0, 0, -2, 3], oct=3, dur=8, tanh=0.25, lpf=600, amp=0.5)
+
+# a shimmer that harmonises around the sine line, a fifth up, echoing
+~p4 >> pluck([0], oct=6, dur=1, amp=0.13, echo=0.4, echo_time=0.375, room=0.6).accompany("p2", [4, 7, 11])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  2 · CIRCUIT  —  industrial techno builder (a #@ arrangement)
+#      Evaluate #@intro and let it auto-advance; the goto routers loop the drop.
+# ═══════════════════════════════════════════════════════════════════════════
+#@#@ circuit
+
+#@intro(16)
+Clock.bpm = 132
+Root.default = "E"
+Scale.default = "minor"
+p1 >> pads([0, (0,3,7), 5], oct=4, dur=8, attack=2, lpf=linvar([300, 2000], [16]), reverb=0.5, room=0.85, amp=0.4)
+b1 >> play(x...x...x...x..., amp=0.5)
+
+#@build(16)
+p1 >> pads([0, (0,3,7), 5], oct=4, dur=8, attack=2, lpf=linvar([1500, 4200], [16]), reverb=0.5, room=0.85, amp=0.4)
+b1 >> play(x.x.x.x., amp=0.85)
+h1 >> play(-.-.-.-., hpf=7000, dur=0.25, amp=Pacc("offbeat"))
+p2 >> ebass([0, 0, 7, 0], oct=3, dur=0.25, dist2=0.5, dist2shape=1, lpf=sinvar([400, 3500], [8]), rgate=0.7, rgaterate=4, amp=0.4)
+
+#@drop(32)
+# p1 >>
+k1 >> compkick([0], oct=3, dur=1, amp=0.95)
+b2 >> play(pbuild("industrial", kick=0, snare=1, hat=1, perc=1), dur=0.25, amp=0.8)
+p2 >> ebass([0, 0, 7, 4], oct=3, dur=0.25, dist2=0.6, dist2shape=1, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, amp=0.4)
+p3 >> tb303([0,0,3,0,7,0,5,3], oct=4, dur=0.25, lpf=linvar([500, 5000], [8]), lpf_rq=0.15, spin=0.5, amp=0.3).every(8, "reverse")
+
+#@goto(drop, 0.4)   # 40% chance to loop the drop again, else break
+
+#@break(16)
+# k1 >>
+# b2 >>
+# p2 >>
+p1 >> pads((0,3,7), oct=4, dur=4, attack=1, mverb=0.85, lpf=linvar([4000, 500], [16]), amp=0.4)
+p3 >> tb303([0,0,3,0], oct=5, dur=0.5, lpf=2000, echo=0.4, echo_time=0.375, amp=0.25)
+
+#@goto(drop, 0.6)   # 60% chance back into the drop, else resolve
+
+#@outro(8)
+~p1 >> pads([0, 4, 7, 11], oct=5, dur=2, mverb=0.7, lpf=linvar([3000, 300], [8]), amp=linvar([0.4, 0], [8]))
+
+#@end(4)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 · FIFTHS  —  a turning circle-of-fifths jam (jazzy, generative)
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 96
+Root.default = "C"
+Scale.default = "major"
+
+# a turnaround of 7th chords walking the circle of fifths, on soft keys
+k1 >> organ(PCircle(8, 0, "7"), oct=4, dur=2, sus=1.6, chorus=0.4, lpf=2600, amp=0.32)
+
+# a walking bass — the root of each chord, an octave down, moving in the same fifths
+b1 >> bass(PCircle(8), oct=3, dur=1, lpf=900, tanh=0.2, amp=0.5)
+
+# an arp that harmonises around the bass (so it always fits the current chord)
+p1 >> pluck([0], oct=5, dur=PGroove("swing"), echo=0.3, echo_time=0.375, room=0.5, amp=0.28).accompany("b1", [0, 2, 4, 7])
+
+# brushed drums — soft kick, ghosted offbeat hats, a rim on the backbeat
+d1 >> play(x..x..x., amp=0.55)
+h1 >> play(-.-.-.-., hpf=6000, amp=Pacc("ghost"))
+d2 >> play(....o..., amp=0.4)
+
+# a sparse blip lead — weighted-random notes, sometimes answering in mirror
+p2 >> blip(PwRand([0,2,4,7,9], [4,2,3,2,1]), oct=6, dur=1/2, spin=0.4, amp=0.22).sometimes("mirror")
+
+# lift: bring in a bright counter-line reading the bass a tenth up
+~p3 >> pluck(b1.degree + 9, oct=5, dur=1, bpf=1800, bpf_rq=0.3, amp=0.2).every(8, "rotate")
