@@ -1093,7 +1093,7 @@ b1 >> play(x., amp=PThue()*0.4 + 0.5)
             tut('u_stutter','.stutter','.stutter(n) — roll the next step n times within its own duration.', `b1 >> play(x., amp=0.8).every(4, "stutter", 4)`),
             tut('u_reverse','.reverse','.reverse() — play the degree array backwards for one cycle.', `p1 >> blip([0,2,4,7], oct=6, dur=0.25, amp=0.3).every(4, "reverse")`),
             tut('u_rotate', '.rotate', '.rotate(n) — cyclically shift the degree array live (hear it move with .every).', `p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(4, "rotate")`),
-            tut('u_degrade','.degrade','.degrade(p) — randomly silence a fraction p of steps (thins a pattern out).', `b1 >> play(x.x.x.x., amp=0.8).degrade(0.3)`),
+            tut('u_degrade','.degrade','.degrade(p) — randomly silence a fraction p of steps (thins a pattern out).', `b1 >> play(x., amp=0.8).degrade(0.3)`),
             tut('u_unison', '.unison', '.unison(n, detune) — n detuned, stereo-spread voices for a fat sound.', `p1 >> saw([0,4,7], oct=4, dur=1, amp=0.35).unison(4, 0.4)`),
             tut('u_drummer','.drummer','.drummer() — turn a play() player into a self-evolving rock drummer.', `b1 >> play("x").drummer()`),
             tut('u_solo',   '.solo',   '.solo(beats) — mute everyone else; restore after beats (grid-aligned).', `p1 >> saw([0,4,7], oct=5, dur=0.5, amp=0.4).solo(8)`),
@@ -1149,13 +1149,13 @@ b1 >> play("x").drummer(8, 0.25)      # busier: re-roll every 8 beats, sixteenth
             `<b>.human(velocity, humanize, swing)</b> humanises a player. <b>velocity</b> spreads amp (dynamics), <b>humanize</b> jitters the timing (± % of the step), <b>swing</b> pushes the offbeats later (%).`,
             `Under the hood it sets a 2-step <code>delay</code> (timing) and <code>amplify</code> (velocity) pattern — so it works on synths and play() alike.`,
         ], `p1 >> pluck([0,2,4,7], oct=5, dur=0.5, amp=0.4).human(20, 8)     # a loose, breathing feel
-b1 >> play(x.x.x.x., amp=0.8).human(30, 5, 20)                  # swung, dynamic drums`),
+b1 >> play(x., amp=0.8).human(30, 5, 20)   # a short play string just repeats (x. = x.x.x.x.…)`),
         deep('d_every', '.every / .sometimes — triggers', [
             `<b>.every(n, "method", …args)</b> calls a player method every n beats; <b>.sometimes("method", …)</b> gives a 50% chance per cycle (also often / rarely / almostNever / always). The line flashes when a modifier fires.`,
             `A trailing <code>name=value</code> is a KWARG: it overrides that param just for the trigger, then restores a step later — perfect for a splash of reverb or crush on a fill.`,
         ], `p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(8, "reverse")
 p1 >> pluck([0,4,7], oct=5, dur=0.5, amp=0.4).sometimes("stutter", 4, mverb=0.6)
-b1 >> play(x.x.x.x., amp=0.8).every(4, "stutter", 4, crush=0.6)`),
+b1 >> play(x., amp=0.8).every(4, "stutter", 4, crush=0.6)`),
         deep('d_son', 'son — the jam bot', [
             `<b>son(opts)</b> starts a generative jam bot that builds, tweaks and retires its own g* players over time. It holds a HARD cap of 5 of its own voices (your manual players never count) and keeps turning them over.`,
             `<b>opts</b> — min / max: the voice count (default 3–5). synth / drum: how often it adds each type. every: [lo, hi] beats between changes. In a session its lines broadcast to peers. <b>soff()</b> stops the loop; <b>soff(true)</b> also stops its players.`,
