@@ -177,7 +177,7 @@
   <script type="module">
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
-    import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, PLAYER_GROUP, FX_GROUP,
+    import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, setTriggerListener as _setTriggerListener, PLAYER_GROUP, FX_GROUP,
              drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { FX_SYNTHDEFS }   from './js/fx/registry.js';
@@ -1463,6 +1463,20 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         _markSig.set(name, sig);
     }
     _setStepListener((name, step) => { highlightStep(name, step); postStep(name, step); });
+
+    // Briefly flash a player's line when a .sometimes/.every modifier fires, so you
+    // can SEE the transform happen.
+    const _trigTimers = new Map();
+    function flashTrigger(name) {
+        const line = resolveLine(name);
+        if (line < 0 || line >= editor.lineCount()) return;
+        const handle = editor.getLineHandle(line);
+        if (!handle) return;
+        editor.addLineClass(handle, 'background', 'wfd-trigger');
+        clearTimeout(_trigTimers.get(name));
+        _trigTimers.set(name, setTimeout(() => { try { editor.removeLineClass(handle, 'background', 'wfd-trigger'); } catch (_) {} }, 200));
+    }
+    _setTriggerListener(flashTrigger);
 
     // ── User identity (multiplayer) — name + cursor colour ────────────────────
     function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }

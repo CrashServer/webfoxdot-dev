@@ -238,15 +238,34 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 
 #examples-select {
     background: var(--bg-3);
-    color: var(--text-2);
+    color: var(--text-1);
     border: 1px solid var(--border-1);
     font-family: monospace;
-    font-size: 10px;
-    padding: 2px 4px;
-    border-radius: 3px;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 4px;
     cursor: pointer;
-    max-width: 130px;
+    max-width: 170px;
+    transition: border-color 0.12s;
 }
+#examples-select:hover  { border-color: var(--blue); }
+#examples-select:focus  { border-color: var(--blue); outline: none; }
+#examples-select optgroup {
+    background: var(--bg-1);
+    color: var(--blue);
+    font-style: normal;
+    font-weight: bold;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+#examples-select option {
+    background: var(--bg-2);
+    color: var(--text-1);
+    font-style: normal;
+    padding: 4px 6px;
+}
+/* Brief flash of a player's line when a .sometimes/.every modifier fires. */
+.wfd-trigger { background: rgba(240, 200, 70, 0.20) !important; }
 /* rec buttons sit side by side in the sidebar Settings section */
 #cp-settings .cp-row .cp-btn { flex: 1; width: auto; }
 

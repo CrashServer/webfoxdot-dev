@@ -81,6 +81,12 @@ let _onStep = null;
 export function setStepListener(fn) { _onStep = fn; }
 function emitStep(name, step) { if (_onStep) { try { _onStep(name, step); } catch (_) {} } }
 
+// Fired when a .sometimes/.every/.rarely… modifier actually triggers on a player,
+// so the editor can briefly flash that line.
+let _onTrigger = null;
+export function setTriggerListener(fn) { _onTrigger = fn; }
+function emitTrigger(name) { if (_onTrigger) { try { _onTrigger(name); } catch (_) {} } }
+
 // Resolve all pattern args at the current step
 function resolveArgs(args, step) {
     const out = {};
@@ -796,8 +802,10 @@ export class Player {
                      : this._mode === 'loop'    ? this._loopOpts
                      : this._mode === 'midiout' ? this._midiOpts
                      : this._args;
+        let fired = false;
         for (const m of this._modifiers) {
             if (Math.random() >= m.prob) continue;
+            fired = true;
             const args = m.args.map(a => patGet(a, this._step, a));
 
             if (m.kwargs) {
@@ -819,6 +827,7 @@ export class Player {
                 try { this[m.method]?.(...args); } catch (_) {}
             }
         }
+        if (fired) emitTrigger(this.name);
     }
 
     // Warn (once) when an EXPLICITLY-written param isn't recognised by this synth
@@ -967,7 +976,7 @@ export class Player {
             }
             try { p[fn]?.(...args); } catch (_) {}
         };
-        this._every.push({ beats, nextBeat: this._nextBeat + beats, fn: method });
+        this._every.push({ beats, nextBeat: this._nextBeat + beats, fn: (p) => { method(p); emitTrigger(p.name); } });
         return this;
     }
 
