@@ -217,9 +217,12 @@ export class PlayStringCall {
     drummer(...a) { (this._calls ??= []).push(['drummer', ...a]); return this; }
 }
 // Player methods that also make sense on a play() drum player. Chained + replayed.
-for (const m of ['jump', 'multiply', 'offbeat', 'once']) {
+for (const m of ['jump', 'multiply', 'offbeat', 'once', 'reverse', 'rotate', 'shuffle', 'mirror']) {
     PlayStringCall.prototype[m] = function (...a) { (this._calls ??= []).push([m, ...a]); return this; };
 }
+// .stutter(n) chained directly = roll EVERY step n times (persistent) — same as
+// .multiply(n). (One-shot rolls are done via .every(4,"stutter",n) / .sometimes.)
+PlayStringCall.prototype.stutter = function (n = 2) { (this._calls ??= []).push(['multiply', n]); return this; };
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);
 

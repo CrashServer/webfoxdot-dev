@@ -989,24 +989,38 @@ export class Player {
     }
 
     // Reverse degree array for one cycle
+    // The player's ordered sequence — the degree array for synths, the parsed
+    // token pattern for play() drums — so reverse/rotate/shuffle/mirror all work
+    // on both. Returns the live array (or null if the pattern isn't a plain list).
+    _seq() {
+        const s = this._mode === 'sample' ? this._pattern : this._args?.degree;
+        return Array.isArray(s) && s.length ? s : null;
+    }
+    _setSeq(v) {
+        if (this._mode === 'sample') this._pattern = v; else this._args.degree = v;
+    }
+    _seqDurMs(len) {
+        const dur = this._mode === 'sample' ? (this._playOpts?.dur ?? 1) : (this._args?.dur ?? 1);
+        return len * (typeof dur === 'number' ? dur : 1) * (60000 / this._clock.bpm);
+    }
+
     reverse() {
-        if (Array.isArray(this._args.degree)) {
-            const orig = [...this._args.degree];
-            this._args.degree = [...orig].reverse();
-            const durMs = orig.length * (this._args.dur ?? 1) * (60000 / this._clock.bpm);
-            setTimeout(() => { if (this._active) this._args.degree = orig; }, durMs + 50);
+        const seq = this._seq();
+        if (seq) {
+            const orig = [...seq];
+            this._setSeq([...orig].reverse());
+            setTimeout(() => { if (this._active) this._setSeq(orig); }, this._seqDurMs(orig.length) + 50);
         }
         return this;
     }
 
-    // Shuffle degree array for one cycle
+    // Shuffle the sequence for one cycle
     shuffle() {
-        if (Array.isArray(this._args.degree)) {
-            const orig = [...this._args.degree];
-            const shuf = [...orig].sort(() => Math.random() - 0.5);
-            this._args.degree = shuf;
-            const durMs = orig.length * (this._args.dur ?? 1) * (60000 / this._clock.bpm);
-            setTimeout(() => { if (this._active) this._args.degree = orig; }, durMs + 50);
+        const seq = this._seq();
+        if (seq) {
+            const orig = [...seq];
+            this._setSeq([...orig].sort(() => Math.random() - 0.5));
+            setTimeout(() => { if (this._active) this._setSeq(orig); }, this._seqDurMs(orig.length) + 50);
         }
         return this;
     }
@@ -1014,22 +1028,23 @@ export class Player {
     // .jump(n) — nudge the playhead forward n steps once (live glitch/fill).
     jump(n = 1) { this._step += Math.round(n); return this; }
 
-    // .rotate(n) — cyclically rotate the degree array live (n>0 left, n<0 right).
+    // .rotate(n) — cyclically rotate the sequence live (n>0 left, n<0 right).
     // Permanent, so it's audible when triggered repeatedly: .every(4, "rotate").
     rotate(n = 1) {
-        const d = this._args?.degree;
-        if (Array.isArray(d) && d.length) {
+        const d = this._seq();
+        if (d) {
             const k = ((Math.round(n) % d.length) + d.length) % d.length;
-            this._args.degree = [...d.slice(k), ...d.slice(0, k)];
+            this._setSeq([...d.slice(k), ...d.slice(0, k)]);
         }
         return this;
     }
 
-    // .mirror() — reverse the degree array in place (a permanent flip, so it
-    // toggles back and forth when triggered): .every(8, "mirror") or
-    // .sometimes("mirror"). (Unlike .reverse(), which flips for one cycle only.)
+    // .mirror() — reverse the sequence in place (a permanent flip, so it toggles
+    // back and forth when triggered): .every(8, "mirror") or .sometimes("mirror").
+    // (Unlike .reverse(), which flips for one cycle only.)
     mirror() {
-        if (Array.isArray(this._args?.degree)) this._args.degree = [...this._args.degree].reverse();
+        const d = this._seq();
+        if (d) this._setSeq([...d].reverse());
         return this;
     }
 

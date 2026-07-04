@@ -289,6 +289,8 @@ for (const m of ['reverse', 'shuffle', 'drummer', 'follow', 'accompany', 'map',
                  'jump', 'rotate', 'mirror', 'strum', 'offbeat', 'multiply', 'once']) {
     SynthCall.prototype[m] = function (...a) { (this._calls ??= []).push([m, ...a]); return this; };
 }
+// .stutter(n) chained directly = roll every step n times (persistent, = .multiply).
+SynthCall.prototype.stutter = function (n = 2) { (this._calls ??= []).push(['multiply', n]); return this; };
 
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);
