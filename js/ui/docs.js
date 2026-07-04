@@ -208,6 +208,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+'The examples dropdown is now a fully custom, themed menu (a native select popup cannot be styled) — categorised, scrollable, with hover highlighting. Added a Deep dives section: param-heavy features (pbuild, .drummer, .human, .every/.sometimes kwargs, son, TimeVars, Euclidean rhythms, .unison) explained line by line with how they work and several use cases.',
 { t: 'New reference tutorials — ~70 bite-size, one-per-feature examples grouped in the dropdown under Tut · Rhythm / Notes / Harmony / Random & chaos / Time / Player methods / Functions & live / FX. Each is a tiny runnable snippet with a one-line explanation of how it works (PDur, PEuclid2, PChord, PLorenz, var, .every, .drummer, drop, son, pong, chop…). Load one from the ▾ dropdown to learn a feature at a time.', ex: 'u_pdur' },
 'Play-position highlight upgrades: a chord group as a direct arg now lights up — dbass((0,4,7)) highlights the whole chord; <a b c> alternation now MOVES the highlight through its items instead of lighting the whole group. And a player line briefly flashes yellow when a .sometimes/.every modifier actually fires, so you can see the transform happen. The Examples dropdown is restyled (wider, coloured optgroups).',
 { t: 'The Examples menu has 6 new technique showcases — Chords & progressions · Arpeggios · Euclidean rhythms · Cross-player modulation · Live transforms · Generative & chaos — each a short runnable set. Pick one from the ▾ dropdown or the Examples tab to load it into the editor.', ex: 't_chords' },
@@ -1129,6 +1130,54 @@ d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
         ]],
     ];
 
+    // ── Deep dives — param-heavy features explained line by line ──────────────
+    const deep = (id, title, notes, codeText) => section(title, notes.map(n => note(n)).join('') + code(codeText), id);
+    const DEEP = [
+        deep('d_pbuild', 'pbuild — genre drums', [
+            `<b>pbuild(genre, opts)</b> generates a genre drum pattern as a play() string — feed it to play() with a small dur (0.25 = sixteenths). Every knob is a keyword:`,
+            `<b>genre</b>: a name (techno · house · dnb · breaks · halftime · industrial · reggae · afro) or an index number. &nbsp; <b>evolve</b>: bars before it loops, each a small mutation (default 8). &nbsp; <b>fill</b>: drop a fill every N bars. &nbsp; <b>density</b>: 0–1, thins hits out below 1.`,
+            `<b>kick / snare / hat / perc</b> are per-bar GATES: 1 = on, 0 = off, a genre name to borrow that layer, or a pattern (PBin(4) / {1,0} / &lt;1 0&gt;) to toggle the layer bar by bar.`,
+        ], `b1 >> play(pbuild("techno"), dur=0.25)                        # the simplest form
+b1 >> play(pbuild("dnb", evolve=16, fill=4, density=0.8), dur=0.25)  # evolves, fills, a bit sparser
+b1 >> play(pbuild("house", snare=<1 0>, hat="dnb"), dur=0.25)   # snare every other bar, borrow dnb hats`),
+        deep('d_drummer', '.drummer — evolving drums', [
+            `<b>.drummer(durloop, durPlayer)</b> turns a play() player into a self-evolving rock drummer. It picks a random groove + fill, swaps the fill in for the tail of each loop, and re-randomises the groove every durloop beats.`,
+            `<b>durloop</b>: beats before it re-rolls the groove (default 16). &nbsp; <b>durPlayer</b>: the step duration (default 0.5). Chain it onto any play() seed.`,
+        ], `b1 >> play("x").drummer()             # defaults: re-roll every 16 beats, dur 0.5
+b1 >> play("x").drummer(8, 0.25)      # busier: re-roll every 8 beats, sixteenth steps`),
+        deep('d_human', '.human — feel', [
+            `<b>.human(velocity, humanize, swing)</b> humanises a player. <b>velocity</b> spreads amp (dynamics), <b>humanize</b> jitters the timing (± % of the step), <b>swing</b> pushes the offbeats later (%).`,
+            `Under the hood it sets a 2-step <code>delay</code> (timing) and <code>amplify</code> (velocity) pattern — so it works on synths and play() alike.`,
+        ], `p1 >> pluck([0,2,4,7], oct=5, dur=0.5, amp=0.4).human(20, 8)     # a loose, breathing feel
+b1 >> play(x.x.x.x., amp=0.8).human(30, 5, 20)                  # swung, dynamic drums`),
+        deep('d_every', '.every / .sometimes — triggers', [
+            `<b>.every(n, "method", …args)</b> calls a player method every n beats; <b>.sometimes("method", …)</b> gives a 50% chance per cycle (also often / rarely / almostNever / always). The line flashes when a modifier fires.`,
+            `A trailing <code>name=value</code> is a KWARG: it overrides that param just for the trigger, then restores a step later — perfect for a splash of reverb or crush on a fill.`,
+        ], `p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(8, "reverse")
+p1 >> pluck([0,4,7], oct=5, dur=0.5, amp=0.4).sometimes("stutter", 4, mverb=0.6)
+b1 >> play(x.x.x.x., amp=0.8).every(4, "stutter", 4, crush=0.6)`),
+        deep('d_son', 'son — the jam bot', [
+            `<b>son(opts)</b> starts a generative jam bot that builds, tweaks and retires its own g* players over time. It holds a HARD cap of 5 of its own voices (your manual players never count) and keeps turning them over.`,
+            `<b>opts</b> — min / max: the voice count (default 3–5). synth / drum: how often it adds each type. every: [lo, hi] beats between changes. In a session its lines broadcast to peers. <b>soff()</b> stops the loop; <b>soff(true)</b> also stops its players.`,
+        ], `son()                                       # start (3–5 g* voices)
+son({min:2, max:4, drum:0.5, every:[4,8]})  # fewer voices, more drums, slower changes
+# soff()      # stop the loop   —   soff(true)   stop and clear its players`),
+        deep('d_timevar', 'TimeVars — how they sweep', [
+            `A TimeVar advances against the CLOCK (real beat time), not the step count — so two players stay perfectly in sync. <b>var([a,b],[d1,d2])</b> holds each value for d beats; <b>linvar</b> ramps smoothly between them; <b>sinvar / expvar</b> ease differently.`,
+            `The durations list LOOPS: linvar([400,4000],[8]) sweeps up over 8 beats then jumps back. Add values for a longer, smoother cycle: linvar([400,4000,400],[4,4]) goes up then back down.`,
+        ], `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=linvar([400,4000],[8]), amp=0.35)
+p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=linvar([400,4000,400],[4,4]), amp=0.35)`),
+        deep('d_euclid', 'Euclidean rhythms — how', [
+            `The Euclidean algorithm spreads k hits as evenly as possible over n steps (Bjorklund). <b>PEuclid2(k, n, off, on)</b> renders it as a play string; <b>PDur(k, n)</b> turns the same grid into note DURATIONS instead; PDur takes a <b>rotate</b> arg to shift the pattern.`,
+        ], `b1 >> play(PEuclid2(3,8,".","x"), amp=0.8)     # 3 in 8  ->  x..x..x.
+b1 >> play(PEuclid2(5,8,".","x"), amp=0.8)     # 5 in 8  ->  x.xx.xx.
+p1 >> bass([0], oct=3, dur=PDur(3,8, rotate=1), amp=0.5)   # same grid, rotated, as durations`),
+        deep('d_unison', '.unison — fat sounds', [
+            `<b>.unison(n, detune, spread)</b> stacks n copies of every note, detuned by ± detune semitones and panned across the stereo field (spread 0–100). Turns a thin saw into a wide supersaw.`,
+        ], `p1 >> saw([0,4,7], oct=4, dur=1, amp=0.35).unison(2)           # subtle doubling
+p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned stack`),
+    ];
+
     // Grouped into categories — a <div class="docs-cat"> header precedes each group.
     // exampleList() reads these headers so the dropdown (optgroups) and this page
     // show the exact same sets in the same order.
@@ -1141,6 +1190,7 @@ d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
         cat('Perform & MIDI'),   sections, midi, perf,
+        cat('Deep dives'),       ...DEEP,
         ...TUT_CATS.flatMap(([c, secs]) => [cat(c), ...secs]),
     ].join('');
 }

@@ -26,9 +26,10 @@
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
-      <select id="examples-select" title="load an example into the editor">
-        <option value="" disabled selected>examples ▾</option>
-      </select>
+      <div id="examples-dd">
+        <button id="examples-btn" title="load an example into the editor">examples ▾</button>
+        <div id="examples-pop" hidden></div>
+      </div>
       <button id="btn-clear" title="empty the editor">clear</button>
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
@@ -1038,36 +1039,36 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('cp-stop-autoplay').onclick = stopAutoplay;
     // Examples dropdown — pick a category to load it into the editor. First entry
     // is the Introduction (boot + load the kit + a starter); last is "All examples".
+    // Custom dropdown (a native <select> popup can't be CSS-styled). A button opens
+    // a themed, scrollable panel with category headers + clickable example rows.
     (function initExamplesMenu() {
-        const sel = document.getElementById('examples-select');
-        if (!sel) return;
-        // Group into <optgroup>s by category (matches the Examples page order).
+        const btn = document.getElementById('examples-btn');
+        const pop = document.getElementById('examples-pop');
+        if (!btn || !pop) return;
+
         const groups = new Map();
         for (const { id, title, cat } of exampleList()) {
             const key = cat || 'Examples';
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push({ id, title });
         }
-        for (const [catName, items] of groups) {
-            const og = document.createElement('optgroup');
-            og.label = catName;
-            for (const { id, title } of items) {
-                const o = document.createElement('option');
-                o.value = id;
-                o.textContent = title.split(' — ')[0].trim();   // short label
-                o.title = title;                                // full title on hover
-                og.appendChild(o);
-            }
-            sel.appendChild(og);
-        }
-        const all = document.createElement('option');
-        all.value = 'all'; all.textContent = '— All examples —';
-        sel.appendChild(all);
-        sel.onchange = () => {
-            const id = sel.value;
-            if (id) setEditorContent(exampleCode(id));
-            // keep the chosen example shown in the dropdown (don't snap back to ▾)
+        const onDoc = (e) => { if (!pop.contains(e.target) && e.target !== btn) close(); };
+        function open()  { pop.hidden = false; setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0); }
+        function close() { pop.hidden = true;  document.removeEventListener('mousedown', onDoc, true); }
+        const pick = (id, label) => { setEditorContent(exampleCode(id)); btn.textContent = label + ' ▾'; close(); };
+        const mkItem = (id, label, full) => {
+            const el = document.createElement('div');
+            el.className = 'ex-item'; el.textContent = label; el.title = full || label;
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); pick(id, label); });
+            return el;
         };
+        for (const [catName, items] of groups) {
+            const h = document.createElement('div'); h.className = 'ex-cat'; h.textContent = catName;
+            pop.appendChild(h);
+            for (const { id, title } of items) pop.appendChild(mkItem(id, title.split(' — ')[0].trim(), title));
+        }
+        pop.appendChild(mkItem('all', '— All examples —', 'Load every example as one buffer'));
+        btn.addEventListener('click', () => { pop.hidden ? open() : close(); });
     })();
     document.getElementById('btn-clear').onclick    = () => setEditorContent('');
 

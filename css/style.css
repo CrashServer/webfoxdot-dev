@@ -236,33 +236,64 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: none; cursor: pointer; flex-shrink: 0;
 }
 
-#examples-select {
+/* Custom examples dropdown (fully themed — a native select popup can't be styled) */
+#examples-dd { position: relative; display: inline-block; }
+#examples-btn {
     background: var(--bg-3);
     color: var(--text-1);
     border: 1px solid var(--border-1);
     font-family: monospace;
     font-size: 11px;
-    padding: 3px 6px;
+    padding: 3px 8px;
     border-radius: 4px;
     cursor: pointer;
-    max-width: 170px;
-    transition: border-color 0.12s;
+    max-width: 190px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color 0.12s, background 0.12s;
 }
-#examples-select:hover  { border-color: var(--blue); }
-#examples-select:focus  { border-color: var(--blue); outline: none; }
-#examples-select optgroup {
-    background: var(--bg-1);
-    color: var(--blue);
-    font-style: normal;
-    font-weight: bold;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-}
-#examples-select option {
+#examples-btn:hover { border-color: var(--blue); background: var(--bg-2); }
+#examples-pop {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 210px;
+    max-height: 62vh;
+    overflow-y: auto;
     background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+    padding: 4px;
+    z-index: 10000;
+}
+#examples-pop[hidden] { display: none; }
+#examples-pop .ex-cat {
+    color: var(--blue);
+    font: bold 9px monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 7px 8px 3px;
+    position: sticky;
+    top: -4px;
+    background: var(--bg-2);
+}
+#examples-pop .ex-cat:first-child { padding-top: 3px; }
+#examples-pop .ex-item {
     color: var(--text-1);
-    font-style: normal;
-    padding: 4px 6px;
+    font: 11px monospace;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#examples-pop .ex-item:hover {
+    background: var(--bg-3);
+    color: #fff;
+    border-left: 2px solid var(--blue);
+    padding-left: 8px;
 }
 /* Brief flash of a player's line when a .sometimes/.every modifier fires. */
 .wfd-trigger { background: rgba(240, 200, 70, 0.20) !important; }
