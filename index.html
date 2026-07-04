@@ -972,7 +972,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         lineNumbers:      true,
         tabSize:          2,
         indentWithTabs:   false,
-        lineWrapping:     false,
+        lineWrapping:     true,   // wrap long lines so a big call stays on screen;
+                                  // it's still ONE logical line — Ctrl+Enter evals it whole
         autofocus:        true,
         matchBrackets:    true,
         autoCloseBrackets:{ pairs: "()[]{}<>''\"\"", closeBefore: ")]}>'\":;,. " },
