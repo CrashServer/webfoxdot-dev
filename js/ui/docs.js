@@ -208,6 +208,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+{ t: 'The Examples menu is now packed out — 8 genre starters (Techno · House · Drum & bass · Acid · Breakbeat · Dub · Lo-fi · Ambient) and 6 technique showcases (Chords & progressions · Arpeggios · Euclidean rhythms · Cross-player modulation · Live transforms · Generative & chaos), each a short runnable set. Pick one from the ▾ dropdown or the Examples tab to load it into the editor.', ex: 'g_techno' },
 'son() now holds a HARD cap of 5 of its own g* players (default range 3–5; your manual players never count) and actively retires voices — even fresh ones at the cap — to keep turning over. Tune with son({min, max}).',
 { t: 'Fix: the new player methods (accompany/follow/map/jump/rotate/mirror/strum/offbeat/multiply/once) are now chainable directly on a synth/play call — p2 >> pluck([0]).accompany("b1") no longer errors. New .mirror() (reverse the degree, a toggle). To transform a pattern LIVE and actually hear it, use .every(4, "rotate") / .sometimes("mirror"); P[…].rotate() is a static compose-time reorder.', ex: 'alpha28new' },
 'Long lines now WRAP instead of running off the right edge (the horizontal scrollbar was hidden, so a big call like a full pumpbass(...) was unreachable). A wrapped line is still ONE logical line — Ctrl+Enter evaluates the whole thing.',
@@ -990,6 +991,132 @@ p2 >> blip([0,4,7,11], oct=6, dur=1/4).jump(1).multiply(2)`)}
         ${code(`midiin("prophet")     # play the prophet synth from a MIDI keyboard`)}
     `, 'alpha28new');
 
+    // ── Genre starters — short playable grooves, one per style ────────────────
+    const g_techno = section('Techno', `
+        ${note('Four-on-the-floor techno: a gated distorted stab, offbeat hats, a pluck that rotates its notes. Boot + load the kit first.')}
+        ${code(`Clock.bpm = 130
+b1 >> play(x.x.x.x., amp=0.9)
+h1 >> play(-.-.-.-., hpf=7000, amp=Pacc("offbeat"))
+p1 >> a_gesa([0,0,0,3], oct=4, dur=0.25, distortion=6, lpf=sinvar([500,3500],[16]), rgate=0.6, rgaterate=4, amp=0.5)
+p2 >> pluck([0,3,5,7], oct=6, dur=0.5, echo=0.3, echo_time=0.375, room=0.6, amp=0.3).every(8, "rotate")`)}
+    `, 'g_techno');
+
+    const g_house = section('House', `
+        ${note('House: offbeat hats, a clap, an organ chord stab and a round sub bass.')}
+        ${code(`Clock.bpm = 124
+b1 >> play(x.x.x.x., amp=0.9)
+h1 >> play(..-...-., hpf=6000, amp=0.5)
+c1 >> play(....o..., amp=0.5)
+p1 >> organ((0,4,7), oct=4, dur=1, sus=0.4, chorus=0.5, amp=0.35).every(4, "rotate")
+b1 >> bass([0,0,5,7], oct=3, dur=0.5, lpf=1400, amp=0.5)`)}
+    `, 'g_house');
+
+    const g_dnb = section('Drum & bass', `
+        ${note('Drum &amp; bass at 174: a broken kick/snare, fast ghosted hats, a distorted reese sub and a stuttering lead.')}
+        ${code(`Clock.bpm = 174
+b1 >> play(x..x..x., amp=0.9)
+s1 >> play(....x..., amp=0.8)
+h1 >> play(-.-.-.-., hpf=8000, dur=0.25, amp=Pacc("ghost"))
+p1 >> ebass([0,0,3,0], oct=3, dur=0.5, dist2=0.5, lpf=sinvar([300,2500],[8]), amp=0.5)
+p2 >> pluck(PRange(0,7), oct=6, dur=0.25, echo=0.4, amp=0.25).sometimes("stutter", 4)`)}
+    `, 'g_dnb');
+
+    const g_acid = section('Acid', `
+        ${note('Acid: a squelchy 303 line through a resonant filter sweep, plus an acid bass that reverses now and then.')}
+        ${code(`Clock.bpm = 128
+b1 >> play(x.x.x.x., amp=0.9)
+p1 >> tb303([0,0,3,0,7,0,5,3], oct=3, dur=0.25, lpf=linvar([400,4000],[8]), lpf_rq=0.2, amp=0.5)
+p2 >> acidbass([0,3,5,7], oct=3, dur=0.25, lpf=sinvar([500,3000],[4]), dist2=0.4, amp=0.4).every(16, "reverse")`)}
+    `, 'g_acid');
+
+    const g_breaks = section('Breakbeat', `
+        ${note('Breakbeat: a chopped kick/snare that stutters, offbeat hats, a rave stab that mirrors.')}
+        ${code(`Clock.bpm = 160
+b1 >> play(x.o.x.xo, amp=0.9).sometimes("stutter", 2)
+h1 >> play(-.-.-.-., hpf=8000, dur=0.25, amp=Pacc("offbeat"))
+p1 >> hoover([0,0,5,7], oct=4, dur=0.5, lpf=sinvar([700,4000],[8]), amp=0.4)
+p2 >> pluck([0,3,5,7], oct=6, dur=0.25, echo=0.4, amp=0.25).every(4, "mirror")`)}
+    `, 'g_breaks');
+
+    const g_dub = section('Dub', `
+        ${note('Dub: a deep sub, a skanking offbeat organ chord soaked in feedback delay and reverb.')}
+        ${code(`Clock.bpm = 140
+b1 >> play(x..., amp=0.9)
+p1 >> dbass([0,0,5,3], oct=3, dur=1, tanh=0.3, amp=0.6)
+p2 >> organ((0,3,7), oct=4, dur=1, sus=0.2, fbdelay=0.5, fbtime=0.375, fbfeed=0.6, room=0.8, reverb=0.5, amp=0.3).offbeat()
+h1 >> play(..-...-., hpf=7000, amp=0.4)`)}
+    `, 'g_dub');
+
+    const g_lofi = section('Lo-fi', `
+        ${note('Lo-fi hip hop: a lazy boom-bap kick/snare, a warm crushed keys chord, a soft sub.')}
+        ${code(`Clock.bpm = 82
+b1 >> play(x..x..x., amp=0.8)
+s1 >> play(....x..., amp=0.7)
+h1 >> play(-.-.-.-., hpf=5000, amp=Pacc("ghost"))
+p1 >> basic((0,3,7), oct=4, dur=2, sus=1.5, crush=0.4, bits=6, chorus=0.4, lpf=2200, amp=0.4)
+b1 >> bass([0,0,3,5], oct=3, dur=1, lpf=900, amp=0.5)`)}
+    `, 'g_lofi');
+
+    const g_ambient = section('Ambient', `
+        ${note('Ambient: slow evolving pads and a sine motif drifting on a big reverb, no drums. A melodic contour keeps the top line shapely.')}
+        ${code(`Clock.bpm = 70
+Scale.default = "dorian"
+p1 >> pads([0, 4, 7, 11], oct=4, dur=8, attack=3, release=6, mverb=0.7, mverbmix=0.6, lpf=sinvar([600,2500],[32]), amp=0.4)
+p2 >> sine(PContour("arch", 8, 7), oct=6, dur=2, amp=0.2, reverb=0.6, room=0.9)
+p3 >> bell([0, 7, 4], oct=6, dur=6, mverb=0.8, amp=0.2)`)}
+    `, 'g_ambient');
+
+    // ── Technique showcases — one idea at a time ──────────────────────────────
+    const t_chords = section('Chords & progressions', `
+        ${note('Chords are built in scale degrees, so they stay in key. PChord is one chord, PRoman a numeral progression, PProg a named one, PCircle walks the circle of fifths.')}
+        ${code(`Scale.default = "minor"
+k1 >> pads(PRoman("i VI III VII"), oct=4, dur=4, reverb=0.4, amp=0.4)
+k2 >> organ(PProg("251"), oct=4, dur=2, chorus=0.4, amp=0.3)
+p1 >> pluck(PCircle(8), oct=5, dur=1, echo=0.3, amp=0.3)
+b1 >> bass([0,5,2,6], oct=3, dur=4, amp=0.5)`)}
+    `, 't_chords');
+
+    const t_arps = section('Arpeggios', `
+        ${note('arp() walks a chord up / down / updown, PArp uses built-in arp shapes, PGrowArp grows the chord note by note.')}
+        ${code(`p1 >> pluck(arp([0,4,7,11], "updown"), oct=5, dur=0.25, echo=0.3, amp=0.35)
+p2 >> blip(PArp([0,4,7], 5), oct=6, dur=0.25, room=0.5, amp=0.25)
+p3 >> pluck(PGrowArp([0,2,4,7]), oct=5, dur=0.5, amp=0.3)
+b1 >> play(x.x.x.x., amp=0.7)`)}
+    `, 't_arps');
+
+    const t_euclid = section('Euclidean rhythms', `
+        ${note('PEuclid2 spreads k hits over n steps as a play string, PClave gives classic claves, PDur turns a euclid grid into note durations, PBeat reads a pulse string.')}
+        ${code(`Clock.bpm = 120
+b1 >> play(PEuclid2(5,8,".","x"), amp=0.8)
+h1 >> play(PClave("son"), hpf=6000, amp=0.5)
+p1 >> pluck([0,3,5,7], oct=5, dur=PDur(3,8), echo=0.3, amp=0.35)
+p2 >> bass([0], oct=3, dur=PBeat("x xx x"), amp=0.5)`)}
+    `, 't_euclid');
+
+    const t_cross = section('Cross-player modulation', `
+        ${note('Read another player live (arithmetic works), or follow / accompany / map to lock parts together. Pass the other name as a string to the methods.')}
+        ${code(`b1 >> bass([0,3,5,7], oct=3, dur=1, amp=0.5)
+d1 >> saw(b1.degree + 7, oct=5, dur=1, lpf=1500, amp=0.3)
+d2 >> pluck([0], oct=6, dur=0.5, amp=0.3).accompany("b1", [0,2,4])
+d3 >> blip([0], oct=6, dur=1, amp=0.25).follow("b1")`)}
+    `, 't_cross');
+
+    const t_live = section('Live transforms', `
+        ${note('Reshape a pattern over time so you HEAR it change: every / sometimes with rotate, mirror, reverse, stutter.')}
+        ${code(`p1 >> saw([0,2,4,7], oct=5, dur=0.25, amp=0.35).every(4, "rotate")
+p2 >> pluck([0,2,4,7,9], oct=5, dur=0.25, amp=0.3).sometimes("mirror")
+p3 >> blip([0,4,7], oct=6, dur=0.5, amp=0.25).every(8, "reverse")
+b1 >> play(x.x.x.x., amp=0.8).sometimes("stutter", 2)`)}
+    `, 't_live');
+
+    const t_gen = section('Generative & chaos', `
+        ${note('Chaotic maps (PBrown / PLorenz / PLogistic) drift params organically; PThue gives a self-similar accent; son() is a jam bot that builds its own g* players. Boot audio first.')}
+        ${code(`p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=PLorenz(400, 4000), amp=0.35)
+p2 >> pluck(PBrown(0, 7), oct=5, dur=0.5, room=0.5, amp=0.3)
+b1 >> play(x.x.x.x., amp=PThue()*0.4 + 0.5)
+# son()     # start the jam bot   —   soff()  stops it`)}
+    `, 't_gen');
+
     // Grouped into categories — a <div class="docs-cat"> header precedes each group.
     // exampleList() reads these headers so the dropdown (optgroups) and this page
     // show the exact same sets in the same order.
@@ -997,6 +1124,8 @@ p2 >> blip([0,4,7,11], oct=6, dur=1/4).jump(1).multiply(2)`)}
     return [
         cat('New in alpha28'),   whatsNew,
         cat('Live sets'),        rise, showcase,
+        cat('Genres'),           g_techno, g_house, g_dnb, g_acid, g_breaks, g_dub, g_lofi, g_ambient,
+        cat('Techniques'),       t_chords, t_arps, t_euclid, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
