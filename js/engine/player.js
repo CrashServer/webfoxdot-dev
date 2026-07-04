@@ -1006,12 +1006,21 @@ export class Player {
     jump(n = 1) { this._step += Math.round(n); return this; }
 
     // .rotate(n) — cyclically rotate the degree array live (n>0 left, n<0 right).
+    // Permanent, so it's audible when triggered repeatedly: .every(4, "rotate").
     rotate(n = 1) {
         const d = this._args?.degree;
-        if (Array.isArray(d)) {
+        if (Array.isArray(d) && d.length) {
             const k = ((Math.round(n) % d.length) + d.length) % d.length;
             this._args.degree = [...d.slice(k), ...d.slice(0, k)];
         }
+        return this;
+    }
+
+    // .mirror() — reverse the degree array in place (a permanent flip, so it
+    // toggles back and forth when triggered): .every(8, "mirror") or
+    // .sometimes("mirror"). (Unlike .reverse(), which flips for one cycle only.)
+    mirror() {
+        if (Array.isArray(this._args?.degree)) this._args.degree = [...this._args.degree].reverse();
         return this;
     }
 

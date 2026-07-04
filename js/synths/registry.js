@@ -258,6 +258,14 @@ export class SynthCall {
     only(beats) { (this._calls ??= []).push(['only', beats]); return this; }
     stop(beats) { (this._calls ??= []).push(['stop', beats]); return this; }
 }
+// Every other player method is chainable on a synth call too — recorded as
+// _calls and replayed on the player at activation, so you can write
+//   p1 >> saw(...).accompany("b1").jump(1)   or   .every(4, "rotate")
+for (const m of ['reverse', 'shuffle', 'drummer', 'follow', 'accompany', 'map',
+                 'jump', 'rotate', 'mirror', 'strum', 'offbeat', 'multiply', 'once']) {
+    SynthCall.prototype[m] = function (...a) { (this._calls ??= []).push([m, ...a]); return this; };
+}
+
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);
 

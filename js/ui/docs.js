@@ -120,7 +120,8 @@ export const PATTERNS = [
     { name: 'PCircle(n, start, type)',  desc: 'Diatonic circle of fifths as scale degrees (I IV vii iii vi ii V…) — stays coherent with Root/Scale. Pass a chord type for chord groups' },
     { name: 'melody(range, maxStep)',   desc: 'Simple melodic generator — a bounded random walk over scale degrees. Freeze a fixed phrase that repeats with a slice: melody()[:8]' },
     { name: 'pat[:N]  (slice)',          desc: 'Freeze a generator: sample N values once and loop them, so a random source becomes a stable N-step phrase that repeats. e.g. PWhite(0,1)[:8], melody()[:8]. Returns Pslice(pat, start, stop) under the hood' },
-    { name: 'P[…].method()  (chain)',    desc: 'P[…] and list generators (PDur, PBeat, PCircle, PProg…) are chainable: .rotate(n) .reverse() .mirror() .palindrome() .accum(start) .stretch(n) .trim(n)/.ltrim(n) .loop(n) .stutter(n) .shuffle() .sort() .add(v) .offadd(v)/.offmul(v) (add a grace layer) .zip(other) .amen(n). e.g. P[0,2,4,7].rotate(1).palindrome()' },
+    { name: 'P[…].method()  (chain)',    desc: 'STATIC (compose-time) transforms — build a fixed reordered pattern once: P[…] and list generators (PDur, PBeat, PCircle…) chain .rotate(n) .reverse() .mirror() .palindrome() .accum(start) .stretch(n) .trim(n)/.ltrim(n) .loop(n) .stutter(n) .shuffle() .sort() .add(v) .offadd(v)/.offmul(v) .zip(other) .amen(n). NB: only P[…] (not a bare [0,1,2]) has these. To transform LIVE, use the player methods below' },
+    { name: '.every(n,"rotate") / .sometimes("mirror")', desc: 'LIVE pattern transforms on a player: .rotate(n) cyclically shifts the degree, .mirror() reverses it (a toggle). Fire them over time to HEAR the change: p1 >> saw([0,2,4,7], dur=1/4).every(4, "rotate")' },
 ];
 
 export const TIMEVARS = [
@@ -207,6 +208,7 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
+{ t: 'Fix: the new player methods (accompany/follow/map/jump/rotate/mirror/strum/offbeat/multiply/once) are now chainable directly on a synth/play call — p2 >> pluck([0]).accompany("b1") no longer errors. New .mirror() (reverse the degree, a toggle). To transform a pattern LIVE and actually hear it, use .every(4, "rotate") / .sometimes("mirror"); P[…].rotate() is a static compose-time reorder.', ex: 'alpha28new' },
 'Long lines now WRAP instead of running off the right edge (the horizontal scrollbar was hidden, so a big call like a full pumpbass(...) was unreachable). A wrapped line is still ONE logical line — Ctrl+Enter evaluates the whole thing.',
 { t: 'New FX: spin — stereo auto-pan that rotates the image (spin=mix, spinrate=Hz); and pong — a ping-pong stereo delay whose echoes bounce L↔R (pong=mix, pongtime in beats, pongfeed 0–0.9). Both in the fx submenus (spin→modulation, pong→delays). e.g. p1 >> saw([0,4,7], spin=0.6) · b1 >> play(x.o., pong=0.5, pongtime=0.375).', ex: 'alpha28new' },
 { t: 'New player methods: .jump(n) nudges the playhead forward n steps (live fill), .rotate(n) rotates the degree array live, .strum(spread) arpeggiates a chord over `spread` beats, .offbeat(amt) pushes notes onto the offbeat, .multiply(n) repeats each step n times (roll).', ex: 'alpha28new' },
@@ -961,10 +963,13 @@ b1 >> play(x..., amp=0.6)
 
     const whatsNew = section('New in alpha28', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
-        ${note('<b>Chainable patterns</b> — P[…] and list generators carry FoxDot transforms; Pvar swaps whole phrases over time.')}
-        ${code(`p1 >> pluck(P[0,2,4,7].rotate(1).palindrome(), oct=5, dur=1/4)
-p2 >> saw(PDur(3,8).mirror(), oct=4, dur=1/4)
-p3 >> bass(Pvar([[0,2,4], [7,4,2,0]], 8), oct=4, dur=1/2)   # phrase swap every 8 beats`)}
+        ${note('<b>Transform a pattern LIVE</b> — .every(n, "rotate") / .sometimes("mirror") reshape the degree each time they fire, so you HEAR it change. (rotate = cyclic shift, mirror = play it backwards.)')}
+        ${code(`p1 >> saw([0, 2, 4, 7], oct=5, dur=1/4).every(4, "rotate")   # shifts every 4 beats
+p2 >> pluck([0, 2, 4, 7, 9], oct=5, dur=1/4).sometimes("mirror")
+p3 >> bass(Pvar([[0,2,4], [7,4,2,0]], 8), oct=4, dur=1/2)    # swap whole phrase every 8 beats`)}
+        ${note('<b>Static (compose-time) transforms</b> — on P[…] or a generator they build a fixed reordered pattern once (not audible as a change). Use these to shape a phrase, the .every/.sometimes above to animate it.')}
+        ${code(`p4 >> pluck(P[0,2,4,7].rotate(1), oct=5, dur=1/4)   # a fixed [2,4,7,0]
+p5 >> saw(PDur(3,8).palindrome(), oct=4, dur=1/4)   # euclid durs, there-and-back`)}
         ${note('<b>Cross-player modulation</b> — read another player live (arithmetic works), or follow/accompany/map.')}
         ${code(`b1 >> bass([0,3,5,7], oct=4, dur=1/2)
 d1 >> saw(b1.degree + 4, oct=5, dur=1/2)            # a 5th above b1, live

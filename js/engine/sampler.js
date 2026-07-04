@@ -216,6 +216,10 @@ export class PlayStringCall {
     // .drummer(durloop, durPlyr) — auto rock-drummer (re-randomises every durloop)
     drummer(...a) { (this._calls ??= []).push(['drummer', ...a]); return this; }
 }
+// Player methods that also make sense on a play() drum player. Chained + replayed.
+for (const m of ['jump', 'multiply', 'offbeat', 'once']) {
+    PlayStringCall.prototype[m] = function (...a) { (this._calls ??= []).push([m, ...a]); return this; };
+}
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(PlayStringCall);
 
