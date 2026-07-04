@@ -109,7 +109,9 @@ export function parseModifier(defaultProb, rawArgs) {
 export function attachModifiers(cls) {
     for (const [name, p] of Object.entries(PROB)) {
         cls.prototype[name] = function (...a) {
-            (this._modifiers ??= []).push(parseModifier(p, a));
+            const spec = parseModifier(p, a);
+            spec.alias = name;   // which modifier (sometimes/often/…) — for the editor flash
+            (this._modifiers ??= []).push(spec);
             return this;
         };
     }

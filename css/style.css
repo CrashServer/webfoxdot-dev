@@ -292,8 +292,8 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     border-left: 2px solid var(--blue);
     padding-left: 8px;
 }
-/* Brief flash of a player's line when a .sometimes/.every modifier fires. */
-.wfd-trigger { background: rgba(240, 200, 70, 0.20) !important; }
+/* Brief flash of the .sometimes(…)/.every(…) call when a modifier fires. */
+.wfd-trigger { background: rgba(240, 200, 70, 0.42) !important; border-radius: 3px; box-shadow: 0 0 6px rgba(240, 200, 70, 0.5); }
 /* rec buttons sit side by side in the sidebar Settings section */
 #cp-settings .cp-row .cp-btn { flex: 1; width: auto; }
 

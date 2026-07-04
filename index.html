@@ -1475,17 +1475,23 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _setStepListener((name, step) => { highlightStep(name, step); postStep(name, step); });
 
-    // Briefly flash a player's line when a .sometimes/.every modifier fires, so you
-    // can SEE the transform happen.
-    const _trigTimers = new Map();
-    function flashTrigger(name) {
+    // Briefly flash JUST the .sometimes(…) / .every(…) call on a player's line when
+    // it fires, so you can see exactly which transform triggered.
+    const _trigMarks = new Map();
+    function flashTrigger(name, label) {
+        if (!label) return;
         const line = resolveLine(name);
         if (line < 0 || line >= editor.lineCount()) return;
-        const handle = editor.getLineHandle(line);
-        if (!handle) return;
-        editor.addLineClass(handle, 'background', 'wfd-trigger');
-        clearTimeout(_trigTimers.get(name));
-        _trigTimers.set(name, setTimeout(() => { try { editor.removeLineClass(handle, 'background', 'wfd-trigger'); } catch (_) {} }, 200));
+        const text = editor.getLine(line);
+        const at = text.indexOf('.' + label + '(');   // the chained call to highlight
+        if (at < 0) return;
+        const open = at + label.length + 1;            // index of its '('
+        let depth = 0, j = open;
+        for (; j < text.length; j++) { const c = text[j]; if (c === '(') depth++; else if (c === ')') { depth--; if (depth === 0) break; } }
+        const prev = _trigMarks.get(name);
+        if (prev) { clearTimeout(prev.timer); try { prev.mark.clear(); } catch (_) {} }
+        const mark = editor.markText({ line, ch: at }, { line, ch: Math.min(text.length, j + 1) }, { className: 'wfd-trigger' });
+        _trigMarks.set(name, { mark, timer: setTimeout(() => { try { mark.clear(); } catch (_) {} _trigMarks.delete(name); }, 220) });
     }
     _setTriggerListener(flashTrigger);
 
