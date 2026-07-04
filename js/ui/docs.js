@@ -207,8 +207,8 @@ export const VERSION = 'alpha28';
 const CHANGELOG = [
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
-'New FX: spin — stereo auto-pan that rotates the image (spin=mix, spinrate=Hz); and pong — a ping-pong stereo delay whose echoes bounce L↔R (pong=mix, pongtime in beats, pongfeed 0–0.9). Both in the fx submenus (spin→modulation, pong→delays). e.g. p1 >> saw([0,4,7], spin=0.6) · b1 >> play(x.o., pong=0.5, pongtime=0.375).',
-'New player methods: .jump(n) nudges the playhead forward n steps (live fill), .rotate(n) rotates the degree array live, .strum(spread) arpeggiates a chord over `spread` beats, .offbeat(amt) pushes notes onto the offbeat, .multiply(n) repeats each step n times (roll).',
+{ t: 'New FX: spin — stereo auto-pan that rotates the image (spin=mix, spinrate=Hz); and pong — a ping-pong stereo delay whose echoes bounce L↔R (pong=mix, pongtime in beats, pongfeed 0–0.9). Both in the fx submenus (spin→modulation, pong→delays). e.g. p1 >> saw([0,4,7], spin=0.6) · b1 >> play(x.o., pong=0.5, pongtime=0.375).', ex: 'alpha28new' },
+{ t: 'New player methods: .jump(n) nudges the playhead forward n steps (live fill), .rotate(n) rotates the degree array live, .strum(spread) arpeggiates a chord over `spread` beats, .offbeat(amt) pushes notes onto the offbeat, .multiply(n) repeats each step n times (roll).', ex: 'alpha28new' },
 'New midiin(synth) — play a MIDI keyboard through any synth (note-on triggers a voice, velocity → amp): midiin("prophet"), opts amp/sus/transpose, midiin(0) to unbind. And in a shared session, undo is now scoped per user (Y.UndoManager) — Ctrl-Z reverts only your own edits, not a collaborator\'s.',
 'Cross-player modulation: reading another player live now supports arithmetic — b1 >> bass(p1.degree + 2) tracks p1 a third up (the +2 is wrapped in Pmath instead of going NaN). New player methods (pass the other player\'s name as a string): .follow("p1") tracks its degree, .accompany("p1", [0,2,4]) harmonises around it, .map("p1", {0:5, 4:7}) drives an attr through a lookup table.',
 'New live-control helpers (CrashServer ports): say("text") speaks via the browser (Web Speech API); darker()/lighter() walk Scale.default along the mode-brightness list (live modal colour); shutup() stops every player + the jam bot; swap("p1","p2","lpf") swaps one attribute between two players; and the .once() player method plays a single event then stops (one-shot stabs).',
@@ -958,11 +958,37 @@ b1 >> play(x..., amp=0.6)
 #@end(8)`)}
     `, 'showcase');
 
+    const whatsNew = section('New in alpha28', `
+        ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
+        ${note('<b>Chainable patterns</b> — P[…] and list generators carry FoxDot transforms; Pvar swaps whole phrases over time.')}
+        ${code(`p1 >> pluck(P[0,2,4,7].rotate(1).palindrome(), oct=5, dur=1/4)
+p2 >> saw(PDur(3,8).mirror(), oct=4, dur=1/4)
+p3 >> bass(Pvar([[0,2,4], [7,4,2,0]], 8), oct=4, dur=1/2)   # phrase swap every 8 beats`)}
+        ${note('<b>Cross-player modulation</b> — read another player live (arithmetic works), or follow/accompany/map.')}
+        ${code(`b1 >> bass([0,3,5,7], oct=4, dur=1/2)
+d1 >> saw(b1.degree + 4, oct=5, dur=1/2)            # a 5th above b1, live
+d2 >> pluck([0], oct=5, dur=1/2).accompany("b1", [0,2,4])`)}
+        ${note('<b>Tempo automation + generative jam bot</b>.')}
+        ${code(`Clock.bpm = linvar([120, 140], [32])    # ramp tempo over 32 beats
+son({min:2, max:5})                     # start the jam bot (g* players)
+soff()                                  # stop it`)}
+        ${note('<b>New FX</b> — bpf (band-pass), eq3 (3-band EQ), spin (auto-pan), pong (ping-pong delay).')}
+        ${code(`p1 >> saw([0,4,7], oct=5, dur=1/4, bpf=1200, bpf_rq=0.2, spin=0.6)
+b1 >> play("x.o.", eq3=1, eqlow=4, eqhigh=-3, pong=0.5, pongtime=0.375)`)}
+        ${note('<b>Live control + player methods</b>.')}
+        ${code(`darker()                                # scale one mode darker
+p1 >> pads((0,4,7), oct=5, dur=2).strum(0.06)   # arpeggiated chord
+p2 >> blip([0,4,7,11], oct=6, dur=1/4).jump(1).multiply(2)`)}
+        ${note('<b>MIDI keyboard → synth</b> (Chromium / Edge / Brave). midiin(0) unbinds.')}
+        ${code(`midiin("prophet")     # play the prophet synth from a MIDI keyboard`)}
+    `, 'alpha28new');
+
     // Grouped into categories — a <div class="docs-cat"> header precedes each group.
     // exampleList() reads these headers so the dropdown (optgroups) and this page
     // show the exact same sets in the same order.
     const cat = (name) => `<div class="docs-cat">${name}</div>`;
     return [
+        cat('New in alpha28'),   whatsNew,
         cat('Live sets'),        rise, showcase,
         cat('Basics'),           welcome, start, drums, synths, tweak,
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
