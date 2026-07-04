@@ -998,6 +998,57 @@ b2 >> play(pbuild("industrial", kick=0, snare=1, hat=1, perc=1), dur=0.25, amp=0
 p2 >> ebass([0, 0, 7, 4], oct=6, dur=0.25, dist2=0.6, dist2shape=1, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, amp=1)`)}
     `, 'nocturne');
 
+    const darkchill = section('Dark Chill', `
+        ${note('A live build that grows from a dark 92-bpm downtempo groove into full techno and back out again — evaluate it top to bottom, a few lines at a time, re-running the same player slots to evolve them. It rides the tempo up with linbpm, moves the acid root and the chord progression (note evolution), peaks with modulating supersaw/a_gesa + a noise riser, breaks on a frozen reverb, then filters down and fades. Boot + load the kit first; Ctrl+; (or shutup()) stops all.')}
+        ${code(`# — the dark downtempo build (92, A minor) —
+Clock.bpm = 92
+Root.default = "A"
+Scale.default = "minor"
+m0 >> bass(var([0, -2, -4], [32]), oct=3, dur=8, lpf=sinvar([180, 500], [16]), tanh=0.15, amp=0.6).unison(2)
+o9 >> prophet([6, 3, PRand([4, 2, 5])], oct=5, dur=PRand([2, 4, 8]), sus=3, mverb=0.8, lpf=PRand([1200, 3000]), hpf=300, amp=0.4).unison(2) + (-7, 0)
+t0 >> play("d", dur=0.5, rate=PWhite(1, 3), pan=PWhite(-1, 1), mverb=0.2, amp=Pacc("ghost")).often("stutter", PRand([2, 4, 8]))
+d6 >> play("x..[x.]x.", dur=0.5, shape=0.4, drcomp=0.4, amp=0.7)
+q2 >> play("x", dur=1, amp=0.9)
+s1 >> play("-.-.-.-.", hpf=8000, amp=Pacc("offbeat"))
+s2 >> play("....o...", dur=0.5, room=0.4, amp=0.7).sometimes("stutter", 2)
+h4 >> supersaw([0, 3, 5, 0, 3, 5, 7, 0], oct=5, dur=0.5, cutoff=linvar([800, 4500], [8]), amp=0.32, resonbank=0.3, rbfreq=60, rbdecay=0.5, rbspread=1, lpf=1200, lpf_rq=0.1, bpf=1200).every(8, "reverse")
+e2 >> acidbass(var([0, 5, 6], [8, 4, 4]), oct=4, dur=0.5, lpf=PFr(1400, 4000, 512), lpf_rq=0.2, chorus=0.4, amp=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000).unison(3)
+h4.stop()
+p3 >> rhodes([0, 4, 7, 5], oct=5, dur=2, cutoff=2200, echo=0.4, echo_time=0.375, comp=0.4, amp=0.28, mverb=0.5)
+q2 >> play("x", dur=1/2, amp=0.9, sample=2)
+g17 >> a_gesa([0, <0 5>, 4, 0], oct=6, dur=1/2, amp=0.79, pan=<-0.5 0.5>, pong=0.35, pongtime=0.375, fbdelay=0.46, fbtime=0.25, fbfeed=0.44, fbcutoff=3000)
+v2 >> play("X[--]", sample=4, amp=1, dur=1/2)
+
+# — ramp up into techno; the acid root starts to MOVE —
+linbpm(92, 128, 32)
+q2 >> play("x", dur=1, amp=1, drive=2, tanh=0.3)
+s2 >> play("....o.......o.o.", dur=0.25, room=0.3, amp=0.6).sometimes("stutter", 2)
+e2 >> acidbass(var([0, 5, 6, 3], [8, 4, 4, 4]) + var([0, -2], [7, 1]), oct=3, dur=0.25, lpf=PFr(600, 5000), lpf_rq=0.12, dist2=0.5, rgate=0.7, rgaterate=8, chorus=0.4, amp=0.5).unison(3)
+h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=5, dur=0.25, cutoff=sinvar([600, 5000], [4]), spin=0.5, drive=3, tanh=0.4, amp=0.32).every(8, "rotate")
+
+# — crazyness: glitch lead + drums, the pad becomes a progression —
+p1 >> blip(PxRand(0, 12), oct=6, dur=PRand([1/4, 1/8]), crush=0.5, bits=4, squiz=0.4, squizpitch=3, bpf=PLorenz(600, 5000), amp=0.25).every(4, "shuffle")
+t0 >> play("{x-}{Xo}[cc]{ x}[--]", dur=PRand([1/4, 1/8]), drop=0.5, dropof=24, pan=PBrown(-1, 1), rate=PwRand([1, 2, 4, -1], [6, 3, 1, 1]), amp=Pacc("ghost")).sometimes("stutter", 8)
+o9 >> prophet(PRoman("i VI iv v"), oct=5, dur=4, sus=3, mverb=0.7, lpf=linvar([800, 4000], [16]), amp=0.3)
+m0 >> bass(var([0, 3, 5, 2], [16]), oct=2, dur=4, lpf=sinvar([200, 1200], [8]), tanh=0.3, dist2=0.3, amp=0.6).unison(2)
+
+# — peak: everything modulating —
+h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=6, dur=0.25, cutoff=linvar([600, 6000, 600], [4, 4]), spin=0.6, drive=4, tanh=0.5, chop=8, amp=0.34).every(4, "rotate")
+e2.rgaterate = 16
+n1 >> a_hhat([0], oct=6, dur=16, tone=linvar([200, 8000], [16]), open=1, distortion=2, amp=linvar([0, 0.5], [16]))
+
+# — break, then out —
+# p1 >>
+# t0 >>
+o9 >> prophet((0,3,7), oct=5, dur=8, sus=7, mverb=0.9, mverbfreeze=1, lpf=linvar([5000, 400], [16]), amp=0.35)
+e2 >> acidbass([0], oct=3, dur=0.5, lpf=linvar([4000, 400], [16]), lpf_rq=0.15, amp=0.4)
+Clock.bpm = 124
+m0 >> bass([0], oct=2, dur=8, lpf=linvar([1200, 200], [16]), amp=linvar([0.6, 0], [16]))
+h4 >> supersaw([0, 3, 7], oct=5, dur=1, lpf=linvar([5000, 300], [16]), amp=linvar([0.3, 0], [16]))
+o9.amp = linvar([0.3, 0], [16])
+# shutup()`)}
+    `, 'darkchill');
+
     const whatsNew = section('New in alpha28', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
         ${note('<b>Transform a pattern LIVE</b> — .every(n, "rotate") / .sometimes("mirror") reshape the degree each time they fire, so you HEAR it change. (rotate = cyclic shift, mirror = play it backwards.)')}
@@ -1216,7 +1267,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     const cat = (name) => `<div class="docs-cat">${name}</div>`;
     return [
         cat('New in alpha28'),   whatsNew,
-        cat('Live sets'),        rise, showcase, nocturne,
+        cat('Live sets'),        rise, showcase, nocturne, darkchill,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
         cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
