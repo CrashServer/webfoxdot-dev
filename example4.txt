@@ -1,0 +1,66 @@
+# crashDot — example4 · MORE TRACKS
+# dub techno · jungle · electro — using the new synths + FX
+# (rhodes / supersaw / wobble / a_bd · squiz / drop / comp)
+# ------------------------------------------------------------------
+# Boot + load the kit. Evaluate a few lines at a time. Ctrl+; stops all.
+# A scratch pad — NOT wired into the in-app examples.
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  1 · DUBPLATE  —  dub techno, rhodes skank, deep sub  @ 130
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 130
+Root.default = "D"
+Scale.default = "minor"
+
+# a rhodes chord skank on the offbeat, drenched in delay + reverb, glued with comp
+k1 >> rhodes(PChord(0, "9"), oct=4, dur=1, sus=0.3, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+# a deep dub sub
+b1 >> dbass([0, 0, 5, 3], oct=3, dur=2, tanh=0.2, lpf=500, amp=0.6)
+
+# spare four-on-the-floor + offbeat hats
+d1 >> play("x", dur=1, amp=0.8)
+h1 >> play(".-", dur=0.5, hpf=7000, amp=0.4)
+
+# a glitch tail — a squizzed rimshot, sometimes rolling
+d2 >> play("...c", dur=1, squiz=0.6, squizpitch=3, room=0.5, amp=0.4).sometimes("stutter", 3)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  2 · JUNGLE  —  chopped breaks, reese, ragga stabs  @ 172
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 172
+Root.default = "G"
+Scale.default = "minor"
+
+# chopped amen-style break — nested subdiv/random, dropout glitch, sped/reversed rate
+d1 >> play("x[oo]x{o }x[xx]o{ c}", dur=0.25, drop=0.5, dropof=30, rate=PwRand([1, 2, -1], [5, 2, 1]), amp=0.7).sometimes("stutter", 4)
+
+# a rolling reese — wobble bass, slow LFO, distorted
+b1 >> wobble([0, 0, 5, 3], oct=3, dur=2, rate=2, cutoff=5000, dist2=0.5, dist2shape=1, amp=0.6)
+
+# a ragga stab — supersaw through a squiz, flipped every 8 beats
+p1 >> supersaw([0, (0,3,7)], oct=4, dur=1, cutoff=sinvar([600, 4000], [8]), squiz=0.4, squizpitch=2, amp=0.3).every(8, "reverse")
+
+# sub hits under it
+b2 >> a_gesa([0, ., 5, .], oct=2, dur=1, distortion=5, cutoff=800, amp=0.7)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 · ELECTRO  —  EBM / French electro, distorted lead  @ 138
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 138
+Root.default = "C"
+Scale.default = "phrygian"
+
+# electro kick + a compressed clap
+k1 >> a_bd([0], oct=2, dur=1, distortion=4, punch=6, amp=1)
+d1 >> play("....o...", dur=0.5, comp=0.5, room=0.3, amp=0.8)
+h1 >> play("-.-.-.-.", dur=0.25, hpf=8000, amp=Pacc("offbeat"))
+
+# a distorted supersaw riff, spinning and glued
+p1 >> supersaw([0, 3, 5, 0, 7, 5, 3, 0], oct=4, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=4, tanh=0.5, spin=0.5, comp=0.4, amp=0.35)
+
+# a mean acid bassline
+b1 >> tb303([0, 0, 3, 0], oct=3, dur=0.25, lpf=sinvar([400, 3500], [4]), lpf_rq=0.12, dist2=0.4, amp=0.4)
