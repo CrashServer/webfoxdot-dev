@@ -697,6 +697,30 @@ b1 >> play(x-o-).rarely("stutter", 2, rate=2, amp=0.6)   # kwargs override
 b1 >> play(x.o.).often("stutter", 2).sometimes("stutter", 8)  # chained`)}
     `, 'sometimes');
 
+    const transforms = section('Player transforms (rotate · reverse · stutter…)', `
+        ${note('These all reorder or re-fire a player LIVE, and they share ONE technique: each is a player METHOD, so you fire it over time to hear it — chain <code>.every(n, "name")</code> (every n beats), or a probability alias <code>.sometimes("name")</code> / <code>.often(…)</code>, or call it once. They act on the sequence: the degree array for a synth, the drum pattern for <code>play()</code>. (Transforming the pattern OBJECT instead — <code>P[0,2,4].rotate(1)</code> — is a one-time compose-time reorder; these methods change things AS it runs.)')}
+        ${note('<b>rotate(n)</b> shifts the sequence n places, permanently — repeated fires keep walking it. <b>mirror()</b> reverses it in place, permanently — a flip that toggles back next fire. <b>reverse()</b> flips for ONE cycle then restores. <b>shuffle()</b> randomises the order for one cycle. <b>stutter(n)</b> rolls a step n fast repeats inside its own duration (a fill); chained directly it rolls every step (= <code>.multiply(n)</code>). <b>degrade(p)</b> silences a random fraction p of steps. <b>jump(n)</b> nudges the playhead n steps (a glitch).')}
+        ${code(`# the shared technique — a method + .every() to fire it over time:
+p1 >> saw([0, 2, 4, 7], oct=4, dur=1/4).every(4, "rotate")     # walks the riff
+p1 >> saw([0, 2, 4, 7], oct=4, dur=1/4).every(8, "mirror")     # flips back & forth
+p1 >> saw([0, 2, 4, 7], oct=4, dur=1/4).sometimes("reverse")   # occasional 1-cycle flip
+p1 >> saw([0, 2, 4, 7], oct=4, dur=1/4).often("shuffle")       # jumbled order
+
+# stutter — a roll/fill. one-shot via a trigger, or persistent when chained:
+b1 >> play(x.o.).every(4, "stutter", 8)     # a x8 fill every 4 beats
+b1 >> play(x.o.).sometimes("stutter", 4)    # random rolls
+b1 >> play(x.o.).stutter(4)                 # roll EVERY step (= .multiply(4))
+
+# identical on play() drums — rotate/mirror reorder the pattern itself:
+d1 >> play(x-o-x-o-).every(4, "rotate")
+d1 >> play(x-o-x-o-).sometimes("mirror")
+
+# glitch: thin steps with degrade, nudge with jump, stack transforms:
+h1 >> play(-, dur=1/4).degrade(0.3)                     # drop 30% of the hats
+h1 >> play(-, dur=1/4).every(8, "jump", 1)              # shove the playhead
+p1 >> saw([0,2,4,7], dur=1/4).degrade(0.2).every(4, "rotate")`)}
+    `, 'transforms');
+
     const axis2 = section('Time-varying values (var)', `
         ${note('Evolve a parameter over beats. <code>var</code> steps; <code>linvar/sinvar/expvar</code> interpolate. Args: (values, durations-in-beats).')}
         ${code(`p1 >> dbass([0,-3,0,4], oct=4, cutoff=linvar([400, 4000], [8, 8]))
@@ -1380,7 +1404,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
         cat('Live sets'),        rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
-        cat('Patterns & time'),  axis1, sometimes, axis2, axis3, patterns, grooves, syncGen,
+        cat('Patterns & time'),  axis1, sometimes, transforms, axis2, axis3, patterns, grooves, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
         cat('Perform & MIDI'),   sections, midi, perf,
         cat('Deep dives'),       ...DEEP,
