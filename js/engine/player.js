@@ -188,11 +188,15 @@ function nextMod(clock, mod) {
 }
 
 // ── drop() — silence a random subset, restore, repeat — on the BAR grid ──────
-// drop(clock, playTime=14, dropTime=2, nbloop=1). Aligned to the next bar so
-// drops land musically (beat-scheduled, not wall-clock).
+// drop(clock, playTime=14, dropTime=2, nbloop=1). Fully bar-quantized: begins on
+// the next bar, and BOTH the drop and the restore snap to whole bars (4 beats) so
+// the breakdown always lands on a downbeat (beat-scheduled, not wall-clock).
 export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null) {
-    const total = playTime + dropTime;
-    const start = nextMod(clock, 4);              // align to the next bar (4 beats)
+    const BAR = 4;
+    const snap = (b) => Math.round(b / BAR) * BAR;              // nearest whole bar
+    const playBars = Math.max(BAR, snap(playTime));            // drop after ≥1 bar
+    const dropBars = Math.max(BAR, snap(dropTime));            // stay dropped ≥1 bar
+    const start = nextMod(clock, BAR);                          // begin on the next bar
     const runLoop = (loop, base) => {
         if (loop <= 0) return;
         const active = [...clock._players.values()].filter(p => p._active);
@@ -202,13 +206,15 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
             : Math.max(1, Math.floor(Math.random() * active.length));
         const subset = [...active].sort(() => Math.random() - 0.5).slice(0, size);
         const names = subset.map(p => p.name).join(' ');
-        clock._schedule(base + playTime, () => {
+        const dropAt    = base + playBars;                     // on a bar
+        const restoreAt = dropAt + dropBars;                   // on a bar
+        clock._schedule(dropAt, () => {
             subset.forEach(p => p._amplify = 0);
             if (log) log(loop === 1 ? `drop: FINAL — ${names}` : `drop: ${names}  (${loop - 1} left)`);
         });
-        clock._schedule(base + total, () => {
+        clock._schedule(restoreAt, () => {
             subset.forEach(p => p._amplify = 1);
-            runLoop(loop - 1, base + total);
+            runLoop(loop - 1, restoreAt);
         });
     };
     runLoop(nbloop, start);
