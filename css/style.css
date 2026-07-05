@@ -267,19 +267,21 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     z-index: 100000;
 }
 #examples-pop[hidden] { display: none; }
-/* Left pane — the foldable category list */
+/* Left pane — the foldable category list (fixed width so it never reflows) */
 #examples-pop .ex-cats {
-    min-width: 150px;
+    width: 168px;
+    flex: 0 0 168px;
     max-height: 72vh;
     overflow-y: auto;
     padding: 4px;
     border-right: 1px solid var(--border-1);
     background: var(--bg-2);
 }
-/* Right pane — the selected category's examples unfold here */
+/* Right pane — examples unfold here. Fixed width so switching categories never
+   resizes the popup (long names get an ellipsis instead of pushing it wider). */
 #examples-pop .ex-items-pane {
-    min-width: 220px;
-    max-width: 340px;
+    width: 300px;
+    flex: 0 0 300px;
     max-height: 72vh;
     overflow-y: auto;
     padding: 4px;
@@ -313,6 +315,8 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;   /* long names clip instead of widening the popup */
 }
 #examples-pop .ex-item:hover {
     background: var(--bg-3);
@@ -978,7 +982,8 @@ body.zen #docs-panel { display: none !important; }
 .cp-peer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Session chat */
-#cp-chat-log { margin-top: 8px; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+#cp-chat-log { margin-top: 8px; min-height: 20px; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+#cp-chat-log:empty::before { content: "chat — say hi 👋"; color: var(--text-2); font-size: 10px; font-style: italic; }
 .cp-chat-msg { font-size: 11px; color: var(--text-1); line-height: 1.35; word-break: break-word; }
 .cp-chat-name { font-weight: bold; margin-right: 2px; }
 #cp-chat-input {

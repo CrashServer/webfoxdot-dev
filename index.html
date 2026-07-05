@@ -961,9 +961,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 #   #@loop(beats, a:2, b:1) weighted jump · a commented "# p1 >>" stops it on entry
 `;
 
-    // Session mode (?session=) is persisted by Yjs. In solo mode, autosave the
-    // buffer to localStorage so edits survive a page refresh.
-    const _sessionSlug = new URLSearchParams(location.search).get('session');
+    // Session mode is persisted by Yjs. In solo mode, autosave the buffer to
+    // localStorage so edits survive a page refresh. Accept ?session=NAME (canonical),
+    // the short ?s=NAME, and a bare ?=NAME (empty key) so a mistyped share link still
+    // joins instead of silently dropping to solo (and hiding the chat/peers panel).
+    const _qs = new URLSearchParams(location.search);
+    const _sessionSlug = _qs.get('session') || _qs.get('s') || _qs.get('') || null;
     const SOLO_KEY = 'wfd-buffer';
     const _startValue = (!_sessionSlug && localStorage.getItem(SOLO_KEY)) || INITIAL_CODE;
 
