@@ -721,13 +721,27 @@ h1 >> play(-, dur=1/4).every(8, "jump", 1)              # shove the playhead
 p1 >> saw([0,2,4,7], dur=1/4).degrade(0.2).every(4, "rotate")`)}
     `, 'transforms');
 
-    const axis2 = section('Time-varying values (var)', `
-        ${note('Evolve a parameter over beats. <code>var</code> steps; <code>linvar/sinvar/expvar</code> interpolate. Args: (values, durations-in-beats).')}
-        ${code(`p1 >> dbass([0,-3,0,4], oct=4, cutoff=linvar([400, 4000], [8, 8]))
-p1 >> saw([0,4,7], cutoff=sinvar([500, 5000], [4]))
-p1 >> pulse([0,3], width=var([0.2, 0.5, 0.8], [2, 2, 4]))
-p1 >> fm([0,7], index=expvar([1, 12], [16]))`)}
+    const axis2 = section('Time-varying values (var · linvar · sinvar · expvar · Pvar)', `
+        ${note('A time-var evolves a value over BEATS (clock time), independent of the player stepping. The family shares one signature — <code>f(values, durations)</code>: a list of values and how many beats each holds (cycling forever). They differ only in how they move BETWEEN values: <b>var</b> jumps (step/hold), <b>linvar</b> ramps linearly, <b>sinvar</b> eases on a sine curve (smooth to-and-fro), <b>expvar</b> ramps exponentially (musical for pitch/cutoff). Durations may be one number (each value held that long) or a per-value list. <b>Pvar</b> is special: its values are whole PATTERNS, swapped over time — so a player can change its entire phrase mid-flow.')}
+        ${note('Put a time-var on ANY param — cutoff, amp, pan, width, index, even dur. A bare number holds; a time-var breathes.')}
+        ${code(`p1 >> saw([0,4,7], oct=4, cutoff=var([400, 4000], [4, 4]))    # JUMP: 400 for 4 beats, then 4000 for 4
+p1 >> saw([0,4,7], oct=4, cutoff=linvar([400, 4000], [8]))    # RAMP up over 8 beats, then back down
+p1 >> saw([0,4,7], oct=4, cutoff=sinvar([400, 4000], [4]))    # SINE sweep — smooth, 4-beat period
+p1 >> saw([0,4,7], oct=4, cutoff=expvar([200, 8000], [16]))   # EXP ramp (musical for a filter)
+p1 >> saw([0,4,7], oct=4, amp=sinvar([0.2, 0.5], [1]))        # tremolo — amp breathes each beat
+b1 >> dbass([0,-3], oct=4, cutoff=linvar([400, 4000], [8, 8]), lpf=sinvar([500,3000],[4]))  # stack several
+p1 >> saw(Pvar([[0,4,7], [0,3,7]], [16]), oct=4)              # Pvar: swap the WHOLE riff every 16 beats`)}
     `, 'axis2');
+
+    const randomness = section('Randomness (PRand · PWhite · PBrown · PLorenz · PxRand)', `
+        ${note('These pick a fresh value each STEP (unlike time-vars, which follow clock time). <b>PRand(list)</b> or <b>PRand(lo,hi)</b> picks uniformly at random; <b>PxRand</b> is PRand that never repeats the same value twice in a row; <b>PWhite(lo,hi)</b> is continuous white noise (any float in range); <b>PBrown(lo,hi,step)</b> is a random WALK (each value drifts from the last by up to step — smooth wandering); <b>PLorenz(lo,hi)</b> maps a chaotic attractor into the range (organic, non-repeating but structured). Use them on degree for melodies, or on any param for movement.')}
+        ${code(`p1 >> saw(PRand([0,2,4,7,9]), oct=4, dur=1/4)          # random note from the set each step
+p1 >> saw(PxRand(0, 7), oct=4, dur=1/4)               # random scale degree, never repeats
+p1 >> saw(PBrown(0, 12, 1), oct=4, dur=1/4)           # a wandering melody (drifts by <=1)
+p1 >> saw([0], oct=5, dur=1/4, cutoff=PLorenz(400, 4000))   # chaotic filter — organic motion
+b1 >> play("x", dur=1/4, amp=PWhite(0.4, 1))          # humanised velocity on every hit
+p1 >> saw([0,2,4], oct=4, pan=PWhite(-1, 1), dur=1/4) # random stereo placement each step`)}
+    `, 'randomness');
 
     const axis3 = section('Parameter envelopes (_)', `
         ${note('A <code>_</code> suffix runs an envelope per note. <code>fi</code> fade in, <code>fo</code> fade out, <code>fb</code> bounce/wobble. Signature: <code>f(beats, from, to)</code>. <b>FX-chain params only</b> (lpf, hpf, reverb, echo, crush…).')}
@@ -1404,7 +1418,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
         cat('Live sets'),        rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
-        cat('Patterns & time'),  axis1, sometimes, transforms, axis2, axis3, patterns, grooves, syncGen,
+        cat('Patterns & time'),  axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
         cat('Perform & MIDI'),   sections, midi, perf,
         cat('Deep dives'),       ...DEEP,
