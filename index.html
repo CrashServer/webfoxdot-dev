@@ -23,6 +23,7 @@
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
+      <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪ load kit</button>
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
@@ -833,6 +834,7 @@
             btn.classList.add('booted');
             document.getElementById('btn-run').disabled  = false;
             document.getElementById('btn-stop').disabled = false;
+            document.getElementById('btn-loadkit').disabled = false;
             log('Ready. Clock running.', 'ok');
         } catch (e) {
             log(`Boot failed: ${e.message}`, 'error');
@@ -1028,6 +1030,29 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
+
+    // ── Load the default sample pack (webfoxdot-kit) from GitHub, one click ──────
+    const DEFAULT_KIT_URL = 'https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json';
+    document.getElementById('btn-loadkit').onclick = () => {
+        if (document.getElementById('status-dot')?.className !== 'ready')
+            return log('load kit: boot audio first (top-left)', 'info');
+        const kbtn = document.getElementById('btn-loadkit');
+        if (kbtn.dataset.loading) return;
+        kbtn.dataset.loading = '1'; kbtn.disabled = true;
+        const update = logLive('load kit: fetching webfoxdot-kit…');
+        loadPackFromURL(DEFAULT_KIT_URL, (done, total) => {
+            update(`load kit: ${done}/${total} samples…`);
+            kbtn.textContent = `kit ${done}/${total}`;
+        })
+        .then(n => {
+            update(n ? `load kit: ${n} chars loaded ✓` : 'load kit: 0 loaded (all failed)', n ? 'ok' : 'error');
+            kbtn.textContent = n ? '✓ kit' : 'retry kit';
+            if (n) kbtn.classList.add('booted');
+        })
+        .catch(e => { update(`load kit: ${e.message}`, 'error'); kbtn.textContent = 'retry kit'; })
+        .finally(() => { kbtn.disabled = false; delete kbtn.dataset.loading; });
+    };
+
     document.getElementById('bpm-input').oninput = (e) => { clock.bpm = Number(e.target.value); };
 
     // Replace the whole buffer as one undoable edit (Ctrl+Z restores).
