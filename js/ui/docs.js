@@ -1234,6 +1234,10 @@ p1 >> pads((0,4,7), oct=5, dur=2).strum(0.06)   # arpeggiated chord
 p2 >> blip([0,4,7,11], oct=6, dur=1/4).jump(1).multiply(2)`)}
         ${note('<b>MIDI keyboard → synth</b> (Chromium / Edge / Brave). midiin(0) unbinds.')}
         ${code(`midiin("prophet")     # play the prophet synth from a MIDI keyboard`)}
+        ${note('<b>Fixes</b> — stutter now works on play() (and is chainable: <code>.stutter(4)</code> rolls every step); reverse/rotate/shuffle/mirror now reorder play() drum patterns too, not just synth degrees; drop() is fully bar-quantized so the breakdown lands on a downbeat. The examples ▾ menu is a foldable two-pane flyout, and the docs have new grouped sections (Player transforms · Randomness · Rhythm generators).')}
+        ${code(`b1 >> play("x.o.").stutter(4)                 # roll every step
+d1 >> play("x-o-x-o-").every(4, "rotate")     # reorder the drum pattern live
+drop(16, 4)                                   # bar-locked breakdown`)}
     `, 'alpha28new');
 
     // ── Technique showcases — one idea at a time ──────────────────────────────
