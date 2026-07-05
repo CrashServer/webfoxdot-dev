@@ -643,6 +643,17 @@ p1 >> saw([0,4,7], dur=0.5).human(20, 6)   # human feel on a synth too
 b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid rhythm as play chars → "..x..x.x"`)}
     `, 'grooves');
 
+    const rhythms = section('Rhythm generators (PDur · PBeat · PEuclid · PStep)', `
+        ${note('Generate DURATIONS and hit-patterns instead of typing them out. <b>PDur(k, n)</b> spreads k onsets as evenly as possible over n steps and returns their DURATIONS — the classic Euclidean rhythm as a dur pattern (PDur(3,8) = the tresillo). <b>PBeat("x.x.")</b> turns a hit-string into durations (the gaps between the x’s). <b>PEuclid(k,n)</b> returns a 1/0 on/off pattern — great on <code>amplify</code> as a gate; <b>PEuclid2(k,n,off,on)</b> fills two symbols instead (use it as a play() string). <b>PStep(n, a, b)</b> = value a every n-th step, b otherwise (accents / stairs). All accept an alternation <code>&lt;3 5&gt;</code> or a pattern where a number goes, so the rhythm itself can evolve.')}
+        ${code(`p1 >> pluck([0,2,4,7], oct=5, dur=PDur(3, 8))          # tresillo dur pattern (3-in-8)
+p1 >> pluck([0,2,4,7], oct=5, dur=PDur(<3 5>, 8))     # alternate 3-in-8 and 5-in-8
+b1 >> play("x", dur=PBeat("x.x.xx.."))                # durations straight from a hit-string
+b1 >> play(PEuclid2(5, 8, ".", "x"), dur=0.25)        # 5-in-8 as a play() pattern
+h1 >> play("-", dur=0.25, amplify=PEuclid(5, 8))      # 5-in-8 as an on/off gate on amp
+p1 >> pluck([0,2,4,7,9,11], oct=5, dur=PStep(4, 1/2, 1/4))  # every 4th step held longer
+b1 >> play("x", dur=PDur(7, 16, 0, 1/2))              # 7-in-16, base step 1/2`)}
+    `, 'rhythms');
+
     const synths = section('All synths', `
         ${note('Degree arrays are scale steps. Each synth\'s extra params are shown filled in with their defaults. Newest: plaits.')}
         ${note('A playing player <b>inherits</b> its params on re-run — <code>p1 >> saw([0,4], dur=4)</code> then <code>p1 >> saw([0,4], oct=6)</code> keeps <code>dur=4</code>. Prefix <code>~</code> to reset to defaults: <code>~p1 >> saw([0,4])</code>.')}
@@ -1418,7 +1429,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
         cat('Live sets'),        rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
         cat('Basics'),           welcome, start, drums, synths, tweak,
-        cat('Patterns & time'),  axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, syncGen,
+        cat('Patterns & time'),  axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen,
         cat('Sound design'),     fx, defsynthEx, samples, loop,
         cat('Perform & MIDI'),   sections, midi, perf,
         cat('Deep dives'),       ...DEEP,
