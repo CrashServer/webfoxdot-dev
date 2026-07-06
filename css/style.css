@@ -1120,3 +1120,133 @@ button.recording {
     white-space: nowrap;
     pointer-events: none;
 }
+
+/* ── About button + card ─────────────────────────────────────────────────── */
+#btn-about {
+    color: var(--green);
+    border-color: var(--border-2);
+    letter-spacing: 0.5px;
+}
+#btn-about:hover { color: #fff; border-color: var(--green); background: var(--green-dim); }
+
+#about-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: about-fade 0.14s ease-out;
+}
+#about-overlay[hidden] { display: none; }
+@keyframes about-fade { from { opacity: 0; } to { opacity: 1; } }
+
+#about-card {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    max-height: 86vh;
+    overflow-y: auto;
+    background: var(--bg-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 26px 30px 22px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--green-dim), 0 0 40px var(--glow);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-1);
+}
+
+#about-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-2);
+    font-size: 15px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+#about-close:hover { color: var(--red); background: none; }
+
+#about-head { text-align: center; margin-bottom: 18px; }
+#about-title {
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--green);
+    text-shadow: 0 0 14px var(--glow);
+}
+#about-title .about-ver { font-size: 12px; color: var(--text-2); text-shadow: none; letter-spacing: 0.5px; }
+.about-tagline { margin: 0 0 6px; color: var(--text-1); }
+.about-by { margin: 0; color: var(--text-2); font-size: 11px; }
+#about-card a { color: var(--blue); text-decoration: none; }
+#about-card a:hover { color: var(--green); text-decoration: underline; }
+
+.about-socials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin: 0 0 20px;
+}
+.about-socials a {
+    padding: 5px 11px;
+    border: 1px solid var(--border-2);
+    border-radius: 20px;
+    background: var(--bg-3);
+    color: var(--text-1) !important;
+    font-size: 11px;
+    white-space: nowrap;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.about-socials a:hover {
+    border-color: var(--green);
+    background: var(--green-dim);
+    color: #fff !important;
+    text-decoration: none;
+}
+
+.about-section { margin: 0 0 16px; }
+.about-section h2 {
+    margin: 0 0 6px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-2);
+    border-bottom: 1px solid var(--border-1);
+    padding-bottom: 4px;
+}
+.about-section p { margin: 0; }
+.about-tech {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    columns: 2;
+    column-gap: 22px;
+}
+.about-tech li {
+    break-inside: avoid;
+    padding: 2px 0;
+    color: var(--text-1);
+    font-size: 11px;
+}
+#about-card code {
+    background: var(--bg-3);
+    padding: 0 4px;
+    border-radius: 3px;
+    font-size: 10px;
+}
+.about-foot {
+    margin: 6px 0 0;
+    text-align: center;
+    color: var(--text-2);
+    font-size: 10px;
+}
+@media (max-width: 480px) { .about-tech { columns: 1; } }

@@ -27,6 +27,8 @@
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
+      <button id="btn-about" title="about crashDot">about</button>
+      <div style="flex:1"></div>
       <div id="examples-dd">
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
         <div id="examples-pop" hidden></div>
@@ -1224,6 +1226,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }
     });
 
+    // ── About card ────────────────────────────────────────────────────────────
+    const aboutOverlay = document.getElementById('about-overlay');
+    document.getElementById('about-version').textContent = 'α' + VERSION.replace(/[^0-9]/g, '');
+    const openAbout  = () => { aboutOverlay.hidden = false; };
+    const closeAbout = () => { aboutOverlay.hidden = true; };
+    document.getElementById('btn-about').onclick = openAbout;
+    document.getElementById('about-close').onclick = closeAbout;
+    aboutOverlay.addEventListener('click', e => { if (e.target === aboutOverlay) closeAbout(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !aboutOverlay.hidden) closeAbout(); });
+
     // Version label → derived from docs VERSION; click opens the changelog
     const vtag = document.getElementById('version-tag');
     vtag.textContent = 'α' + VERSION.replace(/[^0-9]/g, '');   // "alpha07" → "α07"
@@ -1715,5 +1727,57 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>
+  <!-- ── About card ──────────────────────────────────────────────────────── -->
+  <div id="about-overlay" hidden>
+    <div id="about-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <button id="about-close" title="close (Esc)">✕</button>
+
+      <div id="about-head">
+        <h1 id="about-title">crashDot <span id="about-version" class="about-ver"></span></h1>
+        <p class="about-tagline">Browser-native live coding — real <b>scsynth</b> compiled to WebAssembly.</p>
+        <p class="about-by">made by <a href="https://crashserver.fr" target="_blank" rel="noopener">Crash&nbsp;Server</a>
+          — a post-mayhem live-coding duo from Strasbourg 🇫🇷 (SVDK &amp; ZBDM)</p>
+      </div>
+
+      <div class="about-socials">
+        <a href="https://crashserver.fr" target="_blank" rel="noopener" title="Website">🌐 Website</a>
+        <a href="https://www.instagram.com/crashserver/" target="_blank" rel="noopener" title="Instagram">📸 Instagram</a>
+        <a href="https://mamot.fr/@crashserver" target="_blank" rel="noopener" title="Mastodon">🐘 Mastodon</a>
+        <a href="https://www.youtube.com/@CrashServer" target="_blank" rel="noopener" title="YouTube">▶️ YouTube</a>
+        <a href="https://crashserver.bandcamp.com/" target="_blank" rel="noopener" title="Bandcamp">🎵 Bandcamp</a>
+        <a href="https://github.com/CrashServer" target="_blank" rel="noopener" title="GitHub">⌥ GitHub</a>
+      </div>
+
+      <div class="about-section">
+        <h2>Thanks</h2>
+        <p>
+          <a href="https://foxdot.org/" target="_blank" rel="noopener">FoxDot</a> &amp; <b>Ryan Kirkbride</b> for creating the language we grew this from ·
+          <b>Kitty Clock</b> for keeping the FoxDot community alive ·
+          the <b>SuperSonic</b> project for scsynth-in-WebAssembly ·
+          the <a href="https://toplap.org/" target="_blank" rel="noopener">TOPLAP</a> / <a href="https://algorave.com/" target="_blank" rel="noopener">algorave</a> community.
+        </p>
+      </div>
+
+      <div class="about-section">
+        <h2>Built with</h2>
+        <ul class="about-tech">
+          <li><a href="https://supercollider.github.io/" target="_blank" rel="noopener">SuperCollider</a> — the <code>scsynth</code> audio engine</li>
+          <li><b>SuperSonic</b> — scsynth compiled to <b>WebAssembly</b> (AudioWorklet + SharedArrayBuffer)</li>
+          <li>Mutable Instruments <b>mi-UGens</b> — Plaits · Clouds · Rings</li>
+          <li>Web Audio API</li>
+          <li><a href="https://foxdot.org/" target="_blank" rel="noopener">FoxDot</a> — the original live-coding language</li>
+          <li><a href="https://codemirror.net/" target="_blank" rel="noopener">CodeMirror</a> — the code editor</li>
+          <li><a href="https://yjs.dev/" target="_blank" rel="noopener">Yjs</a> + y-websocket — real-time multiplayer (CRDT)</li>
+          <li><a href="https://ableton.github.io/link/" target="_blank" rel="noopener">Ableton Link</a> — tempo sync</li>
+          <li>Web MIDI — controllers + MIDI I/O</li>
+          <li>Node.js + <code>ws</code> — the collab / relay server</li>
+          <li><a href="https://esbuild.github.io/" target="_blank" rel="noopener">esbuild</a> — bundling</li>
+        </ul>
+      </div>
+
+      <p class="about-foot">Free &amp; open source · <a href="https://github.com/CrashServer" target="_blank" rel="noopener">github.com/CrashServer</a></p>
+    </div>
+  </div>
+
 </body>
 </html>
