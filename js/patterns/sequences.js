@@ -66,6 +66,56 @@ export class Pattern extends Array {
         if (size < 4) return Ppat([...this]);
         return Ppat([...part(0), ...part(1), ...part(0), ...part(3), ...part(2), ...part(1), ...part(2), ...part(3)].slice(0, n));
     }
+    // zip self with a transformed copy → per-step groups (instant harmony/counterpoint):
+    //   P[0,2,4].layer("add", 2)   → each step plays the note AND a third above
+    layer(method = 'add', ...args) {
+        if (typeof this[method] !== 'function') return Ppat([...this]);
+        return this.zip(this[method](...args));
+    }
+    // arpeggiate: expand each element by every offset in `arpPattern`
+    //   P[0,4].arp([0,12]) → [0,12,4,16]
+    arp(arpPattern = [0, 4, 7]) {
+        const ap = Array.isArray(arpPattern) ? arpPattern : [arpPattern];
+        const out = [];
+        for (const x of this) for (const a of ap) out.push((Number(x) || 0) + (Number(a) || 0));
+        return Ppat(out);
+    }
+    // melodic inversion — reflect the contour around its own range (min↔max)
+    invert() {
+        const nums = this.filter(x => typeof x === 'number');
+        if (!nums.length) return Ppat([...this]);
+        const hi = Math.max(...nums), lo = Math.min(...nums);
+        return Ppat(this.map(x => typeof x === 'number' ? (hi + lo - x) : x));
+    }
+    // dict remap of values: .submap({0:5, 4:7}) — unmatched values pass through
+    submap(mapping = {}) {
+        return Ppat(this.map(x => { const k = String(x); return (k in mapping) ? mapping[k] : x; }));
+    }
+    // rescale numeric values to 0–1 (for mapping into any param range)
+    norm() {
+        const nums = this.filter(x => typeof x === 'number');
+        if (!nums.length) return Ppat([...this]);
+        const hi = Math.max(...nums), lo = Math.min(...nums), range = (hi - lo) || 1;
+        return Ppat(this.map(x => typeof x === 'number' ? (x - lo) / range : x));
+    }
+    // keep elements where the (cyclic) boolean mask is truthy — pairs with PEuclid/PBin
+    select(mask = []) {
+        const m = Array.isArray(mask) ? mask : [mask];
+        if (!m.length) return Ppat([...this]);
+        return Ppat(this.filter((_, i) => m[i % m.length]));
+    }
+    // reverse each consecutive block of n (adjacent-pair swap by default)
+    swap(n = 2) {
+        const out = [], k = Math.max(1, Math.round(n));
+        for (let i = 0; i < this.length; i += k) out.push(...[...this.slice(i, i + k)].reverse());
+        return Ppat(out);
+    }
+    // drop consecutive duplicates
+    undup() {
+        const out = [];
+        for (const x of this) if (out.length === 0 || out[out.length - 1] !== x) out.push(x);
+        return Ppat(out);
+    }
 }
 // Wrap any array/value into a Pattern. Emitted by the transpiler for P[…].
 export function Ppat(a) { return Pattern.from(Array.isArray(a) ? a : [a]); }
@@ -470,6 +520,15 @@ export const PCoin = PBern;
 export function PEuclid(n, k, offset = 0) {
     const seq = _euclid(n, k);
     return { get: (step) => seq[(step + offset) % seq.length] };
+}
+
+// PEuclidR(n, k, rotation=0) — a rotated Euclidean rhythm as a concrete 0/1
+// Pattern (composes with pattern methods / arithmetic), e.g. play(PEuclidR(8,3,1)
+// .submap({1:'x',0:'.'})) or amp=PEuclidR(16,7,2).
+export function PEuclidR(n, k, rotation = 0) {
+    const seq = _euclid(n, k);
+    const r = ((Math.round(rotation) % n) + n) % n;
+    return Ppat([...seq.slice(r), ...seq.slice(0, r)]);
 }
 
 function _euclid(n, k) {

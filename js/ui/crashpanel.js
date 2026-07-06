@@ -174,8 +174,7 @@ function _initScaleRoot() {
     const rootEl  = _rootEl  = document.getElementById('cp-root-sel');
 
     if (scaleEl) {
-        const scales = ['major','minor','dorian','phrygian','lydian','mixolydian',
-                        'pentatonic','minPentatonic','chromatic','diminished','bhairav'];
+        const scales = Scale.names;   // all of SCALE_MAP (auto-includes ported FoxDot scales)
         scales.forEach(s => {
             const o = document.createElement('option');
             o.value = o.textContent = s;

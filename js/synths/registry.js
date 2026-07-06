@@ -52,6 +52,18 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 2000, rq: 0.7 },
         extraParams: ['cutoff', 'rq'],
     },
+    // arpy — classic FoxDot arpeggio pluck (filtered impulse train + perc env)
+    arpy: {
+        scName: 'fd_arpy',
+        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.5, fmod: 0, rate: 1 },
+        extraParams: ['fmod', 'rate'],
+    },
+    // darkpad — dark detuned six-saw pad + sub, soft-clipped dark filter (CrashServer port)
+    darkpad: {
+        scName: 'fd_darkpad',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.3, release: 1, cutoff: 1200, res: 0.25, drive: 1.2, detune: 0.008, dark: 0.5, sub: 0.4 },
+        extraParams: ['cutoff', 'res', 'drive', 'detune', 'dark', 'sub'],
+    },
     // wobble — dubstep wobble bass (CrashServer port; MoogFF LFO-swept). Play it low.
     wobble: {
         scName: 'fd_wobble',

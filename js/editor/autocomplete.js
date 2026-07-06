@@ -160,7 +160,7 @@ const SCALE_NAMES = [
 // Only patterns we actually implement (keeps suggestions runnable)
 const PATTERN_NAMES = [
     'PRand','PWhite','PWalk','PDur','PPing','PStutter','PAlt','PShuf','PBern','PCoin',
-    'PEuclid','PRange','PStep','PSine','PTri','PChain','PMarkov',
+    'PEuclid','PEuclidR','PRange','PStep','PSine','PTri','PChain','PMarkov',
     'Pacc','PSwing','PBin','PFDur','PLife','PEuclid2','PFr','PGauss','PArp','PStretch','PZip','PReverse','PMorse',
     'PDrum','PwRand','PxRand','PLog','PTime','PSum','PDelta','PIndex','PSquare','PFib','PBeat','PJoin','PDelay',
     'P10','PSaw','PSq','PZero','PBool','PFibMod','PPairs','PChar','PQuicken','PStrum','PZip2','PZ12',
@@ -177,7 +177,7 @@ const PATTERN_TEMPLATES = {
     PRange: 'PRange(0, 8)', PStep: 'PStep(4, 7, 0)', PSine: 'PSine(0, 1, 16)', PTri: 'PTri(0, 1, 16)',
     PChain: 'PChain({0: [1, 2], 1: [0]})', PMarkov: 'PMarkov([0, 2, 4, 2, 0])', Pacc: 'Pacc("offbeat")',
     PSwing: 'PSwing(0.5)', PBin: 'PBin(16)', PFDur: 'PFDur((3, 8))', PLife: 'PLife(0.5)',
-    PEuclid2: 'PEuclid2(3, 8, ".", "x")', PFr: 'PFr(0, 7)', PGauss: 'PGauss(0, 1)', PArp: 'PArp([0, 4, 7], 5)',
+    PEuclid2: 'PEuclid2(3, 8, ".", "x")', PEuclidR: 'PEuclidR(8, 3, 1)', PFr: 'PFr(0, 7)', PGauss: 'PGauss(0, 1)', PArp: 'PArp([0, 4, 7], 5)',
     PStretch: 'PStretch([0, 2, 4], 8)', PZip: 'PZip([0, 2], [4, 7])', PReverse: 'PReverse([0, 2, 4, 7])',
     PMorse: 'PMorse("sos")', PDrum: 'PDrum(3, 8)', PwRand: 'PwRand([0, 4, 7], [8, 2, 1])', PxRand: 'PxRand(0, 8)',
     PLog: 'PLog(0, 1)', PTime: 'PTime(0, 8)', PSum: 'PSum(3, 8)', PDelta: 'PDelta([1, 2, 1], 0)',

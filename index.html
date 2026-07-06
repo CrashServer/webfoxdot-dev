@@ -189,7 +189,7 @@
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
-             PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
+             PEuclid, PEuclid2, PEuclidR, PRange, PStep, PSine, PTri,
              PChain, PMarkov, _group, _alt, Pmath, Pslice, melody, Ppat,
              Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse,
              PDrum, PwRand, PxRand, PLog, PTime, PSum, PDelta, PIndex, PSquare, PFib, PBeat, PJoin, PDelay,
@@ -396,7 +396,7 @@
             ...SYNTHS,
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,
-            PEuclid, PEuclid2, PRange, PStep, PSine, PTri,
+            PEuclid, PEuclid2, PEuclidR, PRange, PStep, PSine, PTri,
             PChain, PMarkov, Pacc, PSwing, PBin, PFDur, PLife, PFr, PGauss, PArp, PStretch, PZip, PReverse, PMorse,
             PDrum, PwRand, PxRand, PLog, PTime, PSum, PDelta, PIndex, PSquare, PFib, PBeat, PJoin, PDelay,
             P10, PSaw, PSq, PZero, PBool, PFibMod, PPairs, PChar, PQuicken, PStrum, PZip2, PZ12,
@@ -709,7 +709,7 @@
 
     // ── Boot ─────────────────────────────────────────────────────────────────
     const SYNTHDEFS_TO_LOAD = [
-        'fd_dbass', 'fd_a_gesa', 'fd_a_daft', 'fd_a_hhat', 'fd_a_bd', 'fd_rhodes', 'fd_supersaw', 'fd_wobble', 'fd_pumpbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
+        'fd_dbass', 'fd_a_gesa', 'fd_a_daft', 'fd_a_hhat', 'fd_a_bd', 'fd_rhodes', 'fd_supersaw', 'fd_arpy', 'fd_darkpad', 'fd_wobble', 'fd_pumpbass', 'fd_saw', 'fd_sine', 'fd_rsin', 'fd_donk',
         'fd_pluck', 'fd_pulse', 'fd_blip', 'fd_fm', 'fd_bell', 'fd_pads',
         'fd_bass', 'fd_prophet', 'fd_plaits', 'fd_tb303', 'fd_choir', 'fd_brass',
         'fd_organ', 'fd_ssaw', 'fd_karp', 'fd_piano',

@@ -13,6 +13,41 @@ export const SCALE_MAP = {
     chromatic:    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
     diminished:   [0, 2, 3, 5, 6, 8, 9, 11],
     bhairav:      [0, 1, 4, 5, 7, 8, 11],
+    // ── FoxDot scale library (ported) ────────────────────────────────────────
+    aeolian:        [0, 2, 3, 5, 7, 8, 10],   // = natural minor
+    majorPentatonic:[0, 2, 4, 7, 9],          // = pentatonic
+    minorPentatonic:[0, 3, 5, 7, 10],         // = minPentatonic
+    melodicMinor:   [0, 2, 3, 5, 7, 9, 11],
+    melodicMajor:   [0, 2, 4, 5, 7, 8, 11],
+    harmonicMinor:  [0, 2, 3, 5, 7, 8, 11],
+    harmonicMajor:  [0, 2, 4, 5, 7, 8, 11],
+    dorian2:        [0, 1, 3, 5, 6, 8, 9, 11],
+    egyptian:       [0, 2, 5, 7, 10],
+    yu:             [0, 3, 5, 7, 10],
+    zhi:            [0, 2, 5, 7, 9],
+    prometheus:     [0, 2, 4, 6, 11],
+    indian:         [0, 4, 5, 7, 10],
+    locrianMajor:   [0, 2, 4, 5, 6, 8, 10],
+    lydianMinor:    [0, 2, 4, 6, 7, 8, 10],
+    hungarianMinor: [0, 2, 3, 6, 7, 8, 11],
+    romanianMinor:  [0, 2, 3, 6, 7, 9, 10],
+    chinese:        [0, 4, 6, 7, 11],
+    wholeTone:      [0, 2, 4, 6, 8, 10],
+    halfWhole:      [0, 1, 3, 4, 6, 7, 9, 10],
+    wholeHalf:      [0, 2, 3, 5, 6, 8, 9, 11],
+    bebopMaj:       [0, 2, 4, 5, 7, 8, 9, 11],
+    bebopDorian:    [0, 2, 3, 4, 5, 9, 10],
+    bebopDom:       [0, 2, 4, 5, 7, 9, 10, 11],
+    bebopMelMin:    [0, 2, 3, 5, 7, 8, 9, 11],
+    blues:          [0, 3, 5, 6, 7, 10],
+    minMaj:         [0, 2, 3, 5, 7, 9, 11],
+    susb9:          [0, 1, 3, 5, 7, 9, 10],
+    lydianAug:      [0, 2, 4, 6, 8, 9, 11],
+    lydianDom:      [0, 2, 4, 6, 7, 9, 10],
+    melMin5th:      [0, 2, 4, 5, 7, 8, 10],
+    halfDim:        [0, 2, 3, 5, 6, 8, 10],
+    altered:        [0, 1, 3, 4, 6, 8, 10],
+    custom:         [0, 2, 3, 5, 6, 9, 10],
 };
 
 export const Scale = {
