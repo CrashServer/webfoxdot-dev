@@ -110,6 +110,34 @@
     --cm-def:      #33ff66;
 }
 
+/* Paper & Ink — warm cream paper, dark sepia ink, muted ink accents (light theme). */
+:root.paper {
+    --bg-1:        #f2ead6;   /* page / editor — warm paper   */
+    --bg-2:        #e8dcc0;   /* toolbar / panels — tan frame */
+    --bg-3:        #faf4e6;   /* buttons / insets — raised paper */
+    --border-1:    #d8c9a8;
+    --border-2:    #b6a37e;
+    --text-1:      #2c2620;   /* ink   */
+    --text-2:      #7c6f58;   /* faded ink */
+    --green:       #2f7d4f;   /* green ink */
+    --green-dim:   rgba(47,125,79,0.14);
+    --glow:        rgba(90,70,45,0.14);   /* soft warm halo, not neon */
+    --blue:        #2f5aa8;   /* fountain-pen blue */
+    --yellow:      #b07d12;   /* ochre */
+    --red:         #b23a2e;   /* vermillion ink */
+    --purple:      #7a4fa0;   /* violet ink */
+    --orange:      #c0662b;   /* burnt sienna */
+    --flash-col:   rgba(47,90,168,0.16);
+    --synth-col:   #2f7d4f;
+    --pattern-col: #7a4fa0;
+    --timevar-col: #c0662b;
+    --keyword-col: #2f5aa8;
+    --cm-keyword:  #b23a2e;
+    --cm-number:   #2f5aa8;
+    --cm-string:   #2f7d4f;
+    --cm-def:      #8a5a1e;   /* sienna — distinct from string green */
+}
+
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
