@@ -163,6 +163,46 @@ export const FX_REGISTRY = {
     shimpitch:{ scParam: 'shimpitch',default: 0.5, desc: 'Shimmer pitch: 0=unison .. 1=+1 octave' },
     shimmix:  { scParam: 'shimmix',  default: 0.5, desc: 'Internal reverb wet/dry' },
 
+    // clouds — MiClouds granular texture/reverb (Mutable Instruments), CrashServer port
+    clouds:   { scParam: 'clouds', default: 0,    desc: 'Granular cloud drywet (0=off)' },
+    cpos:     { scParam: 'cpos',   default: 0.5,  desc: 'Grain position' },
+    csize:    { scParam: 'csize',  default: 0.25, desc: 'Grain size' },
+    cdens:    { scParam: 'cdens',  default: 0.4,  desc: 'Grain density' },
+    ctex:     { scParam: 'ctex',   default: 0.5,  desc: 'Grain texture' },
+    cpitch:   { scParam: 'cpitch', default: 0,    desc: 'Grain pitch shift (semitones)' },
+    cgain:    { scParam: 'cgain',  default: 2,    desc: 'Input gain' },
+    cfb:      { scParam: 'cfb',    default: 0,    desc: 'Feedback 0–1' },
+    cmode:    { scParam: 'cmode',  default: 0,    desc: 'Mode: 0 granular · 1 stretch · 2 loop · 3 spectral' },
+
+    // room2 — true-stereo FreeVerb2 reverb, CrashServer port
+    room2:    { scParam: 'room2', default: 0,   desc: 'Stereo reverb room size (0=off)' },
+    mix2:     { scParam: 'mix2',  default: 0.2, desc: 'Reverb dry→wet mix' },
+    damp2:    { scParam: 'damp2', default: 0.8, desc: 'High-freq damping' },
+
+    // combres — tuned comb resonator (metallic ring), CrashServer port
+    combres:    { scParam: 'combres',    default: 0,    desc: 'Comb-resonator mix (0=off)' },
+    combfreq:   { scParam: 'combfreq',   default: 200,  desc: 'Comb pitch Hz' },
+    combdecay:  { scParam: 'combdecay',  default: 0.3,  desc: 'Comb decay/resonance' },
+    combspread: { scParam: 'combspread', default: 0.01, desc: 'Stereo detune' },
+
+    // subenh — sub-bass enhancer (adds a synthesized -1oct sub), CrashServer port
+    subenh:   { scParam: 'subenh',   default: 0,   desc: 'Sub-bass enhancer amount (0=off)' },
+    subhfreq: { scParam: 'subhfreq', default: 100, desc: 'Sub crossover Hz (content below gets a sub)' },
+    subhgain: { scParam: 'subhgain', default: 1,   desc: 'Sub gain' },
+
+    // stereowidth — M/S stereo widener (keeps bass mono), CrashServer port
+    stereowidth: { scParam: 'stereowidth', default: 0,   desc: 'Stereo width mix (0=off/dry)' },
+    swfreq:      { scParam: 'swfreq',      default: 300, desc: 'Bass mono-keep crossover Hz' },
+    swnarrow:    { scParam: 'swnarrow',    default: 0,   desc: 'Narrow the low band (0–1)' },
+    swwide:      { scParam: 'swwide',      default: 1.5, desc: 'High-band widening (1=neutral, >1 wider)' },
+
+    // pumper — sidechain-style volume pump ducked on the beat, CrashServer port
+    pumper:     { scParam: 'pumper',     default: 0,     desc: 'Pump depth (0=off) — ducks on the beat' },
+    pumprate:   { scParam: 'pumprate',   default: 1,     desc: 'Pumps per beat (tempo-locked)' },
+    pumpattack: { scParam: 'pumpattack', default: 0.005, desc: 'Duck attack (s)' },
+    pumprel:    { scParam: 'pumprel',    default: 0.2,   desc: 'Duck release (s)' },
+    pumpcurve:  { scParam: 'pumpcurve',  default: -4,    desc: 'Duck envelope curve' },
+
     // octclean — clean octaver (PitchShift sub -1oct + up +1oct), CrashServer port
     octclean: { scParam: 'octclean', default: 0,   desc: 'Octaver mix (0=off)' },
     ocsub:    { scParam: 'ocsub',    default: 0.5, desc: 'Sub (-1 oct) amount' },
@@ -244,8 +284,11 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_bpf',        keys: ['bpf', 'bpf_rq'], trig: ['bpf'] },
     { scName: 'fd_fx_mpf',        keys: ['mpf', 'mpr'], trig: ['mpf'] },
     { scName: 'fd_fx_resonz',     keys: ['resonz', 'rfreq', 'rbw'], trig: ['resonz'] },
+    { scName: 'fd_fx_combres',    keys: ['combres', 'combfreq', 'combdecay', 'combspread'], trig: ['combres'] },
+    { scName: 'fd_fx_subenh',     keys: ['subenh', 'subhfreq', 'subhgain'], trig: ['subenh'] },
     { scName: 'fd_fx_eq3',        keys: ['eq3', 'eqlow', 'eqmid', 'eqhigh', 'eqlowf', 'eqmidf', 'eqmidq', 'eqhighf'], trig: ['eq3'] },
     { scName: 'fd_fx_spin',       keys: ['spin', 'spinrate'], trig: ['spin'] },
+    { scName: 'fd_fx_stereowidth',keys: ['stereowidth', 'swfreq', 'swnarrow', 'swwide'], trig: ['stereowidth'] },
     { scName: 'fd_fx_pong',       keys: ['pong', 'pongtime', 'pongfeed', 'beat_dur'], trig: ['pong'] },
     { scName: 'fd_fx_djf',        keys: ['djf', 'djfq'], trig: ['djf'] },
     { scName: 'fd_fx_crush',      keys: ['crush', 'bits', 'srate'], trig: ['crush'] },
@@ -254,6 +297,8 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_mverb',      keys: ['mverb', 'mverbmix', 'mverbdamp', 'mverbdiff', 'mverbfreeze'], trig: ['mverb'] },
     { scName: 'fd_fx_cheapverb',  keys: ['cheapverb', 'cvdecay', 'cvdamp'], trig: ['cheapverb'] },
     { scName: 'fd_fx_shimmer',    keys: ['shimmer', 'shimsize', 'shimpitch', 'shimmix'], trig: ['shimmer'] },
+    { scName: 'fd_fx_clouds',     keys: ['clouds', 'cpos', 'csize', 'cdens', 'ctex', 'cpitch', 'cgain', 'cfb', 'cmode'], trig: ['clouds'] },
+    { scName: 'fd_fx_room2',      keys: ['room2', 'mix2', 'damp2'], trig: ['room2'] },
     { scName: 'fd_fx_chorus',     keys: ['chorus', 'chorus_rate', 'chorus_depth'], trig: ['chorus'] },
     { scName: 'fd_fx_tremolo',    keys: ['tremolo', 'trem_rate', 'trem_depth'], trig: ['tremolo'] },
     { scName: 'fd_fx_tanh',       keys: ['tanh', 'drive'], trig: ['tanh'] },
@@ -282,6 +327,7 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_sbrk',       keys: ['sbrk', 'sbrkdur'], trig: ['sbrk'] },
     { scName: 'fd_fx_squiz',      keys: ['squiz', 'squizpitch', 'squizzc'], trig: ['squiz'] },
     { scName: 'fd_fx_drop',       keys: ['drop', 'dropof'], trig: ['drop'] },
+    { scName: 'fd_fx_pumper',     keys: ['pumper', 'pumprate', 'pumpattack', 'pumprel', 'pumpcurve', 'beat_dur'], trig: ['pumper'] },
     { scName: 'fd_fx_comp',       keys: ['comp', 'compthresh', 'compratio'], trig: ['comp'] },
 ];
 

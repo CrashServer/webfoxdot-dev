@@ -441,4 +441,67 @@ SynthDef(\fd_fx_shimmer, {|in_bus=64, shimmer=0, shimsize=0.8, shimpitch=0.5, sh
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, shimmer.clip(0, 1) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── clouds — MiClouds granular texture/reverb (Mutable Instruments) ─────────
+// clouds = drywet (0 = bypass). The UGen blends dry/wet internally.
+SynthDef(\fd_fx_clouds, {|in_bus=64, clouds=0, cpos=0.5, csize=0.25, cdens=0.4, ctex=0.5, cpitch=0, cgain=2, cfb=0, cmode=0|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = MiClouds.ar(sig, pit: cpitch, pos: cpos.clip(0, 1), size: csize.clip(0, 1),
+            dens: cdens.clip(0, 1), tex: ctex.clip(0, 1), drywet: clouds.clip(0, 1),
+            in_gain: cgain, fb: cfb.clip(0, 1), mode: cmode.clip(0, 3).round);
+    ReplaceOut.ar(in_bus, wet);
+}).writeDefFile(~outDir);
+
+// ── room2 — true-stereo FreeVerb2 reverb, CrashServer port ───────────────────
+// room2 = room size (0 = bypass), mix2 = dry→wet. (Original's one-shot amp env is
+// dropped — this node is persistent, the env would silence it after revsus.)
+SynthDef(\fd_fx_room2, {|in_bus=64, room2=0, mix2=0.2, damp2=0.8|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = LPF.ar(HPF.ar(sig, 100), 10000);
+    wet = FreeVerb2.ar(wet[0], wet[1], 1, room2.clip(0, 1), damp2.clip(0, 1));
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, mix2.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── combres — tuned comb resonator (metallic ring), CrashServer port ─────────
+SynthDef(\fd_fx_combres, {|in_bus=64, combres=0, combfreq=200, combdecay=0.3, combspread=0.01|
+    var sig = In.ar(in_bus, 2), dt, c1, c2, res;
+    dt = combfreq.reciprocal;
+    c1 = CombC.ar(sig, 0.1, dt.clip(0.0001, 0.1), combdecay);
+    c2 = CombC.ar(sig, 0.1, (dt * (1 + combspread)).clip(0.0001, 0.1), combdecay * 0.9);
+    res = LeakDC.ar(LPF.ar((c1 + c2) * 0.5, 10000));
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, sig + (res * 0.5), combres.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── subenh — sub-bass enhancer (adds a synthesized -1oct sub), CrashServer ───
+SynthDef(\fd_fx_subenh, {|in_bus=64, subenh=0, subhfreq=100, subhgain=1|
+    var sig = In.ar(in_bus, 2), low, sub, f = subhfreq.clip(40, 400);
+    low = LPF.ar(sig, f);
+    sub = PitchShift.ar(low, 0.1, 0.5, 0, 0.004);
+    sub = LeakDC.ar(LPF.ar(sub, f));
+    ReplaceOut.ar(in_bus, sig + (sub * subhgain * subenh.clip(0, 1)));
+}).writeDefFile(~outDir);
+
+// ── stereowidth — M/S stereo widener (keeps bass mono), CrashServer port ─────
+SynthDef(\fd_fx_stereowidth, {|in_bus=64, stereowidth=0, swfreq=300, swnarrow=0, swwide=1.5|
+    var sig = In.ar(in_bus, 2), low, high, mid, side, wide;
+    low  = LPF.ar(sig, swfreq);
+    low  = (low[0] + low[1]) * 0.5 * (1 - swnarrow.clip(0, 1));
+    low  = [low, low];
+    high = HPF.ar(sig, swfreq);
+    mid  = (high[0] + high[1]) * 0.5;
+    side = (high[0] - high[1]) * 0.5 * swwide;
+    high = [mid + side, mid - side];
+    wide = low + high;
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wide, stereowidth.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── pumper — sidechain-style volume pump, ducked on the beat, CrashServer ────
+// pumper = depth (0 = bypass), pumprate = pumps per beat (tempo-locked via beat_dur).
+SynthDef(\fd_fx_pumper, {|in_bus=64, pumper=0, pumprate=1, pumpattack=0.005, pumprel=0.2, pumpcurve=(-4), beat_dur=0.5|
+    var sig = In.ar(in_bus, 2), rate, env;
+    rate = (pumprate / beat_dur).clip(0.1, 50);
+    env = EnvGen.kr(Env.perc(pumpattack, pumprel, 1, pumpcurve), Impulse.kr(rate));
+    env = (1 - (env * pumper.clip(0, 1))).clip(0.05, 1);
+    ReplaceOut.ar(in_bus, sig * env);
+}).writeDefFile(~outDir);
+
 "fd_fx_effects done".postln;
