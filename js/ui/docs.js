@@ -206,12 +206,12 @@ export const VERSION = 'alpha29';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha29', title: 'Four new FX · Paper theme · About card', items: [
-        'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).',
-        'Six more FX (CrashServer ports): clouds — MiClouds granular texture/reverb (clouds=drywet, cpos/csize/cdens/ctex/cpitch/cgain/cfb/cmode) · room2 — true-stereo FreeVerb2 (room2=size, mix2, damp2) · combres — tuned comb resonator (combres=mix, combfreq, combdecay, combspread) · subenh — sub-bass enhancer adds a synthesized -1oct sub (subenh, subhfreq, subhgain) · stereowidth — M/S widener that keeps bass mono (stereowidth, swfreq, swnarrow, swwide) · pumper — sidechain-style volume duck on the beat (pumper=depth, pumprate=pumps/beat). e.g. p1 >> pads(clouds=0.6) · b1 >> dbass(subenh=0.7, stereowidth=0.6) · d1 >> play(x.o., pumper=0.8).',
-        '~34 more scales (ported from FoxDot) — now 46 total: blues, wholeTone, harmonicMinor/Major, melodicMinor/Major, hungarianMinor, romanianMinor, egyptian, yu, zhi, chinese, indian, prometheus, the bebop scales (bebopMaj/Dorian/Dom/MelMin), lydianDom/Aug/Minor, locrianMajor, halfWhole/wholeHalf, altered, susb9, halfDim, minMaj … Set with Scale.default="blues" or pick from the Scale dropdown (now lists them all).',
-        'New chainable Pattern methods: .layer(method,…) zips a transformed copy over itself for instant harmony (P[0,2,4].layer("add",2)) · .arp([0,4,7]) expands each note by offsets · .invert() reflects the melodic contour · .submap({1:"x",0:"."}) dict-remaps values · .norm() rescales to 0–1 · .select([1,0,1]) keeps steps by a cyclic mask (pairs with PEuclid/PBin) · .swap(n) reverses consecutive blocks · .undup() drops consecutive repeats. Plus PEuclidR(n,k,rotation) — a rotated Euclidean rhythm as a concrete pattern.',
-        'Two new synths (ports): arpy — the classic FoxDot arpeggio pluck (filtered impulse train), perfect for fast arps; darkpad — a dark detuned six-saw pad + sub with a soft-clipped dark filter (cutoff/res/drive/detune/dark/sub) for techno & ambient atmosphere. e.g. p1 >> arpy(P[0,2,4,7], dur=1/4) · p2 >> darkpad([0,3], sus=4, dark=0.7).',
+    { v: 'alpha29', title: '10 new FX · 34 scales · pattern methods · 2 synths · Paper theme · About card', items: [
+        { t: 'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).', ex: 'alpha29new' },
+        { t: 'Six more FX (CrashServer ports): clouds — MiClouds granular texture/reverb (clouds=drywet, cpos/csize/cdens/ctex/cpitch/cgain/cfb/cmode) · room2 — true-stereo FreeVerb2 (room2=size, mix2, damp2) · combres — tuned comb resonator (combres=mix, combfreq, combdecay, combspread) · subenh — sub-bass enhancer adds a synthesized -1oct sub (subenh, subhfreq, subhgain) · stereowidth — M/S widener that keeps bass mono (stereowidth, swfreq, swnarrow, swwide) · pumper — sidechain-style volume duck on the beat (pumper=depth, pumprate=pumps/beat). e.g. p1 >> pads(clouds=0.6) · b1 >> dbass(subenh=0.7, stereowidth=0.6) · d1 >> play(x.o., pumper=0.8).', ex: 'alpha29new' },
+        { t: '~34 more scales (ported from FoxDot) — now 46 total: blues, wholeTone, harmonicMinor/Major, melodicMinor/Major, hungarianMinor, romanianMinor, egyptian, yu, zhi, chinese, indian, prometheus, the bebop scales (bebopMaj/Dorian/Dom/MelMin), lydianDom/Aug/Minor, locrianMajor, halfWhole/wholeHalf, altered, susb9, halfDim, minMaj … Set with Scale.default="blues" or pick from the Scale dropdown (now lists them all).', ex: 'alpha29new' },
+        { t: 'New chainable Pattern methods: .layer(method,…) zips a transformed copy over itself for instant harmony (P[0,2,4].layer("add",2)) · .arp([0,4,7]) expands each note by offsets · .invert() reflects the melodic contour · .submap({1:"x",0:"."}) dict-remaps values · .norm() rescales to 0–1 · .select([1,0,1]) keeps steps by a cyclic mask (pairs with PEuclid/PBin) · .swap(n) reverses consecutive blocks · .undup() drops consecutive repeats. Plus PEuclidR(n,k,rotation) — a rotated Euclidean rhythm as a concrete pattern.', ex: 'alpha29new' },
+        { t: 'Two new synths (ports): arpy — the classic FoxDot arpeggio pluck (filtered impulse train), perfect for fast arps; darkpad — a dark detuned six-saw pad + sub with a soft-clipped dark filter (cutoff/res/drive/detune/dark/sub) for techno & ambient atmosphere. e.g. p1 >> arpy(P[0,2,4,7], dur=1/4) · p2 >> darkpad([0,3], sus=4, dark=0.7).', ex: 'alpha29new' },
         'New "Paper & Ink" theme (Settings › theme) — the first LIGHT theme: warm cream paper, dark sepia ink, muted ink-coloured syntax (fountain-pen blue, green, sienna). Easy on the eyes for daylight / projector use.',
         'New "about" button (top toolbar, centered) opens an About card — crashDot + version, Crash Server links (website / Instagram / Mastodon / YouTube / Bandcamp / GitHub), thanks, and the full tech stack. Close with ✕, Esc, or click-outside.',
     ]},
@@ -1249,6 +1249,29 @@ d1 >> play("x-o-x-o-").every(4, "rotate")     # reorder the drum pattern live
 drop(16, 4)                                   # bar-locked breakdown`)}
     `, 'alpha28new');
 
+    const alpha29new = section('New in alpha29', `
+        ${note('The alpha29 additions — boot audio first, then evaluate any line (Ctrl+Enter).')}
+        ${note('<b>Two new synths</b> — arpy (the classic FoxDot arpeggio pluck) and darkpad (dark detuned six-saw pad + sub). And <b>34 more scales</b> — set with Scale.default or pick from the Scale dropdown.')}
+        ${code(`Scale.default = "blues"
+p1 >> arpy(P[0,2,4,7], oct=5, dur=1/4)              # bright arp pluck
+p2 >> darkpad([0,3], oct=4, sus=4, dark=0.7)        # dark pad + sub`)}
+        ${note('<b>New chainable Pattern methods.</b> .layer(method,…) zips a transformed copy over itself for instant harmony; .arp expands each note by offsets; .invert flips the melodic contour; .submap dict-remaps values; .select keeps steps by a mask.')}
+        ${code(`p3 >> pluck(P[0,2,4,7].layer("add", 2), oct=5, dur=1/4)   # harmony a 3rd up
+p4 >> blip(P[0,4].arp([0,7,12]), oct=5, dur=1/8)         # arpeggiate offsets
+p5 >> saw(P[0,2,4,7].invert(), oct=5, dur=1/4)           # inverted contour`)}
+        ${note('<b>PEuclidR(n, k, rotation)</b> — a rotated Euclidean rhythm as a concrete pattern; .submap turns the 1/0 grid into a play string.')}
+        ${code(`d1 >> play(PEuclidR(8, 3, 1).submap({1:"x", 0:"."}))     # rotated euclid kick
+h1 >> play("-", dur=1/2).stutter(4)`)}
+        ${note('<b>New FX — filters & colour.</b> mpf (Moog ladder LPF), resonz (resonant band-pass), fshift (metallic frequency shift), shimmer (lush octave reverb), clouds (MiClouds granular).')}
+        ${code(`b1 >> darkpad([0,3], oct=4, sus=4, mpf=700, mpr=3)                 # fat ladder filter
+p6 >> arpy(P[0,4,7], oct=6, dur=1/4, shimmer=0.6, clouds=0.4)     # shimmer + granular
+p7 >> saw([0,7], oct=5, dur=1/2, resonz=0.7, rfreq=1400, fshift=80)`)}
+        ${note('<b>New FX — techno glue.</b> subenh (adds a sub octave), stereowidth (M/S widener, keeps bass mono), pumper (sidechain-style duck on the beat), room2 (true-stereo reverb), combres (metallic comb resonance).')}
+        ${code(`k1 >> play("X", subenh=0.7, stereowidth=0.6)
+b2 >> bass([0,0,3,5], oct=4, dur=1/2, pumper=0.8, pumprate=1)   # ducks each beat
+p8 >> pads((0,4,7), oct=5, dur=2, room2=0.8, combres=0.4)`)}
+    `, 'alpha29new');
+
     // ── Technique showcases — one idea at a time ──────────────────────────────
     const t_chords = section('Chords & progressions', `
         ${note('Chords are built in scale degrees, so they stay in key. PChord is one chord, PRoman a numeral progression, PProg a named one, PCircle walks the circle of fifths.')}
@@ -1438,6 +1461,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // show the exact same sets in the same order.
     const cat = (name) => `<div class="docs-cat">${name}</div>`;
     return [
+        cat('New in alpha29'),   alpha29new,
         cat('New in alpha28'),   whatsNew,
         cat('Live sets'),        rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched,
         cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
