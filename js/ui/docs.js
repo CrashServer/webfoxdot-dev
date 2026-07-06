@@ -202,10 +202,13 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha28';
+export const VERSION = 'alpha29';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha29', title: 'Four new FX ports', items: [
+        'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).',
+    ]},
     { v: 'alpha28', title: 'Pop-out visuals (clift)', items: [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
 'The examples dropdown is now a fully custom, themed menu (a native select popup cannot be styled) — categorised, scrollable, with hover highlighting. Added a Deep dives section: param-heavy features (pbuild, .drummer, .human, .every/.sometimes kwargs, son, TimeVars, Euclidean rhythms, .unison) explained line by line with how they work and several use cases.',

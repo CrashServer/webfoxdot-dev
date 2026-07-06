@@ -143,6 +143,26 @@ export const FX_REGISTRY = {
     formant:       { scParam: 'formant',       default: 0, desc: 'Vowel-formant mix (0=off)' },
     formant_vowel: { scParam: 'formant_vowel', default: 0, desc: 'Vowel: 0 ah · 1 eh · 2 oh' },
 
+    // mpf — Moog ladder low-pass (MoogFF), CrashServer port
+    mpf:      { scParam: 'mpf', default: 0, desc: 'Moog ladder LPF cutoff Hz (0=off) — fatter than lpf' },
+    mpr:      { scParam: 'mpr', default: 0, desc: 'Moog resonance 0–4 (self-oscillates near 4)' },
+
+    // resonz — resonant band-pass (Resonz), CrashServer port
+    resonz:   { scParam: 'resonz', default: 0,   desc: 'Resonant band-pass mix (0=off)' },
+    rfreq:    { scParam: 'rfreq',  default: 800, desc: 'Resonz center freq Hz' },
+    rbw:      { scParam: 'rbw',    default: 0.3, desc: 'Resonz bandwidth ratio (0.01=narrow/ringing, 1=wide)' },
+
+    // fshift — frequency shifter (FreqShift, inharmonic/metallic), CrashServer port
+    fshift:   { scParam: 'fshift', default: 0,   desc: 'Frequency shift Hz (0=off; try ±5..±500)' },
+    fphase:   { scParam: 'fphase', default: 0,   desc: 'Shift phase 0–1' },
+    fmix:     { scParam: 'fmix',   default: 0.5, desc: 'Frequency-shift wet mix' },
+
+    // shimmer — pitch-shifted feedback reverb (lush octave sheen), CrashServer port
+    shimmer:  { scParam: 'shimmer',  default: 0,   desc: 'Shimmer reverb mix (0=off)' },
+    shimsize: { scParam: 'shimsize', default: 0.8, desc: 'Reverb room size' },
+    shimpitch:{ scParam: 'shimpitch',default: 0.5, desc: 'Shimmer pitch: 0=unison .. 1=+1 octave' },
+    shimmix:  { scParam: 'shimmix',  default: 0.5, desc: 'Internal reverb wet/dry' },
+
     // octclean — clean octaver (PitchShift sub -1oct + up +1oct), CrashServer port
     octclean: { scParam: 'octclean', default: 0,   desc: 'Octaver mix (0=off)' },
     ocsub:    { scParam: 'ocsub',    default: 0.5, desc: 'Sub (-1 oct) amount' },
@@ -222,6 +242,8 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_lpf',        keys: ['lpf', 'lpf_rq'], trig: ['lpf'] },
     { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
     { scName: 'fd_fx_bpf',        keys: ['bpf', 'bpf_rq'], trig: ['bpf'] },
+    { scName: 'fd_fx_mpf',        keys: ['mpf', 'mpr'], trig: ['mpf'] },
+    { scName: 'fd_fx_resonz',     keys: ['resonz', 'rfreq', 'rbw'], trig: ['resonz'] },
     { scName: 'fd_fx_eq3',        keys: ['eq3', 'eqlow', 'eqmid', 'eqhigh', 'eqlowf', 'eqmidf', 'eqmidq', 'eqhighf'], trig: ['eq3'] },
     { scName: 'fd_fx_spin',       keys: ['spin', 'spinrate'], trig: ['spin'] },
     { scName: 'fd_fx_pong',       keys: ['pong', 'pongtime', 'pongfeed', 'beat_dur'], trig: ['pong'] },
@@ -231,6 +253,7 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_rgate',      keys: ['rgate', 'rgaterate', 'rgatewave', 'beat_dur'], trig: ['rgate'] },
     { scName: 'fd_fx_mverb',      keys: ['mverb', 'mverbmix', 'mverbdamp', 'mverbdiff', 'mverbfreeze'], trig: ['mverb'] },
     { scName: 'fd_fx_cheapverb',  keys: ['cheapverb', 'cvdecay', 'cvdamp'], trig: ['cheapverb'] },
+    { scName: 'fd_fx_shimmer',    keys: ['shimmer', 'shimsize', 'shimpitch', 'shimmix'], trig: ['shimmer'] },
     { scName: 'fd_fx_chorus',     keys: ['chorus', 'chorus_rate', 'chorus_depth'], trig: ['chorus'] },
     { scName: 'fd_fx_tremolo',    keys: ['tremolo', 'trem_rate', 'trem_depth'], trig: ['tremolo'] },
     { scName: 'fd_fx_tanh',       keys: ['tanh', 'drive'], trig: ['tanh'] },
@@ -243,6 +266,7 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_chop',       keys: ['chop', 'beat_dur'], trig: ['chop'] },
     { scName: 'fd_fx_vibrato',    keys: ['vibrato', 'vib_rate', 'vib_depth'], trig: ['vibrato'] },
     { scName: 'fd_fx_ringmod',    keys: ['ringmod', 'ringmod_freq'], trig: ['ringmod'] },
+    { scName: 'fd_fx_fshift',     keys: ['fshift', 'fphase', 'fmix'], trig: ['fshift'] },
     { scName: 'fd_fx_flanger',    keys: ['flanger', 'flanger_rate', 'flanger_depth'], trig: ['flanger'] },
     { scName: 'fd_fx_phaser',     keys: ['phaser', 'phaser_rate'], trig: ['phaser'] },
     { scName: 'fd_fx_formant',    keys: ['formant', 'formant_vowel'], trig: ['formant'] },

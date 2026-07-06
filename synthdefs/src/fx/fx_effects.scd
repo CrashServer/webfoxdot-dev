@@ -404,4 +404,41 @@ SynthDef(\fd_fx_comp, {|in_bus=64, comp=0, compthresh=0.3, compratio=4|
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, comp.clip(0, 1) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── mpf — Moog ladder low-pass (MoogFF), CrashServer port ───────────────────
+// mpf = cutoff Hz (0 = bypass), mpr = resonance 0–4 (self-oscillates near 4).
+// Fatter / squishier than the RLPF-based lpf; great for acid + techno bass.
+SynthDef(\fd_fx_mpf, {|in_bus=64, mpf=0, mpr=0|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = MoogFF.ar(sig, (mpf > 0).if(mpf.clip(20, 20000), 20000), mpr.clip(0, 4));
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (mpf > 0) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── resonz — resonant band-pass (Resonz), CrashServer port ──────────────────
+// resonz = dry→wet mix, rfreq = center Hz, rbw = bandwidth ratio (small = ringing).
+SynthDef(\fd_fx_resonz, {|in_bus=64, resonz=0, rfreq=800, rbw=0.3|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = Resonz.ar(sig, rfreq.clip(20, 18000), rbw.clip(0.01, 4)) * 2;
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, resonz.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── fshift — frequency shifter (FreqShift), CrashServer port ─────────────────
+// Linear (inharmonic) shift, NOT pitch shift — metallic/clangorous. fshift = Hz
+// (0 = bypass, try ±5..±500), fphase = 0–1, fmix = wet mix.
+SynthDef(\fd_fx_fshift, {|in_bus=64, fshift=0, fphase=0, fmix=0.5|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = FreqShift.ar(sig, fshift, fphase * 2pi);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, fmix.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── shimmer — pitch-shifted feedback reverb (lush octave sheen), CrashServer ─
+// shimmer = mix (0 = bypass), shimsize = room size, shimpitch = 0 unison .. 1 +1oct,
+// shimmix = internal reverb wet/dry.
+SynthDef(\fd_fx_shimmer, {|in_bus=64, shimmer=0, shimsize=0.8, shimpitch=0.5, shimmix=0.5|
+    var sig = In.ar(in_bus, 2), pitched, wet;
+    pitched = PitchShift.ar(sig, 0.2, LinExp.kr(shimpitch.clip(0, 1), 0, 1, 1, 2), 0, 0.01);
+    wet = FreeVerb.ar(sig + (pitched * 0.5), shimmix.clip(0, 1), shimsize.clip(0, 1))
+            * LinLin.kr(shimmer.clip(0, 1), 0, 1, 0.3, 1.5);
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, shimmer.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
 "fd_fx_effects done".postln;
