@@ -506,7 +506,7 @@ export function exampleList() {
     const out = [];
     let cat = '';
     for (const el of doc.querySelectorAll('.docs-cat, .docs-section')) {
-        if (el.classList.contains('docs-cat')) { cat = el.textContent.trim(); continue; }
+        if (el.classList.contains('docs-cat')) { cat = (el.querySelector('.docs-cat-name')?.textContent || el.textContent).trim(); continue; }
         const id = (el.id || '').replace(/^ex-/, '');
         if (id) out.push({ id, title: (el.querySelector('.docs-section-title')?.textContent || '').trim(), cat });
     }
@@ -1456,22 +1456,35 @@ p1 >> bass([0], oct=3, dur=PDur(3,8, rotate=1), amp=0.5)   # same grid, rotated,
 p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned stack`),
     ];
 
-    // Grouped into categories — a <div class="docs-cat"> header precedes each group.
-    // exampleList() reads these headers so the dropdown (optgroups) and this page
-    // show the exact same sets in the same order.
-    const cat = (name) => `<div class="docs-cat">${name}</div>`;
-    return [
-        cat('New in alpha29'),   alpha29new,
-        cat('New in alpha28'),   whatsNew,
-        cat('Live sets'),        rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched,
-        cat('Techniques'),       t_chords, t_arps, t_cross, t_live, t_gen,
-        cat('Basics'),           welcome, start, drums, synths, tweak,
-        cat('Patterns & time'),  axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen,
-        cat('Sound design'),     fx, defsynthEx, samples, loop,
-        cat('Perform & MIDI'),   sections, midi, perf,
-        cat('Deep dives'),       ...DEEP,
-        ...TUT_CATS.flatMap(([c, secs]) => [cat(c), ...secs]),
-    ].join('');
+    // Grouped into COLLAPSIBLE categories, with a table-of-contents overview at
+    // the top (the page got long). Each category is a <div class="docs-catgroup">
+    // whose header (.docs-cat-toggle) folds its .docs-catbody; all but the first
+    // start collapsed so the tab opens as a scannable overview. exampleList() reads
+    // the .docs-cat-name header (in document order) so the dropdown optgroups stay
+    // in sync with this page.
+    const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const GROUPS = [
+        ['New in alpha29',  [alpha29new]],
+        ['New in alpha28',  [whatsNew]],
+        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched]],
+        ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen]],
+        ['Basics',          [welcome, start, drums, synths, tweak]],
+        ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen]],
+        ['Sound design',    [fx, defsynthEx, samples, loop]],
+        ['Perform & MIDI',  [sections, midi, perf]],
+        ['Deep dives',      DEEP],
+        ...TUT_CATS,
+    ];
+    const toc = `<div class="docs-toc"><span class="docs-toc-lbl">Jump to</span>` +
+        GROUPS.map(([name, secs]) =>
+            `<a class="docs-toc-link" data-cat="${slug(name)}">${name}<span class="docs-toc-n">${secs.length}</span></a>`
+        ).join('') + `</div>`;
+    const groups = GROUPS.map(([name, secs], i) =>
+        `<div class="docs-catgroup${i === 0 ? '' : ' collapsed'}" id="${slug(name)}">
+            <div class="docs-cat docs-cat-toggle"><span class="docs-cat-arrow">▸</span><span class="docs-cat-name">${name}</span><span class="docs-cat-n">${secs.length}</span></div>
+            <div class="docs-catbody">${secs.join('')}</div>
+        </div>`).join('');
+    return toc + groups;
 }
 
 // ── Workflow tab — how the editor & systems work, with examples ────────────────
@@ -1827,13 +1840,27 @@ export function initDocs() {
     tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
     body.addEventListener('click', (e) => {
+        // Examples table-of-contents chip: expand + scroll to that category
+        const toc = e.target.closest('.docs-toc-link');
+        if (toc) {
+            const grp = body.querySelector('#' + toc.dataset.cat);
+            if (grp) { grp.classList.remove('collapsed'); grp.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            return;
+        }
+        // Category header: fold / unfold its sections
+        const toggle = e.target.closest('.docs-cat-toggle');
+        if (toggle) { toggle.closest('.docs-catgroup')?.classList.toggle('collapsed'); return; }
         // Changelog "→ example" link: jump to the Examples tab + scroll to anchor
         const link = e.target.closest('.docs-link');
         if (link) {
             const anchor = link.dataset.anchor;
             showTab('examples');
             const el = body.querySelector('#' + anchor);
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('ex-flash'); setTimeout(() => el.classList.remove('ex-flash'), 1200); }
+            if (el) {
+                el.closest('.docs-catgroup')?.classList.remove('collapsed');   // reveal if collapsed
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add('ex-flash'); setTimeout(() => el.classList.remove('ex-flash'), 1200);
+            }
             return;
         }
         // Click any code block to copy it to the clipboard
