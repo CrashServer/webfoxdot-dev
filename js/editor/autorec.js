@@ -28,12 +28,13 @@ export function quantize(beats) {
     return Math.max(MINDUR, Number(q.toFixed(3)));
 }
 
-// samples: [{beat, value}] in capture order → change-points (value + onset beat)
+// samples: [{beat, qbeat, value}] in capture order → change-points (value + onset beat).
+// Onsets use the quantised beat (qbeat) so durations come out on whole beats.
 export function changePoints(samples) {
     const values = [], onsets = [];
     for (const s of samples) {
         const v = roundValue(s.value);
-        if (values.length === 0 || v !== values[values.length - 1]) { values.push(v); onsets.push(s.beat); }
+        if (values.length === 0 || v !== values[values.length - 1]) { values.push(v); onsets.push(s.qbeat ?? s.beat); }
     }
     return { values, onsets };
 }
@@ -115,11 +116,15 @@ export const autoRec = {
         this._start   = num.start;
         this._origLine = line;
         this._cycle   = null;
-        this._samples = [{ beat: ctx.beatNow(), value: num.value }];   // seed with the starting value
+        const beat = ctx.beatNow();
+        this._samples = [{ beat, qbeat: Math.round(beat), value: num.value }];   // seed with the starting value
         this._indicator(true, '● REC');
     },
 
     // Called after each nudge — record the new value + beat of the tracked number.
+    // Coalesces to AT MOST ONE point per beat: several nudges within the same beat
+    // just update that beat's value, so rapid nudging / key auto-repeat doesn't
+    // produce a jittery sub-beat automation.
     capture(cm, ctx) {
         if (!this._armed) return;
         const cur = cm.getCursor();
@@ -127,7 +132,11 @@ export const autoRec = {
         const num = numberAt(cm.getLine(cur.line), cur.ch);
         if (!num) return;
         this._start = num.start;
-        this._samples.push({ beat: ctx.beatNow(), value: num.value });
+        const beat  = ctx.beatNow();
+        const qbeat = Math.round(beat);
+        const last  = this._samples[this._samples.length - 1];
+        if (last && last.qbeat === qbeat) { last.value = num.value; last.beat = beat; }   // same beat → coalesce
+        else { this._samples.push({ beat, qbeat, value: num.value }); }
         this._indicator(true, `● REC ${this._samples.length}`);
     },
 
@@ -136,7 +145,7 @@ export const autoRec = {
         this._indicator(false);
         const { values, onsets } = changePoints(this._samples);
         if (values.length < 2) { ctx.log?.('nothing recorded (no change)', 'info'); return; }
-        const durs = durations(onsets, ctx.beatNow());
+        const durs = durations(onsets, Math.round(ctx.beatNow()));
         const form = autoForm(values);
         this._insert(cm, ctx, values, durs, form);
         ctx.log?.(`recorded → ${form} (${values.length} points) — Alt+T to cycle form`, 'ok');
