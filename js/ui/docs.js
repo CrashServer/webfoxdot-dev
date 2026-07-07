@@ -208,7 +208,7 @@ export const VERSION = 'alpha30';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'alpha30', title: 'Automation recorder (Alt+T)', items: [
-        { t: 'reroll("g3", 8) — auto-re-evaluate a player\'s line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. reroll("g3", 0) stops it; it also stops when the player stops. e.g. g3 >> pluck(motif(8), dur=1/8) then reroll("g3", 4).', ex: 'reroll' },
+        { t: 'reroll("g3", 8) — auto-re-evaluate a player\'s line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. reroll("g3", 0) stops it; it also stops when the player stops. e.g. g3 >> pluck(motif(8), dur=1/2) then reroll("g3", 4). motif also has a built-in reroll as its 4th arg — motif(8, 7, 2, 4) refreshes itself every 4 beats with no reroll() call.', ex: 'reroll' },
         { t: 'Named-option args now also accept an integer index or a var — arp([0,4,7], 2) == arp([0,4,7], "updown"), and arp(deg, var([0,1], 4)) sweeps the mode over time. Same for PGroove, PContour, PClave, PProg (arp/PGroove vary per-step with a var).', ex: 'optargs' },
         'Autocomplete: typing `.` after a player now auto-opens the method menu (every/sometimes/penta/chroma/solo/only/stop/degrade/…); the pattern-generator list is grouped into families (rhythm/melody/harmony/random/chaos/sequence); and the first arg of a synth call (the degree) suggests pattern generators.',
         { t: 'Rests in a degree list — a standalone `_` or bare `rest` now fires NO note (true silence): cs80([4, _, 1, rest, 2]) skips the 2nd and 4th steps. (A `.` still plays degree 0 as before, so existing patterns are unchanged.) Works with `+` transposition too. Pattern autocomplete after `p1 >> synth(` now also suggests pattern generators for the degree, grouped into families (rhythm/melody/harmony/random/chaos/sequence).', ex: 'rest' },
@@ -1472,10 +1472,12 @@ p2 >> pads((0,4,7), oct=5, dur=2, room2=sinvar([0.2, 0.9], 8))`)}
 
     const exReroll = section('Auto-reroll a generative pattern (reroll)', `
         ${note('<b>reroll("name", beats)</b> re-evaluates a player line every N beats, so a FROZEN random generator (motif, PShuf, chaos, a PRand degree) picks new values on its own — no re-running by hand. reroll("name", 0) stops it; it also stops when the player stops.')}
-        ${code(`g1 >> pluck(motif(8), oct=5, dur=1/8, amp=0.5)
+        ${code(`g1 >> pluck(motif(8), oct=5, dur=1/2, amp=0.5)
 reroll("g1", 4)      # a new 8-note motif every 4 beats
 
 # reroll("g1", 0)    # stop rerolling (keeps playing the last one)`)}
+        ${note('<b>motif</b> also has a built-in reroll as its 4th arg — <code>motif(n, range, maxStep, reroll)</code> — so it refreshes itself with no reroll() call:')}
+        ${code(`g2 >> pluck(motif(8, 7, 2, 4), oct=5, dur=1/2)   # fresh motif every 4 beats`)}
     `, 'reroll');
 
     const exOptArgs = section('Option args as a number or a var (arp · PGroove)', `

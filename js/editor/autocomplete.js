@@ -205,7 +205,7 @@ const PATTERN_TEMPLATES = {
     PPrime: 'PPrime(2)', PThue: 'PThue()', PGrowArp: 'PGrowArp([0, 2, 4, 7])', PTree: 'PTree([0], 3, 2)',
     PExp: 'PExp(0, 1, 16)', PPulse: 'PPulse(0, 1, 16, 0.5)', PSlide: 'PSlide(0, 1, 16)',
     PContour: 'PContour("arch", 8, 7)', PGroove: 'PGroove("swing")', PCircle: 'PCircle(8)',
-    motif: 'motif(4)', arp: 'arp([0, 4, 7], "up")',
+    motif: 'motif(8, 7, 2)', arp: 'arp([0, 4, 7], "up")',
 };
 const patItem = (n) => item(PATTERN_TEMPLATES[n] || (n + '('), 'hint-pattern', n);
 

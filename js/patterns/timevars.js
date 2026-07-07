@@ -12,6 +12,8 @@
 // Shared clock reference — set by engine/clock.js bootstrap
 let _clock = null;
 export function setClockRef(c) { _clock = c; }
+// Current clock beat (fractional) — used by generators that self-refresh on time.
+export function currentBeat() { return _clock ? _clock.now() : 0; }
 
 // Resolve a value that may be a pattern object or array into a number,
 // so var/linvar can hold patterns: var([PRand([4,16,32]), 1/4]).

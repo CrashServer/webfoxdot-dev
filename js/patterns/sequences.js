@@ -1,7 +1,7 @@
 // Pattern helpers — all patterns expose a .get(step) method.
 // patGet resolves any value: plain scalar, array, or pattern object.
 
-import { isEnv, envValue } from './timevars.js';
+import { isEnv, envValue, currentBeat } from './timevars.js';
 
 export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
@@ -999,9 +999,20 @@ export function PSlide(lo = 0, hi = 1, steps = 16) {
 
 // motif(n, range, maxStep) — a FROZEN n-note motif (a random walk, sampled once)
 // that then repeats. Like melody()[:n] but in one call — a stable phrase.
-export function motif(n = 4, range = 7, maxStep = 2) {
-    const m = melody(range, maxStep), notes = [];
-    for (let i = 0; i < n; i++) notes.push(m.get(i));
+// motif(n, range, maxStep, reroll) — a frozen random melody of n notes. With
+// reroll > 0, it regenerates itself every `reroll` beats (self-contained, no
+// reroll() call needed): motif(8, 7, 2, 4) picks a fresh motif every 4 beats.
+export function motif(n = 4, range = 7, maxStep = 2, reroll = 0) {
+    const gen = () => { const m = melody(range, maxStep), out = []; for (let i = 0; i < n; i++) out.push(m.get(i)); return out; };
+    let notes = gen();
+    if (reroll > 0) {
+        let window = Math.floor(currentBeat() / reroll);
+        return { get: (step) => {
+            const w = Math.floor(currentBeat() / reroll);
+            if (w !== window) { window = w; notes = gen(); }
+            return notes[(((step | 0) % n) + n) % n];
+        } };
+    }
     return { get: (step) => notes[(((step | 0) % n) + n) % n] };
 }
 
