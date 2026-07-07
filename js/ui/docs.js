@@ -1273,6 +1273,132 @@ t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=
 t2 >> dbass(dist2=1)`)}
     `, 'scorched');
 
+    const inthemood = section('In the mood for CS80 (recorded #@ set)', `
+        ${note('A full recorded composition arranged with #@ parts. <b>Load the kit first</b> (♪ load kit), then put the cursor on <code>#@intro</code> and press Ctrl+Enter — it auto-plays and advances through the parts while you can still edit live. (The free-text narration lines are commented so each section evaluates cleanly.)')}
+        ${code(`# ══ recorded composition (run the #@ parts) ══
+#@#@ in_the_mood_for_cs80
+# don't forget to load samples (♪ load kit) then evaluate #@intro with Ctrl+Enter
+
+#@intro(12)
+Root.default = "E#"
+g59 >> bass([0, {0, 3, 5}], oct=6, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.6).human(26, 4)
+# of our new live coding
+# environnement
+
+#@build(16)
+g89 >> bass([0], oct=<4 5>, dur=2, amp=0.55)
+# 100% web
+# based on FoxDot
+
+#@peak(16)
+g8 >> rsin(PRange(0, 5), oct=arp([5, 6, PRand([4, 5, (6, 7)]), 6, (4, 5, 6)]), dur=1/2, amp=0.41, reverb=0.4, room=0.6, damp=0.1)
+
+#@break(20)
+g71 >> cs80(PCircle(1), oct=6, dur=1/2, a=PWhite(0, 1), amp=0.39, pan=sinvar([-1, 1], [8])).human(15, 4)
+
+#@drop(16)
+g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])).human(15, 4)
+# demoed here! i can auto play and still code and adjust
+
+#@outro(12)
+g72 >> cs80(arp([0,2,4,7], "down"), oct=5, dur=1/2, amp=0.29, tremolo=0.68, trem_rate=4).every(8, "reverse")
+
+#@part7(8)
+g71 >> cs80(PCircle(16), oct=(4, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])).human(15, 4)
+
+#@part8(16)
+g72 >> cs80(arp([0,2,4,7], "up"), oct=(4, 5), dur=1/2, amp=0.6, tremolo=0.68, trem_rate=4).every(8, "reverse")
+
+#@part9(16)
+g59 >> bass([0, {0, 3, 5}], oct=7, dur=1/2, amp=Pacc(4), mverb=0.53, mverbmix=0.6).human(26, 4).degrade()
+g8 >> rsin(PRange(0, 8), oct=arp([5, 6, 5, 8, (4, 5, 6)]), dur=1/2, amp=0.41, reverb=0.4, room=0.6, damp=0.1)
+
+#@part10(16)
+g71.stop()
+g59 >> bass([0, {0, 3, 5}], oct=7, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.6).human(26, 4)
+
+#@part11(16)
+g73 >> karp(PChord(0, "sus4"), oct=6, dur=1/2, amp=PWhite(0.36, 0.44), fold=0.36, symetry=3, multicrush=0.61, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+g59.stop()
+g89.stop()
+g8 >> rsin(PRange(0, 5), oct=arp([5, 6, PRand([4, 5, (6, 7)]), 6, (4, 5, 6)]), dur=1/2, amp=0.41, reverb=0.4, room=0.6, damp=0.1)
+g71 >> cs80(PCircle(1), oct=6, dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])).human(15, 4)
+g72 >> cs80(arp([0,2,4,7], "down"), oct=5, dur=1/2, amp=0.29, tremolo=0.68, trem_rate=4).every(8, "reverse")
+
+#@part12(20)
+g73 >> karp(PChord(0, "sus4"), oct=4, dur=4, amp=PWhite(0.36, 0.44), fold=0.36, symetry=3, multicrush=0.61)
+g203 >> pluck(PGrowArp([0,3,7]), oct=<6 7>, dur=PBeat("x xx x"), amp=PWhite(0.36, 0.41), cheapverb=0.70, rgate=0.75, rgaterate=8).penta() + <0 3>
+g59 >> bass([0, {0, 3, 5}], oct=6, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.6).human(26, 4)
+g89 >> bass([0], oct=<4 5>, dur=2, amp=0.55)
+
+#@part13(16)
+g72 >> cs80(arp([0,2,4,7], "up"), oct=(4, 5), dur=1/2, amp=0.6, tremolo=0.68, trem_rate=4).every(8, "reverse")
+Root.default = "C"
+
+#@part14(16)
+g8.stop()
+g72.stop()
+g71.stop()
+g73 >> dbass(PChord(0, "sus4"), oct=5, dur=1/2, amp=PWhite(0.36, 0.44), fold=0.36, symetry=3, multicrush=0.61)
+Root.default = "E#"
+
+#@part15(12)
+g74 >> sine(motif(3), oct=5, dur=PGroove("gallop"), amp=PWhite(0.32, 0.42), mverb=0.55, mverbmix=0.6)
+g88 >> donk(arp([0,4,7,11], "up"), oct=<5 6>, dur=1/4, amp=0.40, pan=PWhite(-0.7, 0.7), ringmod=0.44, ringmod_freq=147)
+g95 >> pads(PCircle(8, 0, "7"), oct=4, dur=<2 4>, amp=0.45, pan=<-0.5 0.5>, flanger=0.68, flanger_rate=0.30)
+
+#@part16(12)
+g239 >> acidbass(PRange(0, 4), oct=<4 5>, dur=1, amp=1, chop=4, echo=0.21, echo_time=0.375)
+g233 >> rhodes(arp([0,4,7,11], "downup"), oct=5, dur=<1/4 1/2>, amp=0.36, pan=PWhite(-0.7, 0.7), lofi=0.49) + (0,3,7)
+
+#@part17(8)
+g73 >> karp(PChord(0, "sus4"), oct=6, dur=1/2, amp=PWhite(0.36, 0.44), fold=0.36, symetry=3, multicrush=0.61, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+g59.stop()
+g89.stop()
+
+#@part18(12)
+Root.default = "C"
+g8 >> rsin(PRange(0, 5), oct=arp([5, 6, PRand([4, 5, (6, 7)]), 6, (4, 5, 6)]), dur=1/2, amp=0.41, reverb=0.4, room=0.6, damp=0.1)
+g71 >> cs80(PCircle(1), oct=6, dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])).human(15, 4)
+g72 >> cs80(arp([0,2,4,7], "down"), oct=5, dur=1/2, amp=0.29, tremolo=0.68, trem_rate=4).every(8, "reverse")
+
+#@part19(4)
+v1 >> play("[-X]", hpf=4200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+g98 >> play(PEuclid2(3, 8, ".", "B"), dur=1/2, amp=0.76, dist2=0.6, dist2shape=1).sometimes("stutter", 3)
+
+#@part20(12)
+g73.stop()
+g203.stop()
+g59.stop()
+g74.stop()
+g95.stop()
+g88.stop()
+g239.stop()
+v1 >> play("[-X]", hpf=4200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+g98 >> play(PEuclid2(3, 8, ".", "B"), dur=1/2, amp=0.76, dist2=0.6, dist2shape=1).sometimes("stutter", 3)
+
+#@part23(8)
+v1 >> play("[[--][Xx]]", hpf=4200, fbdelay=1, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.14)
+v2 >> play("b ", hpf=1200, fbdelay=1, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.14)
+g59 >> bass([0, {0, 3, 5}], oct=4, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.6).human(26, 4)
+
+#@part24(8)
+g239 >> acidbass(PRange(0, 4), oct=<4 5>, dur=1, amp=1, chop=4, echo=0.21, echo_time=0.375)
+g233 >> rhodes(arp([0,4,7,11], "downup"), oct=4, dur=<1/4 1/2>, amp=0.36, pan=PWhite(-0.7, 0.7), lofi=0.49) + (0,3,7)
+
+#@part25(8)
+v3 >> play("K", hpf=100, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, dist2=0.1, dist2shape=1)
+
+#@part26(8)
+g136 >> a_bd([2, 9, 0, 2, 9], oct=4, dur=1/4, amp=1, pan=PGauss(0, 0.35), lpf=sinvar([541, 2599], [4]), lpf_rq=0.35, multicrush=0.52).human(33, 5)
+
+#@part27(16)
+g8 >> rsin(PRange(0, 5), oct=arp([5, 6, PRand([4, 5, (6, 7)]), 6, (4, 5, 6)]), dur=1/2, amp=0.41, reverb=0.4, room=0.6, damp=0.1)
+g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])).human(15, 4)
+
+#@end(16)`)}
+    `, 'in_the_mood');
+
 
 
     const whatsNew = section('New in alpha28', `
@@ -1539,7 +1665,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
         ['New in alpha30',  [alpha30new]],
         ['New in alpha29',  [alpha29new]],
         ['New in alpha28',  [whatsNew]],
-        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched]],
+        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen]],
