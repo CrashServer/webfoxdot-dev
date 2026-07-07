@@ -418,18 +418,20 @@ function hintFn(cm) {
     return { list: dropEmptySeps(list), from, to };
 }
 
-// Minimal hint function for showing just synth names (used after player name insert)
+// Hint function for the synth menu that auto-opens after a player name is
+// inserted. Uses the SAME family-grouped list as the `p1 >> ` synth context, so
+// the menu is identical whether it auto-opened or you triggered it yourself
+// (previously this showed a flat, un-categorised list — the inconsistency).
 function synthHint(cm) {
     const cursor = cm.getCursor();
-    const line   = cm.getLine(cursor.line);
-    const before = line.slice(0, cursor.ch);
+    const before = cm.getLine(cursor.line).slice(0, cursor.ch);
     const wordM  = before.match(/([a-zA-Z_]\w*)$/);
     const word   = wordM ? wordM[1] : '';
+    const lw     = word.toLowerCase();
     const from   = { line: cursor.line, ch: cursor.ch - word.length };
-    const list   = [
-        ...(!word || 'play'.startsWith(word) ? [playItem()] : []),
-        ...SYNTH_NAMES.filter(n => !word || n.startsWith(word)).map(synthItem),
-    ];
+    let list = [playItem(), ...synthFamilyList()];
+    list = dropEmptySeps(list.filter(it =>
+        it.className === 'hint-sep' || !word || (it.displayText ?? it.text).toLowerCase().startsWith(lw)));
     return { list, from, to: cursor };
 }
 
