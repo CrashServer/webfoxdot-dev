@@ -473,9 +473,17 @@ export function PAlt(...pats) {
 // global step), so it cycles its items each time it's reached: top-level
 // saw(<0 4 7>) plays 0,4,7,0,…; a param dur=<1 2> alternates 1,2,1,…. The
 // transpiler turns <...> on a player line into this.
+// <a b c> alternation — advances one item each STEP. Caches per step so that
+// several reads within the same step (e.g. unison, which reads the degree once
+// per voice) all return the SAME item instead of racing the counter forward.
 export function _alt(...items) {
-    let i = 0;
-    return { get: () => { const v = items[i % items.length]; i++; return patGet(v, i - 1); } };
+    let i = 0, lastStep, cached;
+    return { get: (step) => {
+        if (step === undefined || step !== lastStep) {
+            lastStep = step; cached = patGet(items[i % items.length], step); i++;
+        }
+        return cached;
+    } };
 }
 
 // Pattern arithmetic: linvar([1.4,0],32) * P[1,0,0.9], P[0,2,4] + 2, etc. JS can't
