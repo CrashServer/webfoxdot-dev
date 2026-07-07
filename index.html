@@ -206,6 +206,7 @@
     import { inspect, initInspect }      from './js/editor/inspect.js';
     import { incrementValue, stopPlayerAtCursor,
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
+    import { autoRec }                   from './js/editor/autorec.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
@@ -588,6 +589,12 @@
         } else {
             runBlockAtCursor();
         }
+    }
+
+    // Context handed to the automation recorder (Alt+T): fractional-beat clock,
+    // re-eval of the current line, and the log sink.
+    function autoRecCtx() {
+        return { beatNow: () => clock._beatNow(), runLine: runLineAtCursor, log };
     }
 
     // Ctrl+Enter — evaluate just the current line (or the selection, if any).
@@ -994,10 +1001,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Cmd-Alt-Enter':   () => runSelected(),
             'Ctrl-Space':     (cm) => triggerAutocomplete(cm),
             'Alt-I':          (cm) => inspect(cm),
-            'Alt-Up':         (cm) => incrementValue(cm,  1,  runLineAtCursor),
-            'Alt-Down':       (cm) => incrementValue(cm, -1,  runLineAtCursor),
-            'Shift-Alt-Up':   (cm) => incrementValue(cm,  10, runLineAtCursor),
-            'Shift-Alt-Down': (cm) => incrementValue(cm, -10, runLineAtCursor),
+            'Alt-Up':         (cm) => { incrementValue(cm,  1,  runLineAtCursor); autoRec.capture(cm, autoRecCtx()); },
+            'Alt-Down':       (cm) => { incrementValue(cm, -1,  runLineAtCursor); autoRec.capture(cm, autoRecCtx()); },
+            'Shift-Alt-Up':   (cm) => { incrementValue(cm,  10, runLineAtCursor); autoRec.capture(cm, autoRecCtx()); },
+            'Shift-Alt-Down': (cm) => { incrementValue(cm, -10, runLineAtCursor); autoRec.capture(cm, autoRecCtx()); },
+            'Alt-T':          (cm) => autoRec.toggle(cm, autoRecCtx()),
+            'Esc':            (cm) => autoRec.cancelIfArmed(cm, autoRecCtx()) ? undefined : CodeMirror.Pass,
             'Alt-X':          (cm) => stopPlayerAtCursor(cm, clock, runLineAtCursor),
             'Alt-S':          (cm) => { const n = soloPlayerAtCursor(cm, clock); if (n) broadcastAction('solo', { name: n }); },
             'Ctrl-Alt-S':     ()   => { _unsoloFn(clock); broadcastAction('unsolo'); },

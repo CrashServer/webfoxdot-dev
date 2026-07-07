@@ -38,6 +38,7 @@ const SHORTCUTS = [
     { key: 'Alt+I',              desc: 'Info on the symbol under the cursor (synth / FX / pattern / function)' },
     { key: 'Alt+↑ / Alt+↓',      desc: 'Nudge value under cursor ±1 or ±0.1' },
     { key: 'Shift+Alt+↑/↓',      desc: 'Nudge value ×10' },
+    { key: 'Alt+T',              desc: 'Automation record: arm on a number, nudge it live, Alt+T again → var/linvar/sinvar (Alt+T cycles the form, Esc cancels)' },
     { key: 'Ctrl+/',             desc: 'Toggle line comment' },
 ];
 
@@ -202,10 +203,13 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha29';
+export const VERSION = 'alpha30';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha30', title: 'Automation recorder (Alt+T)', items: [
+        'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (with sub-beat clock timing) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Durations snap to a 1/4-beat grid so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).',
+    ]},
     { v: 'alpha29', title: '10 new FX · 34 scales · pattern methods · 2 synths · Paper theme · About card', items: [
         { t: 'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).', ex: 'alpha29new' },
         { t: 'Six more FX (CrashServer ports): clouds — MiClouds granular texture/reverb (clouds=drywet, cpos/csize/cdens/ctex/cpitch/cgain/cfb/cmode) · room2 — true-stereo FreeVerb2 (room2=size, mix2, damp2) · combres — tuned comb resonator (combres=mix, combfreq, combdecay, combspread) · subenh — sub-bass enhancer adds a synthesized -1oct sub (subenh, subhfreq, subhgain) · stereowidth — M/S widener that keeps bass mono (stereowidth, swfreq, swnarrow, swwide) · pumper — sidechain-style volume duck on the beat (pumper=depth, pumprate=pumps/beat). e.g. p1 >> pads(clouds=0.6) · b1 >> dbass(subenh=0.7, stereowidth=0.6) · d1 >> play(x.o., pumper=0.8).', ex: 'alpha29new' },

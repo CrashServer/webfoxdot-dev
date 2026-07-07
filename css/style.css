@@ -1331,3 +1331,24 @@ button.recording {
     font-size: 10px;
 }
 @media (max-width: 480px) { .about-tech { columns: 1; } }
+
+/* ── Automation recorder (Alt+T) — REC badge ─────────────────────────────── */
+#autorec-badge {
+    position: fixed;
+    top: 10px;
+    right: 12px;
+    z-index: 9999;
+    background: var(--red);
+    color: #fff;
+    padding: 4px 11px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    animation: autorec-pulse 1s ease-in-out infinite;
+    pointer-events: none;
+}
+#autorec-badge[hidden] { display: none; }
+@keyframes autorec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
