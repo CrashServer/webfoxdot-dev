@@ -413,6 +413,7 @@
             defsynth,
             rest:   () => REST,
             __REST: REST,
+            reroll,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
             // loop(name, dur=1, …) — beat-synced audio-loop player. Register named
             // loops with loadloop(name, url) first. dur sets the bars to stretch to.
@@ -527,7 +528,36 @@
     // time. Keyed by transpiled source + ctx key-count (a new defsynth appends a
     // key → count changes → recompile; same block, no new synth → cache hit).
     const _fnCache = new Map();
+    // ── Auto-reroll ───────────────────────────────────────────────────────────
+    // Re-evaluate a player's source line every N beats, so FROZEN random
+    // generators (motif, PShuf, chaos, PRand-as-degree…) reroll automatically
+    // without you re-running the line. reroll("g3", 8) starts; reroll("g3", 0)
+    // stops. The loop self-cancels when the player is stopped.
+    const _srcByPlayer = new Map();   // player name → last source line
+    const _rerollGen   = new Map();   // player name → generation token (supersedes old loops)
+    function reroll(name, beats = 8) {
+        if (!name) return;
+        const gen = (_rerollGen.get(name) || 0) + 1;
+        _rerollGen.set(name, gen);                     // bump → any running loop for this name stops
+        if (!(beats > 0)) { log(`reroll ${name} off`, 'info'); return; }
+        const tick = () => {
+            if (_rerollGen.get(name) !== gen) return;              // superseded by a newer reroll()
+            const p = clock._players.get(name);
+            if (!p || !p._active) return;                          // player stopped/gone → stop
+            const src = _srcByPlayer.get(name);
+            if (src) runCode(src, { fromRemote: true });           // re-eval locally → new random values
+            clock.mod(beats, tick);                                // repeat on the beat grid
+        };
+        clock.mod(beats, tick);
+        log(`reroll ${name} every ${beats}`, 'ok');
+    }
+
     function runCode(raw, { fromRemote = false, author = '', color = '' } = {}) {
+        // Remember each player's source line so reroll() can re-evaluate it later.
+        for (const ln of raw.split('\n')) {
+            const mm = ln.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
+            if (mm) _srcByPlayer.set(mm[1], ln);
+        }
         let js = transpile(raw.trim());
         js = applyRenames(js);
         log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');

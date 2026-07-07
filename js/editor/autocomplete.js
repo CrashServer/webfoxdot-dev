@@ -226,7 +226,7 @@ function patternValueItems() {
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
-    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(',
+    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(','reroll(',
     'say(','darker()','lighter()','shutup()','swap(','melody(',
     'midi(','midiin(','mlearn(','midiout(','link(',
 ];
