@@ -1,0 +1,76 @@
+# ══ crashDot — "Rage" ═══════════════════════════════════════════════════════
+# Rage Against the Machine style: funk-metal, drop-tuned syncopated chug,
+# stab-and-silence dynamics, a wah/scratch solo, a crushing half-time breakdown.
+# Load the kit first (♪ load kit), then put the cursor on #@intro and Ctrl+Enter —
+# it auto-plays and advances. Ctrl+;  (or shutup()) stops everything.
+#
+# The riffs lean on short sus (palm mutes), _ rests (the space IS the groove),
+# power-chord (0,7) stabs, and dur/amp swings between sections.
+
+#@#@ rage_machine
+Clock.bpm = 100
+Root.default = "E"
+Scale.default = "minor"
+
+#@intro(16)
+# lone drop-tuned bass chug — palm-muted (tiny sus), heavy syncopation, lots of _
+b1 >> dbass([0, 0, _, 0, _, 0, _, (0,7)], oct=2, dur=1/4, sus=0.16, amp=0.85, dist2=0.5, dist2shape=0.4, lpf=2600, hpf=40).unison(2)
+d1 >> play("x...x...x..x.x..", dur=1/4, amp=1)
+
+#@riff1(24)
+# THE riff — guitar + bass locked, tight kit, dense. Note the _ gaps = the chug.
+g1 >> ssaw([0, 0, _, 0, _, (0,7), _, 0,  0, _, 3, _, 1, 0, _, _], oct=4, dur=1/4, sus=0.14, amp=0.5, dist2=0.7, dist2shape=0.4, multicrush=0.55, mchighdrive=5, lpf=3400, hpf=120).unison(3)
+b1 >> dbass([0, 0, _, 0, _, 0, _, 0,  0, _, 3, _, 1, 0, _, _], oct=2, dur=1/4, sus=0.16, amp=0.85, dist2=0.45, lpf=2400, hpf=40).unison(2)
+d1 >> play("X.o.X..oX.o.X.oo", dur=1/4, amp=1, drcomp=0.5)
+h1 >> play("-.-.-.-.-.-.-.-.", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
+
+#@stop(8)
+# the RATM move — stab, then SILENCE. Big dynamic on the rests.
+g1 >> ssaw([(0,7), _, _, _, (0,7), _, _, _], oct=4, dur=1/4, sus=0.22, amp=0.6, dist2=0.8, multicrush=0.6)
+b1 >> dbass([0, _, _, _, 0, _, _, _], oct=2, dur=1/4, sus=0.22, amp=0.95, dist2=0.5)
+d1 >> play("X...X...", dur=1/4, amp=1)
+
+#@verse(24)
+# funky syncopated groove — bass drives, guitar throws stabs, busy hats
+b1 >> ebass([0, _, 0, 3, _, 0, _, 5, 0, _, 3, _, (0,7), _, 0, _], oct=3, dur=1/4, sus=0.18, amp=0.72, dist2=0.3, lpf=sinvar([700, 3200], [8])).unison(2)
+g1 >> ssaw([_, _, (0,7), _, _, _, 5, _], oct=5, dur=1/4, sus=0.12, amp=0.4, dist2=0.6, crush=0.4, bits=5, echo=0.2, echo_time=0.25).sometimes("stutter", 2)
+d1 >> play("X.oxX.o.x.oxX.o.", dur=1/4, amp=0.95, drcomp=0.4)
+h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=6000)
+
+#@build(16)
+# rising tension — 1/8 chug, filter opens, amp swells, octave lifts
+g1 >> ssaw([0, 3, 5, 7, 0, 3, 5, 7], oct=<4 5>, dur=1/8, sus=0.1, amp=linvar([0.3, 0.55], [8]), dist2=0.7, multicrush=0.5, lpf=linvar([600, 5000], [8])).unison(3)
+b1 >> dbass([0, 0, 0, 0], oct=2, dur=1/8, sus=0.12, amp=0.82, dist2=0.5)
+d1 >> play("x", dur=1/8, amp=linvar([0.6, 1], [8]))
+
+#@chorus(24)
+# wall of sound — power-chord riff, second guitar octave-up, wide, full kit
+g1 >> supersaw([(0,7), (0,7), _, (0,7), _, (3,10), _, (0,7)], oct=4, dur=1/4, sus=0.22, amp=0.5, dist2=0.6, multicrush=0.5, stereowidth=0.6, room2=0.4, mix2=0.25).unison(4)
+g2 >> ssaw([0, 0, _, 0, _, 3, _, 0], oct=5, dur=1/4, sus=0.14, amp=0.34, dist2=0.7, crush=0.4, bits=6, pan=<-0.6 0.6>).unison(2)
+b1 >> dbass([0, 0, _, 0, _, 3, _, 0], oct=2, dur=1/4, sus=0.18, amp=0.9, dist2=0.5, subenh=0.5)
+d1 >> play("X.oxX.o.X.oxX.oo", dur=1/4, amp=1, drcomp=0.5)
+h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
+v1 >> play("....X.......X...", dur=1/4, amp=1)
+
+#@solo(24)
+# Morello-style lead — freq-shift + ring-mod "wah", crushed, scratchy, over the riff
+g1 >> ssaw([0, 0, _, 0, _, 3, _, 0], oct=4, dur=1/4, sus=0.14, amp=0.42, dist2=0.6, multicrush=0.5)
+b1 >> dbass([0, 0, _, 0, _, 3, _, 0], oct=2, dur=1/4, sus=0.16, amp=0.8, dist2=0.4)
+d1 >> play("X.oxX.o.X.oxX.o.", dur=1/4, amp=0.95, drcomp=0.4)
+ld >> saw(arp([0, 3, 7, 10, 12], "updown"), oct=6, dur=1/8, sus=0.1, amp=0.4, fshift=var([0, 120, 40], [4]), ringmod=0.4, ringmod_freq=sinvar([100, 900], [2]), crush=0.4, bits=5, echo=0.3, echo_time=0.25).every(4, "shuffle")
+
+#@breakdown(16)
+# half-time, crushing — long sustains, sparse hits, wide reverb
+Clock.bpm = 92
+g1 >> supersaw([(0,7), _, _, _, (5,12), _, _, _], oct=3, dur=1/2, sus=1.6, amp=0.55, dist2=0.7, multicrush=0.6, room2=0.6, mix2=0.35).unison(3)
+b1 >> dbass([0, _, _, _, 5, _, _, _], oct=2, dur=1/2, sus=1.2, amp=0.95, dist2=0.5, subenh=0.6)
+d1 >> play("X.......o.......", dur=1/4, amp=1, drcomp=0.6)
+
+#@outro(16)
+# the riff one last time — amp + freq-shift bleed out to feedback
+Clock.bpm = 100
+g1 >> ssaw([0, 0, _, 0, _, (0,7), _, 0], oct=4, dur=1/4, sus=0.14, amp=linvar([0.5, 0], [16]), dist2=0.7, multicrush=0.5, fshift=linvar([0, 400], [16])).unison(3)
+b1 >> dbass([0, 0, _, 0], oct=2, dur=1/4, sus=0.16, amp=linvar([0.85, 0], [16]), dist2=0.4)
+d1 >> play("X.o.X.o.", dur=1/4, amp=linvar([1, 0], [16]))
+
+#@end(8)
