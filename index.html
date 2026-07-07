@@ -24,6 +24,7 @@
       <button id="btn-stop" disabled>stop all</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
       <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪ load kit</button>
+      <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
@@ -218,6 +219,7 @@
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
+    import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initSoloPresence }          from './js/collab/presence.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
@@ -1013,7 +1015,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     const _qs = new URLSearchParams(location.search);
     const _sessionSlug = _qs.get('session') || _qs.get('s') || _qs.get('') || null;
     const SOLO_KEY = 'wfd-buffer';
-    const _startValue = (!_sessionSlug && localStorage.getItem(SOLO_KEY)) || INITIAL_CODE;
+    // A self-contained share link (#c=…) carries a whole composition — decoded after
+    // the editor is created (it's async), and takes precedence over the local buffer.
+    const _shareTok = new URLSearchParams(location.hash.slice(1)).get('c');
+    const _startValue = (!_sessionSlug && !_shareTok && localStorage.getItem(SOLO_KEY)) || INITIAL_CODE;
 
     const editor = CodeMirror(document.getElementById('editor-wrap'), {
         value:            _startValue,
@@ -1051,6 +1056,20 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         },
     });
 
+    // A share link (#c=…) loads its composition into the editor (async decode).
+    // Only when not joining a live session (that has its own shared buffer).
+    if (_shareTok && !_sessionSlug) {
+        decodeShare(_shareTok).then((code) => {
+            if (code != null) {
+                editor.setValue(code);
+                editor.setCursor({ line: 0, ch: 0 });
+                log('loaded a shared composition from the link — edit & run', 'success');
+            } else {
+                log('this share link could not be decoded', 'error');
+            }
+        });
+    }
+
     // Solo-mode autosave — debounced write of the buffer to localStorage
     if (!_sessionSlug) {
         let _saveTimer = null;
@@ -1085,6 +1104,26 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
+
+    // ── Share — copy a self-contained link (the whole composition rides in #c=…) ──
+    document.getElementById('btn-share').onclick = async () => {
+        const code = editor.getValue();
+        if (!code.trim()) { log('nothing to share — the editor is empty', 'error'); return; }
+        try {
+            const url = shareUrl(await encodeShare(code));
+            const kb  = (url.length / 1024).toFixed(1);
+            try { await navigator.clipboard.writeText(url); }
+            catch (_) {   // clipboard blocked (no https / no focus) — put it in the URL bar instead
+                history.replaceState(null, '', url);
+                log(`share link is in the address bar (${kb} KB) — clipboard was blocked, copy it manually`, 'info');
+                return;
+            }
+            if (url.length > 8000)
+                log(`share link copied (${kb} KB) — heads up: it's long, some chat apps may truncate it (a server short-link is coming)`, 'info');
+            else
+                log(`share link copied (${kb} KB) — anyone who opens it loads this exact composition`, 'success');
+        } catch (e) { log(`share failed: ${e.message}`, 'error'); }
+    };
 
     // ── Load the default sample pack (webfoxdot-kit) from GitHub, one click ──────
     const DEFAULT_KIT_URL = 'https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json';

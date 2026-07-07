@@ -204,10 +204,13 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha30';
+export const VERSION = 'alpha31';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha31', title: 'Share compositions by link', items: [
+        'Share button (⤴ in the toolbar) — copies a self-contained link to your clipboard that carries the WHOLE composition inside the URL (#c=…, deflate-compressed), so it needs no server and never expires. Open the link and it loads that exact buffer into the editor, ready to edit & run. Great for short sketches; a big #@ track makes a long URL that some chat apps may truncate — a server-backed short link is coming next. (If the clipboard is blocked, the link is put in the address bar to copy manually.)',
+    ] },
     { v: 'alpha30', title: 'Automation recorder · reroll · rests · flexible args · synthesis tutorials', items: [
         { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (sampled at one point per beat) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Timing is quantised to whole beats so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },
         { t: '.reroll(beats) — a chainable player method that auto-re-evaluates the player line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. e.g. g3 >> pluck(motif(8), dur=1/2).reroll(4). .reroll(0) stops it; it also stops when the player stops. motif also has a built-in reroll as its 4th arg — motif(8, 7, 2, 4) refreshes itself every 4 beats with no method at all.', ex: 'reroll' },
