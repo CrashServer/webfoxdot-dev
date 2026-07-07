@@ -1038,8 +1038,25 @@ export function optName(val, names, step = 0) {
 }
 
 const _ARP_MODES = ['up', 'down', 'updown', 'downup', 'random'];
-export function arp(degrees, mode = 'up') {
-    const base = (Array.isArray(degrees) ? degrees : [degrees]).slice();
+// shift a degree element up by n (number, each group member, or leave generators)
+function _shiftDeg(el, n) {
+    if (!n) return el;
+    if (typeof el === 'number') return el + n;
+    if (isGroup(el)) return _group(...el.__group.map(x => _shiftDeg(x, n)));
+    return el;
+}
+// arp(degrees, mode, octaves, perOct) — reorder degrees by mode and cycle them one
+// per step. mode: a NAME (up/down/updown/downup/random), an INTEGER index, or a var
+// (mode changes over time). octaves>1 spans the pattern across octaves (+perOct
+// degrees each; perOct=7 = a diatonic octave). e.g. arp([0,4,7], 2, 2).
+export function arp(degrees, mode = 'up', octaves = 1, perOct = 7) {
+    let base = (Array.isArray(degrees) ? degrees : [degrees]).slice();
+    const oc = Math.max(1, Math.round(octaves) || 1);
+    if (oc > 1) {
+        const spanned = [];
+        for (let o = 0; o < oc; o++) for (const d of base) spanned.push(_shiftDeg(d, o * perOct));
+        base = spanned;
+    }
     const order = (m) => {
         let seq = base.slice();
         if (m === 'down') seq.reverse();
