@@ -218,8 +218,8 @@ const CHANGELOG = [
         'Fix: <a b> alternation is now stable under .unison() — it caches per step, so the several reads unison does per step no longer scramble which item is playing. And the play-position highlight lights the ACTIVE <…> item (a brighter amber box) even when it is nested inside a chord — e.g. dbass([…, (<4, 8>, 2), …]) shows whether 4 or 8 is sounding.',
         { t: 'Synthesis tutorials — three new worked examples under Examples › Sound design that build a synth from scratch with defsynth(): additive (stack sine harmonics), subtractive (a rich saw through a filter-envelope sweep), and FM (carrier + modulator, ratio & index). Each explains the technique and has runnable code you can tweak.', ex: 'syn-additive' },
         'New synth: synthbass — an 80s / synthwave / Daft-Punk bass. Detuned saws + a sub sine through a Moog ladder filter with a snappy filter envelope and tanh drive. Clear controls: sus=note length, detune=saw spread %, cutoff/res/fenv=filter + its envelope, sub=weight, drive=warmth, glide=portamento. e.g. b1 >> synthbass([0,0,7,0], oct=2, dur=1/4, sus=0.2, detune=0.45, fenv=4, drive=1.7). Showcased in the "Neon Drive" set (example10.txt).',
-        { t: 'French-electro pack — 5 more CrashServer synths ported: dafbass (Daft-Punk distorted harmonic bass), a_daftlead (Justice/Daft detuned saw lead w/ filter sweep), a_stab (aggressive major-chord stab), a_vlead (glitchy chopped lead), a_vpad (evolving granular pad). e.g. b1 >> dafbass([0,0,3,5], oct=2, dur=1/4) · p1 >> a_stab([0,3,5], oct=5, dur=1/2, distortion=6).', ex: 'chromatic_drive' },
-        { t: 'Scale.default / Root.default now accept a var, so the KEY can move over time — Root.default = var([0, 2, 4]) or Root.default = var(["E", "F"]) · Scale.default = var(["minor", "major"]). And the Scale / Root dropdowns now reflect changes made from code (Scale.default = "major") and follow a var as it advances. Showcased in the "Chromatic Drive" set.', ex: 'chromatic_drive' },
+        'French-electro pack — 5 more CrashServer synths ported: dafbass (Daft-Punk distorted harmonic bass), a_daftlead (Justice/Daft detuned saw lead w/ filter sweep), a_stab (aggressive major-chord stab), a_vlead (glitchy chopped lead), a_vpad (evolving granular pad). e.g. b1 >> dafbass([0,0,3,5], oct=2, dur=1/4) · p1 >> a_stab([0,3,5], oct=5, dur=1/2, distortion=6).',
+        'Scale.default / Root.default now accept a var, so the KEY can move over time — Root.default = var([0, 2, 4]) or Root.default = var(["E", "F"]) · Scale.default = var(["minor", "major"]). And the Scale / Root dropdowns now reflect changes made from code (Scale.default = "major") and follow a var as it advances.',
     ]},
     { v: 'alpha29', title: '10 new FX · 34 scales · pattern methods · 2 synths · Paper theme · About card', items: [
         { t: 'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).', ex: 'alpha29new' },
@@ -1405,53 +1405,6 @@ g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])
 #@end(16)`)}
     `, 'in_the_mood');
 
-    const chromaticDrive = section('Chromatic Drive (synthbass · moving root)', `
-        ${note('Electro built on <b>synthbass</b> over a Root that MOVES — Root.default = var([…]) shifts the key every 2 bars, and the bass, pad, arp and stabs all follow it (they read the root), so it stays coherent. Load the kit (♪ load kit), cursor on <code>#@intro</code>, Ctrl+Enter. Uses the new French-electro synths (a_vpad / a_daftlead / a_stab), arp octaves, a <code>&lt;7 12&gt;</code> alt and <code>_</code> rests.')}
-        ${code(`# ══ Chromatic Drive ══
-#@#@ chromatic_drive
-Clock.bpm = 120
-Scale.default = "minor"
-Root.default = var(["E", "G", "F", "F#"], 8)          # key shifts every 8 beats
-
-#@intro(16)
-b1 >> synthbass([0, 0, 7, 0, 3, 0, 5, 3], oct=2, dur=1/4, sus=0.35, detune=0.2, cutoff=linvar([500, 1600], [16]), res=0.4, fenv=6, drive=1.5).unison(3)
-k1 >> play("x", dur=1/2, amp=1)
-
-#@groove(24)
-b1 >> synthbass([0, 0, 7, 0, 3, 5, 7, 5], oct=2, dur=1/4, sus=0.35, detune=0.25, cutoff=sinvar([500, 1600], [8]), res=0.42, fenv=6, drive=1.6, pumper=0.7).unison(3)
-k1 >> play("x", dur=1/2, amp=1)
-c1 >> play("....o.......o...", dur=1/4, amp=0.9)
-h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
-
-#@lift(16)
-p1 >> a_vpad((0, 3, 7), oct=4, dur=8, sus=8, amp=0.35, cutoff=linvar([600, 2600], [16]), texture=0.7)
-b1 >> synthbass([0, 0, 7, 0, 3, 5, 7, 5], oct=2, dur=1/4, sus=0.35, detune=0.25, cutoff=linvar([500, 1800], [16]), res=0.42, fenv=6, drive=1.6, pumper=0.7).unison(3)
-k1 >> play("x", dur=1/2, amp=1)
-c1 >> play("....o.......o...", dur=1/4, amp=0.9)
-h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
-
-#@drop(24)
-b1 >> synthbass([0, 0, 7, 0, 3, 5, <7 12>, 5], oct=2, dur=1/4, sus=0.32, detune=0.3, cutoff=1400, res=0.45, fenv=6, drive=1.8, pumper=0.75, glide=0.02, stereowidth=0.4).unison(4)
-ld >> a_daftlead(arp([0, 3, 7], "up", 2), oct=5, dur=1/8, sus=0.1, cutoff=2800, resonance=0.4, drive=2, echo=0.25, echo_time=0.375, amp=0.4).every(8, "rotate")
-st >> a_stab((0, 3, 7), oct=5, dur=2, sus=0.3, distortion=5, filterFreq=1600, amp=0.4, pan=<-0.4 0.4>)
-p1 >> a_vpad((0, 3, 7), oct=4, dur=8, sus=8, amp=0.3, cutoff=2600, texture=0.8)
-k1 >> play("x", dur=1/2, amp=1)
-c1 >> play("....o.......o...", dur=1/4, amp=0.9)
-h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
-v1 >> play("........X.......", dur=1/4, amp=1)
-
-#@break(16)
-b1 >> synthbass([0, _, _, 3, _, _, 5, _], oct=2, dur=1/4, sus=0.7, detune=0.25, cutoff=linvar([1600, 400], [16]), res=0.4, fenv=3, drive=1.4, glide=0.05)
-p1 >> a_vpad((0, 3, 7, 10), oct=4, dur=8, sus=8, amp=0.4, cutoff=1800, texture=0.9)
-
-#@outro(16)
-b1 >> synthbass([0, 0, 7, 0, 3, 5, 7, 5], oct=2, dur=1/4, sus=0.35, detune=0.25, cutoff=linvar([1400, 300], [16]), res=0.4, fenv=5, drive=1.6, amp=linvar([0.9, 0], [16])).unison(3)
-k1 >> play("x", dur=1/2, amp=linvar([1, 0], [16]))
-
-#@end(8)`)}
-    `, 'chromatic_drive');
-
-
 
     const whatsNew = section('Live-coding tour — transforms · cross-player · FX · MIDI', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
@@ -1735,7 +1688,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // in sync with this page.
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, chromaticDrive]],
+        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
