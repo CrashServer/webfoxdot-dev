@@ -4,7 +4,7 @@
     'use strict';
 
     const SYNTHS = [
-        'a_gesa','a_daft','a_hhat','pumpbass','abass','acidbass','alva','ambi','angst','arpy','arpymod','audioin',
+        'a_gesa','a_daft','a_daftlead','a_hhat','a_stab','a_vlead','a_vpad','dafbass','pumpbass','abass','acidbass','alva','ambi','angst','arpy','arpymod','audioin',
         'bass','bbass','bell','bellmod','blip','bnoise','bounce','braids',
         'breakcore','brown','bug','cbass','charm','click','cluster','combs',
         'compkick','compperc','crackle','creep','cringe','crunch','cs80','dab','dafbass','darkpad',

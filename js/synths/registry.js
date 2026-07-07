@@ -71,6 +71,37 @@ export const SYNTH_DEFS = {
         defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, detune: 0.3, cutoff: 900, res: 0.35, fenv: 3, sub: 0.7, drive: 1.5, glide: 0 },
         extraParams: ['detune', 'cutoff', 'res', 'fenv', 'sub', 'drive', 'glide'],
     },
+    // ── French-electro / Justice / Daft-Punk pack (CrashServer ports) ──────────
+    // dafbass — Daft-Punk distorted harmonic bass (play it low)
+    dafbass: {
+        scName: 'fd_dafbass',
+        defaults: { oct: 2, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.02, rate: 1 },
+        extraParams: ['rate'],
+    },
+    // a_daftlead — Justice/Daft detuned saw lead with a filter sweep
+    a_daftlead: {
+        scName: 'fd_a_daftlead',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 2000, resonance: 0.6, filterEnv: 0.8, drive: 2, rate: 1 },
+        extraParams: ['cutoff', 'resonance', 'filterEnv', 'drive', 'rate'],
+    },
+    // a_stab — aggressive detuned major-chord stab
+    a_stab: {
+        scName: 'fd_a_stab',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.005, release: 0.05, filterFreq: 1000, resonance: 0.7, distortion: 5 },
+        extraParams: ['filterFreq', 'resonance', 'distortion'],
+    },
+    // a_vlead — complex glitchy chopped lead
+    a_vlead: {
+        scName: 'fd_a_vlead',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.1, complexity: 0.7, glitch: 0.5, cutoff: 3000, rate: 1 },
+        extraParams: ['complexity', 'glitch', 'cutoff', 'rate'],
+    },
+    // a_vpad — evolving granular-textured pad
+    a_vpad: {
+        scName: 'fd_a_vpad',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.8, release: 1, texture: 0.8, granularity: 0.6, cutoff: 1000 },
+        extraParams: ['texture', 'granularity', 'cutoff'],
+    },
     // wobble — dubstep wobble bass (CrashServer port; MoogFF LFO-swept). Play it low.
     wobble: {
         scName: 'fd_wobble',
