@@ -208,7 +208,7 @@ export const VERSION = 'alpha30';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'alpha30', title: 'Automation recorder (Alt+T)', items: [
-        'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (with sub-beat clock timing) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Durations snap to a 1/4-beat grid so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).',
+        { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (with sub-beat clock timing) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Durations snap to a 1/4-beat grid so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },
     ]},
     { v: 'alpha29', title: '10 new FX · 34 scales · pattern methods · 2 synths · Paper theme · About card', items: [
         { t: 'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).', ex: 'alpha29new' },
@@ -1276,6 +1276,20 @@ b2 >> bass([0,0,3,5], oct=4, dur=1/2, pumper=0.8, pumprate=1)   # ducks each bea
 p8 >> pads((0,4,7), oct=5, dur=2, room2=0.8, combres=0.4)`)}
     `, 'alpha29new');
 
+    const alpha30new = section('New in alpha30 — automation recorder (Alt+T)', `
+        ${note('<b>Record a live knob-move into a TimeVar.</b> Put the cursor on any number, press <b>Alt+T</b> to arm (a ● REC badge appears), nudge the value with <b>Alt+↑/↓</b> as usual, then press <b>Alt+T</b> again — your gesture is captured (with sub-beat clock timing) and swapped into the code as the most pertinent TimeVar. Durations snap to a 1/4-beat grid so it loops cleanly.')}
+        ${note('Boot audio and run this, then park the cursor on the <code>800</code> and try it:')}
+        ${code(`p1 >> saw([0,2,4,7], oct=5, dur=1/4, lpf=800)
+#                                          ^ cursor here → Alt+T, sweep Alt+↑ a few beats, Alt+T`)}
+        ${note('<b>It picks the pertinent form automatically:</b> a smooth ramp → <code>linvar</code>, an up-then-down wobble → <code>sinvar</code>, and stepped holds → <code>var</code> (a step-hold, not a glide). For example the sweep above becomes something like:')}
+        ${code(`p1 >> saw([0,2,4,7], oct=5, dur=1/4, lpf=linvar([800, 4200], 4))`)}
+        ${note('<b>Not the form you wanted?</b> With the cursor still on the inserted expression, tap <b>Alt+T</b> to CYCLE through the forms: <code>var → linvar → sinvar → [array]</code>. <b>Esc</b> while recording cancels and restores the original number.')}
+        ${code(`# stepped holds (a few big jumps) capture as a step-hold var:
+b1 >> bass([0,3], oct=4, dur=1/2, cutoff=var([300, 1200, 600], [2, 2, 4]))
+# an up-down move captures as a wobble:
+p2 >> pads((0,4,7), oct=5, dur=2, room2=sinvar([0.2, 0.9], 8))`)}
+    `, 'alpha30new');
+
     // ── Technique showcases — one idea at a time ──────────────────────────────
     const t_chords = section('Chords & progressions', `
         ${note('Chords are built in scale degrees, so they stay in key. PChord is one chord, PRoman a numeral progression, PProg a named one, PCircle walks the circle of fifths.')}
@@ -1468,6 +1482,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // in sync with this page.
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
+        ['New in alpha30',  [alpha30new]],
         ['New in alpha29',  [alpha29new]],
         ['New in alpha28',  [whatsNew]],
         ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched]],
