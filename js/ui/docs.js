@@ -208,10 +208,10 @@ export const VERSION = 'alpha30';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'alpha30', title: 'Automation recorder (Alt+T)', items: [
-        'reroll("g3", 8) — auto-re-evaluate a player\'s line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. reroll("g3", 0) stops it; it also stops when the player stops. e.g. g3 >> pluck(motif(8), dur=1/8) then reroll("g3", 4).',
-        'Named-option args now also accept an integer index or a var — arp([0,4,7], 2) == arp([0,4,7], "updown"), and arp(deg, var(["up","down"], 4)) sweeps the mode over time. Same for PGroove, PContour, PClave, PProg (arp/PGroove vary per-step with a var).',
+        { t: 'reroll("g3", 8) — auto-re-evaluate a player\'s line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. reroll("g3", 0) stops it; it also stops when the player stops. e.g. g3 >> pluck(motif(8), dur=1/8) then reroll("g3", 4).', ex: 'reroll' },
+        { t: 'Named-option args now also accept an integer index or a var — arp([0,4,7], 2) == arp([0,4,7], "updown"), and arp(deg, var([0,1], 4)) sweeps the mode over time. Same for PGroove, PContour, PClave, PProg (arp/PGroove vary per-step with a var).', ex: 'optargs' },
         'Autocomplete: typing `.` after a player now auto-opens the method menu (every/sometimes/penta/chroma/solo/only/stop/degrade/…); the pattern-generator list is grouped into families (rhythm/melody/harmony/random/chaos/sequence); and the first arg of a synth call (the degree) suggests pattern generators.',
-        'Rests in a degree list — a standalone `_` or bare `rest` now fires NO note (true silence): cs80([4, _, 1, rest, 2]) skips the 2nd and 4th steps. (A `.` still plays degree 0 as before, so existing patterns are unchanged.) Works with `+` transposition too. Pattern autocomplete after `p1 >> synth(` now also suggests pattern generators for the degree, grouped into families (rhythm/melody/harmony/random/chaos/sequence).',
+        { t: 'Rests in a degree list — a standalone `_` or bare `rest` now fires NO note (true silence): cs80([4, _, 1, rest, 2]) skips the 2nd and 4th steps. (A `.` still plays degree 0 as before, so existing patterns are unchanged.) Works with `+` transposition too. Pattern autocomplete after `p1 >> synth(` now also suggests pattern generators for the degree, grouped into families (rhythm/melody/harmony/random/chaos/sequence).', ex: 'rest' },
         { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (sampled at one point per beat) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Timing is quantised to whole beats so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },
         { t: 'Synthesis tutorials — three new worked examples under Examples › Sound design that build a synth from scratch with defsynth(): additive (stack sine harmonics), subtractive (a rich saw through a filter-envelope sweep), and FM (carrier + modulator, ratio & index). Each explains the technique and has runnable code you can tweak.', ex: 'syn-additive' },
     ]},
@@ -1470,6 +1470,28 @@ b1 >> bass([0,3], oct=4, dur=1/2, cutoff=var([300, 1200, 600], [2, 2, 4]))
 p2 >> pads((0,4,7), oct=5, dur=2, room2=sinvar([0.2, 0.9], 8))`)}
     `, 'alpha30new');
 
+    const exReroll = section('Auto-reroll a generative pattern (reroll)', `
+        ${note('<b>reroll("name", beats)</b> re-evaluates a player line every N beats, so a FROZEN random generator (motif, PShuf, chaos, a PRand degree) picks new values on its own — no re-running by hand. reroll("name", 0) stops it; it also stops when the player stops.')}
+        ${code(`g1 >> pluck(motif(8), oct=5, dur=1/8, amp=0.5)
+reroll("g1", 4)      # a new 8-note motif every 4 beats
+
+# reroll("g1", 0)    # stop rerolling (keeps playing the last one)`)}
+    `, 'reroll');
+
+    const exOptArgs = section('Option args as a number or a var (arp · PGroove)', `
+        ${note('Functions that take a named string option — <b>arp, PGroove, PContour, PClave, PProg</b> — also accept an INTEGER index or a var. With a var, arp and PGroove reshape over time.')}
+        ${code(`p1 >> pluck(arp([0,4,7], "updown"), oct=5, dur=1/8)          # by name
+p1 >> pluck(arp([0,4,7], 2), oct=5, dur=1/8)                 # 2 == "updown"
+p1 >> pluck(arp([0,4,7], var([0,1,3], 4)), oct=5, dur=1/8)   # mode changes every 4 beats
+b1 >> bass([0,3], oct=4, dur=PGroove(1))                     # groove by index`)}
+    `, 'optargs');
+
+    const exRest = section('Rests in a degree list ( _ / rest )', `
+        ${note('A standalone <code>_</code> or bare <code>rest</code> in a degree list fires NO note (true silence). A <code>.</code> still plays degree 0 — so the two are different on purpose.')}
+        ${code(`p1 >> pluck([0, _, 4, _, 7, rest, 4, _], oct=5, dur=1/8)   # _ and rest = silence
+p2 >> pluck([0, ., 4, ., 7, ., 4, .], oct=4, dur=1/8)      # . plays 0 (compare)`)}
+    `, 'rest');
+
     // ── Technique showcases — one idea at a time ──────────────────────────────
     const t_chords = section('Chords & progressions', `
         ${note('Chords are built in scale degrees, so they stay in key. PChord is one chord, PRoman a numeral progression, PProg a named one, PCircle walks the circle of fifths.')}
@@ -1663,9 +1685,9 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
         ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood]],
-        ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new]],
+        ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
-        ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen]],
+        ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
         ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, alpha29new, samples, loop]],
         ['Perform & MIDI',  [sections, midi, perf]],
         ['Deep dives',      DEEP],
