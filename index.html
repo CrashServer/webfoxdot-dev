@@ -1030,6 +1030,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         });
     }
 
+    // Auto-open the method menu when you type `.` right after an identifier
+    // (a player, a P[…] pattern, …) — so p1. offers every/sometimes/penta/solo/…
+    // Guarded so a decimal like 0.5 doesn't pop the menu.
+    editor.on('inputRead', (cm, change) => {
+        if (change.text.length !== 1 || change.text[0] !== '.') return;
+        const cur = cm.getCursor();
+        const before = cm.getLine(cur.line).slice(0, cur.ch - 1);
+        if (/([a-zA-Z_]\w*|[)\]])$/.test(before)) triggerAutocomplete(cm);
+    });
+
     // Stream the line under the cursor to the visuals window as you type/move it
     // ("instant code"). Throttled inside the bridge.
     editor.on('cursorActivity', () => {

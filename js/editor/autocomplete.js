@@ -9,9 +9,11 @@ const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
-    'stop()', 'solo()', 'soloDrop()', 'once()', 'drummer()', 'gtr(5)', 'penta()', 'chroma()', 'every()', 'stutter()', 'reverse()', 'shuffle()',
+    'stop()', 'stop(4)', 'solo()', 'solo(8)', 'only()', 'only(8)', 'soloDrop()', 'unsolo()',
+    'once()', 'drummer()', 'gtr(5)', 'penta()', 'chroma()', 'degrade(0.5)', 'human()',
+    'every()', 'stutter()', 'reverse()', 'shuffle()', 'unison(2)',
     'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
-    'always()', 'almostNever()', 'after(4, "stop")', 'unison(2)',
+    'always()', 'almostNever()', 'after(4, "stop")',
     'follow("p1")', 'accompany("p1")', 'map("p1", {0: 5, 4: 7})',
     'jump(1)', 'rotate(1)', 'mirror()', 'strum(0.05)', 'offbeat()', 'multiply(2)',
     'every(4, "rotate")', 'sometimes("mirror")',
@@ -362,8 +364,12 @@ function hintFn(cm) {
     const before = line.slice(0, cursor.ch);
 
     const wordM     = before.match(/([a-zA-Z_][\w.]*)$/);
-    const wordStart = wordM ? cursor.ch - wordM[1].length : cursor.ch;
-    const typedWord = wordM ? wordM[1] : '';
+    let   wordStart = wordM ? cursor.ch - wordM[1].length : cursor.ch;
+    let   typedWord = wordM ? wordM[1] : '';
+    // Member access (player.method): complete only the part AFTER the last dot, so
+    // p1. filters/inserts the method — not the whole "p1." (which matches nothing).
+    const dotIdx = typedWord.lastIndexOf('.');
+    if (dotIdx >= 0) { wordStart += dotIdx + 1; typedWord = typedWord.slice(dotIdx + 1); }
     const from = { line: cursor.line, ch: wordStart };
     const to   = cursor;
 
