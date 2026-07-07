@@ -1,4 +1,9 @@
 // Scale and root — mirrors FoxDot's Scale/Root system
+import { currentBeat } from '../patterns/timevars.js';
+
+// Sample a var/timevar/pattern ({get}) at the current beat; pass other values through —
+// lets Scale.default / Root.default take a var so the key changes over time.
+function _resolve(v) { return (v && typeof v.get === 'function') ? v.get(Math.floor(currentBeat())) : v; }
 
 export const SCALE_MAP = {
     major:        [0, 2, 4, 5, 7, 9, 11],
@@ -51,11 +56,20 @@ export const SCALE_MAP = {
 };
 
 export const Scale = {
-    _name: 'minor',
-    get default() { return SCALE_MAP[this._name] ?? SCALE_MAP.minor; },
+    _name: 'minor',                                      // a scale name, custom array marker, or a var
+    get default() { return SCALE_MAP[this.currentName] ?? SCALE_MAP.minor; },
+    // The resolved scale name right now (used for the lookup AND the UI reflection).
+    get currentName() {
+        const v = _resolve(this._name);
+        if (Array.isArray(v)) { SCALE_MAP.__custom = v; return '__custom'; }
+        if (typeof v === 'number') { const ks = Object.keys(SCALE_MAP); return ks[((Math.round(v) % ks.length) + ks.length) % ks.length]; }
+        return (typeof v === 'string') ? v : 'minor';
+    },
     set default(v) {
-        if (typeof v === 'string')   { this._name = v; }
-        else if (Array.isArray(v))   { SCALE_MAP.__custom = v; this._name = '__custom'; }
+        if (v && typeof v.get === 'function') { this._name = v; }        // keep the var — it advances over time
+        else if (typeof v === 'string')       { this._name = v; }
+        else if (Array.isArray(v))            { SCALE_MAP.__custom = v; this._name = '__custom'; }
+        else if (typeof v === 'number')       { this._name = v; }        // an index into the scale library
     },
     get names() { return Object.keys(SCALE_MAP); },
 };
@@ -71,14 +85,18 @@ export function noteToSemitone(v) {
 }
 
 export const Root = {
-    _v: 0,
-    get default() { return this._v; },
-    // Accepts a number (0–11 semitone) OR a note name: Root.default = "E"
+    _v: 0,                                               // a semitone, or a var of semitones/note-names
+    // Accepts a number (0–11 semitone), a note name ("E"), OR a var of either:
+    //   Root.default = var([0, 2, 4])   ·   Root.default = var(["E", "F"])
+    get default() {
+        const v = _resolve(this._v);
+        if (typeof v === 'string') { const s = noteToSemitone(v); return s !== null ? s : (Number(v) || 0); }
+        return Number(v) || 0;
+    },
     set default(v) {
-        if (typeof v === 'string') {
-            const s = noteToSemitone(v);
-            this._v = s !== null ? s : (Number(v) || 0);
-        } else { this._v = Number(v) || 0; }
+        if (v && typeof v.get === 'function') { this._v = v; return; }   // keep the var
+        if (typeof v === 'string') { const s = noteToSemitone(v); this._v = s !== null ? s : (Number(v) || 0); }
+        else { this._v = Number(v) || 0; }
     },
 };
 

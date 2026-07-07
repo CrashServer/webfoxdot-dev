@@ -199,7 +199,9 @@ function _initScaleRoot() {
 
 // Reflect external Scale/Root changes back into the selects (called from _update).
 function _reflectScaleRoot() {
-    if (_scaleEl && _scaleEl.value !== Scale._name) _scaleEl.value = Scale._name;
+    // Use the RESOLVED current name/semitone so the selects follow both code changes
+    // (Scale.default = "major") and a var (Scale.default = var([...])) as it advances.
+    if (_scaleEl) { const n = Scale.currentName; if (n !== '__custom' && _scaleEl.value !== n) _scaleEl.value = n; }
     if (_rootEl) { const r = String(Root.default ?? 0); if (_rootEl.value !== r) _rootEl.value = r; }
 }
 
