@@ -157,6 +157,17 @@ const SCALE_NAMES = [
     'pentatonic','minPentatonic','chromatic','diminished','bhairav',
 ];
 
+// Pattern generators grouped into families — the long P* list unfolds into these
+// sub-menus (mirrors SYNTH_SUBCATS / FX_SUBCATS). Anything unlisted lands in "other".
+const PATTERN_SUBCATS = [
+    ['rhythm',   ['PDur','PBeat','PEuclid','PEuclidR','PEuclid2','PDrum','PBin','PFDur','PRhythm','PPoly','PClave','PSum','PDelta','PDelay','PStrum','PQuicken','PGroove','PSwing','Pacc','PStep']],
+    ['melody',   ['PWalk','PPing','PContour','PSine','PTri','PSaw','PExp','PPulse','PSlide','PRange','PAlt','PStutter','PStretch','motif','arp']],
+    ['harmony',  ['PChord','PRoman','PProg','PCircle','PArp','PGrowArp']],
+    ['random',   ['PRand','PWhite','PwRand','PxRand','PGauss','PLog','PCoin','PBern','PShuf','P10','PBool']],
+    ['chaos',    ['PLogistic','PBrown','PHenon','PLorenz','PLife','PMarkov','PChain']],
+    ['sequence', ['PIndex','PSquare','PFib','PFibMod','PSq','PPrime','PThue','PTree','PZero','PZ12','PZip','PZip2','PJoin','PReverse','PPairs','PChar','PTime','PFr','PMorse']],
+];
+
 // Only patterns we actually implement (keeps suggestions runnable)
 const PATTERN_NAMES = [
     'PRand','PWhite','PWalk','PDur','PPing','PStutter','PAlt','PShuf','PBern','PCoin',
@@ -197,6 +208,18 @@ const PATTERN_TEMPLATES = {
 const patItem = (n) => item(PATTERN_TEMPLATES[n] || (n + '('), 'hint-pattern', n);
 
 const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','lininf(','expinf(','Pvar(','fperlin(','fi(','fo(','fb('];
+
+// Shared list for value/degree positions: pattern generators (auto-grouped into
+// families by toTree) then time-varying values. Timevars get their OWN separator
+// so the "— patterns —" category is purely hint-pattern (→ family-grouped).
+function patternValueItems() {
+    return [
+        sep('— patterns —'),
+        ...PATTERN_NAMES.map(patItem),
+        sep('— timevars —'),
+        ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
+    ];
+}
 
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
@@ -256,10 +279,28 @@ function getContext(cm) {
     if (call && call.fn) {
         // value position: right after `param=` → suggest patterns/timevars
         if (before.match(/[a-zA-Z_]\w*\s*=\s*[a-zA-Z_]*$/)) return { type: 'value', word };
+        // First positional arg of a synth = the DEGREE → suggest pattern generators
+        // (a degree can be PWalk(…)/PCircle(…)/var(…)…). Only before the first comma.
+        if (SYNTH_NAMES.includes(call.fn) && call.open != null
+                && !hasTopLevelComma(before.slice(call.open + 1))) {
+            return { type: 'degree', synth: call.fn, word };
+        }
         if (call.fn === 'play' || SYNTH_NAMES.includes(call.fn)) return { type: 'param', synth: call.fn, word };
         return { type: 'param', synth: null, word };
     }
     return { type: 'general', word };
+}
+
+// True if `s` contains a comma at bracket-depth 0 (so nested [..]/(..) commas
+// don't count) — used to tell the first synth arg (degree) from later ones.
+function hasTopLevelComma(s) {
+    let depth = 0;
+    for (const c of s) {
+        if (c === '(' || c === '[' || c === '{') depth++;
+        else if (c === ')' || c === ']' || c === '}') depth--;
+        else if (c === ',' && depth === 0) return true;
+    }
+    return false;
 }
 
 // Walk `before` tracking bracket depth. Returns the innermost UNCLOSED bracket;
@@ -275,7 +316,7 @@ function enclosingCall(before) {
     const top = stack[stack.length - 1];
     if (top.c !== '(') return { fn: null };            // inside [...] / {...} / a group
     const m = before.slice(0, top.i).match(/([a-zA-Z_]\w*)\s*$/);
-    return { fn: m ? m[1] : null };                    // identifier before "(" → call
+    return { fn: m ? m[1] : null, open: top.i };        // identifier before "(" → call
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -369,13 +410,19 @@ function hintFn(cm) {
     } else if (ctx.type === 'scale') {
         list = filter(SCALE_NAMES.map(n => item(`"${n}"`, 'hint-param', n)));
     } else if (ctx.type === 'value') {
-        // After `param=` — suggest pattern / timevar values (one category)
+        // After `param=` — suggest pattern / timevar values
+        list = dropEmptySeps(patternValueItems().filter(it => it.className === "hint-sep" || filter([it]).length > 0));
+    } else if (ctx.type === 'degree') {
+        // First positional arg of a synth = the DEGREE. Pattern generators / timevars
+        // first (a degree can be a pattern), then the synth's params + fx so those
+        // stay reachable too.
+        const params = Object.keys(SYNTH_DEFS[ctx.synth]?.defaults ?? {}).map(p => item(p + '=', 'hint-param', p));
         list = [
-            sep('— patterns —'),
-            ...PATTERN_NAMES.map(patItem),
-            ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
+            ...patternValueItems(),
+            sep('— params —'), ...params,
+            sep('— fx (full) —'), ...FX_GROUPS.map(fxItem),
         ];
-        list = dropEmptySeps(list.filter(it => it.className === "hint-sep" || filter([it]).length > 0));
+        list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
     } else if (ctx.type === 'param') {
         let synthParams;
         if (ctx.synth === 'play') {
@@ -400,9 +447,7 @@ function hintFn(cm) {
         list = [
             sep('— synths —'),
             ...SYNTH_NAMES.map(n => item(n, 'hint-synth')),
-            sep('— patterns —'),
-            ...PATTERN_NAMES.map(patItem),
-            ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
+            ...patternValueItems(),
             sep('— globals —'),
             ...GLOBALS.map(g => item(g, 'hint-keyword')),
         ];
@@ -492,8 +537,10 @@ function toTree(list, subgroup) {
         // category). The synth-after->> context emits its own family seps, which
         // are already small — don't re-group those into families-of-one.
         const allSynth = node.items.length > 10 && node.items.every(i => i.className === 'hint-synth');
+        const allPat   = node.items.length > 10 && node.items.every(i => i.className === 'hint-pattern');
         const children = (subgroup && allFx)    ? groupByFamily(node.items, FX_SUBCATS)
                        : (subgroup && allSynth) ? groupByFamily(node.items, SYNTH_SUBCATS)
+                       : (subgroup && allPat)   ? groupByFamily(node.items, PATTERN_SUBCATS)
                        : node.items.map(leaf);
         return { kind: 'cat', label: node.label, children };
     });
