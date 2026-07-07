@@ -1401,7 +1401,7 @@ g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])
 
 
 
-    const whatsNew = section('New in alpha28', `
+    const whatsNew = section('Live-coding tour — transforms · cross-player · FX · MIDI', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
         ${note('<b>Transform a pattern LIVE</b> — .every(n, "rotate") / .sometimes("mirror") reshape the degree each time they fire, so you HEAR it change. (rotate = cyclic shift, mirror = play it backwards.)')}
         ${code(`p1 >> saw([0, 2, 4, 7], oct=5, dur=1/4).every(4, "rotate")   # shifts every 4 beats
@@ -1433,7 +1433,7 @@ d1 >> play("x-o-x-o-").every(4, "rotate")     # reorder the drum pattern live
 drop(16, 4)                                   # bar-locked breakdown`)}
     `, 'alpha28new');
 
-    const alpha29new = section('New in alpha29', `
+    const alpha29new = section('New synths, scales, FX & pattern methods', `
         ${note('The alpha29 additions — boot audio first, then evaluate any line (Ctrl+Enter).')}
         ${note('<b>Two new synths</b> — arpy (the classic FoxDot arpeggio pluck) and darkpad (dark detuned six-saw pad + sub). And <b>34 more scales</b> — set with Scale.default or pick from the Scale dropdown.')}
         ${code(`Scale.default = "blues"
@@ -1456,7 +1456,7 @@ b2 >> bass([0,0,3,5], oct=4, dur=1/2, pumper=0.8, pumprate=1)   # ducks each bea
 p8 >> pads((0,4,7), oct=5, dur=2, room2=0.8, combres=0.4)`)}
     `, 'alpha29new');
 
-    const alpha30new = section('New in alpha30 — automation recorder (Alt+T)', `
+    const alpha30new = section('Automation recorder (Alt+T)', `
         ${note('<b>Record a live knob-move into a TimeVar.</b> Put the cursor on any number, press <b>Alt+T</b> to arm (a ● REC badge appears), nudge the value with <b>Alt+↑/↓</b> as usual, then press <b>Alt+T</b> again — your gesture is captured (one point per beat) and swapped into the code as the most pertinent TimeVar. Timing is quantised to whole beats so it loops cleanly.')}
         ${note('Boot audio and run this, then park the cursor on the <code>800</code> and try it:')}
         ${code(`p1 >> saw([0,2,4,7], oct=5, dur=1/4, lpf=800)
@@ -1662,14 +1662,11 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // in sync with this page.
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['New in alpha30',  [alpha30new]],
-        ['New in alpha29',  [alpha29new]],
-        ['New in alpha28',  [whatsNew]],
         ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood]],
-        ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen]],
+        ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen]],
-        ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, samples, loop]],
+        ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, alpha29new, samples, loop]],
         ['Perform & MIDI',  [sections, midi, perf]],
         ['Deep dives',      DEEP],
         ...TUT_CATS,
