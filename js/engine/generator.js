@@ -134,6 +134,7 @@ const METHODS = [
     () => `.unison(${pick([2, 2, 3, 4])}${chance(0.4) ? ', ' + flt(0.2, 0.5) : ''})`,
     () => `.penta()`,
     () => `.human(${rint(15, 35)}, ${rint(4, 10)})`,
+    () => `.reroll(${pick([4, 8, 8, 16])})`,   // re-roll frozen random generators over time
 ];
 
 function synthLine(name) {
@@ -188,8 +189,6 @@ export function chaosLines(n = 4, type = null, { sampleChars = [], taken = new S
         if (!t) t = (sampleChars.length && chance(0.35)) ? 'drum' : 'synth';
         const name = freeName();
         lines.push(t === 'drum' && sampleChars.length ? drumLine(name, sampleChars) : synthLine(name));
-        // Sometimes let a generative synth reroll its whole line over time.
-        if (t !== 'drum' && chance(0.2)) lines.push(`reroll("${name}", ${pick([4, 8, 8, 16])})`);
     }
     return lines;
 }

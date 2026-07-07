@@ -21,6 +21,11 @@ let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
 export function setWarn(fn) { _warn = fn; }
 
+// Auto-reroll hook — index.html supplies (name, beats) => schedule a re-eval of
+// the player's line every `beats` beats (so frozen random generators reroll).
+let _rerollHandler = null;
+export function setRerollHandler(fn) { _rerollHandler = fn; }
+
 function knownParams(synthName) {
     const s   = new Set(COMMON_PARAMS);
     const def = SYNTH_DEFS[synthName];
@@ -915,6 +920,11 @@ export class Player {
 
     // stop() now, or stop(beats) at the next beat that's a multiple of `beats`
     // (grid-aligned, like FoxDot's mod scheduling — so .stop(4) lands on a bar).
+    // .reroll(beats) — auto-re-evaluate this player's line every N beats, so a
+    // frozen random generator (motif, PShuf, chaos, a PRand degree) rerolls on
+    // its own. .reroll(0) stops. Delegates to the handler set from index.html.
+    reroll(beats = 8) { _rerollHandler?.(this.name, beats); return this; }
+
     stop(beats) {
         if (beats) { this._clock._schedule(nextMod(this._clock, beats), () => this.stop()); return this; }
         this._active = false;

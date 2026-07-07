@@ -10,7 +10,7 @@ const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
     'stop()', 'stop(4)', 'solo()', 'solo(8)', 'only()', 'only(8)', 'soloDrop()', 'unsolo()',
-    'once()', 'drummer()', 'gtr(5)', 'penta()', 'chroma()', 'degrade(0.5)', 'human()',
+    'once()', 'drummer()', 'gtr(5)', 'penta()', 'chroma()', 'degrade(0.5)', 'human()', 'reroll(4)',
     'every()', 'stutter()', 'reverse()', 'shuffle()', 'unison(2)',
     'sometimes("stutter", 2)', 'often("stutter", 2)', 'rarely("stutter", 2)',
     'always()', 'almostNever()', 'after(4, "stop")',
@@ -226,7 +226,7 @@ function patternValueItems() {
 const GLOBALS = [
     'Clock.bpm = ','Scale.default = ','Root.default = ','play(',
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
-    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(','reroll(',
+    'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(',
     'say(','darker()','lighter()','shutup()','swap(','melody(',
     'midi(','midiin(','mlearn(','midiout(','link(',
 ];

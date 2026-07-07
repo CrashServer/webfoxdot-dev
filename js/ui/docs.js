@@ -162,7 +162,7 @@ export const FUNCTIONS = [
     { name: '.strum(spread)',           desc: 'Spread a chord/group\'s notes over `spread` beats (arpeggiated strum) instead of firing them together. e.g. p1 >> keys((0,4,7)).strum(0.05)' },
     { name: '.offbeat(amt) / .multiply(n)', desc: 'offbeat(amt=0.5): push every note late by amt beats (land on the offbeat). multiply(n): persistently repeat each step n times within its duration (roll)' },
     { name: 'son(opts) / soff(clear)',  desc: 'Generative jam bot: over time it adds/stops/mutates its own g* players (kept apart from yours; broadcasts to peers in a session). opts: {synth, drum} weights, {min,max} voices, {every:[lo,hi]} beats/tick. soff() stops the loop; soff(true) also stops the g* players. Boot audio first' },
-    { name: 'reroll(name, beats)',      desc: 'Auto-re-evaluate a player line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree) reroll on their own — no re-running by hand. reroll("g1", 0) stops it; it also stops when the player stops. (motif has a built-in reroll as its 4th arg.)' },
+    { name: '.reroll(beats)',           desc: 'Chainable player method: auto-re-evaluate this player line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree) reroll on their own — no re-running by hand. e.g. g1 >> pluck(motif(8)).reroll(4). .reroll(0) stops; it also stops when the player stops. (motif also has a built-in reroll as its 4th arg.)' },
     { name: '.drummer(durloop, durPlyr)', desc: 'Chain onto a play() player to turn it into a self-evolving rock drummer (FoxDot/CrashServer port). Picks a random groove + fill, swaps the fill in for the tail of each loop, then re-randomises the groove every durloop beats. durloop default 16, step dur default 0.5. e.g. b1 >> play("x").drummer()' },
     { name: '.gtr(string)',             desc: 'Tune a player like a guitar string (FoxDot/CrashServer): chromatic scale + a per-player root at the string open pitch, so degrees act like frets. string 0–6 → E A D G B e (low→high). e.g. p1 >> guit([0,3,5,7]).gtr(5)' },
     { name: 'Clock.bpm = linvar(...)',  desc: 'Tempo automation — Clock.bpm now accepts a TimeVar/pattern, so it ramps: Clock.bpm = linvar([120,140],[32]). A plain number still sets it instantly' },
@@ -210,7 +210,7 @@ export const VERSION = 'alpha30';
 const CHANGELOG = [
     { v: 'alpha30', title: 'Automation recorder · reroll · rests · flexible args · synthesis tutorials', items: [
         { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (sampled at one point per beat) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Timing is quantised to whole beats so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },
-        { t: 'reroll("g3", 8) — auto-re-evaluate a player\'s line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. reroll("g3", 0) stops it; it also stops when the player stops. e.g. g3 >> pluck(motif(8), dur=1/2) then reroll("g3", 4). motif also has a built-in reroll as its 4th arg — motif(8, 7, 2, 4) refreshes itself every 4 beats with no reroll() call.', ex: 'reroll' },
+        { t: '.reroll(beats) — a chainable player method that auto-re-evaluates the player line every N beats, so frozen random generators (motif, PShuf, chaos, a PRand degree…) reroll on their own without you re-running the line. e.g. g3 >> pluck(motif(8), dur=1/2).reroll(4). .reroll(0) stops it; it also stops when the player stops. motif also has a built-in reroll as its 4th arg — motif(8, 7, 2, 4) refreshes itself every 4 beats with no method at all.', ex: 'reroll' },
         { t: 'Rests in a degree list — a standalone `_` or bare `rest` now fires NO note (true silence): cs80([4, _, 1, rest, 2]) skips the 2nd and 4th steps. (A `.` still plays degree 0 as before, so existing patterns are unchanged.) Works with `+` transposition too.', ex: 'rest' },
         { t: 'Named-option args now also accept an integer index or a var — arp([0,4,7], 2) == arp([0,4,7], "updown"), and arp(deg, var([0,1], 4)) sweeps the mode over time. Same for PGroove, PContour, PClave, PProg (arp/PGroove vary per-step with a var).', ex: 'optargs' },
         'Autocomplete: typing `.` after a player now auto-opens the method menu (every/sometimes/penta/chroma/solo/only/stop/degrade/…); the pattern-generator list is grouped into families (rhythm/melody/harmony/random/chaos/sequence); and the first arg of a synth call (the degree) suggests pattern generators.',
@@ -1473,12 +1473,9 @@ p2 >> pads((0,4,7), oct=5, dur=2, room2=sinvar([0.2, 0.9], 8))`)}
     `, 'alpha30new');
 
     const exReroll = section('Auto-reroll a generative pattern (reroll)', `
-        ${note('<b>reroll("name", beats)</b> re-evaluates a player line every N beats, so a FROZEN random generator (motif, PShuf, chaos, a PRand degree) picks new values on its own — no re-running by hand. reroll("name", 0) stops it; it also stops when the player stops.')}
-        ${code(`g1 >> pluck(motif(8), oct=5, dur=1/2, amp=0.5)
-reroll("g1", 4)      # a new 8-note motif every 4 beats
-
-# reroll("g1", 0)    # stop rerolling (keeps playing the last one)`)}
-        ${note('<b>motif</b> also has a built-in reroll as its 4th arg — <code>motif(n, range, maxStep, reroll)</code> — so it refreshes itself with no reroll() call:')}
+        ${note('<b>.reroll(beats)</b> is a chainable player method — it re-evaluates that player line every N beats, so a FROZEN random generator (motif, PShuf, chaos, a PRand degree) picks new values on its own, no re-running by hand. .reroll(0) stops it; it also stops when the player stops.')}
+        ${code(`g1 >> pluck(motif(8), oct=5, dur=1/2, amp=0.5).reroll(4)   # new 8-note motif every 4 beats`)}
+        ${note('<b>motif</b> also has a built-in reroll as its 4th arg — <code>motif(n, range, maxStep, reroll)</code> — so it refreshes itself with no method at all:')}
         ${code(`g2 >> pluck(motif(8, 7, 2, 4), oct=5, dur=1/2)   # fresh motif every 4 beats`)}
     `, 'reroll');
 

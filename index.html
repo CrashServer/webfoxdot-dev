@@ -183,7 +183,7 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, setTriggerListener as _setTriggerListener, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST, setRerollHandler } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { FX_SYNTHDEFS }   from './js/fx/registry.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
@@ -413,7 +413,6 @@
             defsynth,
             rest:   () => REST,
             __REST: REST,
-            reroll,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
             // loop(name, dur=1, …) — beat-synced audio-loop player. Register named
             // loops with loadloop(name, url) first. dur sets the bars to stretch to.
@@ -531,8 +530,9 @@
     // ── Auto-reroll ───────────────────────────────────────────────────────────
     // Re-evaluate a player's source line every N beats, so FROZEN random
     // generators (motif, PShuf, chaos, PRand-as-degree…) reroll automatically
-    // without you re-running the line. reroll("g3", 8) starts; reroll("g3", 0)
-    // stops. The loop self-cancels when the player is stopped.
+    // without you re-running the line. Triggered by the chainable player method
+    // .reroll(beats) (via setRerollHandler); .reroll(0) stops. The loop
+    // self-cancels when the player is stopped.
     const _srcByPlayer = new Map();   // player name → last source line
     const _rerollGen   = new Map();   // player name → generation token (supersedes old loops)
     function reroll(name, beats = 8) {
@@ -551,6 +551,7 @@
         clock.mod(beats, tick);
         log(`reroll ${name} every ${beats}`, 'ok');
     }
+    setRerollHandler(reroll);   // wire the chainable .reroll(beats) player method
 
     function runCode(raw, { fromRemote = false, author = '', color = '' } = {}) {
         // Remember each player's source line so reroll() can re-evaluate it later.

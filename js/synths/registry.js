@@ -298,7 +298,7 @@ export class SynthCall {
 // _calls and replayed on the player at activation, so you can write
 //   p1 >> saw(...).accompany("b1").jump(1)   or   .every(4, "rotate")
 for (const m of ['reverse', 'shuffle', 'drummer', 'follow', 'accompany', 'map',
-                 'jump', 'rotate', 'mirror', 'strum', 'offbeat', 'multiply', 'once']) {
+                 'jump', 'rotate', 'mirror', 'strum', 'offbeat', 'multiply', 'once', 'reroll']) {
     SynthCall.prototype[m] = function (...a) { (this._calls ??= []).push([m, ...a]); return this; };
 }
 // .stutter(n) chained directly = roll every step n times (persistent, = .multiply).
