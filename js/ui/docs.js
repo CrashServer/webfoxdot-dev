@@ -209,6 +209,7 @@ export const VERSION = 'alpha30';
 const CHANGELOG = [
     { v: 'alpha30', title: 'Automation recorder (Alt+T)', items: [
         { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (sampled at one point per beat) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Timing is quantised to whole beats so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },
+        { t: 'Synthesis tutorials — three new worked examples under Examples › Sound design that build a synth from scratch with defsynth(): additive (stack sine harmonics), subtractive (a rich saw through a filter-envelope sweep), and FM (carrier + modulator, ratio & index). Each explains the technique and has runnable code you can tweak.', ex: 'syn-additive' },
     ]},
     { v: 'alpha29', title: '10 new FX · 34 scales · pattern methods · 2 synths · Paper theme · About card', items: [
         { t: 'New FX (CrashServer ports): mpf — Moog ladder low-pass (mpf=cutoff Hz, mpr=resonance 0–4, self-oscillates near 4), fatter/squishier than lpf, great for acid + techno bass; resonz — resonant band-pass (resonz=mix, rfreq=center Hz, rbw=bandwidth ratio, small=narrow/ringing); fshift — frequency shifter (fshift=Hz ±5..±500, fphase 0–1, fmix=wet), a LINEAR/inharmonic shift (metallic, not pitch-shift); shimmer — pitch-shifted feedback reverb for lush octave sheen (shimmer=mix, shimsize=room, shimpitch 0 unison..1 +1oct, shimmix=internal wet). e.g. d1 >> dbass(mpf=600, mpr=3.5) · p1 >> saw([0,4,7], resonz=0.7, rfreq=1200, rbw=0.12) · p2 >> pluck(fshift=150) · p3 >> pads(shimmer=0.7, shimpitch=1).', ex: 'alpha29new' },
@@ -786,6 +787,55 @@ p1 >> saw([0,3], oct=3, dur=1, lpf_=fb(0.25, 300, 3000))  # wobble`)}
 p1 >> mylead([0, 4, 7, 4], oct=4, cutoff=3000, dur=0.5)`)}
         ${note('UGens available: SinOsc Saw LFSaw Pulse VarSaw LFTri Blip Impulse, WhiteNoise PinkNoise LFNoise0/1/2, RLPF RHPF LPF HPF BPF, Line XLine, Pan2, Out, EnvGen + Env.perc/linen/triangle. Math: .mul .add .sub .div .midicps() .abs() .neg()')}
     `, 'defsynth');
+
+    const synAdditive = section('Synthesis 1 — additive (stack sines)', `
+        ${note('<b>Additive synthesis builds a tone by ADDING sine waves.</b> Each partial is a sine at a whole-number multiple of the base frequency (a harmonic); the recipe of amplitudes IS the timbre. Roughly: <code>1/n</code> amplitudes → a bright saw-ish tone · only odd harmonics → hollow/square (clarinet) · a few low partials → soft organ/flute. Run the <code>defsynth</code> block once (Ctrl+Alt+Enter), then play the line below it.')}
+        ${code(`defsynth("myadd", {}, ({ out, note, amp, sus, pan, attack, release }) => {
+  const f = note.midicps()
+  const env = EnvGen.ar(Env.perc(attack, sus, 1, -4), { doneAction: 2 })
+  let sig = SinOsc.ar(f)                          // 1st harmonic (fundamental)
+  sig = sig.add(SinOsc.ar(f.mul(2)).mul(0.5))     // 2nd, half as loud
+  sig = sig.add(SinOsc.ar(f.mul(3)).mul(0.33))    // 3rd
+  sig = sig.add(SinOsc.ar(f.mul(4)).mul(0.25))    // 4th
+  sig = sig.add(SinOsc.ar(f.mul(5)).mul(0.2))     // 5th
+  sig = sig.mul(env).mul(amp).mul(0.15)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+
+p1 >> myadd([0, 4, 7], oct=5, dur=1)`)}
+        ${note('Try it: change the partial amplitudes (drop the even ones for a hollow tone), or use non-integer ratios like <code>f.mul(2.4)</code> for a bell/metallic sound (inharmonic partials).')}
+    `, 'syn-additive');
+
+    const synSubtractive = section('Synthesis 2 — subtractive (filter a rich wave)', `
+        ${note('<b>Subtractive synthesis starts from a harmonically RICH wave</b> (saw, pulse, noise) and REMOVES harmonics with a filter. The trick is a filter ENVELOPE sweeping the cutoff — that gives the classic "wow" / pluck. <code>rq</code> is resonance (lower = more emphasis at the cutoff). Two slightly detuned saws make it fat.')}
+        ${code(`defsynth("mysub", { cutoff: 2500, rq: 0.3 }, ({ out, note, amp, sus, pan, attack, release, cutoff, rq }) => {
+  const f = note.midicps()
+  const ampEnv = EnvGen.ar(Env.perc(attack, sus, 1, -4), { doneAction: 2 })
+  const fEnv = EnvGen.ar(Env.perc(0.005, sus, 1, -4)).mul(cutoff).add(120)  // cutoff sweep
+  const raw = Saw.ar(f).add(Saw.ar(f.mul(1.006)))   // 2 detuned saws = fat
+  const sig = RLPF.ar(raw, fEnv, rq).mul(ampEnv).mul(amp).mul(0.25)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+
+p1 >> mysub([0, 4, 7], oct=4, cutoff=3500, rq=0.2, dur=1)`)}
+        ${note('Try it: lower <code>rq</code> toward 0.1 for a screaming resonant sweep, swap <code>Saw</code> for <code>Pulse.ar(f, 0.5)</code>, or feed <code>WhiteNoise.ar()</code> through the filter for a snare/hat.')}
+    `, 'syn-subtractive');
+
+    const synFM = section('Synthesis 3 — FM (frequency modulation)', `
+        ${note('<b>FM modulates the FREQUENCY of the carrier oscillator with a second oscillator</b> (the modulator). Two knobs: the carrier:modulator <b>ratio</b> sets harmonicity — integer ratios (1, 2, 3…) sound musical/harmonic, non-integer ratios sound metallic/bell-like; the <b>index</b> (modulation depth) sets brightness (how many sidebands). A decaying index envelope gives the classic DX-style bell / electric piano.')}
+        ${code(`defsynth("myfm", { ratio: 2, index: 5 }, ({ out, note, amp, sus, pan, attack, release, ratio, index }) => {
+  const car = note.midicps()                       // carrier frequency
+  const modFreq = car.mul(ratio)                   // modulator = carrier × ratio
+  const env  = EnvGen.ar(Env.perc(attack, sus, 1, -4), { doneAction: 2 })
+  const iEnv = EnvGen.ar(Env.perc(0.001, sus, 1, -4)).mul(index).mul(modFreq)  // index falls off
+  const mod  = SinOsc.ar(modFreq).mul(iEnv)        // the modulation signal (Hz deviation)
+  const sig  = SinOsc.ar(car.add(mod)).mul(env).mul(amp).mul(0.25)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+
+p1 >> myfm([0, 4, 7], oct=5, ratio=2, index=6, dur=1)`)}
+        ${note('Try it: <code>ratio=1</code> is warm/harmonic, <code>ratio=3.5</code> is clangy/metallic, <code>ratio=1.41</code> is bell-like. Raise <code>index</code> for brightness. A long <code>dur</code> with ratio 1 and low index ≈ an electric piano.')}
+    `, 'syn-fm');
 
     const fx = section('FX — append to any player', `
         ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush vibrato ringmod flanger phaser formant. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
@@ -1489,7 +1539,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen]],
-        ['Sound design',    [fx, defsynthEx, samples, loop]],
+        ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, samples, loop]],
         ['Perform & MIDI',  [sections, midi, perf]],
         ['Deep dives',      DEEP],
         ...TUT_CATS,
