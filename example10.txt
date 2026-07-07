@@ -1,76 +1,56 @@
-# ══ crashDot — "Rage" ═══════════════════════════════════════════════════════
-# Rage Against the Machine style: funk-metal, drop-tuned syncopated chug,
-# stab-and-silence dynamics, a wah/scratch solo, a crushing half-time breakdown.
-# Load the kit first (♪ load kit), then put the cursor on #@intro and Ctrl+Enter —
-# it auto-plays and advances. Ctrl+;  (or shutup()) stops everything.
+# ══ crashDot — "Neon Drive" ═════════════════════════════════════════════════
+# 80s / synthwave / Daft-Punk, built around the new *synthbass* — detuned saws +
+# sub through a Moog ladder filter with a snappy filter envelope and drive.
+# Load the kit (♪ load kit), then put the cursor on #@intro and Ctrl+Enter — it
+# auto-plays and advances. Ctrl+;  (or shutup()) stops everything.
 #
-# The riffs lean on short sus (palm mutes), _ rests (the space IS the groove),
-# power-chord (0,7) stabs, and dur/amp swings between sections.
+# synthbass controls:  sus = note length · detune = saw spread (%) · cutoff/res/fenv
+# = the filter + its envelope · sub = weight · drive = warmth · glide = portamento.
 
-#@#@ rage_machine
-Clock.bpm = 100
-Root.default = "E"
+#@#@ neon_drive
+Clock.bpm = 118
+Root.default = "F"
 Scale.default = "minor"
 
 #@intro(16)
-# lone drop-tuned bass chug — palm-muted (tiny sus), heavy syncopation, lots of _
-b1 >> dbass([0, 0, _, 0, _, 0, _, (0,7)], oct=2, dur=1/4, sus=0.16, amp=0.85, dist2=0.5, dist2shape=0.4, lpf=2600, hpf=40).unison(2)
-d1 >> play("x...x...x..x.x..", dur=1/4, amp=1)
+# the bassline alone — hypnotic root/fifth, filter env pumping, four-on-the-floor
+b1 >> synthbass([0, 0, 0, 0, 3, 3, 5, 5], oct=2, dur=1/4, sus=0.22, detune=0.4, cutoff=700, res=0.4, fenv=4, drive=1.6)
+d1 >> play("x", dur=1/2, amp=1)
 
-#@riff1(24)
-# THE riff — guitar + bass locked, tight kit, dense. Note the _ gaps = the chug.
-g1 >> ssaw([0, 0, _, 0, _, (0,7), _, 0,  0, _, 3, _, 1, 0, _, _], oct=4, dur=1/4, sus=0.14, amp=0.5, dist2=0.7, dist2shape=0.4, multicrush=0.55, mchighdrive=5, lpf=3400, hpf=120).unison(3)
-b1 >> dbass([0, 0, _, 0, _, 0, _, 0,  0, _, 3, _, 1, 0, _, _], oct=2, dur=1/4, sus=0.16, amp=0.85, dist2=0.45, lpf=2400, hpf=40).unison(2)
-d1 >> play("X.o.X..oX.o.X.oo", dur=1/4, amp=1, drcomp=0.5)
+#@groove(24)
+# the groove opens up — moving bassline w/ a slow filter, clap on 2&4, offbeat hats
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=2, dur=1/4, sus=0.2, detune=0.45, cutoff=sinvar([500, 1400], [8]), res=0.42, fenv=4, drive=1.7, pumper=0.7)
+d1 >> play("x", dur=1/2, amp=1)
+c1 >> play("....o.......o...", dur=1/4, amp=0.9)
 h1 >> play("-.-.-.-.-.-.-.-.", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
+ld >> synthbass(arp([0, 3, 7, 10], "up"), oct=4, dur=1/8, sus=0.12, detune=0.2, cutoff=2200, res=0.3, fenv=2, drive=1.2, echo=0.25, echo_time=0.375, amp=0.45).every(8, "rotate")
 
-#@stop(8)
-# the RATM move — stab, then SILENCE. Big dynamic on the rests.
-g1 >> ssaw([(0,7), _, _, _, (0,7), _, _, _], oct=4, dur=1/4, sus=0.22, amp=0.6, dist2=0.8, multicrush=0.6)
-b1 >> dbass([0, _, _, _, 0, _, _, _], oct=2, dur=1/4, sus=0.22, amp=0.95, dist2=0.5)
-d1 >> play("X...X...", dur=1/4, amp=1)
-
-#@verse(24)
-# funky syncopated groove — bass drives, guitar throws stabs, busy hats
-b1 >> ebass([0, _, 0, 3, _, 0, _, 5, 0, _, 3, _, (0,7), _, 0, _], oct=3, dur=1/4, sus=0.18, amp=0.72, dist2=0.3, lpf=sinvar([700, 3200], [8])).unison(2)
-g1 >> ssaw([_, _, (0,7), _, _, _, 5, _], oct=5, dur=1/4, sus=0.12, amp=0.4, dist2=0.6, crush=0.4, bits=5, echo=0.2, echo_time=0.25).sometimes("stutter", 2)
-d1 >> play("X.oxX.o.x.oxX.o.", dur=1/4, amp=0.95, drcomp=0.4)
-h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=6000)
-
-#@build(16)
-# rising tension — 1/8 chug, filter opens, amp swells, octave lifts
-g1 >> ssaw([0, 3, 5, 7, 0, 3, 5, 7], oct=<4 5>, dur=1/8, sus=0.1, amp=linvar([0.3, 0.55], [8]), dist2=0.7, multicrush=0.5, lpf=linvar([600, 5000], [8])).unison(3)
-b1 >> dbass([0, 0, 0, 0], oct=2, dur=1/8, sus=0.12, amp=0.82, dist2=0.5)
-d1 >> play("x", dur=1/8, amp=linvar([0.6, 1], [8]))
-
-#@chorus(24)
-# wall of sound — power-chord riff, second guitar octave-up, wide, full kit
-g1 >> supersaw([(0,7), (0,7), _, (0,7), _, (3,10), _, (0,7)], oct=4, dur=1/4, sus=0.22, amp=0.5, dist2=0.6, multicrush=0.5, stereowidth=0.6, room2=0.4, mix2=0.25).unison(4)
-g2 >> ssaw([0, 0, _, 0, _, 3, _, 0], oct=5, dur=1/4, sus=0.14, amp=0.34, dist2=0.7, crush=0.4, bits=6, pan=<-0.6 0.6>).unison(2)
-b1 >> dbass([0, 0, _, 0, _, 3, _, 0], oct=2, dur=1/4, sus=0.18, amp=0.9, dist2=0.5, subenh=0.5)
-d1 >> play("X.oxX.o.X.oxX.oo", dur=1/4, amp=1, drcomp=0.5)
+#@lift(16)
+# a pad swells in and the filter opens — the synthwave shimmer
+p1 >> darkpad(PRoman("i VI III VII"), oct=4, dur=4, sus=4, amp=0.4, cutoff=linvar([600, 3000], [16]), shimmer=0.5)
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=2, dur=1/4, sus=0.2, detune=0.45, cutoff=linvar([500, 1800], [16]), res=0.42, fenv=4, drive=1.7, pumper=0.7)
+d1 >> play("x", dur=1/2, amp=1)
+c1 >> play("....o.......o...", dur=1/4, amp=0.9)
 h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
-v1 >> play("....X.......X...", dur=1/4, amp=1)
 
-#@solo(24)
-# Morello-style lead — freq-shift + ring-mod "wah", crushed, scratchy, over the riff
-g1 >> ssaw([0, 0, _, 0, _, 3, _, 0], oct=4, dur=1/4, sus=0.14, amp=0.42, dist2=0.6, multicrush=0.5)
-b1 >> dbass([0, 0, _, 0, _, 3, _, 0], oct=2, dur=1/4, sus=0.16, amp=0.8, dist2=0.4)
-d1 >> play("X.oxX.o.X.oxX.o.", dur=1/4, amp=0.95, drcomp=0.4)
-ld >> saw(arp([0, 3, 7, 10, 12], "updown"), oct=6, dur=1/8, sus=0.1, amp=0.4, fshift=var([0, 120, 40], [4]), ringmod=0.4, ringmod_freq=sinvar([100, 900], [2]), crush=0.4, bits=5, echo=0.3, echo_time=0.25).every(4, "shuffle")
+#@drop(24)
+# full drive — bass in front with glide + an octave stab (<3 10>), wide arp, pumping
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, <3 10>], oct=2, dur=1/4, sus=0.2, detune=0.5, cutoff=1200, res=0.45, fenv=5, drive=2, glide=0.02, pumper=0.75, stereowidth=0.4)
+ld >> synthbass(arp([0, 3, 7, 10, 12], "updown"), oct=4, dur=1/8, sus=0.12, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=2, drive=1.3, echo=0.3, echo_time=0.375, pan=<-0.4 0.4>, amp=0.45).every(8, "shuffle")
+p1 >> darkpad((0,3,7), oct=4, dur=8, sus=8, amp=0.34, cutoff=2600, shimmer=0.6, room2=0.4)
+d1 >> play("x", dur=1/2, amp=1)
+c1 >> play("....o.......o...", dur=1/4, amp=0.9)
+h1 >> play("-x-x-x-x-x-x-x-x", dur=1/4, amp=Pacc("offbeat"), hpf=7000)
+v1 >> play("........X.......", dur=1/4, amp=1)
 
-#@breakdown(16)
-# half-time, crushing — long sustains, sparse hits, wide reverb
-Clock.bpm = 92
-g1 >> supersaw([(0,7), _, _, _, (5,12), _, _, _], oct=3, dur=1/2, sus=1.6, amp=0.55, dist2=0.7, multicrush=0.6, room2=0.6, mix2=0.35).unison(3)
-b1 >> dbass([0, _, _, _, 5, _, _, _], oct=2, dur=1/2, sus=1.2, amp=0.95, dist2=0.5, subenh=0.6)
-d1 >> play("X.......o.......", dur=1/4, amp=1, drcomp=0.6)
+#@break(16)
+# strip to bass + pad, filter closes, big space, long gliding notes with _ rests
+b1 >> synthbass([0, _, _, 3, _, _, 5, _], oct=2, dur=1/4, sus=0.6, detune=0.4, cutoff=linvar([1600, 400], [16]), res=0.4, fenv=2, drive=1.4, glide=0.05)
+p1 >> darkpad((0,3,7,10), oct=4, dur=8, sus=8, amp=0.4, cutoff=1800, shimmer=0.7, room2=0.6, mix2=0.4)
 
 #@outro(16)
-# the riff one last time — amp + freq-shift bleed out to feedback
-Clock.bpm = 100
-g1 >> ssaw([0, 0, _, 0, _, (0,7), _, 0], oct=4, dur=1/4, sus=0.14, amp=linvar([0.5, 0], [16]), dist2=0.7, multicrush=0.5, fshift=linvar([0, 400], [16])).unison(3)
-b1 >> dbass([0, 0, _, 0], oct=2, dur=1/4, sus=0.16, amp=linvar([0.85, 0], [16]), dist2=0.4)
-d1 >> play("X.o.X.o.", dur=1/4, amp=linvar([1, 0], [16]))
+# the bassline fades out under the closing filter
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=2, dur=1/4, sus=0.2, detune=0.45, cutoff=linvar([1200, 300], [16]), res=0.4, fenv=3, drive=1.6, amp=linvar([0.9, 0], [16]))
+d1 >> play("x", dur=1/2, amp=linvar([1, 0], [16]))
 
 #@end(8)

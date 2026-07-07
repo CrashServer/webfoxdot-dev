@@ -64,6 +64,13 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.3, release: 1, cutoff: 1200, res: 0.25, drive: 1.2, detune: 0.008, dark: 0.5, sub: 0.4 },
         extraParams: ['cutoff', 'res', 'drive', 'detune', 'dark', 'sub'],
     },
+    // synthbass — 80s / synthwave / Daft-Punk bass: detuned saws + sub, Moog ladder
+    // filter w/ env + drive. Clear controls (sus=note length, detune=%, glide=porta).
+    synthbass: {
+        scName: 'fd_synthbass',
+        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, detune: 0.3, cutoff: 900, res: 0.35, fenv: 3, sub: 0.7, drive: 1.5, glide: 0 },
+        extraParams: ['detune', 'cutoff', 'res', 'fenv', 'sub', 'drive', 'glide'],
+    },
     // wobble — dubstep wobble bass (CrashServer port; MoogFF LFO-swept). Play it low.
     wobble: {
         scName: 'fd_wobble',

@@ -16,7 +16,7 @@
         'prophet','reese','resonant','rhodes','risset','rsin','rustlead',
         'saw','sawbass','sax','sine','sinepad','sinebass','singer',
         'space','speaky','squarebass','stab','steel','stellar','stepper',
-        'sub','supersaw','svdk','theremin','thunder','tribar','tuba',
+        'sub','subbass','supersaw','svdk','synthbass','theremin','thunder','tribar','tuba',
         'twang','varsaw','vox','wob','wobble','wobblebass',
     ];
 
