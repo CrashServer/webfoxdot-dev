@@ -860,6 +860,8 @@ const _PROGS = {
     'half': 'I V', 'deceptive': 'V vi', 'interrupted': 'V vi',
 };
 export function PProg(name = '50s') {
+    if (typeof name === 'number' || (name && typeof name.get === 'function'))
+        name = optName(name, Object.keys(_PROGS));
     return Ppat(PRoman(_PROGS[String(name).toLowerCase()] || name));
 }
 
@@ -873,7 +875,8 @@ const _CLAVES = {
 };
 // PClave(name, hit, rest) — a 16-step clave play() string. e.g. play(PClave("son")).
 export function PClave(name = 'son', hit = 'x', rest = '.') {
-    const set = new Set(_CLAVES[String(name).toLowerCase()] || _CLAVES['son']);
+    name = optName(name, Object.keys(_CLAVES));
+    const set = new Set(_CLAVES[name] || _CLAVES['son']);
     let s = ''; for (let i = 0; i < 16; i++) s += set.has(i) ? hit : rest;
     return s;
 }
@@ -1004,14 +1007,37 @@ export function motif(n = 4, range = 7, maxStep = 2) {
 
 // arp(degrees, mode) — arpeggiate a set of chord degrees continuously.
 // mode: up | down | updown | downup | random. e.g. arp([0, 4, 7], "updown").
+// Resolve a named-option argument to a canonical lowercase string. Accepts a
+// string ("updown"), an INTEGER index into `names` (wraps), or a var/timevar/
+// pattern ({get}) sampled at `step` (so the option can vary over time). Lets
+// arp/PGroove/PContour/… take arp(deg, 2) or arp(deg, var(["up","down"], 4)).
+export function optName(val, names, step = 0) {
+    if (val && typeof val.get === 'function') val = val.get(step);
+    if (typeof val === 'number' && names.length)
+        return names[((Math.round(val) % names.length) + names.length) % names.length];
+    return String(val).toLowerCase();
+}
+
+const _ARP_MODES = ['up', 'down', 'updown', 'downup', 'random'];
 export function arp(degrees, mode = 'up') {
-    let seq = (Array.isArray(degrees) ? degrees : [degrees]).slice();
-    mode = String(mode).toLowerCase();
-    if (mode === 'down') seq.reverse();
-    else if (mode === 'updown') seq = seq.concat(seq.slice(1, -1).reverse());
-    else if (mode === 'downup') seq = seq.slice().reverse().concat(seq.slice(1, -1));
-    if (mode === 'random' || mode === 'rand') return { get: () => seq[Math.floor(Math.random() * seq.length)] };
-    return { get: (step) => seq[((((step | 0) % seq.length) + seq.length) % seq.length)] };
+    const base = (Array.isArray(degrees) ? degrees : [degrees]).slice();
+    const order = (m) => {
+        let seq = base.slice();
+        if (m === 'down') seq.reverse();
+        else if (m === 'updown') seq = seq.concat(seq.slice(1, -1).reverse());
+        else if (m === 'downup') seq = seq.slice().reverse().concat(seq.slice(1, -1));
+        return seq;
+    };
+    const pick = (seq, step) => seq[((((step | 0) % seq.length) + seq.length) % seq.length)];
+    if (mode && typeof mode.get === 'function') {          // var/pattern → mode varies over time
+        return { get: (step) => {
+            const m = optName(mode, _ARP_MODES, step), seq = order(m);
+            return m === 'random' ? seq[Math.floor(Math.random() * seq.length)] : pick(seq, step);
+        } };
+    }
+    const m = optName(mode, _ARP_MODES), seq = order(m);
+    if (m === 'random' || m === 'rand') return { get: () => seq[Math.floor(Math.random() * seq.length)] };
+    return { get: (step) => pick(seq, step) };
 }
 
 // PContour(shape, n, range) — a melodic contour: n scale degrees in [0,range]
@@ -1031,8 +1057,7 @@ export function PContour(shape = 'arch', n = 8, range = 7) {
         }
         return { get: (step) => notes[(((step | 0) % n) + n) % n] };
     }
-    if (typeof shape === 'number') shape = _CONTOURS[((Math.round(shape) % _CONTOURS.length) + _CONTOURS.length) % _CONTOURS.length];
-    shape = String(shape).toLowerCase();
+    shape = optName(shape, _CONTOURS);   // string / int / var → contour name
     const curve = (t) => shape === 'up' ? t
         : shape === 'down' ? 1 - t
         : shape === 'arch' ? Math.sin(t * Math.PI)
@@ -1054,7 +1079,14 @@ const _GROOVES = {
 };
 // PGroove(name) — a dur pattern for a named feel. e.g. dur=PGroove("swing").
 export function PGroove(name = 'swing') {
-    return cyc((_GROOVES[String(name).toLowerCase()] || _GROOVES['straight']).slice());
+    const keys = Object.keys(_GROOVES);
+    if (name && typeof name.get === 'function') {          // var → groove varies over time
+        return { get: (step) => {
+            const g = _GROOVES[optName(name, keys, step)] || _GROOVES['straight'];
+            return g[(((step | 0) % g.length) + g.length) % g.length];
+        } };
+    }
+    return cyc((_GROOVES[optName(name, keys)] || _GROOVES['straight']).slice());
 }
 
 // ── Composition helpers ───────────────────────────────────────────────────────
