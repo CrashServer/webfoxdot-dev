@@ -1448,7 +1448,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 let s = start, e = k;
                 while (s < e && /\s/.test(text[s])) s++;
                 while (e > s && /\s/.test(text[e - 1])) e--;
-                if (e > s) spans.push([s, e]);
+                if (e > s) { const sp = [s, e]; const a = nestedAltSpans(text, s, e); if (a) sp.alt = a; spans.push(sp); }
                 start = k + 1;
             } else if (c === '(' || c === '[' || c === '{' || c === '<') d++;
             else if (c === ')' || c === ']' || c === '}' || c === '>') d--;
@@ -1483,6 +1483,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             else if (')]}>'.includes(c)) d--;
         }
         return { spans, end: j };
+    }
+    // If element text [s,e) contains a <…> alternation (e.g. the (<4, 8>, 2) chord),
+    // return its item spans (absolute) so the highlight can pin the ACTIVE item.
+    function nestedAltSpans(text, s, e) {
+        for (let k = s; k < e; k++) {
+            if (text[k] === '<') { const r = altSpans(text, k); return (r && r.spans.length > 1) ? r.spans : null; }
+        }
+        return null;
     }
     // All stepped arrays on a line: the degree + every direct param=[...] (and for
     // play(), the chars of a flat string). Each is highlighted at step % its length.
@@ -1527,7 +1535,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 let p = k - 1; while (p >= 0 && /\s/.test(lineText[p])) p--;
                 if (pdepth === 1 && (p < 0 || lineText[p] === '(' || lineText[p] === ',')) {
                     const j = matchBracket(lineText, k);
-                    if (j > k) { out.push([[k, j + 1]]); k = j; continue; }
+                    if (j > k) { const sp = [k, j + 1]; const a = nestedAltSpans(lineText, k, j + 1); if (a) sp.alt = a; out.push([sp]); k = j; continue; }
                 }
                 pdepth++;
             }
@@ -1558,6 +1566,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         return arrays;
     }
     const _MARK_CSS = 'background:rgba(63,185,80,0.5);color:#fff;border-radius:2px';
+    // Active <…> alternation item — a brighter amber box on top of the chord mark.
+    const _ALT_CSS  = 'background:rgba(240,200,70,0.85);color:#000;border-radius:2px;font-weight:bold';
     const _lastMark = new Map();   // name → last mark time, to cap DOM churn at fast durs
     const _markSig  = new Map();   // name → signature of the currently-marked spans
     function clearDegMark(name) {
@@ -1579,17 +1589,30 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Pick this step's span per array + build a signature; if it matches what's
         // already marked, skip the clear+markText DOM churn entirely (common when a
         // degree array is length-1 or a slow pattern holds the same element).
-        const picks = [];
+        const picks = [];           // [s, e] of each array's current element
+        const altPicks = [];        // [s, e] of the ACTIVE <…> item inside an element
         let sig = line + ':';
         for (const spans of arrays) {
-            const [s, e] = spans[((step % spans.length) + spans.length) % spans.length];
-            picks.push(s, e); sig += s + '-' + e + ',';
+            const sp = spans[((step % spans.length) + spans.length) % spans.length];
+            picks.push(sp[0], sp[1]); sig += sp[0] + '-' + sp[1];
+            // Nested <a b …> alternation (e.g. the (<4, 8>, 2) chord) — the item it's
+            // on advances once per full cycle of this array, so index = ⌊step/len⌋.
+            if (sp.alt && sp.alt.length) {
+                const ai = (Math.floor(step / spans.length) % sp.alt.length + sp.alt.length) % sp.alt.length;
+                const [as, ae] = sp.alt[ai];
+                altPicks.push(as, ae); sig += '/' + as + '-' + ae;
+            }
+            sig += ',';
         }
         if (_markSig.get(name) === sig) return;
         clearDegMark(name);
         const marks = [];
         for (let i = 0; i < picks.length; i += 2) {
             marks.push(editor.markText({ line, ch: picks[i] }, { line, ch: picks[i + 1] }, { className: 'wfd-playing', css: _MARK_CSS }));
+        }
+        // The active alternation item gets a second, brighter mark on top of the chord.
+        for (let i = 0; i < altPicks.length; i += 2) {
+            marks.push(editor.markText({ line, ch: altPicks[i] }, { line, ch: altPicks[i + 1] }, { className: 'wfd-alt', css: _ALT_CSS }));
         }
         _degMarks.set(name, marks);
         _markSig.set(name, sig);
