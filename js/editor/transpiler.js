@@ -13,6 +13,9 @@ const RE_P_RAND   = /\bP\s*\*\s*\[([^\]]*)\]/g;
 const RE_P_LIST   = /\bP\s*\[([^\]]*)\]/g;
 const RE_P_GROUP  = /\bP\s*\(([^)]*)\)/g;
 const RE_DOT_REST = /(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g;
+// Standalone `_` or bare `rest` between list/arg delimiters → a true rest (silence).
+const RE_UNDERSCORE_REST = /(?<=[,\[(]\s*)_(?=\s*[,\]\)])/g;
+const RE_WORD_REST       = /(?<=[,\[(]\s*)rest(?=\s*[,\]\)])/g;
 const RE_RSHIFT   = /^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/;
 const RE_ATTR     = /^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/;
 const RE_RESERVED = /^(Clock|Scale|Root|Master|Server)$/;
@@ -40,8 +43,13 @@ export function transpile(code) {
         main = main.replace(RE_P_GROUP, '__group($1)');
 
         // Standalone . used as rest → null in array/argument positions
-        // dbass([0, ., 4]) → dbass([0, null, 4])
+        // dbass([0, ., 4]) → dbass([0, null, 4])  (null → degree 0, still sounds)
         main = main.replace(RE_DOT_REST, 'null');
+
+        // Standalone _ or bare `rest` in array/arg position → __REST (true silence).
+        // cs80([4, _, 1]) / cs80([4, rest, 1]) → cs80([4, __REST, 1])
+        main = main.replace(RE_UNDERSCORE_REST, '__REST');
+        main = main.replace(RE_WORD_REST, '__REST');
 
         // Python slice that freezes a generator into a repeating phrase:
         //   melody()[:8] / PWhite(0,1)[:8]  →  Pslice(melody(), null, 8)

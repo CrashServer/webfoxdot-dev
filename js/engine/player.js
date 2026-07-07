@@ -9,6 +9,11 @@ import { isEnv, evalEnv, envValue } from '../patterns/timevars.js';
 import { LOOKAHEAD_S }            from './clock.js';
 import { osc }                    from '../../lib/dist/supersonic.js';
 
+// Rest sentinel — a degree of REST fires no note (true silence). Emitted by the
+// transpiler for a standalone `_` or bare `rest` in a degree list, and returned by
+// the rest() global. (Distinct from `.` → null, which still plays degree 0.)
+export const REST = Symbol('rest');
+
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
 const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);
 const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify', 'delay']);
@@ -121,6 +126,7 @@ function addDegree(base, add, step) {
     for (let i = 0; i < n; i++) {
         const b = r(baseArr[i % baseArr.length]);
         const a = r(addArr[i % addArr.length]);
+        if (b === REST) { out.push(REST); continue; }              // a rest stays a rest
         if (b === null || b === undefined) { out.push(null); continue; }
         out.push((b ?? 0) + (a ?? 0));
     }
@@ -512,8 +518,8 @@ export class Player {
                 for (const [k, v] of Object.entries(sArgs)) {
                     va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
                 }
-                const deg = va.degree ?? 0;
-                if (deg === null) continue;
+                if (va.degree === REST) continue;   // `_` / rest → silence (no note)
+                const deg = va.degree ?? 0;         // `.` → null → 0 (still plays)
                 const oct = va.oct ?? 5;
                 let midi = toMidi(deg, oct, this._scale, this._root);
                 if (midi === null || !Number.isFinite(midi) || midi < 0 || midi > 127) continue;

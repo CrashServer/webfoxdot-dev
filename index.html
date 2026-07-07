@@ -183,7 +183,7 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, setTriggerListener as _setTriggerListener, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST } from './js/engine/player.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { FX_SYNTHDEFS }   from './js/fx/registry.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
@@ -411,7 +411,8 @@
             _alt,
             ...UGENS,            // SinOsc, Saw, RLPF, Out, EnvGen, Env, Pan2, …
             defsynth,
-            rest:   () => null,
+            rest:   () => REST,
+            __REST: REST,
             play:   (pattern, opts = {}) => new PlayStringCall(pattern, opts),
             // loop(name, dur=1, …) — beat-synced audio-loop player. Register named
             // loops with loadloop(name, url) first. dur sets the bars to stretch to.
