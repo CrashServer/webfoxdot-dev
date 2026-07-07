@@ -1039,15 +1039,19 @@ export function arp(degrees, mode = 'up') {
         else if (m === 'downup') seq = seq.slice().reverse().concat(seq.slice(1, -1));
         return seq;
     };
-    const pick = (seq, step) => seq[((((step | 0) % seq.length) + seq.length) % seq.length)];
+    // Resolve a chosen element: a nested generator ({get} — PRand, a var, <alt>…)
+    // is sampled at the step so it actually varies; groups/numbers pass through.
+    const rez = (el, step) => (el && typeof el.get === 'function') ? el.get(step) : el;
+    const pick = (seq, step) => rez(seq[((((step | 0) % seq.length) + seq.length) % seq.length)], step);
+    const rnd  = (seq, step) => rez(seq[Math.floor(Math.random() * seq.length)], step);
     if (mode && typeof mode.get === 'function') {          // var/pattern → mode varies over time
         return { get: (step) => {
             const m = optName(mode, _ARP_MODES, step), seq = order(m);
-            return m === 'random' ? seq[Math.floor(Math.random() * seq.length)] : pick(seq, step);
+            return m === 'random' ? rnd(seq, step) : pick(seq, step);
         } };
     }
     const m = optName(mode, _ARP_MODES), seq = order(m);
-    if (m === 'random' || m === 'rand') return { get: () => seq[Math.floor(Math.random() * seq.length)] };
+    if (m === 'random' || m === 'rand') return { get: (step) => rnd(seq, step) };
     return { get: (step) => pick(seq, step) };
 }
 
