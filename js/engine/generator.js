@@ -16,35 +16,40 @@ const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx/
 
 // Rough role → so we pick musically-appropriate patterns/octaves per synth.
 const ROLES = {
-    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft'],
-    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm'],
-    pad:   ['pads', 'choir', 'brass', 'organ'],
-    keys:  ['bell', 'basic', 'karp'],
-    pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin'],
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble'],
+    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw'],
+    pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad'],
+    keys:  ['bell', 'basic', 'karp', 'rhodes'],
+    pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin', 'arpy'],
 };
 const roleOf = (n) => { for (const [r, list] of Object.entries(ROLES)) if (list.includes(n)) return r; return 'lead'; };
 
 const CHORDLIST = () => pick(['[0,4,7]', '[0,3,7]', '[0,4,7,11]', '[0,2,4,7]', '[0,3,5,7]', '[0,4,7,10]']);
 const ROMAN     = () => pick(['"I V vi IV"', '"i VI III VII"', '"ii V I"', '"I vi IV V"', '"i iv VII"', '"i iv v"']);
 const randList  = (n, lo, hi) => '[' + Array.from({ length: n }, () => rint(lo, hi)).join(', ') + ']';
+// A degree list peppered with rests (_ = silence). Index 0 always sounds.
+const restList  = (n, lo, hi) => '[' + Array.from({ length: n }, (_, i) => (i > 0 && chance(0.3)) ? '_' : rint(lo, hi)).join(', ') + ']';
 
 // Degree strategies — the clever bit: draw widely from the pattern library per role.
 function degBass() {
     return pick([`[0]`, `[0, 0, ${rint(3, 7)}, 0]`, `[0, ${rint(-3, 0)}, ${rint(3, 7)}, 0]`,
-                 `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`,
+                 `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`, restList(4, 0, 5),
                  `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, <0 5>, ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`]);
 }
 function degLead() {
     return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown', 'downup'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
-                 `PGrowArp(${CHORDLIST()})`, `melody()[:${rint(4, 8)}]`, `motif(${rint(3, 5)})`,
+                 `arp(${CHORDLIST()}, ${rint(0, 4)})`, `arp(${CHORDLIST()}, var([0, 1, 2], ${pick([4, 8])}))`,
+                 `PGrowArp(${CHORDLIST()})`, `melody()[:${rint(4, 8)}]`, `motif(${rint(3, 5)})`, `motif(${rint(4, 8)}, 7, 2, ${pick([4, 8])})`,
                  `PContour(${rint(0, 4)}, 8, 7)`, `PContour(${randList(rint(3, 5), 0, 7)}, 8, 7)`,
-                 `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, `PWalk(${rint(5, 9)}, 1)`, `PxRand(0, ${rint(6, 10)})`,
+                 `P${CHORDLIST()}.invert()`, `P${randList(rint(3, 5), 0, 7)}.layer("add", ${rint(2, 4)})`, `P${randList(rint(4, 6), 0, 7)}.arp([0, ${rint(4, 7)}])`,
+                 `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, `PWalk(${rint(5, 9)}, 1)`, `PxRand(0, ${rint(6, 10)})`, restList(rint(4, 6), 0, 7),
                  `PShuf(${CHORDLIST()})`, `PStutter(${randList(rint(3, 4), 0, 7)}, 2)`, `PAlt(${randList(2, 0, 4)}, ${randList(2, 4, 9)})`,
                  `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9)]);
 }
 function degPad() {
-    return pick([`PRoman(${ROMAN()})`, `PProg("${pick(['50s', '251', 'pop', 'andalusian', 'canon'])}")`,
+    return pick([`PRoman(${ROMAN()})`, `PProg("${pick(['50s', '251', 'pop', 'andalusian', 'canon'])}")`, `PProg(${rint(0, 6)})`,
                  `PChord(0, "${pick(['7', '9', 'sus4', 'add9', '11'])}")`, `PCircle(8, 0, "7")`,
+                 `P${CHORDLIST()}.layer("add", ${rint(2, 4)})`,
                  `[0, (0,4,7), 5, (2,5,9)]`, `(0,4,7,11)`, `PZip(${CHORDLIST()}, ${randList(3, 4, 9)})`]);
 }
 const degForRole = (role) => role === 'bass' ? degBass()
@@ -54,7 +59,7 @@ const degForRole = (role) => role === 'bass' ? degBass()
 
 const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)', 'PDur(<3,5>,8)'])
     : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1', '<2 4>'])
-    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")', 'PBeat("x xx x")', '<1/4 1/2>']);
+    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")', `PGroove(${rint(0, 9)})`, 'PBeat("x xx x")', '<1/4 1/2>']);
 // oct — usually a number, sometimes an alternation for movement.
 const octForRole = (role) => {
     const base = role === 'bass' ? [3, 3, 4] : role === 'pluck' ? [5, 6] : (role === 'pad' || role === 'keys') ? [4, 5] : [5, 5, 6];
@@ -110,6 +115,17 @@ const FX = [
     () => `tube=${flt(0.4, 0.8)}`,
     () => `resonbank=${flt(0.2, 0.4)}, rbfreq=${rint(40, 80)}`,
     () => `eq3=1, eqlow=${rint(-4, 5)}, eqhigh=${rint(-4, 5)}`,
+    // ── newer FX (alpha29/30 ports) ──
+    () => `mpf=${rint(400, 1600)}, mpr=${flt(1, 3.5)}`,                              // Moog ladder LPF
+    () => `resonz=${flt(0.5, 0.8)}, rfreq=${rint(400, 2200)}`,                        // resonant band
+    () => `fshift=${rint(20, 300)}, fmix=${flt(0.3, 0.6)}`,                           // frequency shift (metallic)
+    () => `shimmer=${flt(0.4, 0.7)}, shimpitch=${flt(0.4, 1)}`,                       // octave-shimmer reverb
+    () => `clouds=${flt(0.4, 0.7)}, ctex=${flt(0.3, 0.7)}, csize=${flt(0.2, 0.5)}`,   // MiClouds granular
+    () => `room2=${flt(0.5, 0.9)}, mix2=${flt(0.2, 0.4)}`,                            // stereo reverb
+    () => `combres=${flt(0.4, 0.7)}, combfreq=${rint(120, 400)}`,                     // comb resonator
+    () => `subenh=${flt(0.4, 0.7)}`,                                                  // sub-bass enhancer
+    () => `stereowidth=${flt(0.5, 0.85)}`,                                            // stereo widener
+    () => `pumper=${flt(0.6, 0.9)}, pumprate=1`,                                      // sidechain pump
 ];
 // Live transforms + fatteners chained onto the player.
 const METHODS = [
@@ -133,10 +149,12 @@ function synthLine(name) {
 function drumLine(name, chars) {
     const hit = () => pick(chars);
     let patt;
-    if (chance(0.4)) {
+    if (chance(0.28)) {
         // a Euclidean drum pattern using a real loaded char
-        patt = `PEuclid2(${rint(3, 5)}, ${pick([8, 16])}, ".", "${hit()}")`;
-        patt = `play(${patt}`;
+        patt = `play(PEuclid2(${rint(3, 5)}, ${pick([8, 16])}, ".", "${hit()}")`;
+    } else if (chance(0.18)) {
+        // a ROTATED euclid (PEuclidR) turned into a play string via .submap
+        patt = `play(PEuclidR(${pick([8, 16])}, ${rint(3, 5)}, ${rint(1, 3)}).submap({1:"${hit()}", 0:"."})`;
     } else {
         // a hand-rolled string, sometimes with a [subdivided] or (layered) step
         const len = pick([8, 8, 16]); let s = '';
@@ -156,8 +174,13 @@ function drumLine(name, chars) {
 
 // Generate `n` random player lines. type: 'synth' | 'drum' | null (mix).
 // opts: { sampleChars: [...], taken: Set<existing names> } → names avoid collisions.
+const SCALES = ['minor', 'major', 'dorian', 'phrygian', 'mixolydian', 'lydian', 'harmonicMinor',
+    'melodicMinor', 'hungarianMinor', 'blues', 'egyptian', 'wholeTone', 'bhairav'];
+
 export function chaosLines(n = 4, type = null, { sampleChars = [], taken = new Set() } = {}) {
     const lines = [];
+    // Occasionally set a scale/mode for the whole block (draws from the ported library).
+    if (chance(0.4)) lines.push(`Scale.default = "${pick(SCALES)}"`);
     let idx = 1;
     const freeName = () => { while (taken.has('g' + idx)) idx++; const nm = 'g' + idx; taken.add(nm); idx++; return nm; };
     for (let i = 0; i < Math.max(1, n | 0); i++) {
@@ -165,6 +188,8 @@ export function chaosLines(n = 4, type = null, { sampleChars = [], taken = new S
         if (!t) t = (sampleChars.length && chance(0.35)) ? 'drum' : 'synth';
         const name = freeName();
         lines.push(t === 'drum' && sampleChars.length ? drumLine(name, sampleChars) : synthLine(name));
+        // Sometimes let a generative synth reroll its whole line over time.
+        if (t !== 'drum' && chance(0.2)) lines.push(`reroll("${name}", ${pick([4, 8, 8, 16])})`);
     }
     return lines;
 }
