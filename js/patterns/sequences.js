@@ -267,9 +267,11 @@ function _pdurList(k, n, rotate = 0, dur = 1) {
 // 5-in-8 the next, and so on (k is re-resolved each time the cycle completes).
 export function PDur(k, n, rotate = 0, dur = 1) {
     if (k != null && typeof k === 'object' && typeof k.get === 'function') {
-        let durs = _pdurList(patGet(k, 0), n, rotate, dur), i = 0;
+        // Advance a cycle counter so an alternating k (PDur(<3 5>,8)) steps through
+        // its values — patGet(k, 0) every rebuild froze on the first item (_alt caches).
+        let cyc = 0, durs = _pdurList(patGet(k, cyc), n, rotate, dur), i = 0;
         return { get() {
-            if (i >= durs.length) { durs = _pdurList(patGet(k, 0), n, rotate, dur); i = 0; }
+            if (i >= durs.length) { cyc++; durs = _pdurList(patGet(k, cyc), n, rotate, dur); i = 0; }
             return durs[i++] ?? 1;
         } };
     }
@@ -314,12 +316,14 @@ export function PLog(mean = 0, deviation = 1) {
 // (a quirky "the machine's clock" generator). With low/high, map digits into [low,hi].
 export function PTime(low = 0, high = 0, rnd = 1) {
     const digits = String(Math.floor(Date.now() / 1000)).split('').map(Number);
-    if (low === 0 && high === 0) return digits;
-    return digits.map(d => { const v = low + (d / 9) * (high - low); return Math.round(v / rnd) * rnd; });
+    if (low === 0 && high === 0) return Ppat(digits);
+    return Ppat(digits.map(d => { const v = low + (d / 9) * (high - low); return Math.round(v / rnd) * rnd; }));
 }
 
 // PSum(n, total) — n durations that sum to total, e.g. PSum(3,8) → [3,3,2].
 export function PSum(n, total, lim = 0.125) {
+    n = Math.max(1, Math.round(n) || 1);                 // n=0 → data[i%0] = NaN key
+    if (!(total > 0)) return Ppat([total || 0]);
     const sum = (a) => a.reduce((x, y) => x + y, 0);
     let data = [total + 1], step = 1;
     while (sum(data) > total) { data = Array(n).fill(step); step *= 0.5; }
@@ -373,7 +377,7 @@ export function PDelay(k, n, rotate = 0, dur = 1) {
 // ── More FoxDot generators ────────────────────────────────────────────────────
 
 // P10(n) — n-length list of random 1s and 0s (FoxDot P10). e.g. play(P10(8)).
-export function P10(n = 8) { const out = []; for (let i = 0; i < (n | 0); i++) out.push(Math.random() < 0.5 ? 0 : 1); return out; }
+export function P10(n = 8) { const out = []; for (let i = 0; i < (n | 0); i++) out.push(Math.random() < 0.5 ? 0 : 1); return Ppat(out); }
 
 // PSaw(lo, hi, steps) — rising sawtooth ramp (companion to PSine/PTri).
 export function PSaw(lo = 0, hi = 1, steps = 16) {
@@ -381,11 +385,11 @@ export function PSaw(lo = 0, hi = 1, steps = 16) {
 }
 
 // PSq(a, b, c) — powers: [a^b, (a+1)^b, … ] for c terms (FoxDot PSq).
-export function PSq(a = 1, b = 2, c = 3) { const out = []; for (let x = a; x < a + c; x++) out.push(Math.pow(x, b)); return out; }
+export function PSq(a = 1, b = 2, c = 3) { const out = []; for (let x = a; x < a + c; x++) out.push(Math.pow(x, b)); return Ppat(out); }
 
 // PZero() — a constant 0 generator. PBool(seq) — every nonzero → 1, else 0.
 export function PZero() { return { get: () => 0 }; }
-export function PBool(seq) { return (Array.isArray(seq) ? seq : [seq]).map(x => (x ? 1 : 0)); }
+export function PBool(seq) { return Ppat((Array.isArray(seq) ? seq : [seq]).map(x => (x ? 1 : 0))); }
 
 // PFibMod — FoxDot's Fibonacci generator (same series as PFib).
 export const PFibMod = PFib;
@@ -402,7 +406,7 @@ export function PPairs(seq, func = (n) => 8 - n) {
 export function PChar(string, start = 0) {
     const out = [];
     for (const ch of String(string)) { const c = ch.toLowerCase(); out.push((c >= 'a' && c <= 'z') ? c.charCodeAt(0) - 97 + start : 0); }
-    return out;
+    return Ppat(out);
 }
 
 // PQuicken(dur, stepsize, steps) — a group of delay amounts that gradually
@@ -435,15 +439,15 @@ export function PZip2(a, b) {
 export function PZ12(tokens = [1, 0], p = [1, 0.5]) {
     const maxp = Math.max(...p) || 1;
     const probs = p.map(v => v / maxp);
-    const prev = [], dearth = tokens.map(() => 0);
+    // Track per-token counts + a step index instead of retaining the full history —
+    // the old `prev` array grew (and was reduce-scanned) unbounded in a live session.
+    const counts = tokens.map(() => 0);
+    let index = 0;
     return { get: () => {
-        const index = prev.length;
-        for (let i = 0; i < tokens.length; i++) {
-            const d1 = prev.reduce((a, x) => a + (x === tokens[i] ? 1 : 0), 0);
-            dearth[i] = probs[i] * (index + 1) - d1;
-        }
+        const dearth = tokens.map((_, i) => probs[i] * (index + 1) - counts[i]);
         let bi = 0; for (let i = 1; i < dearth.length; i++) if (dearth[i] > dearth[bi]) bi = i;
-        const value = tokens[bi]; prev.push(value); return value;
+        counts[bi]++; index++;
+        return tokens[bi];
     }};
 }
 
@@ -495,11 +499,19 @@ export function Pmath(a, op, b) {
     const f = _OPS[op] ?? ((x) => x);
     const lazy = (v) => v != null && (typeof v.get === 'function' || Array.isArray(v) || isGroup(v) || isEnv(v));
     if (!lazy(a) && !lazy(b)) return f(a, b);
-    const resolve = (v, step) => {
-        let r = isGroup(v) ? patGet(v.__group[0], step) : patGet(v, step, v);
-        return isEnv(r) ? envValue(r) : r;
-    };
-    return { get: (step) => f(resolve(a, step), resolve(b, step)) };
+    const scalar = (v, step) => { const r = patGet(v, step, v); return isEnv(r) ? envValue(r) : r; };
+    return { get: (step) => {
+        // Group operand → broadcast the op across the chord's voices (return a group),
+        // e.g. (0,4,7)+2 → (2,6,9). The old code collapsed to the first voice, dropping
+        // the rest of the chord. (Arrays stay per-step sequences, not chords.)
+        if (isGroup(a) || isGroup(b)) {
+            const av = isGroup(a) ? a.__group : [a], bv = isGroup(b) ? b.__group : [b];
+            const nn = Math.max(av.length, bv.length), out = [];
+            for (let i = 0; i < nn; i++) out.push(f(scalar(av[i % av.length], step), scalar(bv[i % bv.length], step)));
+            return _group(...out);
+        }
+        return f(scalar(a, step), scalar(b, step));
+    } };
 }
 
 // PShuf(seq) — shuffle once at creation, cycle forever
@@ -527,7 +539,7 @@ export const PCoin = PBern;
 // PEuclid(n, k, offset=0) — k pulses in n steps; returns 1/0 per step
 export function PEuclid(n, k, offset = 0) {
     const seq = _euclid(n, k);
-    return { get: (step) => seq[(step + offset) % seq.length] };
+    return { get: (step) => seq[(((step + offset) % seq.length) + seq.length) % seq.length] };
 }
 
 // PEuclidR(n, k, rotation=0) — a rotated Euclidean rhythm as a concrete 0/1
@@ -651,8 +663,10 @@ export function PGauss(mean = 0, deviation = 1) {
 // PRange(lo, hi, step=1) — cycle through arithmetic range
 export function PRange(lo, hi, step = 1) {
     const arr = [];
-    for (let v = lo; v < hi; v += step) arr.push(v);
-    return { get: (s) => arr[s % arr.length] };
+    if (step > 0)      for (let v = lo; v < hi; v += step) arr.push(v);
+    else if (step < 0) for (let v = lo; v > hi; v += step) arr.push(v);
+    if (!arr.length) arr.push(lo);   // degenerate (step 0, lo≥hi) → a constant, no hang/NaN
+    return { get: (s) => arr[(((s | 0) % arr.length) + arr.length) % arr.length] };
 }
 
 // PStep(n, value, default=0) — FoxDot form: `value` every n steps (at 0, n, 2n…),
@@ -682,7 +696,7 @@ export function PStep(n, value = 1, dflt = 0) {
 export function PSine(lo = 0, hi = 1, steps = 16) {
     return {
         get: (step) => {
-            const t = (step % steps) / steps;
+            const t = ((((step | 0) % steps) + steps) % steps) / steps;
             return lo + (hi - lo) * (Math.sin(t * Math.PI * 2) * 0.5 + 0.5);
         }
     };
@@ -692,7 +706,7 @@ export function PSine(lo = 0, hi = 1, steps = 16) {
 export function PTri(lo = 0, hi = 1, steps = 16) {
     return {
         get: (step) => {
-            const t = (step % steps) / steps;
+            const t = ((((step | 0) % steps) + steps) % steps) / steps;
             return lo + (hi - lo) * (t < 0.5 ? t * 2 : (1 - t) * 2);
         }
     };

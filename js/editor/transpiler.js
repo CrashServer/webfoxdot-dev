@@ -9,9 +9,6 @@
 
 // Hoisted regexes (built once, not per line per eval).
 const RE_COMMENT  = /^(\s*)#/;
-const RE_P_RAND   = /\bP\s*\*\s*\[([^\]]*)\]/g;
-const RE_P_LIST   = /\bP\s*\[([^\]]*)\]/g;
-const RE_P_GROUP  = /\bP\s*\(([^)]*)\)/g;
 const RE_DOT_REST = /(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g;
 // Standalone `_` or bare `rest` between list/arg delimiters → a true rest (silence).
 const RE_UNDERSCORE_REST = /(?<=[,\[(]\s*)_(?=\s*[,\]\)])/g;
@@ -20,6 +17,41 @@ const RE_RSHIFT   = /^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/;
 const RE_ATTR     = /^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/;
 const RE_RESERVED = /^(Clock|Scale|Root|Master|Server)$/;
 const RE_METHOD   = /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop)\s*\(/g;
+
+// Rewrite the FoxDot P object with a depth-aware scanner (regex `[^\]]*` couldn't
+// handle nesting, so P[0,[4,2]] produced a mismatched-paren syntax error):
+//   P*[a,b] → PRand([a,b])   ·   P[a,b] → Ppat([a,b])   ·   P(a,b) → __group(a,b)
+// Nested P forms are rewritten recursively; string literals are copied verbatim.
+function rewriteP(s) {
+    let out = '', i = 0;
+    const idChar = (c) => c && /[\w$]/.test(c);
+    while (i < s.length) {
+        const c = s[i];
+        if (c === '"' || c === "'" || c === '`') {          // copy a string literal whole
+            const q = c; out += c; i++;
+            while (i < s.length) { out += s[i]; const done = s[i] === q && s[i - 1] !== '\\'; i++; if (done) break; }
+            continue;
+        }
+        const m = (c === 'P' && !idChar(s[i - 1])) ? /^P(\s*\*)?\s*([[(])/.exec(s.slice(i)) : null;
+        if (m) {
+            const isRand = !!m[1], open = m[2], close = open === '[' ? ']' : ')';
+            let depth = 1, j = i + m[0].length, inStr = '';
+            for (; j < s.length && depth > 0; j++) {
+                const ch = s[j];
+                if (inStr) { if (ch === inStr && s[j - 1] !== '\\') inStr = ''; }
+                else if (ch === '"' || ch === "'" || ch === '`') inStr = ch;
+                else if (ch === '(' || ch === '[' || ch === '{') depth++;
+                else if (ch === ')' || ch === ']' || ch === '}') { depth--; if (depth === 0) break; }
+            }
+            const inner = rewriteP(s.slice(i + m[0].length, j));   // recurse for nested P
+            out += open === '[' ? (isRand ? `PRand([${inner}])` : `Ppat([${inner}])`) : `__group(${inner})`;
+            i = j + 1;
+            continue;
+        }
+        out += c; i++;
+    }
+    return out;
+}
 
 export function transpile(code) {
     return code.split('\n').map(line => {
@@ -38,9 +70,7 @@ export function transpile(code) {
         //   P*[a,b,c] → PRand([a,b,c])   (random pick from the list)
         //   P[a,b,c]  → Ppat([a,b,c])    (cyclic pattern with chainable methods)
         //   P(a,b,c)  → __group(a,b,c)   (simultaneous group)
-        main = main.replace(RE_P_RAND, 'PRand([$1])');
-        main = main.replace(RE_P_LIST, 'Ppat([$1])');
-        main = main.replace(RE_P_GROUP, '__group($1)');
+        main = rewriteP(main);
 
         // Standalone . used as rest → null in array/argument positions
         // dbass([0, ., 4]) → dbass([0, null, 4])  (null → degree 0, still sounds)
