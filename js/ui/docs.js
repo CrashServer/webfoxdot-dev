@@ -203,10 +203,17 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha32';
+export const VERSION = 'alpha33';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha33', title: 'Code audit · galaxy examples · leaner UI', items: [
+        'Big code-audit bug-fix pass — a deep pass over the whole codebase fixed a stack of real issues: a stop→re-eval race that could double a player\'s density, synth drive/comp params that were silently swallowed by same-named FX, a guit synth that made no sound, share links that overwrote your saved buffer, a boot timeout that orphaned the audio engine, pattern-generator edge cases (PRange hang, PSine/PTri/PEuclid negative steps, PDur/PZ12, Pmath dropping chord voices, nested P[…]), collab-server leaks / DoS / monitor exposure, and drifted syntax-highlight + docs reference data. Mostly invisible — things just work more correctly.',
+        'Collapsible changelog — every entry is now a short headline that expands on click, so the log stays scannable while keeping all the detail (you\'re reading it now).',
+        'Galaxy also browses the examples — beyond the live jams, every example shows as a dim star grouped into a coloured nebula per category, built live from the example list. Hover for its title, click to load it into the editor. Live jams stay the bright foreground; "Live sets" get a flashier pulsing / sparkling treatment, and a few slow comets and asteroids drift across for ambience. The session you\'re in glows amber and clicking it just closes the map (no rejoin).',
+        'Streamlined the side panel — Clock, Scale and Root now share one section with Players right beneath it; BPM + tap and Scale + Root each share a row; the phrase counters step per beat; and the old bar-count readout + subdivision squares are gone.',
+        'Leaner toolbar — run / stop / reset are compact icons (▶ / ■ / ↻), ♪ load kit sits next to boot, about moved into the crashDot sidebar header, and the load/latency diagnostics meter moved to the sidebar footer.',
+    ] },
     { v: 'alpha32', title: 'Galaxy map — browse & join live jams', items: [
         '🌌 galaxy (experimental) — a starfield of every live jam session on the server. Each jam is a glowing star: bigger with more people, brighter the more active it is, slowly fading as it goes quiet. Click a star to jump straight into that session. Opens from the toolbar; updates live. Hover any star to see its details (peers, when it was last active, age). When the last person leaves, the jam doesn\'t vanish — it lingers as a "resting" star whose colour slowly cools from green to blue-grey and fades over 24h (its code kept on the server), so you can click to revive it right where it left off. It\'s purged after a day if nobody comes back.',
     ] },
