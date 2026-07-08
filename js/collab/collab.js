@@ -53,11 +53,16 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // so "go live" carries your current buffer into the session instead of a blank.
     if (seedText) {
         let seeded = false;
-        const trySeed = () => {
-            if (!seeded && provider.synced && ytext.length === 0) { seeded = true; ytext.insert(0, seedText); }
+        // Insert the seed only while the shared doc is still empty (a fresh room). We
+        // try on several signals so timing quirks can't drop it: the sync event, an
+        // already-synced check, and a settle-timer fallback if no sync signal arrives.
+        const seedIfEmpty = () => {
+            if (!seeded && ytext.length === 0) { seeded = true; ytext.insert(0, seedText); }
         };
-        provider.on('sync', trySeed);
-        if (provider.synced) trySeed();   // in case we're already synced when we attach
+        provider.on('sync',   seedIfEmpty);
+        provider.on('synced', seedIfEmpty);
+        if (provider.synced) seedIfEmpty();
+        setTimeout(seedIfEmpty, 1800);
     }
 
     // User identity — persisted across reloads. A stable `id` (separate from the
