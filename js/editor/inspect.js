@@ -12,7 +12,7 @@ function defs() {
     if (_defs) return _defs;
     // Common params (amp/dur/pan/attack/release) are uniform across synths, so we
     // hide them from the inspected signature to keep it to the synth's own controls.
-    const HIDDEN = new Set(['amp', 'dur', 'pan', 'attack', 'release']);
+    const HIDDEN = new Set(['amp', 'dur', 'pan', 'attack', 'release', 'oct']);
     const d = {};
     for (const [name, def] of Object.entries(SYNTH_DEFS)) {
         const params = Object.keys(def.defaults).filter(k => !HIDDEN.has(k)).join(', ');
@@ -71,7 +71,7 @@ function showTip(cm, cursor, word, info, preview) {
     let html = info
         ? `<span class="wfd-tip-kind wfd-kind-${info.kind}">${info.kind}</span>` +
           `<span class="wfd-tip-sig">${esc(info.sig)}</span>` +
-          `<div class="wfd-tip-desc">${info.desc}</div>`
+          `<div class="wfd-tip-desc">${esc(info.desc)}</div>`
         : `<div class="wfd-tip-desc">no info for "<b>${esc(word)}</b>"</div>`;
     if (preview != null) html += `<div class="wfd-tip-val">→ ${esc(preview)}</div>`;
     tip.innerHTML = html;

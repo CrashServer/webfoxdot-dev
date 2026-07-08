@@ -42,15 +42,23 @@
         'renv','clone','switch','start','midi','midiin','mlearn','midiout','link','follow','accompany',
     ];
 
-    // Build a fast lookup: word → cm class name
-    const tokenMap = new Map();
-    SYNTHS.forEach(s   => tokenMap.set(s, 'fd-synth'));
-    PATTERNS.forEach(p => tokenMap.set(p, 'fd-pattern'));
-    TIMEVARS.forEach(t => tokenMap.set(t, 'fd-timevar'));
-    KEYWORDS.forEach(k => tokenMap.set(k, 'fd-keyword'));
-
-    // `var` → fd-timevar (transpiler rewrites it but highlight is useful)
-    tokenMap.set('var', 'fd-timevar');
+    // Build a fast lookup: word → cm class name. The hardcoded lists above are a
+    // FALLBACK; the app overrides them from the live registries via setFoxdotTokens
+    // (below) so highlighting can't drift out of sync with the real synths/patterns.
+    let tokenMap;
+    function buildTokenMap(synths, patterns, timevars, keywords) {
+        const m = new Map();
+        synths.forEach(s   => m.set(s, 'fd-synth'));
+        patterns.forEach(p => m.set(p, 'fd-pattern'));
+        timevars.forEach(t => m.set(t, 'fd-timevar'));
+        keywords.forEach(k => m.set(k, 'fd-keyword'));
+        m.set('var', 'fd-timevar');   // transpiler rewrites it, but highlight is useful
+        return m;
+    }
+    tokenMap = buildTokenMap(SYNTHS, PATTERNS, TIMEVARS, KEYWORDS);
+    // Called from index.html with Object.keys(SYNTH_DEFS) etc. so the lists stay live.
+    CodeMirror.setFoxdotTokens = (synths, patterns, timevars) =>
+        { tokenMap = buildTokenMap(synths || SYNTHS, patterns || PATTERNS, timevars || TIMEVARS, KEYWORDS); };
 
     const WORD_RE = /^[a-zA-Z_]\w*/;
     const PLAYER_RE = /^[a-zA-Z_]\w*(?=\s*>>)/;

@@ -199,6 +199,7 @@
              P10, PSaw, PSq, PZero, PBool, PFibMod, PPairs, PChar, PQuicken, PStrum, PZip2, PZ12,
              PChord, PRoman, PProg, PClave, PRhythm, PPoly, PLogistic, PBrown, PHenon, PLorenz, PPrime, PThue, PGrowArp, PTree,
              PExp, PPulse, PSlide, motif, arp, PContour, PGroove, PCircle } from './js/patterns/sequences.js';
+    import * as _Seq from './js/patterns/sequences.js';   // namespace → derive the live pattern list for syntax highlighting
     import { _var, _linvar, _sinvar, _expvar, lininf, expinf, Pvar, _fperlin, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
     import { loadSamples, PlayStringCall, LoopCall, loadedSampleChars,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
@@ -1044,6 +1045,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // the editor is created (it's async), and takes precedence over the local buffer.
     const _shareTok = new URLSearchParams(location.hash.slice(1)).get('c');
     const _startValue = (!_sessionSlug && !_shareTok && localStorage.getItem(SOLO_KEY)) || INITIAL_CODE;
+
+    // Keep syntax highlighting in lock-step with the real registries (no hand-kept
+    // list to drift): push the live synth/pattern/timevar names to the foxdot mode.
+    try {
+        const _patN = Object.keys(_Seq).filter(k => /^P[a-zA-Z]/.test(k) && !['Pattern', 'Pmath', 'Ppat', 'Pslice'].includes(k));
+        CodeMirror.setFoxdotTokens?.(
+            Object.keys(SYNTH_DEFS).concat('piano'),
+            _patN.concat('motif', 'arp'),
+            ['var', 'linvar', 'sinvar', 'expvar', 'lininf', 'expinf', 'Pvar', 'fperlin', 'fi', 'fo', 'fb']);
+    } catch (_) {}
 
     const editor = CodeMirror(document.getElementById('editor-wrap'), {
         value:            _startValue,

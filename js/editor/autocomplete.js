@@ -21,7 +21,7 @@ const PLAYER_METHODS = [
 
 // Params common to every synth — uniform defaults, so we don't clutter the
 // inserted call / signature with them (amp 1, pan 0, oct 5, attack/release).
-const HIDDEN_SYNTH_PARAMS = new Set(['amp', 'dur', 'pan', 'attack', 'release']);
+const HIDDEN_SYNTH_PARAMS = new Set(['amp', 'dur', 'pan', 'attack', 'release', 'oct']);
 
 // Build a synth call with the synth's own (non-common) params at their defaults.
 function fullSynthCall(name) {
@@ -186,7 +186,7 @@ const PATTERN_NAMES = [
 const PATTERN_TEMPLATES = {
     PRand: 'PRand(0, 8)', PWhite: 'PWhite(0, 1)', PWalk: 'PWalk(8, 1, 1)', PDur: 'PDur(3, 8)',
     PPing: 'PPing(0, 7)', PStutter: 'PStutter([0, 2, 4], 2)', PAlt: 'PAlt([0, 2], [4, 7])',
-    PShuf: 'PShuf([0, 2, 4, 7])', PBern: 'PBern(0.5)', PCoin: 'PCoin(0.5)', PEuclid: 'PEuclid(3, 8)',
+    PShuf: 'PShuf([0, 2, 4, 7])', PBern: 'PBern(0.5)', PCoin: 'PCoin(0.5)', PEuclid: 'PEuclid(8, 3)',
     PRange: 'PRange(0, 8)', PStep: 'PStep(4, 7, 0)', PSine: 'PSine(0, 1, 16)', PTri: 'PTri(0, 1, 16)',
     PChain: 'PChain({0: [1, 2], 1: [0]})', PMarkov: 'PMarkov([0, 2, 4, 2, 0])', Pacc: 'Pacc("offbeat")',
     PSwing: 'PSwing(0.5)', PBin: 'PBin(16)', PFDur: 'PFDur((3, 8))', PLife: 'PLife(0.5)',
@@ -269,8 +269,10 @@ function getContext(cm) {
     // Empty line → player name suggestion
     if (line.trim() === '') return { type: 'newplayer' };
 
-    if (before.match(/[a-zA-Z_]\w*\.$/))    return { type: 'method', word: '' };
-    if (before.match(/[a-zA-Z_]\w*\.\w+$/)) return { type: 'method', word };
+    // Method after an identifier OR a closed call/bracket — so saw([0]).rev and
+    // p1.pen both offer player methods (a `)`/`]` before the dot used to fall through).
+    if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.$/))    return { type: 'method', word: '' };
+    if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.\w+$/)) return { type: 'method', word };
     if (before.match(/[a-zA-Z_]\w*\s*>>\s*[a-zA-Z_]*$/)) return { type: 'synth', word };
     const scaleM = before.match(/Scale\s*\.\s*default\s*=\s*["']([a-zA-Z]*)$/);
     if (scaleM) return { type: 'scale', word: scaleM[1] };
