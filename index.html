@@ -26,6 +26,7 @@
       <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪ load kit</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥 go live</button>
+      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌 galaxy</button>
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
@@ -221,6 +222,7 @@
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
+    import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
@@ -1337,6 +1339,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── Docs ──────────────────────────────────────────────────────────────────
     initDocs();
+    initGalaxy();
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
     // Global stop-all — Ctrl/Cmd + . works regardless of focus (editor, panels, …)
@@ -1879,6 +1882,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>
   <!-- ── About card ──────────────────────────────────────────────────────── -->
+  <div id="galaxy-overlay" hidden>
+    <canvas id="galaxy-canvas"></canvas>
+    <div id="galaxy-head">
+      <h2>🌌 crash<span>Dot</span> galaxy</h2>
+      <span class="hint">live jams — click a star to join</span>
+      <button id="galaxy-close" title="close (Esc)">✕ close</button>
+    </div>
+    <div id="galaxy-empty">no jams live right now — start one with “👥 go live”</div>
+  </div>
+
   <div id="about-overlay" hidden>
     <div id="about-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
       <button id="about-close" title="close (Esc)">✕</button>

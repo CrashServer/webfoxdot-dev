@@ -204,10 +204,13 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha31';
+export const VERSION = 'alpha32';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha32', title: 'Galaxy map — browse & join live jams', items: [
+        '🌌 galaxy (experimental) — a starfield of every live jam session on the server. Each jam is a glowing star: bigger with more people, brighter the more active it is, slowly fading as it goes quiet. Click a star to jump straight into that session. Opens from the toolbar; updates live.',
+    ] },
     { v: 'alpha31', title: 'Share by link · go live from a composition', items: [
         'Share button (⤴ in the toolbar) — copies a self-contained link to your clipboard that carries the WHOLE composition inside the URL (#c=…, deflate-compressed), so it needs no server and never expires. Open the link and it loads that exact buffer into the editor, ready to edit & run. Great for short sketches; a big #@ track makes a long URL that some chat apps may truncate — a server-backed short link is coming next. (If the clipboard is blocked, the link is put in the address bar to copy manually.)',
         '"👥 go live" button — turn the composition you\'re working on into a live multiplayer session in one click: it seeds a fresh room with your current buffer and drops you into it with a ?session= link to share. Anyone who opens the link joins and edits with you in real time. Once you\'re in a session the button becomes "⧉ session link" to copy the room URL. (Links are relative to wherever the app is served, so they keep working when it moves off localhost.)',

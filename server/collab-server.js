@@ -177,6 +177,26 @@ function recordEval(slug, msg) {
     if (!rec.solo) { const m = roomMetaFor(slug); m.evals++; m.lastEval = rec; }
     sseBroadcast('eval', rec);
 }
+// PUBLIC session list for the galaxy map — safe to expose (slugs + peer counts +
+// activity only, never eval code). Used by the client's join-a-jam view.
+function publicSessions() {
+    const now = Date.now();
+    return {
+        now,
+        sessions: [...rooms.entries()].filter(([, r]) => r.size > 0).map(([slug, r]) => {
+            const m = roomMeta.get(slug) || {};
+            const lastAct = (m.lastEval && m.lastEval.t) || m.createdAt || now;
+            return {
+                slug,
+                clients: r.size,
+                ageMs:   m.createdAt ? now - m.createdAt : 0,
+                idleMs:  now - lastAct,       // since the last eval — drives the fade
+                evals:   m.evals || 0,
+            };
+        }),
+    };
+}
+
 function sessionsDetail() {
     return [...rooms.entries()].filter(([, r]) => r.size > 0).map(([slug, r]) => {
         const m = roomMeta.get(slug) || {};
@@ -364,6 +384,15 @@ const MONITOR_HTML = `<!doctype html><html lang="en"><head>
 
 const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
+
+    // Public: the galaxy map's session list (no eval code → safe for anyone).
+    if (req.method === 'GET' && url.pathname === '/sessions') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(publicSessions()));
+        return;
+    }
+
     const monitoring = ['/metrics', '/status', '/monitor', '/monitor/stream'].includes(url.pathname);
 
     if (req.method === 'GET' && monitoring) {
