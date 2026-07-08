@@ -847,16 +847,16 @@
             log(`  groups created: playerGroup=${PLAYER_GROUP}, fxGroup=${FX_GROUP}`, 'ok');
 
             const synthStatus = document.getElementById('synth-status');
-            for (const name of SYNTHDEFS_TO_LOAD) {
-                synthStatus.textContent = `loading ${name}…`;
-                try {
-                    await sc.loadSynthDef(name);
-                    log(`  ${name} ✓`, 'ok');
-                } catch (e) {
-                    log(`  ${name} FAILED: ${e.message}`, 'error');
-                    console.error(`loadSynthDef ${name}:`, e);
-                }
+            // Progress stays visible in the status pill (a live count) instead of
+            // spamming the log with a ✓ line per synthdef — only failures are logged.
+            let _loaded = 0, _failed = 0;
+            for (let i = 0; i < SYNTHDEFS_TO_LOAD.length; i++) {
+                const name = SYNTHDEFS_TO_LOAD[i];
+                synthStatus.textContent = `loading synthdefs… ${i + 1}/${SYNTHDEFS_TO_LOAD.length}`;
+                try { await sc.loadSynthDef(name); _loaded++; }
+                catch (e) { _failed++; log(`  ${name} FAILED: ${e.message}`, 'error'); console.error(`loadSynthDef ${name}:`, e); }
             }
+            log(`  ${_loaded} synthdefs loaded ✓${_failed ? ` (${_failed} failed)` : ''}`, _failed ? 'warn' : 'ok');
             // Master safety limiter at the tail of RootNode — sees the summed mix
             // of every player + FX, so stacking loud players can't hard-clip.
             sc.send('/s_new', 'fd_master', MASTER_NODE, 1, 0);

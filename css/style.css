@@ -404,7 +404,10 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .cm-def      { color: var(--cm-def); }
 /* CodeMirror's default theme colours these dark-purple (#30a) — unreadable on a
    dark editor. Re-map to the theme's variable/def colours. */
-.cm-builtin    { color: var(--cm-def); }
+/* `oct` (and other Python builtin names used as params) tokenize as cm-builtin;
+   CodeMirror's default theme paints that #30a dark purple, unreadable on dark bgs.
+   Scope to .CodeMirror so we beat .cm-s-default and read them as plain params. */
+.CodeMirror .cm-builtin { color: var(--text-1); }
 .cm-variable   { color: var(--text-1); }   /* plain names (oct, dur, …) — keep readable */
 .cm-variable-2 { color: var(--cm-def); }
 .cm-property   { color: var(--text-1); }
@@ -444,8 +447,9 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 }
 .log-info  { color: var(--text-2); }
 .log-ok    { color: var(--green); }
-.log-warn  { color: var(--yellow); }
-.log-error { color: var(--red); }
+.log-warn  { color: var(--yellow); border-left: 2px solid var(--yellow); padding-left: 5px; }
+/* Errors are what you scan the log for — a red bar + tint so they don't slip past. */
+.log-error { color: var(--red); font-weight: 600; border-left: 2px solid var(--red); padding-left: 5px; background: rgba(248, 81, 73, 0.09); }
 .log-eval  { color: var(--blue); }
 
 /* ── Split view — peers' evals feed (below the shared editor, session only) ─── */
