@@ -1156,6 +1156,13 @@ button.recording {
 /* Changelog list */
 .docs-changelog { margin: 4px 0 0 0; padding-left: 18px; }
 .docs-changelog li { font-size: 11px; line-height: 1.6; color: var(--text-1); margin-bottom: 3px; }
+/* Collapsible changelog entries — a scannable headline that expands on click. */
+.cl-item.has-detail > .cl-summary { cursor: pointer; }
+.cl-item.has-detail > .cl-summary:hover { color: var(--green); }
+.cl-more { color: var(--text-2); font-size: 9px; margin-left: 5px; display: inline-block; transition: transform 0.12s ease; }
+.cl-item.open .cl-more { transform: rotate(90deg); }
+.cl-detail { display: none; margin: 2px 0 2px 2px; padding-left: 8px; border-left: 2px solid var(--green-dim); color: var(--text-2); }
+.cl-item.open .cl-detail { display: block; }
 .docs-link {
     color: var(--blue);
     cursor: pointer;

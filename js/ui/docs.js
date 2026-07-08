@@ -554,12 +554,27 @@ export function examplesAsCode() {
     return out.join('\n');
 }
 
+// Split a long entry into a scannable headline + the rest (revealed on click).
+// Prefer the "Headline — details" dash; else the first sentence.
+function splitItem(text) {
+    const d = text.indexOf(' — ');
+    if (d > 0) return { summary: text.slice(0, d), detail: text.slice(d + 3) };
+    const m = text.match(/^(.+?[.:])\s+(\S.+)$/s);
+    if (m && m[1].length <= text.length - 12) return { summary: m[1], detail: m[2] };
+    return { summary: text, detail: '' };
+}
+
 function buildChangelog() {
     const li = (item) => {
-        if (typeof item === 'string') return `<li>${item}</li>`;
-        const link = item.ex
+        const raw  = typeof item === 'string' ? item : item.t;
+        const link = (typeof item !== 'string' && item.ex)
             ? ` <a class="docs-link" data-anchor="ex-${item.ex}">→ example</a>` : '';
-        return `<li>${item.t}${link}</li>`;
+        const { summary, detail } = splitItem(raw);
+        if (!detail) return `<li class="cl-item">${summary}${link}</li>`;
+        return `<li class="cl-item has-detail">`
+             +   `<div class="cl-summary">${summary}${link}<span class="cl-more">▸</span></div>`
+             +   `<div class="cl-detail">${detail}</div>`
+             + `</li>`;
     };
     return CHANGELOG.map(rel => `
         <div class="docs-section">
@@ -2163,6 +2178,9 @@ export function initDocs() {
             }
             return;
         }
+        // Changelog entry: click the headline to expand/collapse its details
+        const clSummary = e.target.closest('.cl-summary');
+        if (clSummary) { clSummary.closest('.cl-item')?.classList.toggle('open'); return; }
         // Click any code block to copy it to the clipboard
         const pre = e.target.closest('.docs-code');
         if (!pre) return;
