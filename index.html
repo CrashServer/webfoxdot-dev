@@ -284,6 +284,7 @@
 
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;
+    let _soloPresence = null;   // solo presence handle → forwards solo evals to the monitor
     let _remoteEval = false; // prevent re-broadcast of received evals
     let _applyingRemote = false; // while replaying a peer action, suppress re-broadcast
 
@@ -585,6 +586,10 @@
         if (!fromRemote && _collab) {
             const user = getUser();
             _collab.broadcastEval(raw, [], user.name, user.color, clock.now());
+        } else if (!fromRemote && _soloPresence) {
+            // Solo: forward the eval to the server's live monitor (not relayed anywhere).
+            const user = getUser();
+            _soloPresence.reportEval(raw, user.name, user.color);
         }
     }
 
@@ -1821,7 +1826,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     } else {
         // Solo (no session) — register lightweight presence so the collab server
         // can count solo usage. Silent no-op if the collab server isn't reachable.
-        initSoloPresence();
+        initSoloPresence().then(p => { _soloPresence = p; }).catch(() => {});
     }
 
     // ── Load / latency meter ──────────────────────────────────────────────────

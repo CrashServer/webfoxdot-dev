@@ -35,4 +35,15 @@ export async function initSoloPresence() {
 
     // Leave promptly on unload so the server's solo count drops right away.
     window.addEventListener('beforeunload', () => { closed = true; try { ws?.close(); } catch (_) {} });
+
+    // Forward a solo eval to the server's live monitor (fire-and-forget; the server
+    // doesn't relay it — solo has no peers — it just records it for /monitor).
+    return {
+        reportEval(code, author, color) {
+            try {
+                if (ws && ws.readyState === WebSocket.OPEN)
+                    ws.send(JSON.stringify({ type: 'eval', code, author, color }));
+            } catch (_) {}
+        },
+    };
 }
