@@ -76,7 +76,8 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
 
     // Clear our awareness on unload so the ghost vanishes immediately (not after
     // the ~30s awareness timeout).
-    window.addEventListener('beforeunload', () => { try { provider.awareness.setLocalState(null); } catch (_) {} });
+    const _onBeforeUnload = () => { try { provider.awareness.setLocalState(null); } catch (_) {} };
+    window.addEventListener('beforeunload', _onBeforeUnload);
 
     // Update identity live — peers see the new name/colour on your cursor at once.
     function setUser(u) {
@@ -108,24 +109,31 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ws.send(JSON.stringify({ type: 'ping', t1: Date.now() }));
     }
 
+    let lastRtt = 0;
     function handlePong({ t1, t2 }) {
         const now    = Date.now();
         const rtt    = now - t1;
+        lastRtt      = rtt;
         const offset = t2 - (t1 + rtt / 2); // our clock is offset ms behind server
         clockOffset  = offset;
     }
 
     // ── Beat master election via Yjs awareness ────────────────────────────
     function electBeatMaster() {
-        const states = Array.from(provider.awareness.getStates().values());
-        const otherMasters = states.filter(
-            (s) => s.beatMaster === true && s.user?.name !== user.name
-        );
-        if (otherMasters.length === 0 && !beatMaster) {
-            beatMaster = true;
-            provider.awareness.setLocalStateField('beatMaster', true);
-            startBeatSync();
-        }
+        if (beatMaster) return;
+        const aw = provider.awareness;
+        const entries = [...aw.getStates().entries()];   // [clientID, state]
+        // Compare on the STABLE user.id (default names like "user42" collide, so two
+        // people could each think the other was themselves and both self-elect).
+        const otherMasters = entries.filter(([, s]) => s.beatMaster === true && s.user?.id !== user.id);
+        if (otherMasters.length > 0) return;
+        // Deterministic tie-break: only the lowest clientID present elects itself, so
+        // simultaneous joins can't both become master.
+        const lowest = Math.min(...entries.map(([id]) => id));
+        if (aw.clientID !== lowest) return;
+        beatMaster = true;
+        aw.setLocalStateField('beatMaster', true);
+        startBeatSync();
     }
 
     function startBeatSync() {
@@ -146,9 +154,10 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         if (beatMaster) return; // masters ignore incoming sync
         const drift = Math.abs(Date.now() - wallTime - clockOffset);
         if (drift > 5) {
-            // Followers adjust their internal offset when drift exceeds 5 ms.
-            // The caller is responsible for applying clockOffset to scheduling.
-            clockOffset = Date.now() - wallTime;
+            // Followers realign when drift exceeds 5 ms. Compensate for the one-way
+            // master→follower latency with half the last measured RTT (the raw
+            // Date.now()-wallTime baked the full network delay into the offset).
+            clockOffset = Date.now() - wallTime - lastRtt / 2;
         }
     }
 
@@ -203,7 +212,8 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         });
         return out;
     }
-    provider.awareness.on('change', () => onPeers?.(getPeers()));
+    const _onPeersChange = () => onPeers?.(getPeers());
+    provider.awareness.on('change', _onPeersChange);
     setTimeout(() => onPeers?.(getPeers()), 300);
 
     // ── Public API ────────────────────────────────────────────────────────
@@ -239,6 +249,9 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     /** Tear down all connections and intervals. */
     function destroy() {
         clearInterval(beatSyncInterval);
+        window.removeEventListener('beforeunload', _onBeforeUnload);
+        try { provider.awareness.off('change', electBeatMaster); } catch (_) {}
+        try { provider.awareness.off('change', _onPeersChange); } catch (_) {}
         ws.close();
         binding.destroy();
         provider.destroy();

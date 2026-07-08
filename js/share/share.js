@@ -38,7 +38,10 @@ export async function decodeShare(str) {
     if (!str) return null;
     try {
         const flag = str[0], body = _b64urlDecode(str.slice(1));
-        if (flag === 'z') return new TextDecoder().decode(await _pipe(DecompressionStream, body));
+        if (flag === 'z') {
+            if (typeof DecompressionStream !== 'function') throw new Error('DecompressionStream unsupported');
+            return new TextDecoder().decode(await _pipe(DecompressionStream, body));
+        }
         if (flag === 'u') return new TextDecoder().decode(body);
         return new TextDecoder().decode(_b64urlDecode(str));   // lenient: no known prefix → raw
     } catch (_) { return null; }
