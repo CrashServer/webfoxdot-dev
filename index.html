@@ -90,15 +90,15 @@
         <div class="cp-phrase" id="phrase-32">1/32</div>
         <div class="cp-phrase" id="phrase-64">1/64</div>
       </div>
-      <div class="cp-row">
+      <div class="cp-row" style="gap:6px">
         <span class="cp-label">BPM</span>
-        <input id="bpm-input" type="number" value="120" min="20" max="300">
+        <input id="bpm-input" type="number" value="120" min="20" max="300" style="flex:1">
+        <button id="cp-tap" class="cp-btn" style="width:auto;padding:1px 10px;white-space:nowrap">tap</button>
       </div>
-      <button id="cp-tap">tap tempo</button>
-      <h3 style="margin-top:8px">Scale</h3>
-      <select class="cp-select" id="cp-scale-sel"></select>
-      <h3 style="margin-top:6px">Root</h3>
-      <select class="cp-select" id="cp-root-sel"></select>
+      <div class="cp-row" style="gap:6px;margin-top:6px">
+        <select class="cp-select" id="cp-scale-sel" title="scale" style="flex:2;margin:0"></select>
+        <select class="cp-select" id="cp-root-sel" title="root" style="flex:1;width:auto;margin:0"></select>
+      </div>
     </div>
 
     <!-- Players — the second most important panel, right under the clock. -->

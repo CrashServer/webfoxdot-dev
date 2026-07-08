@@ -51,15 +51,14 @@ function _updateBpm() {
 function _updateBeat() {
     const now = _clock.now();
 
-    // Phrase counters — which bar of a 4/8/16/32/64-bar phrase we're on. Integer
-    // per-bar jumps (1,2,3,4…), webTroop-style: the count and the fill step on each
-    // bar boundary, not a smooth slide.
-    const barIdx = Math.floor(now / 4);         // 0-indexed bar
+    // Phrase counters — position within a 4/8/16/32/64-length phrase, stepping once
+    // per BEAT (not per bar), so they move 4× faster and read as beat subdivisions.
+    const idx = Math.floor(now);                // 0-indexed beat
     for (const len of [4, 8, 16, 32, 64]) {
         const d = document.getElementById('phrase-' + len);
         if (!d) continue;
-        const pos = (barIdx % len) + 1;         // 1..len, jumps once per bar
-        const pct = (pos / len) * 100;          // discrete fill, steps with the bar
+        const pos = (idx % len) + 1;            // 1..len, jumps once per beat
+        const pct = (pos / len) * 100;          // discrete fill, steps with the beat
         d.style.background = `linear-gradient(to right, var(--green-dim) ${pct}%, var(--bg-3) ${pct}%)`;
         d.textContent = `${pos}/${len}`;
     }
@@ -148,7 +147,7 @@ function _initTap() {
                 if (_clock) _clock.bpm = bpm;
                 const inp = document.getElementById('bpm-input');
                 if (inp) inp.value = bpm;
-                btn.textContent = `tap  ${bpm} BPM`;
+                btn.textContent = `${bpm}`;
             }
         } else {
             btn.textContent = 'tap…';
