@@ -1261,9 +1261,10 @@ button.recording {
 }
 #galaxy-close:hover { background: rgba(255, 255, 255, 0.13); }
 #galaxy-empty {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #8b949e; font: 13px ui-monospace, monospace; text-align: center;
-    pointer-events: none; padding: 24px;
+    position: absolute; left: 0; right: 0; bottom: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: #8b949e; font: 12px ui-monospace, monospace; text-align: center;
+    pointer-events: none; padding: 0 24px;
 }
 #galaxy-tip {
     position: absolute; z-index: 3; pointer-events: none;

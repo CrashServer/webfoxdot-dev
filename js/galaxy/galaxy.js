@@ -7,6 +7,7 @@
 // interpolated between polls so it looks continuous.
 
 import { collabHttpBase } from '../net/serverUrls.js';
+import { exampleList }    from '../ui/docs.js';
 
 // Deterministic 0..1 pair from a slug, so a session keeps its spot across refreshes.
 function hash(str) {
@@ -35,7 +36,7 @@ function starColor(n) {
     return [Math.round(lerp(70, 116, f)), Math.round(lerp(170, 128, f)), Math.round(lerp(96, 156, f))];
 }
 
-export function initGalaxy() {
+export function initGalaxy(onPickExample) {
     const overlay  = document.getElementById('galaxy-overlay');
     const canvas   = document.getElementById('galaxy-canvas');
     const btn      = document.getElementById('btn-galaxy');
@@ -51,10 +52,44 @@ export function initGalaxy() {
     const currentSlug = _qs.get('session') || _qs.get('s') || _qs.get('') || null;
 
     let base = null;                         // resolved collab HTTP base
-    let nodes = new Map();                   // slug → node state
+    let nodes = new Map();                   // slug → jam node state
     let stars = [];                          // static background starfield
+    let clusters = [];                       // example category clusters (nebulae)
+    let exNodes = [];                        // example stars (built from exampleList())
     let raf = 0, pollTimer = 0, open = false;
     let W = 0, H = 0, DPR = 1;
+
+    // Example clusters — a browsable nebula PER category, derived live from
+    // exampleList() (rebuilt each open, so it tracks example changes). Jams stay the
+    // bright foreground; examples are dim, cool, grouped background stars.
+    function buildExamples() {
+        const list = (() => { try { return exampleList() || []; } catch { return []; } })();
+        const cats = [...new Set(list.map(e => e.cat || 'misc'))];
+        clusters = cats.map((cat) => {
+            const h = hash('cat:' + cat);
+            return {
+                cat,
+                fx: 0.12 + (h % 1000) / 1000 * 0.76,
+                fy: 0.18 + ((h >>> 10) % 1000) / 1000 * 0.62,
+                hue: 188 + (h % 130),   // cyan..magenta — clear of jam green/amber
+            };
+        });
+        const byCat = new Map(clusters.map(c => [c.cat, c]));
+        exNodes = list.map((e) => {
+            const c = byCat.get(e.cat || 'misc');
+            const h = hash('ex:' + e.id);
+            return {
+                isExample: true, exId: e.id, title: e.title, cat: e.cat, cl: c, hue: c.hue,
+                offAng: (h % 628) / 100, offRad: 22 + (h % 46), phase: ((h >>> 9) % 628) / 100,
+            };
+        });
+        placeExamples();
+    }
+    function placeExamples() {
+        const padX = 60, padTop = 84, padBot = 50;
+        for (const c of clusters) { c.cx = padX + c.fx * (W - padX * 2); c.cy = padTop + c.fy * (H - padTop - padBot); }
+        for (const n of exNodes) { n.bx = n.cl.cx + Math.cos(n.offAng) * n.offRad; n.by = n.cl.cy + Math.sin(n.offAng) * n.offRad; }
+    }
 
     function resize() {
         DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -69,6 +104,7 @@ export function initGalaxy() {
             r: 0.4 + (hash('br' + i) % 100) / 100 * 0.9,
             tw: (hash('bt' + i) % 628) / 100,
         }));
+        placeExamples();   // reposition example clusters for the new size
     }
 
     // Map a session's seed to on-screen coordinates (padded to avoid the edges/header).
@@ -116,6 +152,34 @@ export function initGalaxy() {
             ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill();
         }
         ctx.globalAlpha = 1;
+
+        // ── Example clusters (background nebulae + dim stars) — drawn first & faint so
+        //    the live jams below pop as the foreground highlight. ──────────────────
+        ctx.textAlign = 'center';
+        for (const c of clusters) {
+            const g = ctx.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, 130);
+            g.addColorStop(0, `hsla(${c.hue},60%,55%,0.07)`);
+            g.addColorStop(1, `hsla(${c.hue},60%,55%,0)`);
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.cx, c.cy, 130, 0, 7); ctx.fill();
+            ctx.globalAlpha = 0.45; ctx.fillStyle = `hsl(${c.hue},45%,72%)`;
+            ctx.font = '9px ui-monospace, monospace';
+            ctx.fillText((c.cat || '').toUpperCase(), c.cx, c.cy - 104);
+            ctx.globalAlpha = 1;
+        }
+        for (const n of exNodes) {
+            n.x = n.bx + Math.sin(t * 0.0002 + n.phase) * 3;
+            n.y = n.by + Math.cos(t * 0.00018 + n.phase) * 3;
+            const tw = 0.5 + Math.sin(t * 0.003 + n.phase) * 0.22;
+            ctx.globalAlpha = clamp(tw, 0, 0.72);
+            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 9);
+            g.addColorStop(0, `hsla(${n.hue},75%,72%,0.5)`);
+            g.addColorStop(1, `hsla(${n.hue},75%,72%,0)`);
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, 7); ctx.fill();
+            ctx.fillStyle = `hsl(${n.hue},82%,82%)`;
+            ctx.beginPath(); ctx.arc(n.x, n.y, 2.3, 0, 7); ctx.fill();
+            n.hitR = 12;
+            ctx.globalAlpha = 1;
+        }
 
         for (const [slug, n] of nodes) {
             // Active jams fade with idle; DORMANT (emptied) jams decay over the full
@@ -191,11 +255,17 @@ export function initGalaxy() {
     }
 
     function hitTest(px, py) {
+        // Live jams (foreground) win over example stars on overlap.
         let best = null, bestD = Infinity;
         for (const n of nodes.values()) {
             if (n.gone) continue;
             const d = Math.hypot(px - n.x, py - n.y);
             if (d < (n.hitR || 24) && d < bestD) { bestD = d; best = n; }
+        }
+        if (best) return best;
+        for (const n of exNodes) {
+            const d = Math.hypot(px - n.x, py - n.y);
+            if (d < (n.hitR || 12) && d < bestD) { bestD = d; best = n; }
         }
         return best;
     }
@@ -204,6 +274,7 @@ export function initGalaxy() {
         const rect = canvas.getBoundingClientRect();
         const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
         if (!n) return;
+        if (n.isExample) { onPickExample?.(n.exId); hide(); return; }   // load example → close
         if (n.slug === currentSlug) { hide(); return; }   // already here → just close the map
         location.href = location.pathname + '?session=' + encodeURIComponent(n.slug);   // join another
     });
@@ -213,17 +284,22 @@ export function initGalaxy() {
         const n = hitTest(mx, my);
         canvas.style.cursor = n ? 'pointer' : 'default';
         if (!n || !tip) { if (tip) tip.hidden = true; return; }
-        // Tooltip: slug, who's here, and when it was last active.
-        const now = performance.now();
         tip.textContent = '';
-        const slugEl = document.createElement('div'); slugEl.className = 'tip-slug'; slugEl.textContent = n.slug;
-        const who = document.createElement('div');
-        who.textContent = n.slug === currentSlug ? "you're in this jam" : (n.dormant ? 'resting — nobody here' : `${n.clients || 1} playing`);
-        const act = document.createElement('div'); act.className = 'tip-dim';
-        act.textContent = `last active ${fmtAge(liveIdle(n, now))} ago`;
-        const started = document.createElement('div'); started.className = 'tip-dim';
-        started.textContent = `started ${fmtAge(n.ageMs || 0)} ago · ${n.evals || 0} evals`;
-        tip.append(slugEl, who, act, started);
+        if (n.isExample) {
+            const t1 = document.createElement('div'); t1.className = 'tip-slug'; t1.textContent = n.title;
+            const t2 = document.createElement('div'); t2.className = 'tip-dim'; t2.textContent = `${n.cat} · click to load`;
+            tip.append(t1, t2);
+        } else {
+            const now = performance.now();
+            const slugEl = document.createElement('div'); slugEl.className = 'tip-slug'; slugEl.textContent = n.slug;
+            const who = document.createElement('div');
+            who.textContent = n.slug === currentSlug ? "you're in this jam" : (n.dormant ? 'resting — nobody here' : `${n.clients || 1} playing`);
+            const act = document.createElement('div'); act.className = 'tip-dim';
+            act.textContent = `last active ${fmtAge(liveIdle(n, now))} ago`;
+            const started = document.createElement('div'); started.className = 'tip-dim';
+            started.textContent = `started ${fmtAge(n.ageMs || 0)} ago · ${n.evals || 0} evals`;
+            tip.append(slugEl, who, act, started);
+        }
         tip.hidden = false;
         // keep the tip on-screen
         const tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -234,6 +310,7 @@ export function initGalaxy() {
 
     function show() {
         overlay.hidden = false; open = true;
+        buildExamples();        // rebuild from the live example list each open (dynamic)
         resize();
         poll(); pollTimer = setInterval(poll, 2500);
         cancelAnimationFrame(raf); raf = requestAnimationFrame(draw);

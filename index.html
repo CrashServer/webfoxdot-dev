@@ -1369,7 +1369,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── Docs ──────────────────────────────────────────────────────────────────
     initDocs();
-    initGalaxy();
+    initGalaxy((id) => { setEditorContent(exampleCode(id)); log('loaded example — edit & run', 'info'); });
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
     // Global stop-all — Ctrl/Cmd + . works regardless of focus (editor, panels, …)
@@ -1916,10 +1916,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     <canvas id="galaxy-canvas"></canvas>
     <div id="galaxy-head">
       <h2>🌌 crash<span>Dot</span> galaxy</h2>
-      <span class="hint">live jams — click a star to join</span>
+      <span class="hint">bright stars = live jams (click to join) · coloured clusters = examples (click to load)</span>
       <button id="galaxy-close" title="close (Esc)">✕ close</button>
     </div>
-    <div id="galaxy-empty">no jams live right now — start one with “👥 go live”</div>
+    <div id="galaxy-empty">no live jams right now — browse the example clusters, or start a jam with “👥 go live”</div>
     <div id="galaxy-tip" hidden></div>
   </div>
 
