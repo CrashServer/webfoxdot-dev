@@ -5,8 +5,11 @@ const fs                             = require('fs');
 const path                           = require('path');
 
 const CFG  = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8')).collab;
-const HOST = CFG.host;
-const PORT = CFG.port;
+// Bind host: config.collab.host by default (0.0.0.0 for real deployments), but
+// COLLAB_HOST overrides it — e.g. COLLAB_HOST=127.0.0.1 npm start for local dev
+// or sandboxes that only allow binding loopback.
+const HOST = process.env.COLLAB_HOST || CFG.host;
+const PORT = process.env.COLLAB_PORT || CFG.port;
 
 // Seconds between periodic metrics snapshots (config.collab.metricsInterval, default 30).
 const METRICS_INTERVAL_MS = (CFG.metricsInterval || 30) * 1000;
