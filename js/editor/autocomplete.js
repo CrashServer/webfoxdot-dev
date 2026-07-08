@@ -610,13 +610,16 @@ function render(s) {
         document.body.appendChild(div);
         s.colDivs.push(div); s.colEls.push(rows);
         if (i === 0) {
-            const c = s.cm.cursorCoords(s.from, 'page');
+            // position:fixed → use viewport ('window') coords so where the menu is
+            // PAINTED matches where the browser hit-tests a click (page/scroll coords
+            // desynced the two, so clicks landed on the element behind the menu).
+            const c = s.cm.cursorCoords(s.from, 'window');
             div.style.top = c.bottom + 'px'; div.style.left = c.left + 'px';
         } else {
             const a = s.colEls[i - 1][s.cols[i - 1].sel].getBoundingClientRect();
-            div.style.top = (a.top + window.scrollY) + 'px';
-            div.style.left = (a.right + window.scrollX + 2) + 'px';
-            if (a.right + div.offsetWidth + 6 > window.innerWidth) div.style.left = (a.left + window.scrollX - div.offsetWidth - 2) + 'px';
+            div.style.top = a.top + 'px';
+            div.style.left = (a.right + 2) + 'px';
+            if (a.right + div.offsetWidth + 6 > window.innerWidth) div.style.left = (a.left - div.offsetWidth - 2) + 'px';
         }
         // Keep the active row visible when the column overflows (scroll the div,
         // not the page) — so ↑/↓ past the fold works and wrap-around is visible.
@@ -705,7 +708,23 @@ function openMenu(cm, provider = hintFn) {
     cm.addKeyMap(s.keyMap);
     s.onChange  = () => rebuild(s);   cm.on('changes', s.onChange);
     s.onBlur    = () => closeMenu();  cm.on('blur', s.onBlur);
-    s.onDocDown = (e) => { if (!s.colDivs.some(d => d.contains(e.target))) closeMenu(); };
+    s.onDocDown = (e) => {
+        // If the event target is a menu element, the row's own mousedown handles it.
+        if (s.colDivs.some(d => d.contains(e.target))) return;
+        // Otherwise the target may have mis-resolved (a body-appended popup can hit-test
+        // to <body> in some browsers, so the row handler never fires and the click is
+        // lost). Fall back to COORDINATES: if the click lands on a row, pick it there.
+        for (let ci = (s.colEls || []).length - 1; ci >= 0; ci--) {
+            const rows = s.colEls[ci];
+            for (let ri = 0; ri < rows.length; ri++) {
+                const r = rows[ri].getBoundingClientRect();
+                if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+                    e.preventDefault(); clickRow(s, ci, ri); return;
+                }
+            }
+        }
+        closeMenu();   // genuinely outside the menu
+    };
     setTimeout(() => document.addEventListener('mousedown', s.onDocDown, true), 0);
 }
 

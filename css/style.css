@@ -720,7 +720,7 @@ body.zen #docs-panel { display: none !important; }
 
 /* ── Nested flyout completion menu ────────────────────────────────────────── */
 .cd-menu {
-    position: absolute;
+    position: fixed;
     background: var(--bg-2);
     border: 1px solid var(--border-1);
     font-family: monospace;
