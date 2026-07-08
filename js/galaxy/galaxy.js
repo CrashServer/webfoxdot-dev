@@ -79,7 +79,9 @@ export function initGalaxy() {
             let n = nodes.get(s.slug);
             if (!n) { n = { slug: s.slug, seed: seedPos(s.slug), alpha: 0 }; place(n); nodes.set(s.slug, n); }
             n.clients = s.clients;
-            n.idleBase = s.idleMs; n.idleAt = t;   // interpolate idle between polls
+            n.dormant = !!s.dormant;
+            n.idleBase = s.idleMs; n.idleAt = t;    // interpolate idle between polls
+            n.decayBase = s.decayMs || 0; n.decayAt = t; n.ttlMs = s.ttlMs || 600000;
             n.ageMs = s.ageMs; n.evals = s.evals;
             n.gone = false;
         }
@@ -104,30 +106,40 @@ export function initGalaxy() {
         ctx.globalAlpha = 1;
 
         for (const [slug, n] of nodes) {
-            // fade in on appear; fade out when gone
+            // Active jams fade with idle; DORMANT (emptied) jams decay over the full
+            // TTL — a slow dim-out from ~0.7 to 0 — but stay clickable so you can revive
+            // them (their code is still on the server).
             const idle = liveIdle(n, t);
-            let target = clamp(1 - idle / 90000, 0.18, 1);      // dim over ~90s idle
-            if (n.gone) target = clamp(1 - (t - n.goneAt) / 2000, 0, 1) * 0.18;
+            let target;
+            if (n.dormant) {
+                const dm = (n.decayBase || 0) + (t - (n.decayAt || t));
+                target = clamp(1 - dm / (n.ttlMs || 600000), 0.05, 0.7);
+            } else {
+                target = clamp(1 - idle / 90000, 0.18, 1);
+            }
+            if (n.gone) target = clamp(1 - (t - n.goneAt) / 2000, 0, 1) * 0.1;
             n.alpha += (target - n.alpha) * 0.08;
             if (n.gone && n.alpha < 0.01) { nodes.delete(slug); continue; }
 
-            const drift = 10;
+            const drift = n.dormant ? 4 : 10;
             n.x = n.bx + Math.sin(t * 0.00025 + n.seed.phase) * drift;
             n.y = n.by + Math.cos(t * 0.0002 + n.seed.phase * 1.3) * drift;
             const r = 7 + Math.min(n.clients || 1, 10) * 2.6;
-            const active = idle < 2500;
-            const twinkle = 0.85 + Math.sin(t * 0.004 + n.seed.phase) * 0.15;
+            const active = !n.dormant && idle < 2500;
+            const twinkle = n.dormant ? 1 : 0.85 + Math.sin(t * 0.004 + n.seed.phase) * 0.15;
             const a = n.alpha * twinkle;
+            // dormant stars read cooler/greyer; active jams glow crashDot green
+            const gc = n.dormant ? [128, 150, 150] : [63, 185, 80];
 
             // glow
             const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 3.2);
-            g.addColorStop(0, `rgba(63,185,80,${0.55 * a})`);
-            g.addColorStop(0.4, `rgba(63,185,80,${0.18 * a})`);
-            g.addColorStop(1, 'rgba(63,185,80,0)');
+            g.addColorStop(0,   `rgba(${gc[0]},${gc[1]},${gc[2]},${0.55 * a})`);
+            g.addColorStop(0.4, `rgba(${gc[0]},${gc[1]},${gc[2]},${0.18 * a})`);
+            g.addColorStop(1,   `rgba(${gc[0]},${gc[1]},${gc[2]},0)`);
             ctx.fillStyle = g;
             ctx.beginPath(); ctx.arc(n.x, n.y, r * 3.2, 0, 7); ctx.fill();
 
-            // activity pulse ring
+            // activity pulse ring (only while someone's actually playing)
             if (active) {
                 const pr = r + ((t * 0.05) % 22);
                 ctx.globalAlpha = clamp((1 - (pr - r) / 22) * a, 0, 1);
@@ -138,18 +150,18 @@ export function initGalaxy() {
 
             // core
             ctx.globalAlpha = clamp(a, 0, 1);
-            ctx.fillStyle = active ? '#b7f7c0' : '#4cc85f';
+            ctx.fillStyle = active ? '#b7f7c0' : (n.dormant ? '#6f8080' : '#4cc85f');
             ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.5, 0, 7); ctx.fill();
             n.hitR = r * 3.2;
 
-            // label: slug + peer count
-            ctx.globalAlpha = clamp(a + 0.1, 0, 1);
-            ctx.fillStyle = '#c9d1d9';
+            // label: slug + status
+            ctx.globalAlpha = clamp(a + 0.15, 0, 1);
+            ctx.fillStyle = n.dormant ? '#9aa5a5' : '#c9d1d9';
             ctx.font = '12px ui-monospace, Menlo, Consolas, monospace';
             ctx.textAlign = 'center';
             ctx.fillText(slug, n.x, n.y + r + 16);
             ctx.fillStyle = '#8b949e'; ctx.font = '10px ui-monospace, monospace';
-            ctx.fillText(`${n.clients || 1} ♪`, n.x, n.y + r + 29);
+            ctx.fillText(n.dormant ? 'resting · click to revive' : `${n.clients || 1} ♪`, n.x, n.y + r + 29);
             ctx.globalAlpha = 1;
         }
         raf = requestAnimationFrame(draw);

@@ -1,5 +1,5 @@
 const { WebSocketServer, WebSocket } = require('ws');
-const { setupWSConnection }          = require('y-websocket/bin/utils');
+const { setupWSConnection, docs: ydocs } = require('y-websocket/bin/utils');
 const http                           = require('http');
 const fs                             = require('fs');
 const path                           = require('path');
@@ -13,6 +13,10 @@ const PORT = process.env.COLLAB_PORT || CFG.port;
 
 // Seconds between periodic metrics snapshots (config.collab.metricsInterval, default 30).
 const METRICS_INTERVAL_MS = (CFG.metricsInterval || 30) * 1000;
+// How long an emptied session lingers (dormant, decaying) in the galaxy before it's
+// purged and its doc freed. Its code survives in memory until then, so it can be
+// rejoined. config.collab.dormantTtl seconds, default 10 minutes.
+const DORMANT_TTL_MS = (CFG.dormantTtl || 600) * 1000;
 // By default /metrics + /status only answer localhost (the collab port is public
 // on 0.0.0.0 and the payload lists live session slugs). Set collab.metricsPublic
 // = true in config.json to expose them to anyone.
@@ -181,20 +185,27 @@ function recordEval(slug, msg) {
 // activity only, never eval code). Used by the client's join-a-jam view.
 function publicSessions() {
     const now = Date.now();
-    return {
-        now,
-        sessions: [...rooms.entries()].filter(([, r]) => r.size > 0).map(([slug, r]) => {
-            const m = roomMeta.get(slug) || {};
-            const lastAct = (m.lastEval && m.lastEval.t) || m.createdAt || now;
-            return {
-                slug,
-                clients: r.size,
-                ageMs:   m.createdAt ? now - m.createdAt : 0,
-                idleMs:  now - lastAct,       // since the last eval — drives the fade
-                evals:   m.evals || 0,
-            };
-        }),
-    };
+    const sessions = [];
+    // Iterate roomMeta so DORMANT (emptied) sessions are still listed, decaying, until
+    // their TTL — the galaxy shows them fading and they can be rejoined.
+    for (const [slug, m] of roomMeta) {
+        const clients = (rooms.get(slug) && rooms.get(slug).size) || 0;
+        const dormant = clients === 0;
+        const decayMs = dormant && m.emptiedAt ? now - m.emptiedAt : 0;
+        if (dormant && decayMs > DORMANT_TTL_MS) continue;   // expired (about to be purged)
+        const lastAct = (m.lastEval && m.lastEval.t) || m.createdAt || now;
+        sessions.push({
+            slug,
+            clients,
+            dormant,
+            decayMs,                          // how long it's been empty
+            ttlMs:   DORMANT_TTL_MS,          // full decay window
+            ageMs:   m.createdAt ? now - m.createdAt : 0,
+            idleMs:  now - lastAct,           // since the last eval — drives the active fade
+            evals:   m.evals || 0,
+        });
+    }
+    return { now, sessions };
 }
 
 function sessionsDetail() {
@@ -221,7 +232,27 @@ function removeFromRoom(slug, ws) {
     const room = rooms.get(slug);
     if (!room) return;
     room.delete(ws);
-    if (room.size === 0) { rooms.delete(slug); roomMeta.delete(slug); }
+    if (room.size === 0) {
+        rooms.delete(slug);
+        // Keep the meta so the session lingers as a dormant, decaying star in the
+        // galaxy (its Yjs doc stays in memory, so it can be rejoined). purgeDormant()
+        // removes it and frees the doc after DORMANT_TTL_MS.
+        const m = roomMeta.get(slug);
+        if (m) m.emptiedAt = Date.now();
+    }
+}
+
+// Drop dormant sessions past their TTL and free their Yjs docs.
+function purgeDormant() {
+    const now = Date.now();
+    for (const [slug, m] of roomMeta) {
+        if (m.emptiedAt && (now - m.emptiedAt) > DORMANT_TTL_MS && !(rooms.get(slug) && rooms.get(slug).size)) {
+            roomMeta.delete(slug);
+            const d = ydocs.get(slug);
+            if (d) { try { d.destroy(); } catch (_) {} ydocs.delete(slug); }
+            console.log(`[purge] dormant session '${slug}' expired`);
+        }
+    }
 }
 
 // Relay a message to every other open client in the room; returns recipient count.
@@ -478,6 +509,7 @@ wss.on('connection', (ws, req) => {
     // ── App channel — eval relay + clock sync (JSON only) ─────────────────
     const room = getRoom(slug);
     room.add(ws);
+    roomMetaFor(slug).emptiedAt = null;   // (re)activate — a rejoin wakes a dormant jam
     stats.conns.app++; trackPeak();
     console.log(`[+app] ${slug} (${room.size} clients)`); logStatus(); pushState();
 
@@ -507,6 +539,7 @@ wss.on('connection', (ws, req) => {
 });
 
 setInterval(snapshot, METRICS_INTERVAL_MS);
+setInterval(purgeDormant, 30000);   // sweep expired dormant sessions every 30s
 
 // Fast monitor tick — refresh live CPU% and push state to open dashboards (also
 // keeps the SSE connections alive). Cheap when nobody's watching.
