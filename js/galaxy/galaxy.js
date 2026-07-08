@@ -91,6 +91,24 @@ export function initGalaxy(onPickExample) {
         for (const n of exNodes) { n.bx = n.cl.cx + Math.cos(n.offAng) * n.offRad; n.by = n.cl.cy + Math.sin(n.offAng) * n.offRad; }
     }
 
+    // A few slow comets/asteroids drifting across — pure ambience (4 objects, one
+    // gradient line + arc each, so it's basically free).
+    let comets = [];
+    let lastFrameT = 0;
+    function makeComet(offscreen) {
+        const ang = Math.random() * Math.PI * 2, dx = Math.cos(ang), dy = Math.sin(ang);
+        const asteroid = Math.random() < 0.4;
+        return {
+            asteroid, dx, dy,
+            spd: asteroid ? 0.004 + Math.random() * 0.004 : 0.010 + Math.random() * 0.012,   // px/ms — slow
+            x: offscreen ? (dx > 0 ? -50 : W + 50) : Math.random() * W,
+            y: Math.random() * H,
+            len: 26 + Math.random() * 46,
+            size: asteroid ? 1.3 + Math.random() * 1.5 : 0.9 + Math.random() * 1.1,
+        };
+    }
+    function initComets() { comets = Array.from({ length: 4 }, () => makeComet(false)); }
+
     function resize() {
         DPR = Math.min(window.devicePixelRatio || 1, 2);
         W = overlay.clientWidth; H = overlay.clientHeight;
@@ -105,6 +123,7 @@ export function initGalaxy(onPickExample) {
             tw: (hash('bt' + i) % 628) / 100,
         }));
         placeExamples();   // reposition example clusters for the new size
+        initComets();
     }
 
     // Map a session's seed to on-screen coordinates (padded to avoid the edges/header).
@@ -153,31 +172,60 @@ export function initGalaxy(onPickExample) {
         }
         ctx.globalAlpha = 1;
 
-        // ── Example clusters (background nebulae + dim stars) — drawn first & faint so
-        //    the live jams below pop as the foreground highlight. ──────────────────
+        // ── Drifting comets / asteroids (ambient) ─────────────────────────────────
+        const dt = Math.min(64, lastFrameT ? t - lastFrameT : 16); lastFrameT = t;
+        for (const c of comets) {
+            c.x += c.dx * c.spd * dt; c.y += c.dy * c.spd * dt;
+            if (c.x < -70 || c.x > W + 70 || c.y < -70 || c.y > H + 70) Object.assign(c, makeComet(true));
+            if (c.asteroid) {
+                ctx.globalAlpha = 0.4; ctx.fillStyle = '#9aa6bf';
+                ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, 7); ctx.fill();
+            } else {
+                const ex = c.x - c.dx * c.len, ey = c.y - c.dy * c.len;
+                const g = ctx.createLinearGradient(c.x, c.y, ex, ey);
+                g.addColorStop(0, 'rgba(200,220,255,0.5)'); g.addColorStop(1, 'rgba(200,220,255,0)');
+                ctx.strokeStyle = g; ctx.lineWidth = c.size; ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(ex, ey); ctx.stroke();
+                ctx.globalAlpha = 0.85; ctx.fillStyle = '#dce8ff';
+                ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, 7); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // ── Example clusters (background nebulae + dim stars) — faint so the live jams
+        //    below pop. "Live sets" get a flashier, brighter, pulsing/sparkling treatment.
         ctx.textAlign = 'center';
         for (const c of clusters) {
-            const g = ctx.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, 130);
-            g.addColorStop(0, `hsla(${c.hue},60%,55%,0.07)`);
+            const live = c.cat === 'Live sets', rad = live ? 155 : 130;
+            const g = ctx.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, rad);
+            g.addColorStop(0, `hsla(${c.hue},${live ? 78 : 60}%,${live ? 60 : 55}%,${live ? 0.12 : 0.07})`);
             g.addColorStop(1, `hsla(${c.hue},60%,55%,0)`);
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.cx, c.cy, 130, 0, 7); ctx.fill();
-            ctx.globalAlpha = 0.45; ctx.fillStyle = `hsl(${c.hue},45%,72%)`;
-            ctx.font = '9px ui-monospace, monospace';
-            ctx.fillText((c.cat || '').toUpperCase(), c.cx, c.cy - 104);
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.cx, c.cy, rad, 0, 7); ctx.fill();
+            ctx.globalAlpha = live ? 0.75 : 0.45; ctx.fillStyle = `hsl(${c.hue},${live ? 65 : 45}%,${live ? 78 : 72}%)`;
+            ctx.font = `${live ? 'bold ' : ''}${live ? 10 : 9}px ui-monospace, monospace`;
+            ctx.fillText((c.cat || '').toUpperCase(), c.cx, c.cy - (live ? 128 : 104));
             ctx.globalAlpha = 1;
         }
         for (const n of exNodes) {
+            const live = n.cat === 'Live sets';
             n.x = n.bx + Math.sin(t * 0.0002 + n.phase) * 3;
             n.y = n.by + Math.cos(t * 0.00018 + n.phase) * 3;
-            const tw = 0.5 + Math.sin(t * 0.003 + n.phase) * 0.22;
-            ctx.globalAlpha = clamp(tw, 0, 0.72);
-            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, 9);
-            g.addColorStop(0, `hsla(${n.hue},75%,72%,0.5)`);
+            const pulse = live ? 1 + Math.sin(t * 0.004 + n.phase) * 0.3 : 1;
+            const tw = (live ? 0.72 : 0.5) + Math.sin(t * 0.003 + n.phase) * 0.22;
+            ctx.globalAlpha = clamp(tw, 0, live ? 0.95 : 0.72);
+            const glowR = live ? 15 : 9;
+            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+            g.addColorStop(0, `hsla(${n.hue},${live ? 88 : 75}%,${live ? 76 : 72}%,${live ? 0.68 : 0.5})`);
             g.addColorStop(1, `hsla(${n.hue},75%,72%,0)`);
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, 7); ctx.fill();
-            ctx.fillStyle = `hsl(${n.hue},82%,82%)`;
-            ctx.beginPath(); ctx.arc(n.x, n.y, 2.3, 0, 7); ctx.fill();
-            n.hitR = 12;
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, 7); ctx.fill();
+            ctx.fillStyle = `hsl(${n.hue},${live ? 92 : 82}%,${live ? 86 : 82}%)`;
+            ctx.beginPath(); ctx.arc(n.x, n.y, (live ? 3.4 : 2.3) * pulse, 0, 7); ctx.fill();
+            if (live) {   // sparkle cross — a subtle twinkle
+                const rl = 6 + Math.sin(t * 0.005 + n.phase) * 2;
+                ctx.globalAlpha = clamp(tw * 0.6, 0, 0.7); ctx.strokeStyle = `hsl(${n.hue},92%,86%)`; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(n.x - rl, n.y); ctx.lineTo(n.x + rl, n.y); ctx.moveTo(n.x, n.y - rl); ctx.lineTo(n.x, n.y + rl); ctx.stroke();
+            }
+            n.hitR = live ? 14 : 12;
             ctx.globalAlpha = 1;
         }
 
