@@ -5,6 +5,15 @@ import { currentBeat } from '../patterns/timevars.js';
 // lets Scale.default / Root.default take a var so the key changes over time.
 function _resolve(v) { return (v && typeof v.get === 'function') ? v.get(Math.floor(currentBeat())) : v; }
 
+// Resolve a scale name to its canonical key, case-insensitively — so "HarmonicMinor",
+// "harmonicminor" and "harmonicMinor" all find the same scale. Unknown → returned as-is.
+function _canonScaleName(name) {
+    if (name in SCALE_MAP) return name;
+    const lower = String(name).toLowerCase();
+    for (const k of Object.keys(SCALE_MAP)) if (k.toLowerCase() === lower) return k;
+    return name;
+}
+
 export const SCALE_MAP = {
     major:        [0, 2, 4, 5, 7, 9, 11],
     minor:        [0, 2, 3, 5, 7, 8, 10],
@@ -63,7 +72,7 @@ export const Scale = {
         const v = _resolve(this._name);
         if (Array.isArray(v)) { SCALE_MAP.__custom = v; return '__custom'; }
         if (typeof v === 'number') { const ks = Object.keys(SCALE_MAP); return ks[((Math.round(v) % ks.length) + ks.length) % ks.length]; }
-        return (typeof v === 'string') ? v : 'minor';
+        return (typeof v === 'string') ? _canonScaleName(v) : 'minor';
     },
     set default(v) {
         if (v && typeof v.get === 'function') { this._name = v; }        // keep the var — it advances over time

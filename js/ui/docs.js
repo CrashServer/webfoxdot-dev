@@ -212,6 +212,7 @@ const CHANGELOG = [
         'Share button (⤴ in the toolbar) — copies a self-contained link to your clipboard that carries the WHOLE composition inside the URL (#c=…, deflate-compressed), so it needs no server and never expires. Open the link and it loads that exact buffer into the editor, ready to edit & run. Great for short sketches; a big #@ track makes a long URL that some chat apps may truncate — a server-backed short link is coming next. (If the clipboard is blocked, the link is put in the address bar to copy manually.)',
         '"👥 go live" button — turn the composition you\'re working on into a live multiplayer session in one click: it seeds a fresh room with your current buffer and drops you into it with a ?session= link to share. Anyone who opens the link joins and edits with you in real time. Once you\'re in a session the button becomes "⧉ session link" to copy the room URL. (Links are relative to wherever the app is served, so they keep working when it moves off localhost.)',
         'Toolbar tidy-up — removed the rarely-used "clear" button and hid the visuals pop-out until that feature is ready.',
+        { t: 'Scale names are now case-insensitive — Scale.default = "HarmonicMinor" resolves the same as "harmonicMinor". And a new Live set: "Cascade", a generative harmonic-minor karp piece contributed by Daniel M Karlsson.', ex: 'karp_cascade' },
     ] },
     { v: 'alpha30', title: 'Automation recorder · reroll · rests · flexible args · synthesis tutorials', items: [
         { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (sampled at one point per beat) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Timing is quantised to whole beats so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },
@@ -1410,6 +1411,75 @@ g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])
 #@end(16)`)}
     `, 'in_the_mood');
 
+    const karpCascade = section('Cascade — harmonic-minor karp · Daniel M Karlsson', `
+        ${note('A community contribution by <b>Daniel M Karlsson</b>. Six karp voices (p0–p5) shuffle a harmonic-minor scale across octaves, each rolling random 1/4 &amp; 1/2 durations — a generative cascade that thickens as you run the #@ parts top to bottom. Boot, put the cursor on #@intro and Ctrl+Enter.')}
+        ${code(`# ══ Cascade — made by Daniel M Karlsson (contribution) ══
+#@#@ recorded
+
+#@intro(32)
+Scale.default = "HarmonicMinor"
+p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@build(8)
+p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@peak(12)
+p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@break(20)
+p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@drop(24)
+p1 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@outro(16)
+p1 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part7(40)
+p2 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11]), oct=5, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part8(20)
+p2 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11]), oct=5, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part9(20)
+p3 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9]), oct=5, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part10(12)
+p4 >> karp(PShuf([0, 3, 4, 5, 6, 7]), oct=6, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part11(12)
+p4 >> karp(PShuf([0, 3, 4, 5, 6, 7]), oct=6, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part12(28)
+p4 >> karp(PShuf([0, 3, 4, 5, 6, 7]), oct=6, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part13(16)
+p5 >> karp(PShuf([0, 3, 4, 5, 6]), oct=6, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part14(20)
+p5 >> karp(PShuf([0, 3, 4, 5, 6]), oct=6, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part15(12)
+p4 >> karp(PShuf([0, 3, 4, 5, 6, 7]), oct=6, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part16(16)
+p3 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9]), oct=5, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part17(16)
+p2 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11]), oct=5, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part18(20)
+p1 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part19(28)
+p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@part20(16)
+p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
+
+#@end(16)`)}
+    `, 'karp_cascade');
+
 
     const whatsNew = section('Live-coding tour — transforms · cross-player · FX · MIDI', `
         ${note('The headline additions in alpha28 — boot audio, then evaluate any line (Ctrl+Enter).')}
@@ -1693,7 +1763,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // in sync with this page.
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood]],
+        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpCascade]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
