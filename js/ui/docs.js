@@ -212,7 +212,7 @@ const CHANGELOG = [
         'Share button (⤴ in the toolbar) — copies a self-contained link to your clipboard that carries the WHOLE composition inside the URL (#c=…, deflate-compressed), so it needs no server and never expires. Open the link and it loads that exact buffer into the editor, ready to edit & run. Great for short sketches; a big #@ track makes a long URL that some chat apps may truncate — a server-backed short link is coming next. (If the clipboard is blocked, the link is put in the address bar to copy manually.)',
         '"👥 go live" button — turn the composition you\'re working on into a live multiplayer session in one click: it seeds a fresh room with your current buffer and drops you into it with a ?session= link to share. Anyone who opens the link joins and edits with you in real time. Once you\'re in a session the button becomes "⧉ session link" to copy the room URL. (Links are relative to wherever the app is served, so they keep working when it moves off localhost.)',
         'Toolbar tidy-up — removed the rarely-used "clear" button and hid the visuals pop-out until that feature is ready.',
-        { t: 'Scale names are now case-insensitive — Scale.default = "HarmonicMinor" resolves the same as "harmonicMinor". And a new Live set: "Cascade", a generative harmonic-minor karp piece contributed by Daniel M Karlsson.', ex: 'karp_cascade' },
+        { t: 'Scale names are now case-insensitive — Scale.default = "HarmonicMinor" resolves the same as "harmonicMinor". And a new Live set: a harmonic-minor karp piece contributed by Daniel M Karlsson.', ex: 'karp_dmk' },
         'For server operators: a live monitor dashboard.',
     ] },
     { v: 'alpha30', title: 'Automation recorder · reroll · rests · flexible args · synthesis tutorials', items: [
@@ -1412,9 +1412,9 @@ g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])
 #@end(16)`)}
     `, 'in_the_mood');
 
-    const karpCascade = section('Cascade — harmonic-minor karp · Daniel M Karlsson', `
-        ${note('A community contribution by <b>Daniel M Karlsson</b>. Six karp voices (p0–p5) shuffle a harmonic-minor scale across octaves, each rolling random 1/4 &amp; 1/2 durations — a generative cascade that thickens as you run the #@ parts top to bottom. Boot, put the cursor on #@intro and Ctrl+Enter.')}
-        ${code(`# ══ Cascade — made by Daniel M Karlsson (contribution) ══
+    const karpDMK = section('Untitled — Daniel M Karlsson', `
+        ${note('A community contribution by <b>Daniel M Karlsson</b>. Six karp voices (p0–p5) shuffle a harmonic-minor scale across octaves, each rolling random 1/4 &amp; 1/2 durations, thickening as you run the #@ parts top to bottom. Boot, put the cursor on #@intro and Ctrl+Enter.')}
+        ${code(`# ══ made by Daniel M Karlsson (contribution) ══
 #@#@ recorded
 
 #@intro(32)
@@ -1479,7 +1479,7 @@ p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3,
 p0 >> karp(PShuf([0, 3, 4, 5, 6, 7, 9, 11, 12, 13]), oct=4, amp=PRand([0.3, 0.3, 0.3, 0.9]), dur= 1 / PRand([4, 4, 2]))
 
 #@end(16)`)}
-    `, 'karp_cascade');
+    `, 'karp_dmk');
 
 
     const whatsNew = section('Live-coding tour — transforms · cross-player · FX · MIDI', `
@@ -1764,7 +1764,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // in sync with this page.
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpCascade]],
+        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
