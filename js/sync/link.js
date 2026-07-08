@@ -2,6 +2,8 @@
 // over WebSocket and disciplines the local clock to Ableton's tempo + bar phase.
 // Follow-only: Ableton (or any Link peer) is the master. See Clock.syncTo.
 
+import { linkWsBase } from '../net/serverUrls.js';
+
 let _clock   = null;
 let _ws      = null;
 let _enabled = false;
@@ -14,19 +16,12 @@ export function onLinkState(fn) { _onState = fn; }
 export function linkState() { return { ..._state, enabled: _enabled }; }
 function _emit() { if (_onState) _onState(linkState()); }
 
-// Resolve the bridge WebSocket URL from config.json (same convention as collab).
-async function _url() {
-    let port = 4445;
-    try { port = (await (await fetch('./config.json')).json()).link?.port ?? port; } catch { /* default */ }
-    return `ws://${window.location.hostname}:${port}`;
-}
-
 export async function enableLink() {
     if (_enabled) return;
     _enabled = true;
     _state.error = null;
     _emit();
-    _connect(await _url());
+    _connect(await linkWsBase());
 }
 
 export function disableLink() {

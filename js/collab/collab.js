@@ -2,6 +2,8 @@
 // Multiplayer collaboration layer — connects to collab server,
 // syncs editor text via Yjs, broadcasts eval events, syncs clock.
 
+import { collabWsBase } from '../net/serverUrls.js';
+
 function randomColor() {
     const hue = Math.floor(Math.random() * 360);
     return `hsl(${hue}, 70%, 60%)`;
@@ -23,22 +25,8 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
 
-    // ── Resolve collab WebSocket base ──────────────────────────────────────
-    // https (deployed behind a proxy): derive a same-origin /ws path.
-    // http (local / LAN dev): connect directly to the collab port from config.json.
-    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    let wsBase;
-    if (window.location.protocol === 'https:') {
-        const basePath = window.location.pathname.replace(/\/?[^/]*$/, '');
-        wsBase = `${wsProto}//${window.location.host}${basePath}/ws`;
-    } else {
-        let collabPort = 4444;
-        try {
-            const cfg = await (await fetch('./config.json')).json();
-            collabPort = cfg.collab?.port ?? collabPort;
-        } catch { /* fall back to default port */ }
-        wsBase = `ws://${window.location.hostname}:${collabPort}`;
-    }
+    // https ⇒ same-origin /ws (proxied) · http ⇒ the config.json collab port.
+    const wsBase = await collabWsBase();
 
     const ydoc     = new Y.Doc();
     const provider = new WebsocketProvider(wsBase, sessionSlug, ydoc);

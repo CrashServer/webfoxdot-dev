@@ -4,17 +4,7 @@
 // silently if the collab server isn't reachable, and stops retrying if it can't
 // connect (so a dev box without the collab server doesn't loop).
 
-async function collabWsBase() {
-    // https (deployed behind a proxy): same-origin /ws path. http (local/LAN):
-    // the collab port from config.json. Mirrors js/collab/collab.js.
-    if (window.location.protocol === 'https:') {
-        const basePath = window.location.pathname.replace(/\/?[^/]*$/, '');
-        return `wss://${window.location.host}${basePath}/ws`;
-    }
-    let port = 4444;
-    try { port = (await (await fetch('./config.json')).json()).collab?.port ?? port; } catch { /* default */ }
-    return `ws://${window.location.hostname}:${port}`;
-}
+import { collabWsBase } from '../net/serverUrls.js';
 
 export async function initSoloPresence() {
     const base = await collabWsBase();

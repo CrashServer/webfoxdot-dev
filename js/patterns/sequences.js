@@ -1090,7 +1090,7 @@ export function arp(degrees, mode = 'up', octaves = 1, perOct = 7) {
         } };
     }
     const m = optName(mode, _ARP_MODES), seq = order(m);
-    if (m === 'random' || m === 'rand') return { get: (step) => rnd(seq, step) };
+    if (m === 'random') return { get: (step) => rnd(seq, step) };
     return { get: (step) => pick(seq, step) };
 }
 

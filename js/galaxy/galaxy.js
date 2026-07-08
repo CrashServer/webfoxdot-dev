@@ -6,16 +6,7 @@
 // + idle time only — no eval code). Polled every couple of seconds; the fade is
 // interpolated between polls so it looks continuous.
 
-async function collabHttpBase() {
-    // Mirrors js/collab/collab.js's WS-base logic, but for the HTTP endpoint.
-    if (location.protocol === 'https:') {
-        const basePath = location.pathname.replace(/\/?[^/]*$/, '');
-        return `${location.origin}${basePath}/ws`;          // collab HTTP proxied alongside /ws
-    }
-    let port = 4444;
-    try { port = (await (await fetch('./config.json')).json()).collab?.port ?? port; } catch { /* default */ }
-    return `http://${location.hostname}:${port}`;
-}
+import { collabHttpBase } from '../net/serverUrls.js';
 
 // Deterministic 0..1 pair from a slug, so a session keeps its spot across refreshes.
 function hash(str) {

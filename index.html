@@ -18,7 +18,7 @@
     <div id="toolbar">
       <span id="status-dot"></span>
       <span class="title">crashDot</span>
-      <span id="version-tag" class="version-tag" title="changelog">α23</span>
+      <span id="version-tag" class="version-tag" title="changelog"></span>
       <button id="btn-boot">boot</button>
       <button id="btn-run"  disabled>run  Ctrl+↵</button>
       <button id="btn-stop" disabled>stop all</button>
@@ -288,7 +288,6 @@
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;
     let _soloPresence = null;   // solo presence handle → forwards solo evals to the monitor
-    let _remoteEval = false; // prevent re-broadcast of received evals
     let _applyingRemote = false; // while replaying a peer action, suppress re-broadcast
 
     // Broadcast a non-eval action (solo / composition state) to peers, if in a session.
@@ -1304,7 +1303,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         editor.refresh();   // CodeMirror needs a refresh after its box resizes
     }
     document.getElementById('btn-zen').onclick = toggleZen;
-    document.getElementById('btn-visuals').onclick = () => openVisuals();
     document.addEventListener('keydown', (e) => {
         if (e.altKey && e.shiftKey && (e.key === 'Z' || e.key === 'z' || e.code === 'KeyZ')) {
             e.preventDefault(); toggleZen();
