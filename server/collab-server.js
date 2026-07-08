@@ -15,8 +15,8 @@ const PORT = process.env.COLLAB_PORT || CFG.port;
 const METRICS_INTERVAL_MS = (CFG.metricsInterval || 30) * 1000;
 // How long an emptied session lingers (dormant, decaying) in the galaxy before it's
 // purged and its doc freed. Its code survives in memory until then, so it can be
-// rejoined. config.collab.dormantTtl seconds, default 10 minutes.
-const DORMANT_TTL_MS = (CFG.dormantTtl || 600) * 1000;
+// rejoined. config.collab.dormantTtl seconds, default 24 hours.
+const DORMANT_TTL_MS = (CFG.dormantTtl || 86400) * 1000;
 // By default /metrics + /status only answer localhost (the collab port is public
 // on 0.0.0.0 and the payload lists live session slugs). Set collab.metricsPublic
 // = true in config.json to expose them to anyone.

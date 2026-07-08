@@ -28,6 +28,21 @@ function seedPos(slug) {
     return { fx: (h % 997) / 997, fy: ((h >>> 11) % 991) / 991, phase: (h % 628) / 100 };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, f) => a + (b - a) * f;
+function fmtAge(ms) {
+    const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    if (d) return `${d}d ${h % 24}h`;
+    if (h) return `${h}h ${m % 60}m`;
+    if (m) return `${m}m`;
+    return `${s}s`;
+}
+// Star colour by recency: bright green when fresh, cooling to a faded blue-grey as a
+// dormant jam decays over its whole TTL (so the colour, not just the alpha, ages).
+function starColor(n) {
+    if (!n.dormant) return [63, 185, 80];
+    const f = clamp(n.decayFrac || 0, 0, 1);
+    return [Math.round(lerp(70, 116, f)), Math.round(lerp(170, 128, f)), Math.round(lerp(96, 156, f))];
+}
 
 export function initGalaxy() {
     const overlay  = document.getElementById('galaxy-overlay');
@@ -35,6 +50,7 @@ export function initGalaxy() {
     const btn      = document.getElementById('btn-galaxy');
     const closeBtn = document.getElementById('galaxy-close');
     const empty    = document.getElementById('galaxy-empty');
+    const tip      = document.getElementById('galaxy-tip');
     if (!overlay || !canvas || !btn) return;
     const ctx = canvas.getContext('2d');
 
@@ -128,8 +144,9 @@ export function initGalaxy() {
             const active = !n.dormant && idle < 2500;
             const twinkle = n.dormant ? 1 : 0.85 + Math.sin(t * 0.004 + n.seed.phase) * 0.15;
             const a = n.alpha * twinkle;
-            // dormant stars read cooler/greyer; active jams glow crashDot green
-            const gc = n.dormant ? [128, 150, 150] : [63, 185, 80];
+            // colour ages with the jam: green when fresh → cool blue-grey as it decays
+            n.decayFrac = n.dormant ? clamp(((n.decayBase || 0) + (t - (n.decayAt || t))) / (n.ttlMs || 1), 0, 1) : 0;
+            const gc = starColor(n);
 
             // glow
             const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 3.2);
@@ -150,7 +167,7 @@ export function initGalaxy() {
 
             // core
             ctx.globalAlpha = clamp(a, 0, 1);
-            ctx.fillStyle = active ? '#b7f7c0' : (n.dormant ? '#6f8080' : '#4cc85f');
+            ctx.fillStyle = active ? '#b7f7c0' : `rgb(${gc[0]},${gc[1]},${gc[2]})`;
             ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.5, 0, 7); ctx.fill();
             n.hitR = r * 3.2;
 
@@ -184,8 +201,28 @@ export function initGalaxy() {
     });
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
-        canvas.style.cursor = hitTest(e.clientX - rect.left, e.clientY - rect.top) ? 'pointer' : 'default';
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        const n = hitTest(mx, my);
+        canvas.style.cursor = n ? 'pointer' : 'default';
+        if (!n || !tip) { if (tip) tip.hidden = true; return; }
+        // Tooltip: slug, who's here, and when it was last active.
+        const now = performance.now();
+        tip.textContent = '';
+        const slugEl = document.createElement('div'); slugEl.className = 'tip-slug'; slugEl.textContent = n.slug;
+        const who = document.createElement('div');
+        who.textContent = n.dormant ? 'resting — nobody here' : `${n.clients || 1} playing`;
+        const act = document.createElement('div'); act.className = 'tip-dim';
+        act.textContent = `last active ${fmtAge(liveIdle(n, now))} ago`;
+        const started = document.createElement('div'); started.className = 'tip-dim';
+        started.textContent = `started ${fmtAge(n.ageMs || 0)} ago · ${n.evals || 0} evals`;
+        tip.append(slugEl, who, act, started);
+        tip.hidden = false;
+        // keep the tip on-screen
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        tip.style.left = Math.min(mx + 16, overlay.clientWidth - tw - 8) + 'px';
+        tip.style.top  = Math.min(my + 16, overlay.clientHeight - th - 8) + 'px';
     });
+    canvas.addEventListener('mouseleave', () => { if (tip) tip.hidden = true; });
 
     function show() {
         overlay.hidden = false; open = true;
@@ -195,6 +232,7 @@ export function initGalaxy() {
     }
     function hide() {
         overlay.hidden = true; open = false;
+        if (tip) tip.hidden = true;
         clearInterval(pollTimer); cancelAnimationFrame(raf);
     }
 

@@ -1258,6 +1258,15 @@ button.recording {
     color: #8b949e; font: 13px ui-monospace, monospace; text-align: center;
     pointer-events: none; padding: 24px;
 }
+#galaxy-tip {
+    position: absolute; z-index: 3; pointer-events: none;
+    background: rgba(13, 17, 23, 0.94); border: 1px solid #30363d; border-radius: 7px;
+    padding: 7px 10px; font: 11px ui-monospace, Menlo, Consolas, monospace; color: #c9d1d9;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); max-width: 240px; line-height: 1.5;
+}
+#galaxy-tip[hidden] { display: none; }
+#galaxy-tip .tip-slug { font-weight: 600; color: #7ee787; word-break: break-all; }
+#galaxy-tip .tip-dim { color: #8b949e; }
 
 #about-card {
     position: relative;
