@@ -45,6 +45,11 @@ export function initGalaxy() {
     if (!overlay || !canvas || !btn) return;
     const ctx = canvas.getContext('2d');
 
+    // The session we're currently IN (if any) — its star is highlighted and clicking
+    // it just closes the map (no reload/rejoin). Mirrors index.html's slug parsing.
+    const _qs = new URLSearchParams(location.search);
+    const currentSlug = _qs.get('session') || _qs.get('s') || _qs.get('') || null;
+
     let base = null;                         // resolved collab HTTP base
     let nodes = new Map();                   // slug → node state
     let stars = [];                          // static background starfield
@@ -135,9 +140,12 @@ export function initGalaxy() {
             const active = !n.dormant && idle < 2500;
             const twinkle = n.dormant ? 1 : 0.85 + Math.sin(t * 0.004 + n.seed.phase) * 0.15;
             const a = n.alpha * twinkle;
-            // colour ages with the jam: green when fresh → cool blue-grey as it decays
+            // colour ages with the jam: green when fresh → cool blue-grey as it decays.
+            // The session YOU'RE in glows a distinct amber and never dims fully.
+            const isMine = n.slug === currentSlug;
             n.decayFrac = n.dormant ? clamp(((n.decayBase || 0) + (t - (n.decayAt || t))) / (n.ttlMs || 1), 0, 1) : 0;
-            const gc = starColor(n);
+            const gc = isMine ? [245, 200, 70] : starColor(n);
+            if (isMine) n.alpha = Math.max(n.alpha, 0.9);
 
             // glow
             const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 3.2);
@@ -147,29 +155,36 @@ export function initGalaxy() {
             ctx.fillStyle = g;
             ctx.beginPath(); ctx.arc(n.x, n.y, r * 3.2, 0, 7); ctx.fill();
 
+            // steady halo ring on your own session so it stands out at a glance
+            if (isMine) {
+                ctx.globalAlpha = clamp(0.55 * a, 0, 1);
+                ctx.strokeStyle = '#f5c846'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(n.x, n.y, r + 6 + Math.sin(t * 0.003) * 2, 0, 7); ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
             // activity pulse ring (only while someone's actually playing)
             if (active) {
                 const pr = r + ((t * 0.05) % 22);
                 ctx.globalAlpha = clamp((1 - (pr - r) / 22) * a, 0, 1);
-                ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 1.5;
+                ctx.strokeStyle = isMine ? '#f5c846' : '#7ee787'; ctx.lineWidth = 1.5;
                 ctx.beginPath(); ctx.arc(n.x, n.y, pr, 0, 7); ctx.stroke();
                 ctx.globalAlpha = 1;
             }
 
             // core
             ctx.globalAlpha = clamp(a, 0, 1);
-            ctx.fillStyle = active ? '#b7f7c0' : `rgb(${gc[0]},${gc[1]},${gc[2]})`;
+            ctx.fillStyle = isMine ? '#ffe9a0' : (active ? '#b7f7c0' : `rgb(${gc[0]},${gc[1]},${gc[2]})`);
             ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.5, 0, 7); ctx.fill();
             n.hitR = r * 3.2;
 
             // label: slug + status
             ctx.globalAlpha = clamp(a + 0.15, 0, 1);
-            ctx.fillStyle = n.dormant ? '#9aa5a5' : '#c9d1d9';
-            ctx.font = '12px ui-monospace, Menlo, Consolas, monospace';
+            ctx.fillStyle = isMine ? '#f5c846' : (n.dormant ? '#9aa5a5' : '#c9d1d9');
+            ctx.font = `${isMine ? 'bold ' : ''}12px ui-monospace, Menlo, Consolas, monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(slug, n.x, n.y + r + 16);
-            ctx.fillStyle = '#8b949e'; ctx.font = '10px ui-monospace, monospace';
-            ctx.fillText(n.dormant ? 'resting · click to revive' : `${n.clients || 1} ♪`, n.x, n.y + r + 29);
+            ctx.fillStyle = isMine ? '#f5c846' : '#8b949e'; ctx.font = '10px ui-monospace, monospace';
+            ctx.fillText(isMine ? "you're here · click to close" : (n.dormant ? 'resting · click to revive' : `${n.clients || 1} ♪`), n.x, n.y + r + 29);
             ctx.globalAlpha = 1;
         }
         raf = requestAnimationFrame(draw);
@@ -188,7 +203,9 @@ export function initGalaxy() {
     canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
         const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
-        if (n) location.href = location.pathname + '?session=' + encodeURIComponent(n.slug);   // join
+        if (!n) return;
+        if (n.slug === currentSlug) { hide(); return; }   // already here → just close the map
+        location.href = location.pathname + '?session=' + encodeURIComponent(n.slug);   // join another
     });
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -201,7 +218,7 @@ export function initGalaxy() {
         tip.textContent = '';
         const slugEl = document.createElement('div'); slugEl.className = 'tip-slug'; slugEl.textContent = n.slug;
         const who = document.createElement('div');
-        who.textContent = n.dormant ? 'resting — nobody here' : `${n.clients || 1} playing`;
+        who.textContent = n.slug === currentSlug ? "you're in this jam" : (n.dormant ? 'resting — nobody here' : `${n.clients || 1} playing`);
         const act = document.createElement('div'); act.className = 'tip-dim';
         act.textContent = `last active ${fmtAge(liveIdle(n, now))} ago`;
         const started = document.createElement('div'); started.className = 'tip-dim';
