@@ -395,23 +395,22 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
    still scroll via cursor navigation / trackpad; the vertical bar stays. */
 .CodeMirror-hscrollbar { display: none !important; }
 
-/* Python token colors — use CSS vars so themes apply */
-.cm-keyword  { color: var(--cm-keyword); }
-.cm-number   { color: var(--cm-number); }
-.cm-string   { color: var(--cm-string); }
-.cm-comment  { color: var(--text-2); font-style: italic; }
-.cm-operator { color: var(--cm-keyword); }
-.cm-def      { color: var(--cm-def); }
-/* CodeMirror's default theme colours these dark-purple (#30a) — unreadable on a
-   dark editor. Re-map to the theme's variable/def colours. */
-/* `oct` (and other Python builtin names used as params) tokenize as cm-builtin;
-   CodeMirror's default theme paints that #30a dark purple, unreadable on dark bgs.
-   Scope to .CodeMirror so we beat .cm-s-default and read them as plain params. */
-.CodeMirror .cm-builtin { color: var(--text-1); }
-.cm-variable   { color: var(--text-1); }   /* plain names (oct, dur, …) — keep readable */
-.cm-variable-2 { color: var(--cm-def); }
-.cm-property   { color: var(--text-1); }
-.cm-atom       { color: var(--cm-number); }
+/* Python token colours. Scoped to .CodeMirror so they beat CodeMirror's built-in
+   .cm-s-default theme — otherwise every token falls back to its defaults (gloomy
+   #a50 brown comments, #30a purple builtins, dark-green numbers…) instead of the
+   theme's palette. */
+.CodeMirror .cm-keyword    { color: var(--cm-keyword); }
+.CodeMirror .cm-number     { color: var(--cm-number); }
+.CodeMirror .cm-string,
+.CodeMirror .cm-string-2   { color: var(--cm-string); }
+.CodeMirror .cm-comment    { color: var(--text-2); font-style: italic; }
+.CodeMirror .cm-operator   { color: var(--cm-keyword); }
+.CodeMirror .cm-def        { color: var(--cm-def); }
+.CodeMirror .cm-builtin    { color: var(--text-1); }   /* oct etc. → plain param */
+.CodeMirror .cm-variable   { color: var(--text-1); }   /* plain names (cutoff, dur, …) */
+.CodeMirror .cm-variable-2 { color: var(--cm-def); }
+.CodeMirror .cm-property   { color: var(--text-1); }
+.CodeMirror .cm-atom       { color: var(--cm-number); }
 
 /* FoxDot overlay tokens */
 .cm-fd-synth    { color: var(--synth-col); font-weight: bold; }
