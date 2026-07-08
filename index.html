@@ -104,22 +104,6 @@
       <div id="cp-players"></div>
     </div>
 
-    <div class="cp-section" id="cp-midi">
-      <div class="cp-row" style="padding:0">
-        <h3 style="margin:0">MIDI</h3>
-        <button id="cp-midi-enable" class="cp-btn" style="width:auto;padding:1px 8px">enable</button>
-      </div>
-      <div id="cp-midi-status">off</div>
-      <div id="cp-midi-learn" class="midi-hint" style="display:none">⟳ learning — touch a control…</div>
-      <div id="cp-midi-monitor"></div>
-      <div id="cp-midi-bindings"></div>
-      <button id="cp-midi-clear" class="cp-btn" style="display:none">clear bindings</button>
-      <div id="cp-midi-out" class="cp-row" style="padding:2px 0;display:none">
-        <span class="midi-hint" style="padding:0">out →</span>
-        <select id="cp-midi-out-sel" class="cp-select" style="flex:1;width:auto;margin-top:0"></select>
-      </div>
-    </div>
-
     <!-- Ableton Link hidden until the bridge is operational. -->
     <div class="cp-section" id="cp-link" style="display:none">
       <div class="cp-row" style="padding:0">
@@ -145,6 +129,23 @@
       <div id="cp-autoplay">autoplay: off</div>
       <button id="cp-stop-autoplay" class="cp-btn">■ stop autoplay</button>
       <div id="cp-parts"></div>
+    </div>
+
+    <!-- MIDI — less used, so it sits low, under Composition. -->
+    <div class="cp-section" id="cp-midi">
+      <div class="cp-row" style="padding:0">
+        <h3 style="margin:0">MIDI</h3>
+        <button id="cp-midi-enable" class="cp-btn" style="width:auto;padding:1px 8px">enable</button>
+      </div>
+      <div id="cp-midi-status">off</div>
+      <div id="cp-midi-learn" class="midi-hint" style="display:none">⟳ learning — touch a control…</div>
+      <div id="cp-midi-monitor"></div>
+      <div id="cp-midi-bindings"></div>
+      <button id="cp-midi-clear" class="cp-btn" style="display:none">clear bindings</button>
+      <div id="cp-midi-out" class="cp-row" style="padding:2px 0;display:none">
+        <span class="midi-hint" style="padding:0">out →</span>
+        <select id="cp-midi-out-sel" class="cp-select" style="flex:1;width:auto;margin-top:0"></select>
+      </div>
     </div>
 
     <div class="cp-section" id="cp-settings">
