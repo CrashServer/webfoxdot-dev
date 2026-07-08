@@ -79,12 +79,10 @@
       <div class="cp-subtitle">scsynth ▸ WASM</div>
     </div>
 
+    <!-- Major controls together: clock, scale, root. -->
     <div class="cp-section">
       <h3>Clock</h3>
-      <div id="cp-beat">—</div>
-      <div id="cp-beat-sub" style="text-align:center;font-size:9px;color:var(--text-2);margin-bottom:2px;">◦◦◦◦</div>
-      <!-- Phrase counters: current bar position within 4/8/16/32/64-bar phrases.
-           Integer per-bar jumps (1,2,3,4…), webTroop-style — not a sliding fill. -->
+      <!-- Phrase counters: current bar position within 4/8/16/32/64-bar phrases. -->
       <div id="cp-phrases">
         <div class="cp-phrase" id="phrase-4">1/4</div>
         <div class="cp-phrase" id="phrase-8">1/8</div>
@@ -97,13 +95,16 @@
         <input id="bpm-input" type="number" value="120" min="20" max="300">
       </div>
       <button id="cp-tap">tap tempo</button>
-    </div>
-
-    <div class="cp-section">
-      <h3>Scale</h3>
+      <h3 style="margin-top:8px">Scale</h3>
       <select class="cp-select" id="cp-scale-sel"></select>
       <h3 style="margin-top:6px">Root</h3>
       <select class="cp-select" id="cp-root-sel"></select>
+    </div>
+
+    <!-- Players — the second most important panel, right under the clock. -->
+    <div class="cp-section">
+      <h3>Players</h3>
+      <div id="cp-players"></div>
     </div>
 
     <div class="cp-section" id="cp-midi">
@@ -122,7 +123,8 @@
       </div>
     </div>
 
-    <div class="cp-section" id="cp-link">
+    <!-- Ableton Link hidden until the bridge is operational. -->
+    <div class="cp-section" id="cp-link" style="display:none">
       <div class="cp-row" style="padding:0">
         <h3 style="margin:0">Ableton Link</h3>
         <button id="cp-link-toggle" class="cp-btn" style="width:auto;padding:1px 8px">connect</button>
@@ -146,11 +148,6 @@
       <div id="cp-autoplay">autoplay: off</div>
       <button id="cp-stop-autoplay" class="cp-btn">■ stop autoplay</button>
       <div id="cp-parts"></div>
-    </div>
-
-    <div class="cp-section">
-      <h3>Players</h3>
-      <div id="cp-players"></div>
     </div>
 
     <div class="cp-section" id="cp-settings">

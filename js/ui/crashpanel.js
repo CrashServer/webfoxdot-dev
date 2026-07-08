@@ -49,16 +49,7 @@ function _updateBpm() {
 }
 
 function _updateBeat() {
-    const el = document.getElementById('cp-beat');
-    if (!el) return;
     const now = _clock.now();
-    if (now <= 0) { el.textContent = '—'; return; }
-    const bar  = Math.floor(now / 4) + 1;
-    const beat = Math.floor(now % 4) + 1;
-    const sub  = Math.floor((now % 1) * 4);
-    el.textContent = `${bar} . ${beat}`;
-    const sub2 = document.getElementById('cp-beat-sub');
-    if (sub2) sub2.textContent = '▪'.repeat(sub) + '◦'.repeat(4 - sub);
 
     // Phrase counters — which bar of a 4/8/16/32/64-bar phrase we're on. Integer
     // per-bar jumps (1,2,3,4…), webTroop-style: the count and the fill step on each
