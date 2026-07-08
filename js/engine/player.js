@@ -106,11 +106,25 @@ function resolveArgs(args, step) {
     return out;
 }
 
-// Split resolved args into synth params vs FX params
-function splitArgs(r) {
+// A synth's OWN parameter names (defaults + extraParams), NOT the shared FX keys.
+function synthOwnParams(synthName) {
+    const def = SYNTH_DEFS[synthName];
+    const s = new Set();
+    if (def) {
+        Object.keys(def.defaults ?? {}).forEach(k => s.add(k));
+        (def.extraParams ?? []).forEach(k => s.add(k));
+    }
+    return s;
+}
+
+// Split resolved args into synth params vs FX params. A param a synth declares as
+// its OWN (ownKeys) wins over a same-named FX key — so darkpad's `drive`/compkick's
+// `comp` reach the synth, while `drive` on a synth without one still hits the FX.
+function splitArgs(r, ownKeys) {
     const synth = {}, fx = {};
     for (const [k, v] of Object.entries(r)) {
-        (FX_KEYS.has(k) ? fx : synth)[k] = v;
+        if (ownKeys && ownKeys.has(k)) synth[k] = v;
+        else (FX_KEYS.has(k) ? fx : synth)[k] = v;
     }
     return { synth, fx };
 }
@@ -250,6 +264,7 @@ export class Player {
         this.name      = name;
         this._clock    = clock;
         this._active   = false;
+        this._gen      = 0;   // fire-chain generation; a stale _fire (older gen) bails
         this._step     = 0;
         this._nextBeat = 0;
         this._synth    = null;
@@ -311,7 +326,7 @@ export class Player {
                 // FX chain is created lazily in _fireSample, only if an FX is used.
                 { const a = alignedStart(this._clock, this._playOpts.dur);
                   this._step = a.step; this._nextBeat = a.beat; }
-                this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+                const gen = ++this._gen; this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
             }
             // Re-evaluating a play() without .drummer() stops any prior auto-drummer.
             if (!synthCall._calls?.some(c => c[0] === 'drummer')) this._stopDrummer();
@@ -335,7 +350,7 @@ export class Player {
                 // FX chain is created lazily in _fireLoop, only if an FX is used.
                 { const a = alignedStart(this._clock, this._loopOpts.dur);
                   this._step = a.step; this._nextBeat = a.beat; }
-                this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+                const gen = ++this._gen; this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
             }
             this._applyCalls(synthCall);
             this._applyEverys(synthCall);
@@ -356,7 +371,7 @@ export class Player {
                 this._activeSince = Date.now();
                 { const a = alignedStart(this._clock, this._midiOpts.dur);
                   this._step = a.step; this._nextBeat = a.beat; }
-                this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+                const gen = ++this._gen; this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
             }
             this._applyCalls(synthCall);
             this._applyEverys(synthCall);
@@ -373,6 +388,7 @@ export class Player {
         const def       = SYNTH_DEFS[synthCall.name];
         this._mode      = 'synth';
         this._synth     = synthCall.name;
+        this._synthOwnKeys = synthOwnParams(synthCall.name);   // own params win over FX keys
         // fresh → synth defaults + user args; inherit → keep previous, override
         this._args       = fresh ? { ...(def?.defaults ?? {}), ...userArgs }
                                  : { ...this._args, ...userArgs };
@@ -390,7 +406,7 @@ export class Player {
             // FX chain is created lazily in _fire, only if the player uses an FX.
             { const a = alignedStart(this._clock, this._args.dur);
               this._step = a.step; this._nextBeat = a.beat; }
-            this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+            const gen = ++this._gen; this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
         }
         this._applyCalls(synthCall);
         this._applyEverys(synthCall);
@@ -440,12 +456,15 @@ export class Player {
         for (const [m, ...a] of call._calls) { try { this[m]?.(...a); } catch (_) {} }
     }
 
-    _fire() {
-        if (!this._active) return;
+    _fire(gen = this._gen) {
+        // Bail if stopped OR if this is a STALE fire chain — a stop()+re-eval within
+        // a step window leaves the old chain's _fire queued; without this it would
+        // reactivate and run alongside the new chain at 2× density.
+        if (!this._active || gen !== this._gen) return;
         this._applyModifiers();
-        if (this._mode === 'sample')  { this._fireSample();  return; }
-        if (this._mode === 'loop')    { this._fireLoop();    return; }
-        if (this._mode === 'midiout') { this._fireMidiOut(); return; }
+        if (this._mode === 'sample')  { this._fireSample(gen);  return; }
+        if (this._mode === 'loop')    { this._fireLoop(gen);    return; }
+        if (this._mode === 'midiout') { this._fireMidiOut(gen); return; }
 
         const step = this._step;
         const r    = resolveArgs(this._args, step);
@@ -473,7 +492,7 @@ export class Player {
         const delayBeats = Math.max(0, ungroup(r.delay, step) ?? 0);
         delete r.delay;
 
-        const { synth: sArgs, fx: fxArgs } = splitArgs(r);
+        const { synth: sArgs, fx: fxArgs } = splitArgs(r, this._synthOwnKeys);
         const hasFx = Object.keys(fxArgs).length > 0;
         const dur  = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
         const secPerBeat = 60 / this._clock.bpm;
@@ -556,10 +575,10 @@ export class Player {
 
         this._step++;
         this._nextBeat += dur;
-        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+        this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
     }
 
-    _fireSample() {
+    _fireSample(gen = this._gen) {
         if (!_sc || !this._pattern?.length || this._bus == null) return;
         const opts     = this._playOpts;
         const step     = this._step;
@@ -626,7 +645,7 @@ export class Player {
 
         this._step++;
         this._nextBeat += baseDur;
-        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+        this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
     }
 
     // Recursively render one play() token over a beat slot [offset, offset+slot].
@@ -676,7 +695,7 @@ export class Player {
     // loop() mode — one fd_loop voice per step, beat-stretched to `dur` beats so
     // the buffer locks to the tempo. Mirrors _fireSample but plays a whole named
     // loop buffer (no token tree) and passes sus (seconds) + beat_stretch.
-    _fireLoop() {
+    _fireLoop(gen = this._gen) {
         if (!_sc || this._bus == null) return;
         const opts = this._loopOpts;
         const step = this._step;
@@ -719,7 +738,7 @@ export class Player {
         }
         this._step++;
         this._nextBeat += baseDur;
-        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+        this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
     }
 
     _triggerLoop(bufId, p, whenNTP) {
@@ -737,7 +756,7 @@ export class Player {
     // midiout() mode — emit MIDI note-on/off to an external port instead of audio.
     // Mirrors the synth path (degree→MIDI, group→chord, stutter, delay) but sends
     // scheduled MIDI messages (performance.now() timestamps) rather than /s_new.
-    _fireMidiOut() {
+    _fireMidiOut(gen = this._gen) {
         const step = this._step;
         const r    = resolveArgs(this._midiOpts, step);
 
@@ -795,7 +814,7 @@ export class Player {
         }
         this._step++;
         this._nextBeat += dur;
-        this._clock._schedule(this._nextBeat, () => this._fire(), LOOKAHEAD_S);
+        this._clock._schedule(this._nextBeat, () => this._fire(gen), LOOKAHEAD_S);
     }
 
     // .after(beats, method, ...args) — one-shot delayed player method call
