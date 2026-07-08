@@ -89,6 +89,45 @@ export function initGalaxy(onPickExample) {
         const padX = 60, padTop = 84, padBot = 50;
         for (const c of clusters) { c.cx = padX + c.fx * (W - padX * 2); c.cy = padTop + c.fy * (H - padTop - padBot); }
         for (const n of exNodes) { n.bx = n.cl.cx + Math.cos(n.offAng) * n.offRad; n.by = n.cl.cy + Math.sin(n.offAng) * n.offRad; }
+        buildStatics();
+    }
+
+    // Pre-render everything static: the cluster nebulae + labels bake into one
+    // full-frame layer, and each cluster's example-star glow becomes a small sprite.
+    // Per frame we then just drawImage these instead of building ~140 gradients — the
+    // gradients were the whole cost of the render loop.
+    let nebula = null;   // offscreen full-frame nebula + labels
+    function buildStatics() {
+        if (!(W > 0 && H > 0)) return;
+        nebula = document.createElement('canvas');
+        nebula.width = Math.round(W * DPR); nebula.height = Math.round(H * DPR);
+        const nc = nebula.getContext('2d');
+        nc.setTransform(DPR, 0, 0, DPR, 0, 0);
+        nc.textAlign = 'center';
+        for (const c of clusters) {
+            const live = c.cat === 'Live sets', rad = live ? 155 : 130;
+            const g = nc.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, rad);
+            g.addColorStop(0, `hsla(${c.hue},${live ? 78 : 60}%,${live ? 60 : 55}%,${live ? 0.12 : 0.07})`);
+            g.addColorStop(1, `hsla(${c.hue},60%,55%,0)`);
+            nc.fillStyle = g; nc.beginPath(); nc.arc(c.cx, c.cy, rad, 0, 7); nc.fill();
+            nc.globalAlpha = live ? 0.75 : 0.45; nc.fillStyle = `hsl(${c.hue},${live ? 65 : 45}%,${live ? 78 : 72}%)`;
+            nc.font = `${live ? 'bold ' : ''}${live ? 10 : 9}px ui-monospace, monospace`;
+            nc.fillText((c.cat || '').toUpperCase(), c.cx, c.cy - (live ? 128 : 104));
+            nc.globalAlpha = 1;
+        }
+        // one glow sprite per cluster hue (peak alpha baked in; twinkle via globalAlpha)
+        for (const c of clusters) {
+            const live = c.cat === 'Live sets', gr = live ? 15 : 9;
+            const sp = document.createElement('canvas');
+            sp.width = sp.height = Math.ceil(gr * 2 * DPR);
+            const sc = sp.getContext('2d');
+            sc.scale(DPR, DPR);
+            const g = sc.createRadialGradient(gr, gr, 0, gr, gr, gr);
+            g.addColorStop(0, `hsla(${c.hue},${live ? 88 : 75}%,${live ? 76 : 72}%,${live ? 0.68 : 0.5})`);
+            g.addColorStop(1, `hsla(${c.hue},75%,72%,0)`);
+            sc.fillStyle = g; sc.beginPath(); sc.arc(gr, gr, gr, 0, 7); sc.fill();
+            c.glowSprite = sp; c.glowR = gr;
+        }
     }
 
     // A few slow comets/asteroids drifting across — pure ambience (4 objects, one
@@ -161,7 +200,13 @@ export function initGalaxy(onPickExample) {
 
     function liveIdle(n, t) { return (n.idleBase || 0) + (t - (n.idleAt || t)); }
 
+    let lastRender = 0;
     function draw(t) {
+        raf = requestAnimationFrame(draw);
+        // Cap to ~30fps — the motion is slow ambience, 60fps just burns CPU. The rAF
+        // itself still pauses when the tab is backgrounded.
+        if (t - lastRender < 32) return;
+        lastRender = t;
         ctx.clearRect(0, 0, W, H);
         // ambient starfield
         for (const s of stars) {
@@ -192,32 +237,17 @@ export function initGalaxy(onPickExample) {
             ctx.globalAlpha = 1;
         }
 
-        // ── Example clusters (background nebulae + dim stars) — faint so the live jams
-        //    below pop. "Live sets" get a flashier, brighter, pulsing/sparkling treatment.
-        ctx.textAlign = 'center';
-        for (const c of clusters) {
-            const live = c.cat === 'Live sets', rad = live ? 155 : 130;
-            const g = ctx.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, rad);
-            g.addColorStop(0, `hsla(${c.hue},${live ? 78 : 60}%,${live ? 60 : 55}%,${live ? 0.12 : 0.07})`);
-            g.addColorStop(1, `hsla(${c.hue},60%,55%,0)`);
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.cx, c.cy, rad, 0, 7); ctx.fill();
-            ctx.globalAlpha = live ? 0.75 : 0.45; ctx.fillStyle = `hsl(${c.hue},${live ? 65 : 45}%,${live ? 78 : 72}%)`;
-            ctx.font = `${live ? 'bold ' : ''}${live ? 10 : 9}px ui-monospace, monospace`;
-            ctx.fillText((c.cat || '').toUpperCase(), c.cx, c.cy - (live ? 128 : 104));
-            ctx.globalAlpha = 1;
-        }
+        // ── Example clusters — the static nebulae + labels are one pre-baked image;
+        //    the dim stars (drift + twinkle) draw over it via per-hue glow sprites. ──
+        if (nebula) ctx.drawImage(nebula, 0, 0, W, H);
         for (const n of exNodes) {
-            const live = n.cat === 'Live sets';
+            const c = n.cl, live = n.cat === 'Live sets';
             n.x = n.bx + Math.sin(t * 0.0002 + n.phase) * 3;
             n.y = n.by + Math.cos(t * 0.00018 + n.phase) * 3;
             const pulse = live ? 1 + Math.sin(t * 0.004 + n.phase) * 0.3 : 1;
             const tw = (live ? 0.72 : 0.5) + Math.sin(t * 0.003 + n.phase) * 0.22;
             ctx.globalAlpha = clamp(tw, 0, live ? 0.95 : 0.72);
-            const glowR = live ? 15 : 9;
-            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
-            g.addColorStop(0, `hsla(${n.hue},${live ? 88 : 75}%,${live ? 76 : 72}%,${live ? 0.68 : 0.5})`);
-            g.addColorStop(1, `hsla(${n.hue},75%,72%,0)`);
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, 7); ctx.fill();
+            if (c.glowSprite) { const gr = c.glowR; ctx.drawImage(c.glowSprite, n.x - gr, n.y - gr, gr * 2, gr * 2); }
             ctx.fillStyle = `hsl(${n.hue},${live ? 92 : 82}%,${live ? 86 : 82}%)`;
             ctx.beginPath(); ctx.arc(n.x, n.y, (live ? 3.4 : 2.3) * pulse, 0, 7); ctx.fill();
             if (live) {   // sparkle cross — a subtle twinkle
