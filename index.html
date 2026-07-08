@@ -336,6 +336,15 @@
     // ── Master / global FX bus — n_set the master limiter node (Server.addFx /
     // Master().attr = …). Values are static snapshots (patterns resolve to now).
     let _scRef = null;
+    let _booting = false;   // guard: never construct a 2nd audio engine while one is live/booting
+    // Tear down a SuperSonic instance (frees its AudioContext/WASM engine so a
+    // failed/timed-out boot can't leave an orphan holding the device on retry).
+    async function disposeSc(s) {
+        if (!s) return;
+        for (const m of ['dispose', 'shutdown', 'close', 'destroy']) {
+            if (typeof s[m] === 'function') { try { await s[m](); } catch (_) {} return; }
+        }
+    }
     const MASTER_PARAMS = {
         gain: 'gain', ceiling: 'ceiling', lpf: 'lpf', lpf_rq: 'lpf_rq', hpf: 'hpf', hpf_rq: 'hpf_rq',
         mverb: 'mverb', echo: 'echo', echo_time: 'echo_time', echo_dec: 'echo_dec',
@@ -771,6 +780,9 @@
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
 
     async function bootAudio() {
+        if (_booting || _scRef) return;   // already booting or booted — don't spawn a 2nd engine
+        _booting = true;
+        let sc = null;
         const dot = document.getElementById('status-dot');
         const btn = document.getElementById('btn-boot');
         dot.className = 'booting';
@@ -794,7 +806,7 @@
                 log(`  matching audio device rate: ${hwSampleRate} Hz`, 'info');
             }
 
-            const sc = new SuperSonic({
+            sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
                 // Use the device's native rate (see hwSampleRate probe above).
@@ -889,12 +901,17 @@
             document.getElementById('btn-stop').disabled = false;
             document.getElementById('btn-loadkit').disabled = false;
             log('Ready. Clock running.', 'ok');
+            _booting = false;
         } catch (e) {
             log(`Boot failed: ${e.message}`, 'error');
             console.error(e);
+            // Free the half-initialised engine so it releases the audio device and a
+            // "retry boot" starts clean instead of racing a second orphaned context.
+            await disposeSc(sc);
             document.getElementById('status-dot').className = '';
             btn.disabled = false;
             btn.textContent = 'retry boot';
+            _booting = false;
         }
     }
 
@@ -1078,10 +1095,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         });
     }
 
-    // Solo-mode autosave — debounced write of the buffer to localStorage
+    // Solo-mode autosave — debounced write of the buffer to localStorage. Only
+    // genuine edits persist: a programmatic setValue (loading a #c= share link or
+    // an example) must NOT overwrite the user's saved buffer until they actually
+    // touch it — otherwise opening a friend's link silently destroys their work.
     if (!_sessionSlug) {
         let _saveTimer = null;
-        editor.on('change', () => {
+        editor.on('change', (cm, ch) => {
+            if (ch && ch.origin === 'setValue') return;
             clearTimeout(_saveTimer);
             _saveTimer = setTimeout(() => {
                 try { localStorage.setItem(SOLO_KEY, editor.getValue()); } catch (_) {}
