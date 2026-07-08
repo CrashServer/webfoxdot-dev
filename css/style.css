@@ -522,6 +522,20 @@ body.zen #docs-panel { display: none !important; }
     color: var(--green);
     letter-spacing: 1px;
 }
+/* Small "about" chip next to the crashDot title (moved out of the topbar). */
+.cp-about-btn {
+    font-size: 8px; font-weight: normal; letter-spacing: 0;
+    padding: 1px 6px; margin-left: 5px; vertical-align: middle;
+    background: var(--bg-3); color: var(--text-2);
+    border: 1px solid var(--border-1); border-radius: 4px; cursor: pointer;
+}
+.cp-about-btn:hover { color: var(--green); border-color: var(--green); }
+/* Diagnostics readout pinned to the panel bottom (was the topbar load meter). */
+#cp-debug {
+    margin-top: auto; padding: 5px 10px; text-align: center;
+    font: 10px ui-monospace, Menlo, Consolas, monospace; color: var(--text-2);
+    border-top: 1px solid var(--border-1);
+}
 #cp-header .cp-subtitle {
     font-size: 9px;
     color: var(--text-2);

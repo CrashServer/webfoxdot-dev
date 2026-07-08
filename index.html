@@ -20,17 +20,14 @@
       <span class="title">crashDot</span>
       <span id="version-tag" class="version-tag" title="changelog"></span>
       <button id="btn-boot">boot</button>
-      <button id="btn-run"  disabled>run  Ctrl+↵</button>
-      <button id="btn-stop" disabled>stop all</button>
-      <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
       <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪ load kit</button>
+      <button id="btn-run"  disabled title="run  (Ctrl+↵)">▶</button>
+      <button id="btn-stop" disabled title="stop all">■</button>
+      <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥 go live</button>
       <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌 galaxy</button>
       <span id="synth-status"></span>
-      <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
-      <div style="flex:1"></div>
-      <button id="btn-about" title="about crashDot">about</button>
       <div style="flex:1"></div>
       <div id="examples-dd">
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
@@ -75,7 +72,7 @@
   <div id="crash-panel">
     <div id="cp-resize" title="drag to resize the panel"></div>
     <div id="cp-header">
-      <div class="cp-title">crashDot</div>
+      <div class="cp-title">crashDot <button id="btn-about" class="cp-about-btn" title="about crashDot">about</button></div>
       <div class="cp-subtitle">scsynth ▸ WASM</div>
     </div>
 
@@ -163,6 +160,11 @@
         <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
         <button id="btn-rec-audio" class="cp-btn" title="record the audio output to a file">rec audio</button>
       </div>
+    </div>
+
+    <!-- Diagnostics readout — scheduler load / latency. -->
+    <div id="cp-debug" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">
+      <span id="load-meter">load —</span>
     </div>
   </div>
 
