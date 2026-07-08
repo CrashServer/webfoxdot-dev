@@ -25,6 +25,7 @@
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻ reset</button>
       <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪ load kit</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
+      <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥 go live</button>
       <span id="synth-status"></span>
       <span id="load-meter" title="scheduler load / latency — the note clock runs on the main thread, so high lag = late notes. green=smooth, red=struggling">load —</span>
       <div style="flex:1"></div>
@@ -34,11 +35,11 @@
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
         <div id="examples-pop" hidden></div>
       </div>
-      <button id="btn-clear" title="empty the editor">clear</button>
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
-      <button id="btn-visuals" title="pop out the audio + code reactive visuals window">▦</button>
+      <!-- visuals pop-out hidden until the feature is ready -->
+      <button id="btn-visuals" title="pop out the audio + code reactive visuals window" style="display:none">▦</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -1125,6 +1126,31 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         } catch (e) { log(`share failed: ${e.message}`, 'error'); }
     };
 
+    // ── Go live — start (or, if already in one, share) a multiplayer session ─────
+    // URLs are origin-relative so a link works wherever the app is deployed (the
+    // address will change once this leaves the local server).
+    {
+        const mpBtn = document.getElementById('btn-multiplayer');
+        if (_sessionSlug) {
+            mpBtn.textContent = '⧉ session link';
+            mpBtn.title = "copy this live session's link to share with others";
+            mpBtn.onclick = async () => {
+                const url = location.origin + location.pathname + '?session=' + _sessionSlug;
+                try { await navigator.clipboard.writeText(url); log(`session link copied — ${url}`, 'success'); }
+                catch (_) { history.replaceState(null, '', url); log(`session link is in the address bar — copy it manually`, 'info'); }
+            };
+        } else {
+            mpBtn.onclick = () => {
+                const slug = 'jam' + Math.random().toString(36).slice(2, 7);
+                // Stash the current buffer as a one-shot seed keyed to this slug, then
+                // navigate — the ?session= boot path picks it up and seeds the room.
+                try { localStorage.setItem('wfd-seed', JSON.stringify({ slug, code: editor.getValue() })); } catch (_) {}
+                log(`starting live session "${slug}" with this composition…`, 'info');
+                location.href = location.pathname + '?session=' + slug;   // origin-relative
+            };
+        }
+    }
+
     // ── Load the default sample pack (webfoxdot-kit) from GitHub, one click ──────
     const DEFAULT_KIT_URL = 'https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json';
     document.getElementById('btn-loadkit').onclick = () => {
@@ -1231,7 +1257,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         addCatRow('__all__', '⋯ All examples');
         btn.addEventListener('click', () => { pop.hidden ? open() : close(); });
     })();
-    document.getElementById('btn-clear').onclick    = () => setEditorContent('');
 
     // ── Zen mode — hide all UI but the editor (clean view). Toggle with the
     // button or Shift+Alt+Z (so it can be restored while everything's hidden).
@@ -1775,13 +1800,19 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         document.getElementById('cp-session').classList.add('active');   // reveal peers panel
         setSplit(true);  // peers exist → show the split feed by default
         initUserBox();   // persist identity before collab reads it, reveal the box
+        // One-shot seed from "go live": if we created THIS slug, carry our buffer in.
+        let _seedText = null;
+        try {
+            const s = JSON.parse(localStorage.getItem('wfd-seed') || 'null');
+            if (s && s.slug === _sessionSlug) { _seedText = s.code; localStorage.removeItem('wfd-seed'); }
+        } catch (_) {}
         initCollab(_sessionSlug, clock, editor, (msg) => {
             // Peer eval received — flash lines and run without re-broadcasting
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
             runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color });
-        }, applyAction, renderPeers, appendChat).then(collab => {
+        }, applyAction, renderPeers, appendChat, _seedText).then(collab => {
             _collab = collab;
             log(`Session ready. Share: ${location.href}`, 'ok');
         }).catch(err => {

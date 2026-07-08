@@ -208,8 +208,10 @@ export const VERSION = 'alpha31';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha31', title: 'Share compositions by link', items: [
+    { v: 'alpha31', title: 'Share by link · go live from a composition', items: [
         'Share button (⤴ in the toolbar) — copies a self-contained link to your clipboard that carries the WHOLE composition inside the URL (#c=…, deflate-compressed), so it needs no server and never expires. Open the link and it loads that exact buffer into the editor, ready to edit & run. Great for short sketches; a big #@ track makes a long URL that some chat apps may truncate — a server-backed short link is coming next. (If the clipboard is blocked, the link is put in the address bar to copy manually.)',
+        '"👥 go live" button — turn the composition you\'re working on into a live multiplayer session in one click: it seeds a fresh room with your current buffer and drops you into it with a ?session= link to share. Anyone who opens the link joins and edits with you in real time. Once you\'re in a session the button becomes "⧉ session link" to copy the room URL. (Links are relative to wherever the app is served, so they keep working when it moves off localhost.)',
+        'Toolbar tidy-up — removed the rarely-used "clear" button and hid the visuals pop-out until that feature is ready.',
     ] },
     { v: 'alpha30', title: 'Automation recorder · reroll · rests · flexible args · synthesis tutorials', items: [
         { t: 'Automation recorder — put the cursor on any number and press Alt+T to arm (a ● REC badge shows), then nudge the value live with Alt+↑/↓ as usual; press Alt+T again and your gesture is captured (sampled at one point per beat) and swapped into the code as the most pertinent TimeVar: a smooth ramp becomes linvar, an up-down wobble becomes sinvar, and stepped holds become var (step-hold, not a glide). Timing is quantised to whole beats so it loops cleanly. With the cursor still on the inserted expression, tap Alt+T to CYCLE the form (var → linvar → sinvar → [array]); Esc while recording cancels and restores the original value. e.g. cursor on the 400 in saw(lpf=400), Alt+T, nudge 400→2000 over 4 beats, Alt+T → lpf=linvar([400, 2000], 4).', ex: 'alpha30new' },

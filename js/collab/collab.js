@@ -18,7 +18,7 @@ function randomColor() {
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -47,6 +47,18 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // collaborator's (y-codemirror wires CM undo/redo to it when passed).
     const undoManager = new Y.UndoManager(ytext);
     const binding  = new CodemirrorBinding(ytext, editor, provider.awareness, { yUndoManager: undoManager });
+
+    // Seed a BRAND-NEW room with the creator's composition. Once the server has
+    // synced, if the shared doc is still empty (nobody's typed), insert the seed —
+    // so "go live" carries your current buffer into the session instead of a blank.
+    if (seedText) {
+        let seeded = false;
+        const trySeed = () => {
+            if (!seeded && provider.synced && ytext.length === 0) { seeded = true; ytext.insert(0, seedText); }
+        };
+        provider.on('sync', trySeed);
+        if (provider.synced) trySeed();   // in case we're already synced when we attach
+    }
 
     // User identity — persisted across reloads. A stable `id` (separate from the
     // per-connection Yjs clientID) survives refreshes, so peers de-dupe on it and
