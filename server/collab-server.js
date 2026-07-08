@@ -32,6 +32,17 @@ const solo  = new Set();
 const startedAt = Date.now();
 let   lastCpu   = process.cpuUsage();   // baseline for the next snapshot's CPU%
 let   yjsCount  = 0;                     // live Yjs (CRDT) sockets
+const yjsRooms  = new Map();             // slug → open Yjs socket count (frees orphan docs)
+
+// Per-socket message rate limit (token bucket over a 1s window) — caps eval-relay
+// floods; legit traffic (evals on Ctrl+Enter, ~1 beat_sync/s, ping/25s) is far below.
+const RATE_LIMIT = 40;
+function rateOk(ws) {
+    const now = Date.now();
+    ws._rl = (ws._rl || []).filter(t => now - t < 1000);
+    ws._rl.push(now);
+    return ws._rl.length <= RATE_LIMIT;
+}
 
 const stats = {
     // cumulative message counts by type (app channel)
@@ -163,7 +174,10 @@ function roomMetaFor(slug) {
 function sseBroadcast(event, data) {
     if (sseClients.size === 0) return;
     const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    for (const res of sseClients) { try { res.write(frame); } catch { /* client gone */ } }
+    for (const res of sseClients) {
+        try { res.write(frame); }
+        catch { sseClients.delete(res); try { res.end(); } catch (_) {} }   // drop dead clients
+    }
 }
 // Record an eval — from a session relay OR a solo report — and push it live.
 function recordEval(slug, msg) {
@@ -246,7 +260,9 @@ function removeFromRoom(slug, ws) {
 function purgeDormant() {
     const now = Date.now();
     for (const [slug, m] of roomMeta) {
-        if (m.emptiedAt && (now - m.emptiedAt) > DORMANT_TTL_MS && !(rooms.get(slug) && rooms.get(slug).size)) {
+        if (m.emptiedAt && (now - m.emptiedAt) > DORMANT_TTL_MS
+            && !(rooms.get(slug) && rooms.get(slug).size)
+            && !yjsRooms.get(slug)) {   // don't free a doc a live Yjs client still holds
             roomMeta.delete(slug);
             const d = ydocs.get(slug);
             if (d) { try { d.destroy(); } catch (_) {} ydocs.delete(slug); }
@@ -280,6 +296,10 @@ function slugFromReq(req) {
 
 // ── HTTP: monitoring endpoints (WS upgrades bypass this handler) ────────────
 function isLocal(req) {
+    // A reverse proxy on the same host connects from 127.0.0.1 but sets a forwarding
+    // header — don't treat such a request as trusted-local (it came from the public
+    // internet), or the localhost-only gate would fail open behind a proxy.
+    if (req.headers['x-forwarded-for'] || req.headers['forwarded']) return false;
     const a = req.socket.remoteAddress || '';
     return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 }
@@ -427,9 +447,13 @@ const server = http.createServer((req, res) => {
     const monitoring = ['/metrics', '/status', '/monitor', '/monitor/stream'].includes(url.pathname);
 
     if (req.method === 'GET' && monitoring) {
-        if (!METRICS_PUBLIC && !isLocal(req)) {
+        // /monitor + its stream ship live eval CODE and author names → localhost-ONLY,
+        // always (metricsPublic never exposes them). /metrics + /status are just
+        // counts/slugs and may be opened up with collab.metricsPublic.
+        const codeBearing = url.pathname === '/monitor' || url.pathname === '/monitor/stream';
+        if (!(isLocal(req) || (METRICS_PUBLIC && !codeBearing))) {
             res.writeHead(403, { 'Content-Type': 'text/plain' });
-            res.end('forbidden (monitoring is localhost-only; set collab.metricsPublic in config.json)\n');
+            res.end('forbidden (the /monitor dashboard is localhost-only; /metrics can be exposed with collab.metricsPublic)\n');
             return;
         }
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -469,11 +493,16 @@ const server = http.createServer((req, res) => {
     res.end('not found\n');
 });
 
-const wss = new WebSocketServer({ server });
+// Cap frame size (evals are tiny; large compositions travel via #c= share URLs, not
+// the relay) so a client can't send a 100 MiB frame that gets fanned out to peers.
+const wss = new WebSocketServer({ server, maxPayload: 64 * 1024 });
 
 wss.on('connection', (ws, req) => {
     const url  = new URL(req.url, 'ws://localhost');
     const slug = slugFromReq(req);
+    // Only sane slugs may reach a room or the logs — bounds abuse and blocks log
+    // injection (slugs are interpolated into console output).
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(slug)) { try { ws.close(1008, 'invalid session name'); } catch (_) {} return; }
     const isApp = url.searchParams.get('app') === '1';
     const isSolo = url.searchParams.get('solo') === '1';
 
@@ -486,6 +515,7 @@ wss.on('connection', (ws, req) => {
         ws.on('message', (data) => {
             const str = Buffer.isBuffer(data) ? data.toString() : data;
             stats.bytesIn += Buffer.byteLength(str);
+            if (!rateOk(ws)) return;   // drop floods before parse/relay
             let msg; try { msg = JSON.parse(str); } catch { return; }
             if (msg.type === 'ping') { stats.msgs.ping++; ws.send(JSON.stringify({ type: 'pong', t1: msg.t1, t2: Date.now() })); }
             else if (msg.type === 'eval') { stats.msgs.eval++; recordEval('~solo', msg); }   // solo player's eval (not relayed)
@@ -501,8 +531,23 @@ wss.on('connection', (ws, req) => {
     if (!isApp) {
         setupWSConnection(ws, req, { docName: slug });
         yjsCount++; stats.conns.yjs++;
+        yjsRooms.set(slug, (yjsRooms.get(slug) || 0) + 1);
         console.log(`[+yjs] ${slug}`);
-        ws.on('close', () => { yjsCount--; console.log(`[-yjs] ${slug}`); });
+        ws.on('close', () => {
+            yjsCount--;
+            const n = (yjsRooms.get(slug) || 1) - 1;
+            if (n > 0) { yjsRooms.set(slug, n); }
+            else {
+                yjsRooms.delete(slug);
+                // No app peers and no tracked (dormant) app session → free the doc, so
+                // opening Yjs-only sockets to random slugs can't leak docs forever.
+                if (!(rooms.get(slug) && rooms.get(slug).size) && !roomMeta.has(slug)) {
+                    const d = ydocs.get(slug);
+                    if (d) { try { d.destroy(); } catch (_) {} ydocs.delete(slug); }
+                }
+            }
+            console.log(`[-yjs] ${slug}`);
+        });
         return;
     }
 
@@ -516,6 +561,7 @@ wss.on('connection', (ws, req) => {
     ws.on('message', (data) => {
         const str = Buffer.isBuffer(data) ? data.toString() : data;
         stats.bytesIn += Buffer.byteLength(str);
+        if (!rateOk(ws)) return;   // drop floods before parse/relay
         let msg;
         try { msg = JSON.parse(str); } catch { return; }
 
