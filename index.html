@@ -648,9 +648,23 @@
         return { beatNow: () => clock._beatNow(), runLine: runLineAtCursor, log };
     }
 
+    // True when the ONLY selection is the degree placeholder an autocomplete just
+    // auto-selected (e.g. the 0 in saw([0])) and the user hasn't touched it — so Run
+    // should evaluate the whole line, not the bare "0".
+    function _isPlaceholderSel() {
+        const ph = editor.state.wfdPlaceholderSel;
+        if (!ph) return false;
+        const sels = editor.listSelections();
+        if (sels.length !== 1) return false;
+        const { anchor, head } = sels[0];
+        const lo = (anchor.line < head.line || (anchor.line === head.line && anchor.ch <= head.ch)) ? anchor : head;
+        const hi = lo === anchor ? head : anchor;
+        return lo.line === ph.line && hi.line === ph.line && lo.ch === ph.ch && hi.ch === ph.end;
+    }
+
     // Ctrl+Enter — evaluate just the current line (or the selection, if any).
     function runLineAtCursor() {
-        if (editor.getSelection().trim()) return runSelected();
+        if (editor.getSelection().trim() && !_isPlaceholderSel()) return runSelected();
         const cursor   = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
         const trimmed  = lineText.trim();
@@ -1506,6 +1520,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     renderParts();
     let _partsTimer = null;
     editor.on('change', () => { clearTimeout(_partsTimer); _partsTimer = setTimeout(renderParts, 300); });
+    // Once the user edits, an auto-selected completion placeholder is no longer
+    // "fresh" — drop the marker so a later real selection runs normally.
+    editor.on('change', (cm, ch) => { if (ch && ch.origin !== 'setValue') cm.state.wfdPlaceholderSel = null; });
 
     // ── Live degree / sample highlight ────────────────────────────────────────
     // Mark the array element (synth) or play-char (drums) a player is sounding.
