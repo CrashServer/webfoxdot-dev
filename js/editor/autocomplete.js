@@ -155,7 +155,7 @@ const SYNTH_SUBCATS = [
     ['keys',  ['bell', 'organ', 'basic', 'karp', 'rhodes']],
     ['pads',  ['pads', 'choir', 'brass']],
     ['pluck', ['pluck', 'moogpluck', 'guit', 'donk', 'lapin']],
-    ['perc',  ['compkick', 'a_hhat', 'a_bd']],
+    ['perc',  ['compkick', 'a_hhat', 'a_bd', 'ikea']],
     ['tone',  ['fm', 'sine', 'rsin']],
 ];
 

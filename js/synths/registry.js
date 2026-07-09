@@ -284,6 +284,15 @@ export const SYNTH_DEFS = {
                     punch: 0.7, comp: 8, click: 0.4, crunch: 1.5, sub: 1, body: 0.6, tone: 0.3 },
         extraParams: ['punch', 'comp', 'click', 'crunch', 'sub', 'body', 'tone', 'fmod'],
     },
+    // ikea — CrashServer's generative glitch-percussion machine (ported + extended).
+    // One note spawns a self-generating texture; play it long (dur/sus = 8).
+    ikea: {
+        scName: 'fd_ikea',
+        defaults: { oct: 4, amp: 0.8, dur: 8, sus: 8, pan: 0,
+                    density: 1, glitch: 1, noise: 1, bass: 1, tone: 1, bright: 1,
+                    hhat: 0.1, sn: 0.1, harm: 0, fmod: 0, vib: 0 },
+        extraParams: ['density', 'glitch', 'noise', 'bass', 'tone', 'bright', 'hhat', 'sn', 'harm', 'fmod', 'vib'],
+    },
 };
 
 // Normalise shared defaults across every synth: amp 1, pan 0, oct 5 (FoxDot-style
