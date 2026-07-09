@@ -289,7 +289,10 @@ function broadcast(slug, sender, message) {
 // Supports /<slug> and /?session=<slug>
 function slugFromReq(req) {
     const url = new URL(req.url, 'ws://localhost');
-    const pathSlug = url.pathname.replace(/^\//, '').trim();
+    // A reverse proxy may forward the same-origin `/ws` prefix unstripped (proxy_pass
+    // without a trailing slash). Tolerate both: strip a leading `/ws/` so the slug is
+    // clean whether or not the proxy stripped it.
+    const pathSlug = url.pathname.replace(/^\/ws(?=\/)/, '').replace(/^\//, '').trim();
     if (pathSlug) return pathSlug;
     return url.searchParams.get('session') || 'default';
 }
@@ -435,6 +438,10 @@ const MONITOR_HTML = `<!doctype html><html lang="en"><head>
 
 const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
+    // Same as the WS side: a proxy that forwards `/ws/*` HTTP unstripped would make
+    // the galaxy's GET /ws/sessions miss. Normalise a leading `/ws` off the path so
+    // /ws/sessions and /sessions both route here regardless of proxy style.
+    if (url.pathname === '/ws' || url.pathname.startsWith('/ws/')) url.pathname = url.pathname.slice(3) || '/';
 
     // Public: the galaxy map's session list (no eval code → safe for anyone).
     if (req.method === 'GET' && url.pathname === '/sessions') {

@@ -74,6 +74,20 @@ server {
     location ~* \.scsyndef$ {
         default_type application/octet-stream;
     }
+
+    # Multiplayer + galaxy: proxy /ws to the collab server — BOTH the WebSocket
+    # channel AND its HTTP endpoints (e.g. /ws/sessions, which the galaxy polls).
+    # Requires the collab server running:  node server/collab-server.js
+    # The trailing slash on proxy_pass strips the /ws prefix (collab sees /sessions,
+    # /<slug>); the server also tolerates the prefix if you omit it.
+    location /ws/ {
+        proxy_pass http://127.0.0.1:4444/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host       $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
 }
 ```
 
@@ -102,6 +116,12 @@ yourdomain.com {
         Cross-Origin-Opener-Policy   "same-origin"
         Cross-Origin-Embedder-Policy "require-corp"
         Cache-Control                "no-store"
+    }
+
+    # Multiplayer + galaxy: /ws → collab server (node server/collab-server.js).
+    # handle_path strips the /ws prefix; reverse_proxy passes WebSocket + HTTP.
+    handle_path /ws/* {
+        reverse_proxy 127.0.0.1:4444
     }
 }
 ```

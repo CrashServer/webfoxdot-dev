@@ -58,6 +58,8 @@ export function initGalaxy(onPickExample) {
     let exNodes = [];                        // example stars (built from exampleList())
     let raf = 0, pollTimer = 0, open = false;
     let W = 0, H = 0, DPR = 1;
+    let _pollFails = 0, _pollErr = null;     // consecutive /sessions fetch failures
+    const _emptyDefault = empty ? empty.textContent : '';
 
     // Example clusters — a browsable nebula PER category, derived live from
     // exampleList() (rebuilt each open, so it tracks example changes). Jams stay the
@@ -87,8 +89,19 @@ export function initGalaxy(onPickExample) {
     }
     function placeExamples() {
         const padX = 60, padTop = 84, padBot = 50;
-        for (const c of clusters) { c.cx = padX + c.fx * (W - padX * 2); c.cy = padTop + c.fy * (H - padTop - padBot); }
-        for (const n of exNodes) { n.bx = n.cl.cx + Math.cos(n.offAng) * n.offRad; n.by = n.cl.cy + Math.sin(n.offAng) * n.offRad; }
+        // Ring the example clusters AROUND the central jam zone: even angular spacing
+        // (+ a little hashed jitter) at an outer radius, so jams stay the centre of
+        // attention and the "other galaxies" orbit them.
+        const cx = W / 2, cy = padTop + (H - padTop - padBot) / 2;
+        const RX = W / 2 - padX, RY = (H - padTop - padBot) / 2 - 18;
+        const n = clusters.length || 1;
+        clusters.forEach((c, i) => {
+            const ang = (i / n) * Math.PI * 2 + (c.fx - 0.5) * 0.5;   // even + jitter
+            const rad = 0.60 + c.fy * 0.32;                           // outer band
+            c.cx = cx + Math.cos(ang) * RX * rad;
+            c.cy = cy + Math.sin(ang) * RY * rad;
+        });
+        for (const nd of exNodes) { nd.bx = nd.cl.cx + Math.cos(nd.offAng) * nd.offRad; nd.by = nd.cl.cy + Math.sin(nd.offAng) * nd.offRad; }
         buildStatics();
     }
 
@@ -165,20 +178,36 @@ export function initGalaxy(onPickExample) {
         initComets();
     }
 
-    // Map a session's seed to on-screen coordinates (padded to avoid the edges/header).
+    // Jams are the highlight → cluster them in the CENTRE of the map; the example
+    // nebulae ring around them (see placeExamples). Seed spreads jams within a central
+    // ellipse so multiple live sessions fan out from the middle without overlapping.
     function place(node) {
-        const padX = 70, padTop = 90, padBot = 60;
-        node.bx = padX + node.seed.fx * (W - padX * 2);
-        node.by = padTop + node.seed.fy * (H - padTop - padBot);
+        const padTop = 84, padBot = 50;
+        const cx = W / 2, cy = padTop + (H - padTop - padBot) / 2;
+        node.bx = cx + (node.seed.fx - 0.5) * (W - 140) * 0.34;
+        node.by = cy + (node.seed.fy - 0.5) * (H - padTop - padBot) * 0.34;
     }
 
     async function poll() {
         if (!base) base = await collabHttpBase();
-        let data;
-        try { data = await (await fetch(`${base}/sessions`, { cache: 'no-store' })).json(); }
-        catch { data = null; }
+        let data = null;
+        try {
+            const r = await fetch(`${base}/sessions`, { cache: 'no-store' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            data = await r.json();
+            if (!data || !Array.isArray(data.sessions)) throw new Error('bad payload');
+        } catch (e) { data = null; _pollErr = e && e.message; }
         const t = performance.now();
-        if (!data) return;                    // keep the last frame; fetch may recover
+        if (!data) {
+            // Don't leave a misleading "no jams" up when the fetch is actually failing
+            // (server down / not proxied). After a couple of misses, say so honestly.
+            if (++_pollFails >= 2 && empty) {
+                empty.textContent = "can't reach the jam server" + (_pollErr ? ` (${_pollErr})` : '') + ' — is the collab server running & proxied?';
+                empty.style.display = '';
+            }
+            return;                           // keep the last frame; fetch may recover
+        }
+        _pollFails = 0;
         const seen = new Set();
         for (const s of data.sessions) {
             seen.add(s.slug);
@@ -195,7 +224,7 @@ export function initGalaxy(onPickExample) {
         for (const [slug, n] of nodes) {
             if (!seen.has(slug) && !n.gone) { n.gone = true; n.goneAt = t; }
         }
-        if (empty) empty.style.display = data.sessions.length ? 'none' : '';
+        if (empty) { empty.textContent = _emptyDefault; empty.style.display = data.sessions.length ? 'none' : ''; }
     }
 
     function liveIdle(n, t) { return (n.idleBase || 0) + (t - (n.idleAt || t)); }
