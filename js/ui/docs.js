@@ -203,10 +203,18 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha33';
+export const VERSION = 'alpha34';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'alpha34', title: 'Live TimeVar bars · galaxy polish · squiz & shortcut fixes', items: [
+        'Live TimeVar sliding bars — a sinvar/linvar/var/expvar in your code now shows a thin bar gliding across its [min…max] array at the current value, so you can SEE the sweep: e.g. lpf=sinvar([800, 4000], [16]) draws a marker slipping left↔right between 800 and 4000 as it oscillates. It\'s rebuilt from the code and sampled every frame; it appears while a player is sounding and clears when it stops.',
+        'Galaxy — jams take centre stage — live jams now cluster in the middle of the map with the example nebulae ringed around them. The whole map is also much cheaper: capped to 30fps with the star-glows and nebulae pre-rendered (no more ~140 gradients per frame), and it uses zero CPU while closed. It no longer says "no jams" when it actually just can\'t reach the jam server (and the deploy docs now include the required /ws proxy).',
+        'squiz FX now actually does something — it was effectively silent (its underlying UGen barely processes in the WASM build); reimplemented as a grainy PitchShift with a proper wet mix, so squiz=0.4 gives an audible lo-fi pitch-up glitch as intended.',
+        'Stop-all works everywhere — Ctrl+; (or the easier Ctrl+,) now stops every player from anywhere, not just when the editor is focused — which is why it seemed dead in Chrome. The ■ stop button shows the shortcut on hover.',
+        'Editor colours no longer gloomy — code tokens were falling back to CodeMirror\'s defaults (dark-brown comments, dark-purple oct, dark-green numbers) instead of the theme palette. Comments, numbers, keywords and the oct param now read in each theme\'s proper colours.',
+        'Tidier boot & panel — booting no longer floods the log with a line per synthdef (a live count + one summary instead), errors stand out with a red bar, and the MIDI section moved below Composition (it\'s used less).',
+    ] },
     { v: 'alpha33', title: 'Code audit · galaxy examples · leaner UI', items: [
         'Big code-audit bug-fix pass — a deep pass over the whole codebase fixed a stack of real issues: a stop→re-eval race that could double a player\'s density, synth drive/comp params that were silently swallowed by same-named FX, a guit synth that made no sound, share links that overwrote your saved buffer, a boot timeout that orphaned the audio engine, pattern-generator edge cases (PRange hang, PSine/PTri/PEuclid negative steps, PDur/PZ12, Pmath dropping chord voices, nested P[…]), collab-server leaks / DoS / monitor exposure, and drifted syntax-highlight + docs reference data. Mostly invisible — things just work more correctly.',
         'Collapsible changelog — every entry is now a short headline that expands on click, so the log stays scannable while keeping all the detail (you\'re reading it now).',
