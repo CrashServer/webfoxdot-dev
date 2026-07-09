@@ -21,13 +21,13 @@
     ];
 
     const PATTERNS = [
-        'PRand','PWhite','PxRand','PwRand','PChain','PChain2','PZ12','PTree',
+        'PRand','PWhite','PxRand','PwRand','PChain','PZ12','PTree',
         'PWalk','PDelta','PSquare','PIndex','PFibMod','PShuf','PAlt','PStretch',
         'PPairs','PZip','PZip2','PStutter','PSq','P10','PStep','PSum','PRange',
-        'PTri','PSine','PEuclid','PEuclid2','PBern','PBeat','PDur','PDelay',
-        'PStrum','PQuicken','PRhythm','PJoin','PBin','PSaw','PTime','PTimebin',
-        'PFrac','PFr','PDrum','PChords','PGauss','PLog','PTrir','PCoin','PChar',
-        'PMarkov','PZero','PBool','PPing','PLife','PBal','PFDur','Pacc','PSwing',
+        'PTri','PSine','PEuclid','PEuclid2','PEuclidR','PBern','PBeat','PDur','PDelay',
+        'PStrum','PQuicken','PRhythm','PJoin','PBin','PSaw','PTime',
+        'PFr','PDrum','PGauss','PLog','PCoin','PChar',
+        'PMarkov','PZero','PBool','PPing','PLife','PFDur','Pacc','PSwing',
         'PwRand','PCoin','PArp','PReverse','PMorse','PFib','PZ12','P10','PGauss','PFr','PStretch','PZip','PMarkov',
         'PChord','PRoman','PProg','PClave','PRhythm','PPoly','PLogistic','PBrown','PHenon','PLorenz','PPrime','PThue','PGrowArp','PTree','PFibMod','PPairs','PChar','PQuicken','PStrum','PZip2','PSaw','PSq',
         'PExp','PPulse','PSlide','PContour','PGroove','PCircle',
