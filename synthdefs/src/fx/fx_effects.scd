@@ -380,12 +380,15 @@ SynthDef(\fd_fx_pong, {|in_bus=64, pong=0, pongtime=0.25, pongfeed=0.5, beat_dur
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (pong > 0) * 2 - 1));
 }).writeDefFile(~outDir);
 
-// ── squiz — zero-crossing pitch-up glitch (Squiz) ───────────────────────────
-// squiz = mix, squizpitch = pitch ratio (1–8), squizzc = zero-crossings averaged.
+// ── squiz — lo-fi grainy pitch-up glitch ────────────────────────────────────
+// The Squiz UGen isn't in the scsynth-WASM build, so this emulates its character
+// with a short-grain PitchShift (small window = the grainy, aliased 'squiz' sound).
+// squiz = wet mix (0..1), squizpitch = pitch ratio (1–8), squizzc = grain coarseness.
 SynthDef(\fd_fx_squiz, {|in_bus=64, squiz=0, squizpitch=2, squizzc=1|
-    var sig = In.ar(in_bus, 2), wet;
-    wet = Squiz.ar(sig, squizpitch.clip(1, 8), squizzc.clip(1, 16).round);
-    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (squiz > 0) * 2 - 1));
+    var sig = In.ar(in_bus, 2), wet, mix = squiz.clip(0, 1), win;
+    win = squizzc.clip(1, 16) * 0.004 + 0.004;            // grain window ~8–68 ms
+    wet = PitchShift.ar(sig, win, squizpitch.clip(1, 8), 0, 0.004);
+    ReplaceOut.ar(in_bus, sig + ((wet - sig) * mix));      // linear dry↔wet mix
 }).writeDefFile(~outDir);
 
 // ── drop — waveform dropout / decimate glitch (WaveLoss) ─────────────────────

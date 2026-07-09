@@ -257,9 +257,9 @@ export const FX_REGISTRY = {
     sbrkdur:  { scParam: 'sbrkdur',  default: 0.5, desc: 'Stutter fragment length (s); smaller = faster' },
 
     // squiz — zero-crossing pitch-up glitch (Squiz)
-    squiz:      { scParam: 'squiz',      default: 0, desc: 'Squiz glitch mix (0=off)' },
+    squiz:      { scParam: 'squiz',      default: 0, desc: 'Grainy pitch-up glitch — wet mix (0=off)' },
     squizpitch: { scParam: 'squizpitch', default: 2, desc: 'Pitch-up ratio (1–8)' },
-    squizzc:    { scParam: 'squizzc',    default: 1, desc: 'Zero-crossings averaged' },
+    squizzc:    { scParam: 'squizzc',    default: 1, desc: 'Grain coarseness (1–16)' },
 
     // drop — waveform dropout / decimate glitch (WaveLoss)
     drop:     { scParam: 'drop',   default: 0,  desc: 'Waveform dropout mix (0=off)' },
