@@ -773,6 +773,14 @@ export function PBin(number = 0) {
 // PFDur((n,k), …) — layered Euclidean density: 1 where any layer hits.
 // Pairs may be written as tuples (3,8) — which transpile to groups — or arrays [3,8].
 export function PFDur(...pairs) {
+    // Accept bare numbers too — PFDur(3, 8) or PFDur(3, 8, 5, 8) pair up into (n,k)
+    // layers, so it works like PEuclid(n,k) instead of silently returning all 0s when
+    // the tuples are omitted.
+    if (pairs.length >= 2 && pairs.every(p => typeof p === 'number')) {
+        const paired = [];
+        for (let i = 0; i + 1 < pairs.length; i += 2) paired.push([pairs[i], pairs[i + 1]]);
+        pairs = paired;
+    }
     pairs = pairs.map(p => isGroup(p) ? p.__group : p).filter(p => Array.isArray(p) && p.length >= 2);
     if (!pairs.length) return cyc([0]);
     const k = Math.max(...pairs.map(p => p[1]));
