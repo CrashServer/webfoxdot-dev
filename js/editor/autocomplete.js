@@ -127,6 +127,7 @@ const FX_GROUPS = [
     { name: 'spin',      on: 0.6,  params: ['spin', 'spinrate'] },
     { name: 'squiz',     on: 0.6,  params: ['squiz', 'squizpitch'] },
     { name: 'drop',      on: 0.5,  params: ['drop', 'dropof'] },
+    { name: 'octclean',  on: 0.6,  params: ['octclean', 'ocsub', 'ocup'] },
     { name: 'comp',      on: 0.6,  params: ['comp', 'compthresh', 'compratio'] },
 ];
 function fxItem(g) {
@@ -142,7 +143,7 @@ const FX_SUBCATS = [
     ['delays',     ['echo', 'fbdelay', 'pong']],
     ['distortion', ['crush', 'multicrush', 'tanh', 'shape', 'dist2']],
     ['modulation', ['chorus', 'tremolo', 'vibrato', 'flanger', 'phaser', 'ringmod', 'spin']],
-    ['glitch',     ['squiz', 'drop']],
+    ['glitch',     ['squiz', 'drop', 'octclean']],
     ['dynamics',   ['comp']],
     ['rhythmic',   ['rgate', 'chop']],
 ];

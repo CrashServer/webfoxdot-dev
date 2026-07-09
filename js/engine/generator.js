@@ -11,16 +11,19 @@ const flt    = (lo, hi, d = 2) => (lo + Math.random() * (hi - lo)).toFixed(d);
 // pick n DISTINCT thunks from a list and call each (so we never emit lpf= twice).
 const pickN  = (a, n) => { const c = [...a], out = []; for (let i = 0; i < n && c.length; i++) out.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]); return out; };
 
-// Melodic/tonal synths worth generating (skip the sampler/loop/master helpers).
-const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx/.test(n));
+// Melodic/tonal synths worth generating (skip sampler/loop/master + ikea, which is a
+// long-sustain texture generator that doesn't suit random note-by-note triggering).
+const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx|^ikea$/.test(n));
 
-// Rough role → so we pick musically-appropriate patterns/octaves per synth.
+// Rough role → so we pick musically-appropriate patterns/octaves per synth. Every
+// synth is classified so none falls through to a generic 'lead' by accident.
 const ROLES = {
-    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble'],
-    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw'],
-    pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad'],
-    keys:  ['bell', 'basic', 'karp', 'rhodes'],
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass'],
+    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab'],
+    pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad', 'a_vpad'],
+    keys:  ['bell', 'basic', 'karp', 'rhodes', 'piano', 'sine', 'rsin'],
     pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin', 'arpy'],
+    perc:  ['a_bd', 'a_hhat', 'compkick'],
 };
 const roleOf = (n) => { for (const [r, list] of Object.entries(ROLES)) if (list.includes(n)) return r; return 'lead'; };
 
@@ -43,6 +46,7 @@ function degLead() {
                  `PContour(${rint(0, 4)}, 8, 7)`, `PContour(${randList(rint(3, 5), 0, 7)}, 8, 7)`,
                  `P${CHORDLIST()}.invert()`, `P${randList(rint(3, 5), 0, 7)}.layer("add", ${rint(2, 4)})`, `P${randList(rint(4, 6), 0, 7)}.arp([0, ${rint(4, 7)}])`,
                  `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, `PWalk(${rint(5, 9)}, 1)`, `PxRand(0, ${rint(6, 10)})`, restList(rint(4, 6), 0, 7),
+                 `PBrown(0, ${rint(5, 9)}, ${rint(1, 2)})`, `PBrown(-${rint(3, 5)}, ${rint(4, 7)}, 1)`, `P${randList(rint(3, 5), 0, 7)}.mirror()`,
                  `PShuf(${CHORDLIST()})`, `PStutter(${randList(rint(3, 4), 0, 7)}, 2)`, `PAlt(${randList(2, 0, 4)}, ${randList(2, 4, 9)})`,
                  `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9)]);
 }
@@ -54,15 +58,17 @@ function degPad() {
 }
 const degForRole = (role) => role === 'bass' ? degBass()
     : (role === 'pad' || role === 'keys') ? degPad()
+    : role === 'perc' ? pick([`[0]`, `[0]`, `[0, _, 0, _]`, restList(rint(4, 8), 0, 2), `PBin(${pick([8, 16])})`, `PEuclid(${pick([8, 16])}, ${rint(3, 5)})`])
     : role === 'pluck' ? (chance(0.5) ? degLead() : pick([`PCircle(8)`, `arp(${CHORDLIST()}, "up")`, `PGrowArp(${CHORDLIST()})`, randList(rint(3, 6), 0, 9)]))
     : degLead();
 
 const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)', 'PDur(<3,5>,8)'])
     : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1', '<2 4>'])
+    : role === 'perc' ? pick(['1/4', '1/4', '1/2', '1', 'PDur(3,8)', 'PDur(5,8)', 'PBeat("x xx x")', '<1/4 1/2>'])
     : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")', `PGroove(${rint(0, 9)})`, 'PBeat("x xx x")', '<1/4 1/2>']);
 // oct — usually a number, sometimes an alternation for movement.
 const octForRole = (role) => {
-    const base = role === 'bass' ? [3, 3, 4] : role === 'pluck' ? [5, 6] : (role === 'pad' || role === 'keys') ? [4, 5] : [5, 5, 6];
+    const base = role === 'bass' ? [3, 3, 4] : role === 'perc' ? [3, 4, 5] : role === 'pluck' ? [5, 6] : (role === 'pad' || role === 'keys') ? [4, 5] : [5, 5, 6];
     if (chance(0.18)) { const a = pick(base); return `<${a} ${a + 1}>`; }
     return String(pick(base));
 };
@@ -126,6 +132,15 @@ const FX = [
     () => `subenh=${flt(0.4, 0.7)}`,                                                  // sub-bass enhancer
     () => `stereowidth=${flt(0.5, 0.85)}`,                                            // stereo widener
     () => `pumper=${flt(0.6, 0.9)}, pumprate=1`,                                      // sidechain pump
+    // ── glitch / character FX ──
+    () => `octclean=${flt(0.4, 0.8)}, ocsub=${flt(0.3, 0.7)}, ocup=${flt(0.2, 0.5)}`, // clean octaver (±1 oct)
+    () => `squiz=${flt(0.4, 0.7)}, squizpitch=${rint(2, 5)}`,                         // grainy pitch-up glitch
+    () => `drop=${flt(0.4, 0.7)}, dropof=${flt(0.3, 0.6)}`,                           // waveform dropout glitch
+    () => `ebmix=${flt(0.4, 0.7)}, ebfeed=${flt(0.3, 0.6)}`,                          // tape echo
+    () => `csweep=${flt(0.4, 0.7)}, cswrate=${flt(0.1, 0.5)}`,                        // auto filter sweep
+    () => `sbrk=${flt(0.4, 0.7)}`,                                                    // beat-repeat stutter
+    () => `feed=${flt(0.4, 0.7)}, feedfreq=${rint(200, 2000)}`,                       // feedback tone
+    () => `comp=${flt(0.5, 0.8)}, compthresh=${flt(0.3, 0.6)}`,                       // compressor
 ];
 // Live transforms + fatteners chained onto the player.
 const METHODS = [
@@ -205,12 +220,39 @@ const FX_MUTATE = [
     () => ['lpf', rint(400, 6000)],
     () => ['hpf', rint(200, 2000)],
     () => ['bpf', rint(600, 4000)],
-    () => ['mverb', (0.2 + Math.random() * 0.5).toFixed(2)],
-    () => ['reverb', (0.3 + Math.random() * 0.4).toFixed(2)],
-    () => ['chorus', (0.3 + Math.random() * 0.5).toFixed(2)],
-    () => ['tanh', (0.3 + Math.random() * 0.5).toFixed(2)],
-    () => ['echo', (0.2 + Math.random() * 0.4).toFixed(2)],
-    () => ['crush', (0.4 + Math.random() * 0.5).toFixed(2)],
+    () => ['mpf', rint(400, 2200)],
+    () => ['resonz', flt(0.5, 0.8)],
+    () => ['mverb', flt(0.2, 0.7)],
+    () => ['reverb', flt(0.3, 0.6)],
+    () => ['cheapverb', flt(0.4, 0.7)],
+    () => ['shimmer', flt(0.3, 0.7)],
+    () => ['chorus', flt(0.3, 0.7)],
+    () => ['flanger', flt(0.4, 0.7)],
+    () => ['phaser', flt(0.4, 0.7)],
+    () => ['ringmod', flt(0.3, 0.6)],
+    () => ['spin', flt(0.4, 0.8)],
+    () => ['tremolo', flt(0.4, 0.7)],
+    () => ['vibrato', flt(0.4, 0.7)],
+    () => ['vowel', flt(0.4, 0.7)],
+    () => ['formant', flt(0.4, 0.8)],
+    () => ['fshift', rint(20, 300)],
+    () => ['tanh', flt(0.3, 0.6)],
+    () => ['drive', flt(1, 4, 1)],
+    () => ['shape', flt(0.3, 0.6)],
+    () => ['dist2', flt(0.4, 0.7)],
+    () => ['fold', flt(0.3, 0.6)],
+    () => ['crush', flt(0.4, 0.7)],
+    () => ['lofi', flt(0.4, 0.7)],
+    () => ['tube', flt(0.4, 0.8)],
+    () => ['squiz', flt(0.4, 0.7)],
+    () => ['drop', flt(0.4, 0.7)],
+    () => ['octclean', flt(0.4, 0.8)],
+    () => ['echo', flt(0.2, 0.5)],
+    () => ['pong', flt(0.3, 0.6)],
+    () => ['ebmix', flt(0.4, 0.7)],
+    () => ['pumper', flt(0.6, 0.9)],
+    () => ['chop', pick([2, 4, 8])],
+    () => ['rgate', flt(0.5, 0.9)],
 ];
 
 export class JamBot {
