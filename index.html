@@ -1736,7 +1736,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _setStepListener((name, step) => {
         highlightStep(name, step);
-        if (step < 0) clearVarBars(name); else updateVarTargets(name);
+        // TimeVar sliding bars are DISABLED for now — the overlay mis-tracks when a
+        // value is edited and can smear across the whole line. The implementation
+        // below (updateVarTargets/drawVarBars) is kept for a fix; just not wired in.
+        // if (step < 0) clearVarBars(name); else updateVarTargets(name);
         postStep(name, step);
     });
 

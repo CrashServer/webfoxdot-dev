@@ -209,8 +209,7 @@ export const VERSION = 'alpha34';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'alpha34', title: 'Live TimeVar bars · galaxy polish · squiz & shortcut fixes', items: [
-        'Live TimeVar sliding bars — a sinvar/linvar/var/expvar in your code now shows a thin bar gliding across its [min…max] array at the current value, so you can SEE the sweep: e.g. lpf=sinvar([800, 4000], [16]) draws a marker slipping left↔right between 800 and 4000 as it oscillates. It\'s rebuilt from the code and sampled every frame; it appears while a player is sounding and clears when it stops.',
+    { v: 'alpha34', title: 'Galaxy polish · squiz, PFDur & shortcut fixes', items: [
         'Galaxy — jams take centre stage — live jams now cluster in the middle of the map with the example nebulae ringed around them. The whole map is also much cheaper: capped to 30fps with the star-glows and nebulae pre-rendered (no more ~140 gradients per frame), and it uses zero CPU while closed. It no longer says "no jams" when it actually just can\'t reach the jam server (and the deploy docs now include the required /ws proxy).',
         'squiz FX now actually does something — it was effectively silent (its underlying UGen barely processes in the WASM build); reimplemented as a grainy PitchShift with a proper wet mix, so squiz=0.4 gives an audible lo-fi pitch-up glitch as intended.',
         'Stop-all works everywhere — Ctrl+; (or the easier Ctrl+,) now stops every player from anywhere, not just when the editor is focused — which is why it seemed dead in Chrome. The ■ stop button shows the shortcut on hover.',
