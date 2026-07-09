@@ -1789,6 +1789,88 @@ p1 >> bass([0], oct=3, dur=PDur(3,8, rotate=1), amp=0.5)   # same grid, rotated,
 p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned stack`),
     ];
 
+    const shorelines = section('Shorelines — svdk', `
+        ${note('A live <code>#@</code> set by <b>svdk</b> — put the cursor on <code>#@intro</code> and Ctrl+Enter, then let it auto-advance through the arrangement: an <code>ebass</code> + <code>brass</code> build, a gallop <code>dafbass</code> groove, <code>a_vpad</code> &amp; <code>darkpad</code> textures, and a <code>pbuild</code> techno drop. Boot + load the kit first.')}
+        ${code(`#@#@ shorelines
+
+#@intro(12)
+v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+
+#@build(8)
+v2 >> a_hhat([0], tone=8000, decay=0.1, metallic=1, distortion=2, open=PBin(8), echo=0.5, mverb=0.5)
+
+#@peak(12)
+v3 >> brass([PRoman("I V vi IV")], cutoff=2000, rq=0.4, bright=0.5, dur=8, amp=0.5, lpf=200)
+
+# new fx, synths
+#@break(8)
+g12 >> dafbass([6, 0, 9, 7, 9, 7], sus=1/4, oct=PStep(4, 5, 4), dur=PGroove("gallop"), amp=0.21).human(32, 5) + (0,3,7)
+
+#@drop(8)
+g12 >> dafbass([6, 0, 9, 7, 9, 7], sus=1/2, oct=PStep(4, 3, 4), dur=PGroove("gallop"), amp=0.21).human(32, 5) + (0,3,7)
+
+# galaxy map — to see active jam sessions
+#@outro(8)
+g22 >> a_vpad(PContour([4, 2, 1], 8, 7), oct=<5 6>, dur=PDur(3,8), amp=PWhite(0.32, 0.40), fshift=292, fmix=0.39).sometimes("reverse", 4).after(4, "stop") + 7
+
+#@part7(12)
+g16 >> a_bd(arp([0,4,7,11], var([0, 1, 2], 4)), oct=<5 6>, dur=<1/4 1/2>, amp=0.41).every(4, "mirror")
+g61 >> a_hhat(arp([0,4,7], "updown"), oct=6, dur=PGroove(8), amp=PWhite(0.31, 0.39)) + <0 3>
+g22.oct=4
+
+# bug fixes
+#@part8(12)
+v1.dur=4
+v3.stop()
+g12.stop()
+g5 >> darkpad(PProg("andalusian"), oct=5, dur=4, amp=0.39, shape=0.0, tremolo=0.69, trem_rate=8).penta().human(27, 4)
+v4 >> a_bd([0], click=1, punch=PRhythm([1, (3, 8)]), oct=3, sub=1, distortion=1, sus=1/2, dur=PDur(5, 8))
+g22.stop()
+
+#@part9(4)
+g1 >> dbass(PStep(4, 7, 0), oct=6, dur=1, amp=0.74, vowel=0.52)
+g22.dur=4
+g16.oct=3
+
+#@part10(16)
+g126 >> rsin(PGrowArp([0,4,7]), oct=5, dur=1/4, amp=0.33, tube=0.73).sometimes("reverse", 3)
+
+#@part11(16)
+v2.stop()
+g16.stop()
+g5.oct=4
+g1.oct=4
+g126.oct=4
+g6 >> cs80(motif(4), oct=5, dur=PDur(<3,5>,8), amp=0.32, vowel=0.60, pong=0.39, pongtime=0.25)
+v1 >> ebass(PCircle(2), pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+
+#@part12(12)
+g22 >> a_vpad(PContour([4, 2, 1], 8, 7), oct=<5 6>, dur=PDur(3,8), amp=PWhite(0.32, 0.40), fshift=292, fmix=0.39).sometimes("reverse", 4).after(4, "stop") + 7
+v4 >> play("..C.", fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+v5 >> play("k")
+
+# music in your browser!
+#@part13(12)
+v2 >> a_hhat([0], tone=8000, decay=0.1, metallic=1, distortion=2, open=PBin(8), echo=0.5, mverb=0.5)
+v4.stop()
+
+#@part14(8)
+v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+
+#@part15(8)
+v6 >> play(pbuild("techno", evolve=8, fill=4, density=1, kick=1, snare=1, hat=1, perc=1))
+
+#@part16(24)
+v3 >> brass([PRoman("I V vi IV")], cutoff=2000, rq=0.4, bright=0.5, dur=8, amp=0.5, lpf=200)
+g16 >> a_bd(arp([0,4,7,11], var([0, 1, 2], 4)), oct=<5 6>, dur=<1/4 1/2>, amp=0.41).every(4, "mirror")
+
+# try alpha now!
+#@part20(16)
+v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3).only()
+
+#@end(16)`)}
+    `, 'shorelines');
+
     // Grouped into COLLAPSIBLE categories, with a table-of-contents overview at
     // the top (the page got long). Each category is a <div class="docs-catgroup">
     // whose header (.docs-cat-toggle) folds its .docs-catbody; all but the first
@@ -1797,7 +1879,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
     // in sync with this page.
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [rise, shorelines, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
