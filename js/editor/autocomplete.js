@@ -67,12 +67,13 @@ function synthItem(name) {
                 return;
             }
             cm.replaceRange(text, data.from, data.to);
-            const ch = data.from.ch + bracket + 1;           // inside the first [ ]
-            cm.setSelection({ line: data.from.line, ch }, { line: data.from.line, ch: ch + 1 });
-            // Mark this auto-selected degree so a Run (Ctrl+Enter) evaluates the whole
-            // LINE, not just the "0" placeholder (which would log "eval: 0"). Cleared
-            // as soon as the user types over it.
-            cm.state.wfdPlaceholderSel = { line: data.from.line, ch, end: ch + 1 };
+            // Put a plain CARET just after the default degree (inside the [ ]) rather
+            // than SELECTING it: a live cursor on the line means the very next Ctrl+Enter
+            // runs the whole player (a selected "0" used to be evaluated on its own —
+            // "eval: 0" — so you had to press Run twice). The degree is still right at
+            // the cursor to edit.
+            const ch = data.from.ch + bracket + 1;           // the 0 inside the first [ ]
+            cm.setCursor({ line: data.from.line, ch: ch + 1 });
         },
     };
 }
@@ -668,6 +669,7 @@ function pick(s, item) {
     const { cm, from, to } = s; closeMenu();
     if (typeof item.hint === 'function') item.hint(cm, { from, to });
     else cm.replaceRange(item.text, from, to);
+    cm.focus();   // keep the editor active so the very next Ctrl+Enter lands on the line
 }
 
 function typedLen(s) {
