@@ -18,9 +18,12 @@ OUT="sw-manifest.js"
   find js -name '*.js' -type f
   find lib/codemirror -type f \( -name '*.js' -o -name '*.css' \)
   echo "lib/dist/supersonic.js"
-  find lib/dist/wasm -name '*.wasm' -type f
   [ -f lib/yjs/yjs-bundle.js ] && echo "lib/yjs/yjs-bundle.js"
-  find synthdefs/compiled -name '*.scsyndef' -type f
+  # NOTE: the WASM (lib/dist/wasm) and synthdefs/compiled are deliberately NOT
+  # precached — they're fetched at BOOT (after the SW is controlling), so the
+  # network-first handler caches them on use. Precaching them would force a second
+  # heavy fetch that competes with the boot's own WASM/synthdef load. They become
+  # available offline after the first online boot.
 } | sort -u > /tmp/wfd_sw_list.txt
 
 COUNT=$(wc -l < /tmp/wfd_sw_list.txt | tr -d ' ')

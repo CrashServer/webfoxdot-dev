@@ -1,34 +1,84 @@
-// Offline PWA (M1 install + M2 offline): register the service worker and surface an
-// "install" button when the browser offers it. Purely additive and defensive — if
-// anything is unsupported or fails, the app runs EXACTLY as before. The SW is
-// network-first, so even once registered the online experience is unchanged.
+// Offline PWA client (M1 install · M2 offline · M4 update + degradation).
+// Purely additive and defensive: if anything is unsupported or fails, the app runs
+// EXACTLY as before. The SW is network-first, so online behaviour is unchanged.
 (function () {
-    // ── 1. Register the offline service worker ──────────────────────────────
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').then((reg) => {
-                console.info('[pwa] offline service worker registered (scope:', reg.scope + ')');
-            }).catch((e) => {
-                console.warn('[pwa] service worker registration failed — app unaffected:', e);
-            });
-        });
+    const bar = () => document.getElementById('toolbar');
+
+    // Small dynamically-created toolbar chips (no HTML changes needed).
+    function chip(id, text, title) {
+        let el = document.getElementById(id);
+        if (el) return el;
+        el = document.createElement('button');
+        el.id = id; el.textContent = text; el.title = title || '';
+        el.style.display = 'none';
+        const t = bar(); if (t) t.appendChild(el);
+        return el;
     }
 
-    // ── 2. Install prompt → a small "install" button in the toolbar ──────────
+    // ── Offline degradation ─────────────────────────────────────────────────
+    // Solo coding works fully offline; multiplayer + the galaxy need the server, so
+    // grey them out (via a body class) and show an "offline" badge. Online = no change.
+    function setOffline(off) {
+        if (document.body) document.body.classList.toggle('is-offline', off);
+        const b = chip('pwa-offline-badge', '⚡ offline',
+            'No connection — multiplayer & the galaxy are paused. Solo coding works fully.');
+        if (b) b.style.display = off ? '' : 'none';
+    }
+    window.addEventListener('online',  () => setOffline(false));
+    window.addEventListener('offline', () => setOffline(true));
+    setOffline(!navigator.onLine);   // script runs at end of <body>, DOM is ready
+
+    if (!('serviceWorker' in navigator)) return;
+
+    // ── Update flow (never reload mid-set) ──────────────────────────────────
+    let userTriggeredUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Only reload when the USER asked to update — never on the first-visit claim.
+        if (userTriggeredUpdate) location.reload();
+    });
+
+    function showUpdate(worker) {
+        const btn = chip('btn-update', '✨ update',
+            'A new version of crashDot is ready — click to reload into it.');
+        if (!btn) return;
+        btn.style.display = '';
+        btn.onclick = () => {
+            userTriggeredUpdate = true;
+            btn.disabled = true;
+            worker.postMessage({ type: 'SKIP_WAITING' });   // → activates → controllerchange → reload
+        };
+    }
+
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+            console.info('[pwa] offline service worker registered (scope:', reg.scope + ')');
+            // An update already downloaded on a previous visit?
+            if (reg.waiting && navigator.serviceWorker.controller) showUpdate(reg.waiting);
+            // An update arriving now.
+            reg.addEventListener('updatefound', () => {
+                const nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', () => {
+                    if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdate(nw);
+                });
+            });
+        }).catch((e) => {
+            console.warn('[pwa] service worker registration failed — app unaffected:', e);
+        });
+    });
+
+    // ── Install prompt → an "install" chip ──────────────────────────────────
     let deferred = null;
     const standalone = () =>
         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 
-    function installButton() {
-        let btn = document.getElementById('btn-install');
-        if (btn) return btn;
-        const bar = document.getElementById('toolbar');
-        if (!bar) return null;
-        btn = document.createElement('button');
-        btn.id = 'btn-install';
-        btn.textContent = '⬇ install';
-        btn.title = 'Install crashDot as an app — runs offline';
-        btn.style.display = 'none';
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferred = e;
+        if (standalone()) return;
+        const btn = chip('btn-install', '⬇ install', 'Install crashDot as an app — runs offline');
+        if (!btn) return;
+        btn.style.display = '';
         btn.onclick = async () => {
             if (!deferred) return;
             btn.disabled = true;
@@ -37,19 +87,7 @@
             deferred = null;
             btn.remove();
         };
-        bar.appendChild(btn);
-        return btn;
-    }
-
-    // Fired by Chromium browsers once the app is installable (manifest + SW + icons).
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();                 // suppress the mini-infobar; use our button
-        deferred = e;
-        if (standalone()) return;           // already installed → no button
-        const btn = installButton();
-        if (btn) btn.style.display = '';
     });
-
     window.addEventListener('appinstalled', () => {
         deferred = null;
         const btn = document.getElementById('btn-install');

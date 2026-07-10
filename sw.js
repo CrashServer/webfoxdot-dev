@@ -17,7 +17,7 @@
 // To remove the SW during dev: DevTools → Application → Service Workers → Unregister
 // (or bump CACHE below).
 
-const CACHE = 'wfd-offline-v2';
+const CACHE = 'wfd-offline-v3';
 const COI = {
     'Cross-Origin-Opener-Policy':   'same-origin',
     'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -39,8 +39,15 @@ self.addEventListener('install', (e) => {
         // Precache resiliently: one missing file must NOT fail the whole install.
         await Promise.all((self.__WFD_PRECACHE || []).map(u =>
             cache.add(new Request(u, { cache: 'reload' })).catch(() => {})));
-        await self.skipWaiting();
+        // NO skipWaiting() here: a NEW version WAITS so the page can prompt the user
+        // to reload ("never reload mid-set"). The FIRST install has nothing to replace,
+        // so it activates immediately anyway.
     })());
+});
+
+// The page asks us to take over (user clicked "update").
+self.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

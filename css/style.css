@@ -1427,3 +1427,18 @@ button.recording {
 }
 #autorec-badge[hidden] { display: none; }
 @keyframes autorec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ── PWA (offline) — these ONLY affect the offline state / PWA chips, so the online
+   app is unchanged. Multiplayer + galaxy need the server → grey them out offline. */
+body.is-offline #btn-multiplayer,
+body.is-offline #btn-galaxy {
+    opacity: 0.4;
+    pointer-events: none;
+    filter: grayscale(0.6);
+}
+#pwa-offline-badge {
+    color: var(--yellow); border: 1px solid var(--yellow);
+    background: transparent; border-radius: 5px; font-size: 11px; padding: 1px 7px; cursor: default;
+}
+#btn-update { color: var(--green); border-color: var(--green); font-weight: bold; }
+#btn-install { color: var(--blue); border-color: var(--blue); }
