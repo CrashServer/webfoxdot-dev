@@ -1,23 +1,20 @@
-// Galaxy map (experimental) — a starfield of every live jam session. Each session
-// is a glowing star; its size tracks the peer count and its brightness fades as the
-// jam goes quiet (idle since the last eval). Click a star to join that session.
+// Galaxy map (experimental) — a zoomable, pannable starfield of every live jam
+// session. Each session is a glowing star placed on a stable phyllotaxis SPIRAL from
+// the centre (so they never overlap and the map scales cleanly as more people join);
+// its size tracks the peer count and its brightness fades as the jam goes quiet. The
+// example library orbits as coloured nebulae. Scroll to zoom, drag to pan, click a
+// star to join.
 //
 // Data comes from the collab server's PUBLIC /sessions endpoint (slugs + peer counts
-// + idle time only — no eval code). Polled every couple of seconds; the fade is
-// interpolated between polls so it looks continuous.
+// + idle time only — no eval code). Polled every couple of seconds.
 
 import { collabHttpBase } from '../net/serverUrls.js';
 import { exampleList }    from '../ui/docs.js';
 
-// Deterministic 0..1 pair from a slug, so a session keeps its spot across refreshes.
 function hash(str) {
     let h = 2166136261;
     for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
     return h >>> 0;
-}
-function seedPos(slug) {
-    const h = hash(slug);
-    return { fx: (h % 997) / 997, fy: ((h >>> 11) % 991) / 991, phase: (h % 628) / 100 };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, f) => a + (b - a) * f;
@@ -28,13 +25,16 @@ function fmtAge(ms) {
     if (m) return `${m}m`;
     return `${s}s`;
 }
-// Star colour by recency: bright green when fresh, cooling to a faded blue-grey as a
-// dormant jam decays over its whole TTL (so the colour, not just the alpha, ages).
 function starColor(n) {
     if (!n.dormant) return [63, 185, 80];
     const f = clamp(n.decayFrac || 0, 0, 1);
     return [Math.round(lerp(70, 116, f)), Math.round(lerp(170, 128, f)), Math.round(lerp(96, 156, f))];
 }
+
+// ── Layout constants (WORLD units — the camera scales them to screen) ──────────
+const GOLDEN  = Math.PI * (3 - Math.sqrt(5));   // ~137.5° — the sunflower angle
+const SP_JAM  = 46;                             // spiral spacing between adjacent jams
+const R_EX    = 360;                            // radius of the example-nebula ring
 
 export function initGalaxy(onPickExample) {
     const overlay  = document.getElementById('galaxy-overlay');
@@ -46,118 +46,102 @@ export function initGalaxy(onPickExample) {
     if (!overlay || !canvas || !btn) return;
     const ctx = canvas.getContext('2d');
 
-    // The session we're currently IN (if any) — its star is highlighted and clicking
-    // it just closes the map (no reload/rejoin). Mirrors index.html's slug parsing.
     const _qs = new URLSearchParams(location.search);
     const currentSlug = _qs.get('session') || _qs.get('s') || _qs.get('') || null;
 
-    let base = null;                         // resolved collab HTTP base
+    let base = null;
     let nodes = new Map();                   // slug → jam node state
-    let stars = [];                          // static background starfield
-    let clusters = [];                       // example category clusters (nebulae)
-    let exNodes = [];                        // example stars (built from exampleList())
+    let stars = [];                          // static background starfield (screen-space)
+    let clusters = [];                       // example category clusters (world-space)
+    let exNodes = [];                        // example stars (world-space)
     let raf = 0, pollTimer = 0, open = false;
     let W = 0, H = 0, DPR = 1;
-    let _pollFails = 0, _pollErr = null;     // consecutive /sessions fetch failures
+    let _pollFails = 0, _pollErr = null;
     const _emptyDefault = empty ? empty.textContent : '';
 
-    // Example clusters — a browsable nebula PER category, derived live from
-    // exampleList() (rebuilt each open, so it tracks example changes). Jams stay the
-    // bright foreground; examples are dim, cool, grouped background stars.
+    // ── Camera (world → screen) ────────────────────────────────────────────────
+    const cam = { zoom: 1, x: 0, y: 0 };     // (x,y) is the world point at screen centre
+    const w2sX = (wx) => W / 2 + (wx - cam.x) * cam.zoom;
+    const w2sY = (wy) => H / 2 + (wy - cam.y) * cam.zoom;
+    function fit() {
+        let maxSlot = 0;
+        for (const n of nodes.values()) if ((n.slot || 0) > maxSlot) maxSlot = n.slot;
+        const jamR = SP_JAM * Math.sqrt(maxSlot + 1) + 40;
+        const content = Math.max(R_EX + 80, jamR);
+        cam.x = 0; cam.y = 0;
+        cam.zoom = clamp((Math.min(W, H) / 2 * 0.92) / content, 0.12, 2);
+    }
+    function zoomBy(f) { cam.zoom = clamp(cam.zoom * f, 0.12, 4); }   // centre-anchored
+
+    // ── Stable spiral slots — each live jam holds a unique slot for its lifetime, so
+    //    existing jams never move when others join/leave, and none overlap. ───────
+    const usedSlots = new Set();
+    function allocSlot() { let s = 0; while (usedSlots.has(s)) s++; usedSlots.add(s); return s; }
+    function freeSlot(s) { usedSlots.delete(s); }
+    function place(n) {
+        const th = n.slot * GOLDEN, r = SP_JAM * Math.sqrt(n.slot);
+        n.wx = Math.cos(th) * r; n.wy = Math.sin(th) * r;
+    }
+
+    // ── Example clusters — a browsable nebula PER category, from exampleList(). ──
     function buildExamples() {
         const list = (() => { try { return exampleList() || []; } catch { return []; } })();
         const cats = [...new Set(list.map(e => e.cat || 'misc'))];
         clusters = cats.map((cat) => {
             const h = hash('cat:' + cat);
-            return {
-                cat,
-                fx: 0.12 + (h % 1000) / 1000 * 0.76,
-                fy: 0.18 + ((h >>> 10) % 1000) / 1000 * 0.62,
-                hue: 188 + (h % 130),   // cyan..magenta — clear of jam green/amber
-            };
+            return { cat, fx: (h % 1000) / 1000, fy: ((h >>> 10) % 1000) / 1000, hue: 188 + (h % 130) };
         });
         const byCat = new Map(clusters.map(c => [c.cat, c]));
         exNodes = list.map((e) => {
             const c = byCat.get(e.cat || 'misc');
             const h = hash('ex:' + e.id);
-            return {
-                isExample: true, exId: e.id, title: e.title, cat: e.cat, cl: c, hue: c.hue,
-                offAng: (h % 628) / 100, offRad: 22 + (h % 46), phase: ((h >>> 9) % 628) / 100,
-            };
+            return { isExample: true, exId: e.id, title: e.title, cat: e.cat, cl: c, hue: c.hue,
+                offAng: (h % 628) / 100, offRad: 22 + (h % 46), phase: ((h >>> 9) % 628) / 100 };
         });
         placeExamples();
     }
     function placeExamples() {
-        const padX = 60, padTop = 84, padBot = 50;
-        // Ring the example clusters AROUND the central jam zone: even angular spacing
-        // (+ a little hashed jitter) at an outer radius, so jams stay the centre of
-        // attention and the "other galaxies" orbit them.
-        const cx = W / 2, cy = padTop + (H - padTop - padBot) / 2;
-        const RX = W / 2 - padX, RY = (H - padTop - padBot) / 2 - 18;
         const n = clusters.length || 1;
         clusters.forEach((c, i) => {
-            const ang = (i / n) * Math.PI * 2 + (c.fx - 0.5) * 0.5;   // even + jitter
-            const rad = 0.60 + c.fy * 0.32;                           // outer band
-            c.cx = cx + Math.cos(ang) * RX * rad;
-            c.cy = cy + Math.sin(ang) * RY * rad;
+            const ang = (i / n) * Math.PI * 2 + (c.fx - 0.5) * 0.5;   // even ring + jitter
+            const rad = 0.9 + c.fy * 0.28;
+            c.wx = Math.cos(ang) * R_EX * rad; c.wy = Math.sin(ang) * R_EX * rad;
         });
-        for (const nd of exNodes) { nd.bx = nd.cl.cx + Math.cos(nd.offAng) * nd.offRad; nd.by = nd.cl.cy + Math.sin(nd.offAng) * nd.offRad; }
-        buildStatics();
+        for (const nd of exNodes) { nd.wx = nd.cl.wx + Math.cos(nd.offAng) * nd.offRad; nd.wy = nd.cl.wy + Math.sin(nd.offAng) * nd.offRad; }
+        buildSprites();
     }
 
-    // Pre-render everything static: the cluster nebulae + labels bake into one
-    // full-frame layer, and each cluster's example-star glow becomes a small sprite.
-    // Per frame we then just drawImage these instead of building ~140 gradients — the
-    // gradients were the whole cost of the render loop.
-    let nebula = null;   // offscreen full-frame nebula + labels
-    function buildStatics() {
-        if (!(W > 0 && H > 0)) return;
-        nebula = document.createElement('canvas');
-        nebula.width = Math.round(W * DPR); nebula.height = Math.round(H * DPR);
-        const nc = nebula.getContext('2d');
-        nc.setTransform(DPR, 0, 0, DPR, 0, 0);
-        nc.textAlign = 'center';
+    // Per-cluster glow sprites (built once) — drawImage'd, scaled by zoom, per frame.
+    function buildSprites() {
         for (const c of clusters) {
-            const live = c.cat === 'Live sets', rad = live ? 155 : 130;
-            const g = nc.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, rad);
-            g.addColorStop(0, `hsla(${c.hue},${live ? 78 : 60}%,${live ? 60 : 55}%,${live ? 0.12 : 0.07})`);
+            const live = c.cat === 'Live sets';
+            const NR = live ? 150 : 120;               // nebula sprite radius (world px)
+            const ns = document.createElement('canvas'); ns.width = ns.height = NR * 2;
+            const nc = ns.getContext('2d');
+            const g = nc.createRadialGradient(NR, NR, 0, NR, NR, NR);
+            g.addColorStop(0, `hsla(${c.hue},${live ? 78 : 60}%,${live ? 60 : 55}%,${live ? 0.14 : 0.08})`);
             g.addColorStop(1, `hsla(${c.hue},60%,55%,0)`);
-            nc.fillStyle = g; nc.beginPath(); nc.arc(c.cx, c.cy, rad, 0, 7); nc.fill();
-            nc.globalAlpha = live ? 0.75 : 0.45; nc.fillStyle = `hsl(${c.hue},${live ? 65 : 45}%,${live ? 78 : 72}%)`;
-            nc.font = `${live ? 'bold ' : ''}${live ? 10 : 9}px ui-monospace, monospace`;
-            nc.fillText((c.cat || '').toUpperCase(), c.cx, c.cy - (live ? 128 : 104));
-            nc.globalAlpha = 1;
-        }
-        // one glow sprite per cluster hue (peak alpha baked in; twinkle via globalAlpha)
-        for (const c of clusters) {
-            const live = c.cat === 'Live sets', gr = live ? 15 : 9;
-            const sp = document.createElement('canvas');
-            sp.width = sp.height = Math.ceil(gr * 2 * DPR);
-            const sc = sp.getContext('2d');
-            sc.scale(DPR, DPR);
-            const g = sc.createRadialGradient(gr, gr, 0, gr, gr, gr);
-            g.addColorStop(0, `hsla(${c.hue},${live ? 88 : 75}%,${live ? 76 : 72}%,${live ? 0.68 : 0.5})`);
-            g.addColorStop(1, `hsla(${c.hue},75%,72%,0)`);
-            sc.fillStyle = g; sc.beginPath(); sc.arc(gr, gr, gr, 0, 7); sc.fill();
-            c.glowSprite = sp; c.glowR = gr;
+            nc.fillStyle = g; nc.beginPath(); nc.arc(NR, NR, NR, 0, 7); nc.fill();
+            c.nebSprite = ns; c.nebR = NR;
+            const gr = live ? 15 : 9;
+            const gs = document.createElement('canvas'); gs.width = gs.height = gr * 2;
+            const gc = gs.getContext('2d');
+            const g2 = gc.createRadialGradient(gr, gr, 0, gr, gr, gr);
+            g2.addColorStop(0, `hsla(${c.hue},${live ? 88 : 75}%,${live ? 76 : 72}%,${live ? 0.68 : 0.5})`);
+            g2.addColorStop(1, `hsla(${c.hue},75%,72%,0)`);
+            gc.fillStyle = g2; gc.beginPath(); gc.arc(gr, gr, gr, 0, 7); gc.fill();
+            c.glowSprite = gs; c.glowR = gr;
         }
     }
 
-    // A few slow comets/asteroids drifting across — pure ambience (4 objects, one
-    // gradient line + arc each, so it's basically free).
-    let comets = [];
-    let lastFrameT = 0;
+    // Drifting comets/asteroids — screen-space ambience.
+    let comets = [], lastFrameT = 0;
     function makeComet(offscreen) {
         const ang = Math.random() * Math.PI * 2, dx = Math.cos(ang), dy = Math.sin(ang);
         const asteroid = Math.random() < 0.4;
-        return {
-            asteroid, dx, dy,
-            spd: asteroid ? 0.004 + Math.random() * 0.004 : 0.010 + Math.random() * 0.012,   // px/ms — slow
-            x: offscreen ? (dx > 0 ? -50 : W + 50) : Math.random() * W,
-            y: Math.random() * H,
-            len: 26 + Math.random() * 46,
-            size: asteroid ? 1.3 + Math.random() * 1.5 : 0.9 + Math.random() * 1.1,
-        };
+        return { asteroid, dx, dy, spd: asteroid ? 0.004 + Math.random() * 0.004 : 0.010 + Math.random() * 0.012,
+            x: offscreen ? (dx > 0 ? -50 : W + 50) : Math.random() * W, y: Math.random() * H,
+            len: 26 + Math.random() * 46, size: asteroid ? 1.3 + Math.random() * 1.5 : 0.9 + Math.random() * 1.1 };
     }
     function initComets() { comets = Array.from({ length: 4 }, () => makeComet(false)); }
 
@@ -167,25 +151,10 @@ export function initGalaxy(onPickExample) {
         canvas.width = W * DPR; canvas.height = H * DPR;
         canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
         ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-        // rebuild the ambient starfield to fit
         stars = Array.from({ length: Math.round(W * H / 9000) }, (_, i) => ({
-            x: (hash('bg' + i) % 10000) / 10000 * W,
-            y: (hash('by' + i) % 10000) / 10000 * H,
-            r: 0.4 + (hash('br' + i) % 100) / 100 * 0.9,
-            tw: (hash('bt' + i) % 628) / 100,
-        }));
-        placeExamples();   // reposition example clusters for the new size
+            x: (hash('bg' + i) % 10000) / 10000 * W, y: (hash('by' + i) % 10000) / 10000 * H,
+            r: 0.4 + (hash('br' + i) % 100) / 100 * 0.9, tw: (hash('bt' + i) % 628) / 100 }));
         initComets();
-    }
-
-    // Jams are the highlight → cluster them in the CENTRE of the map; the example
-    // nebulae ring around them (see placeExamples). Seed spreads jams within a central
-    // ellipse so multiple live sessions fan out from the middle without overlapping.
-    function place(node) {
-        const padTop = 84, padBot = 50;
-        const cx = W / 2, cy = padTop + (H - padTop - padBot) / 2;
-        node.bx = cx + (node.seed.fx - 0.5) * (W - 140) * 0.34;
-        node.by = cy + (node.seed.fy - 0.5) * (H - padTop - padBot) * 0.34;
     }
 
     async function poll() {
@@ -199,197 +168,215 @@ export function initGalaxy(onPickExample) {
         } catch (e) { data = null; _pollErr = e && e.message; }
         const t = performance.now();
         if (!data) {
-            // Don't leave a misleading "no jams" up when the fetch is actually failing
-            // (server down / not proxied). After a couple of misses, say so honestly.
             if (++_pollFails >= 2 && empty) {
                 empty.textContent = "can't reach the jam server" + (_pollErr ? ` (${_pollErr})` : '') + ' — is the collab server running & proxied?';
                 empty.style.display = '';
             }
-            return;                           // keep the last frame; fetch may recover
+            return;
         }
         _pollFails = 0;
         const seen = new Set();
         for (const s of data.sessions) {
             seen.add(s.slug);
             let n = nodes.get(s.slug);
-            if (!n) { n = { slug: s.slug, seed: seedPos(s.slug), alpha: 0 }; place(n); nodes.set(s.slug, n); }
-            n.clients = s.clients;
-            n.dormant = !!s.dormant;
-            n.idleBase = s.idleMs; n.idleAt = t;    // interpolate idle between polls
+            if (!n) { n = { slug: s.slug, phase: (hash(s.slug) % 628) / 100, alpha: 0, slot: allocSlot() }; place(n); nodes.set(s.slug, n); }
+            n.clients = s.clients; n.dormant = !!s.dormant;
+            n.idleBase = s.idleMs; n.idleAt = t;
             n.decayBase = s.decayMs || 0; n.decayAt = t; n.ttlMs = s.ttlMs || 600000;
-            n.ageMs = s.ageMs; n.evals = s.evals;
-            n.gone = false;
+            n.ageMs = s.ageMs; n.evals = s.evals; n.gone = false;
         }
-        // Sessions that dropped off the list → let them fade out, then remove.
-        for (const [slug, n] of nodes) {
-            if (!seen.has(slug) && !n.gone) { n.gone = true; n.goneAt = t; }
-        }
+        for (const [slug, n] of nodes) if (!seen.has(slug) && !n.gone) { n.gone = true; n.goneAt = t; }
         if (empty) { empty.textContent = _emptyDefault; empty.style.display = data.sessions.length ? 'none' : ''; }
     }
 
     function liveIdle(n, t) { return (n.idleBase || 0) + (t - (n.idleAt || t)); }
 
-    let lastRender = 0;
+    let lastRender = 0, hovered = null;
     function draw(t) {
         raf = requestAnimationFrame(draw);
-        // Cap to ~30fps — the motion is slow ambience, 60fps just burns CPU. The rAF
-        // itself still pauses when the tab is backgrounded.
-        if (t - lastRender < 32) return;
+        if (t - lastRender < 32) return;      // ~30fps
         lastRender = t;
         ctx.clearRect(0, 0, W, H);
-        // ambient starfield
+
+        // ambient starfield (screen-space backdrop)
         for (const s of stars) {
-            const a = 0.25 + Math.sin(t * 0.001 + s.tw) * 0.15;
-            ctx.globalAlpha = clamp(a, 0.08, 0.5);
-            ctx.fillStyle = '#8b98b5';
-            ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill();
+            ctx.globalAlpha = clamp(0.25 + Math.sin(t * 0.001 + s.tw) * 0.15, 0.08, 0.5);
+            ctx.fillStyle = '#8b98b5'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill();
         }
         ctx.globalAlpha = 1;
 
-        // ── Drifting comets / asteroids (ambient) ─────────────────────────────────
+        // comets
         const dt = Math.min(64, lastFrameT ? t - lastFrameT : 16); lastFrameT = t;
         for (const c of comets) {
             c.x += c.dx * c.spd * dt; c.y += c.dy * c.spd * dt;
             if (c.x < -70 || c.x > W + 70 || c.y < -70 || c.y > H + 70) Object.assign(c, makeComet(true));
-            if (c.asteroid) {
-                ctx.globalAlpha = 0.4; ctx.fillStyle = '#9aa6bf';
-                ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, 7); ctx.fill();
-            } else {
+            if (c.asteroid) { ctx.globalAlpha = 0.4; ctx.fillStyle = '#9aa6bf'; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, 7); ctx.fill(); }
+            else {
                 const ex = c.x - c.dx * c.len, ey = c.y - c.dy * c.len;
                 const g = ctx.createLinearGradient(c.x, c.y, ex, ey);
                 g.addColorStop(0, 'rgba(200,220,255,0.5)'); g.addColorStop(1, 'rgba(200,220,255,0)');
                 ctx.strokeStyle = g; ctx.lineWidth = c.size; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(ex, ey); ctx.stroke();
-                ctx.globalAlpha = 0.85; ctx.fillStyle = '#dce8ff';
-                ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, 7); ctx.fill();
+                ctx.globalAlpha = 0.85; ctx.fillStyle = '#dce8ff'; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, 7); ctx.fill();
             }
             ctx.globalAlpha = 1;
         }
 
-        // ── Example clusters — the static nebulae + labels are one pre-baked image;
-        //    the dim stars (drift + twinkle) draw over it via per-hue glow sprites. ──
-        if (nebula) ctx.drawImage(nebula, 0, 0, W, H);
+        const Z = cam.zoom;
+        ctx.textAlign = 'center';
+        // ── Example nebulae + labels (world → screen, culled) ──
+        for (const c of clusters) {
+            const sx = w2sX(c.wx), sy = w2sY(c.wy), nr = c.nebR * Z;
+            if (sx + nr < 0 || sx - nr > W || sy + nr < 0 || sy - nr > H) continue;
+            if (c.nebSprite) ctx.drawImage(c.nebSprite, sx - nr, sy - nr, nr * 2, nr * 2);
+            if (Z >= 0.45) {
+                const live = c.cat === 'Live sets';
+                ctx.globalAlpha = clamp((Z - 0.4) * 1.4, 0, live ? 0.8 : 0.55);
+                ctx.fillStyle = `hsl(${c.hue},${live ? 65 : 45}%,${live ? 78 : 72}%)`;
+                ctx.font = `${live ? 'bold ' : ''}${Math.round(10 * clamp(Z, 0.7, 1.4))}px ui-monospace, monospace`;
+                ctx.fillText((c.cat || '').toUpperCase(), sx, sy - nr * 0.62);
+                ctx.globalAlpha = 1;
+            }
+        }
+        // ── Example stars ──
         for (const n of exNodes) {
+            const wx = n.wx + Math.sin(t * 0.0002 + n.phase) * 3, wy = n.wy + Math.cos(t * 0.00018 + n.phase) * 3;
+            const sx = w2sX(wx), sy = w2sY(wy);
+            n.x = sx; n.y = sy;
+            if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) { n.hitR = 0; continue; }
             const c = n.cl, live = n.cat === 'Live sets';
-            n.x = n.bx + Math.sin(t * 0.0002 + n.phase) * 3;
-            n.y = n.by + Math.cos(t * 0.00018 + n.phase) * 3;
             const pulse = live ? 1 + Math.sin(t * 0.004 + n.phase) * 0.3 : 1;
             const tw = (live ? 0.72 : 0.5) + Math.sin(t * 0.003 + n.phase) * 0.22;
             ctx.globalAlpha = clamp(tw, 0, live ? 0.95 : 0.72);
-            if (c.glowSprite) { const gr = c.glowR; ctx.drawImage(c.glowSprite, n.x - gr, n.y - gr, gr * 2, gr * 2); }
+            const gr = c.glowR * Z;
+            if (c.glowSprite) ctx.drawImage(c.glowSprite, sx - gr, sy - gr, gr * 2, gr * 2);
             ctx.fillStyle = `hsl(${n.hue},${live ? 92 : 82}%,${live ? 86 : 82}%)`;
-            ctx.beginPath(); ctx.arc(n.x, n.y, (live ? 3.4 : 2.3) * pulse, 0, 7); ctx.fill();
-            if (live) {   // sparkle cross — a subtle twinkle
-                const rl = 6 + Math.sin(t * 0.005 + n.phase) * 2;
+            ctx.beginPath(); ctx.arc(sx, sy, Math.max(1.3, (live ? 3.4 : 2.3) * Z) * pulse, 0, 7); ctx.fill();
+            if (live) {
+                const rl = (6 + Math.sin(t * 0.005 + n.phase) * 2) * clamp(Z, 0.5, 1.4);
                 ctx.globalAlpha = clamp(tw * 0.6, 0, 0.7); ctx.strokeStyle = `hsl(${n.hue},92%,86%)`; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(n.x - rl, n.y); ctx.lineTo(n.x + rl, n.y); ctx.moveTo(n.x, n.y - rl); ctx.lineTo(n.x, n.y + rl); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(sx - rl, sy); ctx.lineTo(sx + rl, sy); ctx.moveTo(sx, sy - rl); ctx.lineTo(sx, sy + rl); ctx.stroke();
             }
-            n.hitR = live ? 14 : 12;
+            n.hitR = Math.max(8, (live ? 14 : 12) * Z);
             ctx.globalAlpha = 1;
         }
 
+        // ── Live jams (spiral, foreground highlight) ──
+        // Label LOD: slugs appear at the fit view; the second detail line only when
+        // zoomed in (or for your own / the hovered jam) — keeps dense views readable.
+        const showLabels = Z >= 0.8 || nodes.size <= 14;
+        const showDetail = Z >= 1.15;
         for (const [slug, n] of nodes) {
-            // Active jams fade with idle; DORMANT (emptied) jams decay over the full
-            // TTL — a slow dim-out from ~0.7 to 0 — but stay clickable so you can revive
-            // them (their code is still on the server).
             const idle = liveIdle(n, t);
             let target;
-            if (n.dormant) {
-                const dm = (n.decayBase || 0) + (t - (n.decayAt || t));
-                target = clamp(1 - dm / (n.ttlMs || 600000), 0.05, 0.7);
-            } else {
-                target = clamp(1 - idle / 90000, 0.18, 1);
-            }
+            if (n.dormant) { const dm = (n.decayBase || 0) + (t - (n.decayAt || t)); target = clamp(1 - dm / (n.ttlMs || 600000), 0.05, 0.7); }
+            else target = clamp(1 - idle / 90000, 0.18, 1);
             if (n.gone) target = clamp(1 - (t - n.goneAt) / 2000, 0, 1) * 0.1;
             n.alpha += (target - n.alpha) * 0.08;
-            if (n.gone && n.alpha < 0.01) { nodes.delete(slug); continue; }
+            if (n.gone && n.alpha < 0.01) { freeSlot(n.slot); nodes.delete(slug); continue; }
 
-            const drift = n.dormant ? 4 : 10;
-            n.x = n.bx + Math.sin(t * 0.00025 + n.seed.phase) * drift;
-            n.y = n.by + Math.cos(t * 0.0002 + n.seed.phase * 1.3) * drift;
-            const r = 7 + Math.min(n.clients || 1, 10) * 2.6;
+            const drift = n.dormant ? 2 : 4;
+            const wx = n.wx + Math.sin(t * 0.00025 + n.phase) * drift, wy = n.wy + Math.cos(t * 0.0002 + n.phase * 1.3) * drift;
+            const sx = w2sX(wx), sy = w2sY(wy);
+            n.x = sx; n.y = sy;
+            const rW = 6 + Math.min(n.clients || 1, 10) * 2.0;
+            const r = Math.max(2.5, rW * Z);
+            if (sx + r * 3.2 < 0 || sx - r * 3.2 > W || sy + r * 3.2 < 0 || sy - r * 3.2 > H) { n.hitR = 0; continue; }
+
             const active = !n.dormant && idle < 2500;
-            const twinkle = n.dormant ? 1 : 0.85 + Math.sin(t * 0.004 + n.seed.phase) * 0.15;
+            const twinkle = n.dormant ? 1 : 0.85 + Math.sin(t * 0.004 + n.phase) * 0.15;
             const a = n.alpha * twinkle;
-            // colour ages with the jam: green when fresh → cool blue-grey as it decays.
-            // The session YOU'RE in glows a distinct amber and never dims fully.
             const isMine = n.slug === currentSlug;
             n.decayFrac = n.dormant ? clamp(((n.decayBase || 0) + (t - (n.decayAt || t))) / (n.ttlMs || 1), 0, 1) : 0;
             const gc = isMine ? [245, 200, 70] : starColor(n);
             if (isMine) n.alpha = Math.max(n.alpha, 0.9);
 
-            // glow
-            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 3.2);
-            g.addColorStop(0,   `rgba(${gc[0]},${gc[1]},${gc[2]},${0.55 * a})`);
+            const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3.2);
+            g.addColorStop(0, `rgba(${gc[0]},${gc[1]},${gc[2]},${0.55 * a})`);
             g.addColorStop(0.4, `rgba(${gc[0]},${gc[1]},${gc[2]},${0.18 * a})`);
-            g.addColorStop(1,   `rgba(${gc[0]},${gc[1]},${gc[2]},0)`);
-            ctx.fillStyle = g;
-            ctx.beginPath(); ctx.arc(n.x, n.y, r * 3.2, 0, 7); ctx.fill();
+            g.addColorStop(1, `rgba(${gc[0]},${gc[1]},${gc[2]},0)`);
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r * 3.2, 0, 7); ctx.fill();
 
-            // steady halo ring on your own session so it stands out at a glance
             if (isMine) {
-                ctx.globalAlpha = clamp(0.55 * a, 0, 1);
-                ctx.strokeStyle = '#f5c846'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.arc(n.x, n.y, r + 6 + Math.sin(t * 0.003) * 2, 0, 7); ctx.stroke();
-                ctx.globalAlpha = 1;
+                ctx.globalAlpha = clamp(0.55 * a, 0, 1); ctx.strokeStyle = '#f5c846'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(sx, sy, r + 6 + Math.sin(t * 0.003) * 2, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
             }
-            // activity pulse ring (only while someone's actually playing)
             if (active) {
                 const pr = r + ((t * 0.05) % 22);
                 ctx.globalAlpha = clamp((1 - (pr - r) / 22) * a, 0, 1);
                 ctx.strokeStyle = isMine ? '#f5c846' : '#7ee787'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.arc(n.x, n.y, pr, 0, 7); ctx.stroke();
-                ctx.globalAlpha = 1;
+                ctx.beginPath(); ctx.arc(sx, sy, pr, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
             }
-
-            // core
             ctx.globalAlpha = clamp(a, 0, 1);
             ctx.fillStyle = isMine ? '#ffe9a0' : (active ? '#b7f7c0' : `rgb(${gc[0]},${gc[1]},${gc[2]})`);
-            ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.5, 0, 7); ctx.fill();
+            ctx.beginPath(); ctx.arc(sx, sy, r * 0.5, 0, 7); ctx.fill();
             n.hitR = r * 3.2;
 
-            // label: slug + status
-            ctx.globalAlpha = clamp(a + 0.15, 0, 1);
-            ctx.fillStyle = isMine ? '#f5c846' : (n.dormant ? '#9aa5a5' : '#c9d1d9');
-            ctx.font = `${isMine ? 'bold ' : ''}12px ui-monospace, Menlo, Consolas, monospace`;
-            ctx.textAlign = 'center';
-            ctx.fillText(slug, n.x, n.y + r + 16);
-            ctx.fillStyle = isMine ? '#f5c846' : '#8b949e'; ctx.font = '10px ui-monospace, monospace';
-            ctx.fillText(isMine ? "you're here · click to close" : (n.dormant ? 'resting · click to revive' : `${n.clients || 1} ♪`), n.x, n.y + r + 29);
+            if (showLabels || isMine || n === hovered) {
+                ctx.globalAlpha = clamp(a + 0.15, 0, 1);
+                ctx.fillStyle = isMine ? '#f5c846' : (n.dormant ? '#9aa5a5' : '#c9d1d9');
+                ctx.font = `${isMine ? 'bold ' : ''}12px ui-monospace, Menlo, Consolas, monospace`;
+                ctx.fillText(slug, sx, sy + r + 16);
+                if (showDetail || isMine || n === hovered) {
+                    ctx.fillStyle = isMine ? '#f5c846' : '#8b949e'; ctx.font = '10px ui-monospace, monospace';
+                    ctx.fillText(isMine ? "you're here · click to close" : (n.dormant ? 'resting · click to revive' : `${n.clients || 1} ♪`), sx, sy + r + 29);
+                }
+            }
             ctx.globalAlpha = 1;
         }
-        raf = requestAnimationFrame(draw);
     }
 
     function hitTest(px, py) {
-        // Live jams (foreground) win over example stars on overlap.
         let best = null, bestD = Infinity;
         for (const n of nodes.values()) {
-            if (n.gone) continue;
+            if (n.gone || !n.hitR) continue;
             const d = Math.hypot(px - n.x, py - n.y);
-            if (d < (n.hitR || 24) && d < bestD) { bestD = d; best = n; }
+            if (d < n.hitR && d < bestD) { bestD = d; best = n; }
         }
         if (best) return best;
         for (const n of exNodes) {
+            if (!n.hitR) continue;
             const d = Math.hypot(px - n.x, py - n.y);
-            if (d < (n.hitR || 12) && d < bestD) { bestD = d; best = n; }
+            if (d < n.hitR && d < bestD) { bestD = d; best = n; }
         }
         return best;
     }
 
+    // ── Pan / zoom / click ──────────────────────────────────────────────────────
+    let dragging = false, moved = false, lastX = 0, lastY = 0;
+    canvas.addEventListener('mousedown', (e) => { dragging = true; moved = false; lastX = e.clientX; lastY = e.clientY; });
+    window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+        if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+        cam.x -= dx / cam.zoom; cam.y -= dy / cam.zoom;
+        canvas.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'default'; });
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        const wx = (mx - W / 2) / cam.zoom + cam.x, wy = (my - H / 2) / cam.zoom + cam.y;
+        cam.zoom = clamp(cam.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 0.12, 4);
+        cam.x = wx - (mx - W / 2) / cam.zoom; cam.y = wy - (my - H / 2) / cam.zoom;
+    }, { passive: false });
+
     canvas.addEventListener('click', (e) => {
+        if (moved) { moved = false; return; }              // was a drag, not a click
         const rect = canvas.getBoundingClientRect();
         const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
         if (!n) return;
-        if (n.isExample) { onPickExample?.(n.exId); hide(); return; }   // load example → close
-        if (n.slug === currentSlug) { hide(); return; }   // already here → just close the map
-        location.href = location.pathname + '?session=' + encodeURIComponent(n.slug);   // join another
+        if (n.isExample) { onPickExample?.(n.exId); hide(); return; }
+        if (n.slug === currentSlug) { hide(); return; }
+        location.href = location.pathname + '?session=' + encodeURIComponent(n.slug);
     });
     canvas.addEventListener('mousemove', (e) => {
+        if (dragging) { if (tip) tip.hidden = true; return; }
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left, my = e.clientY - rect.top;
         const n = hitTest(mx, my);
-        canvas.style.cursor = n ? 'pointer' : 'default';
+        hovered = (n && !n.isExample) ? n : null;
+        canvas.style.cursor = n ? 'pointer' : 'grab';
         if (!n || !tip) { if (tip) tip.hidden = true; return; }
         tip.textContent = '';
         if (n.isExample) {
@@ -408,18 +395,39 @@ export function initGalaxy(onPickExample) {
             tip.append(slugEl, who, act, started);
         }
         tip.hidden = false;
-        // keep the tip on-screen
         const tw = tip.offsetWidth, th = tip.offsetHeight;
         tip.style.left = Math.min(mx + 16, overlay.clientWidth - tw - 8) + 'px';
         tip.style.top  = Math.min(my + 16, overlay.clientHeight - th - 8) + 'px';
     });
-    canvas.addEventListener('mouseleave', () => { if (tip) tip.hidden = true; });
+    canvas.addEventListener('mouseleave', () => { if (tip) tip.hidden = true; hovered = null; });
+
+    // Zoom controls (created once, appended to the overlay — no HTML edits needed).
+    let ctrls = null;
+    function makeCtrls() {
+        if (ctrls) return;
+        ctrls = document.createElement('div');
+        ctrls.style.cssText = 'position:absolute;right:14px;bottom:52px;display:flex;flex-direction:column;gap:6px;z-index:4;';
+        for (const [z, label, title] of [['in', '+', 'zoom in'], ['out', '−', 'zoom out'], ['fit', '⌂', 'reset view']]) {
+            const b = document.createElement('button');
+            b.textContent = label; b.title = title; b.dataset.z = z;
+            b.style.cssText = 'width:30px;height:30px;font:16px/1 ui-monospace,monospace;cursor:pointer;background:rgba(10,15,11,0.82);color:#c8f5d4;border:1px solid #1f4d2b;border-radius:6px;';
+            ctrls.appendChild(b);
+        }
+        ctrls.addEventListener('click', (e) => {
+            const z = e.target && e.target.dataset && e.target.dataset.z; if (!z) return;
+            if (z === 'in') zoomBy(1.35); else if (z === 'out') zoomBy(1 / 1.35); else fit();
+        });
+        overlay.appendChild(ctrls);
+    }
 
     function show() {
         overlay.hidden = false; open = true;
-        buildExamples();        // rebuild from the live example list each open (dynamic)
+        buildExamples();
         resize();
-        poll(); pollTimer = setInterval(poll, 2500);
+        makeCtrls();
+        fit();
+        poll().then(fit);                     // refit once real jams arrive
+        pollTimer = setInterval(poll, 2500);
         cancelAnimationFrame(raf); raf = requestAnimationFrame(draw);
     }
     function hide() {
