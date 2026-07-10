@@ -205,10 +205,17 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'alpha34';
+export const VERSION = 'beta01';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'beta01', title: 'Offline PWA · ikea · richer generators · new site', items: [
+        'Install it & go offline — crashDot is now a Progressive Web App: add it to your desktop or phone (⬇ install, or Share → Add to Home Screen) and it boots and plays with NO connection at all. The engine, every synth/FX, and the examples are cached; load the sample kit once online and it comes offline too. Only live multiplayer + the shared galaxy need a connection — solo coding never does.',
+        'New synth: ikea — CrashServer\'s generative glitch-percussion machine. One note spawns a self-generating texture (glitch bursts, sub sines, noise, a swept bass, snare, a resonant melody). Play it long: p1 >> ikea(dur=8, sus=8). Rebuilt on WASM-safe UGens with musical controls: density, per-layer levels (glitch/noise/bass/tone/snare), bright, harm.',
+        'chaos()/son() are far more varied — every synth is now role-classified (nothing silently defaults to "lead"), the FX palette gained the effects it was missing (octclean, squiz, drop, tape echo, csweep, comp…), and the jam bot\'s live mutations went from 9 to ~35 effects. octclean (a clean ±1-octave octaver) is now in the fx autocomplete too.',
+        'Fixes — PFDur(3, 8) with bare numbers no longer returns silence; the first Run right after a synth autocomplete now evaluates the whole line instead of the bare "0" placeholder; Alt+I gained info for PEuclidR / PFibMod; and dead pattern tokens that highlighted but didn\'t exist were removed.',
+        'A refreshed website — solo / multiplayer / galaxy launch links, a live starfield of the jams running right now, and a one-tap offline-install walkthrough.',
+    ] },
     { v: 'alpha34', title: 'Galaxy polish · squiz, PFDur & shortcut fixes', items: [
         'Galaxy — jams take centre stage — live jams now cluster in the middle of the map with the example nebulae ringed around them. The whole map is also much cheaper: capped to 30fps with the star-glows and nebulae pre-rendered (no more ~140 gradients per frame), and it uses zero CPU while closed. It no longer says "no jams" when it actually just can\'t reach the jam server (and the deploy docs now include the required /ws proxy).',
         'squiz FX now actually does something — it was effectively silent (its underlying UGen barely processes in the WASM build); reimplemented as a grainy PitchShift with a proper wet mix, so squiz=0.4 gives an audible lo-fi pitch-up glitch as intended.',

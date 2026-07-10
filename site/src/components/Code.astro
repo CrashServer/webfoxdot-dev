@@ -1,0 +1,52 @@
+---
+// Build-time FoxDot/crashDot syntax highlighter.
+// Tokenizes the same constructs the in-app CodeMirror overlay colors.
+interface Props { code: string; }
+const { code } = Astro.props;
+
+const SYNTHS = new Set([
+  'dbass', 'saw', 'sine', 'rsin', 'donk', 'bass', 'pluck', 'ebass', 'faim',
+  'guit', 'lapin', 'acidbass', 'hoover', 'cs80', 'moogpluck', 'a_gesa',
+  'pads', 'blip', 'arpy', 'keys', 'space', 'noise', 'play', 'loop', 'midi',
+  'midiout', 'mlearn', 'rest',
+]);
+const TIMEVARS = new Set(['var', 'linvar', 'sinvar', 'expvar', 'fperlin']);
+const KEYWORDS = new Set([
+  'Clock', 'Scale', 'Root', 'drop', 'loadpack', 'print', 'True', 'False',
+  'None', 'and', 'or', 'not', 'every', 'stop', 'solo', 'reset',
+]);
+
+function esc(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const TOKEN = /(#[^\n]*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|(>>|[-+*/=<>.,:]|[()\[\]{}])/g;
+
+function highlight(line: string): string {
+  let out = '';
+  let last = 0;
+  let m: RegExpExecArray | null;
+  TOKEN.lastIndex = 0;
+  while ((m = TOKEN.exec(line)) !== null) {
+    out += esc(line.slice(last, m.index));
+    last = m.index + m[0].length;
+    if (m[1]) out += `<span class="t-comment">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="t-string">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span class="t-number">${esc(m[3])}</span>`;
+    else if (m[4]) {
+      const w = m[4];
+      let cls = '';
+      if (SYNTHS.has(w)) cls = 't-synth';
+      else if (TIMEVARS.has(w)) cls = 't-timevar';
+      else if (KEYWORDS.has(w)) cls = 't-keyword';
+      else if (/^P[A-Z]/.test(w)) cls = 't-pattern';
+      out += cls ? `<span class="${cls}">${esc(w)}</span>` : esc(w);
+    } else if (m[5]) out += `<span class="t-op">${esc(m[5])}</span>`;
+  }
+  out += esc(line.slice(last));
+  return out;
+}
+
+const html = code.replace(/^\n+|\n+$/g, '').split('\n').map(highlight).join('\n');
+---
+<pre class="code"><code set:html={html}></code></pre>

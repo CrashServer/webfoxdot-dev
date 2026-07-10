@@ -1,0 +1,119 @@
+---
+const repo = 'https://github.com/CrashServer/webfoxdot-dev';
+const shell = `# 1. Clone
+git clone git@github.com:CrashServer/webfoxdot-dev.git webfoxDot
+cd webfoxDot
+
+# 2. Start the dev server (sets the COOP/COEP headers WASM needs)
+python3 serve.py
+
+# 3. Open http://127.0.0.1:8765 and click "boot"`;
+---
+<section id="start">
+  <div class="wrap start-grid">
+    <div class="start-copy">
+      <span class="eyebrow">./boot.sh</span>
+      <h2 class="section-title">Three commands, then it's your problem</h2>
+      <p class="section-lead">
+        The only hard requirement is Python 3 for the dev server — it sets the
+        cross-origin isolation headers <code class="inline">SharedArrayBuffer</code>
+        (and therefore scsynth) demands. Double-clicking
+        <code class="inline">index.html</code> won't work, and yes, we all tried
+        it first.
+      </p>
+      <ul class="start-list">
+        <li><b>Python 3.8+</b> — for the dev server, that's it</li>
+        <li><b>A browser from this decade</b> — Chrome 90+ / Firefox 90+</li>
+        <li><b>SuperCollider</b> — only if you catch the synth-building bug</li>
+      </ul>
+      <div class="start-cta">
+        <a class="btn btn-primary" href={repo} target="_blank" rel="noopener">
+          Get the code ▸
+        </a>
+        <a class="btn btn-ghost" href={`${repo}#readme`} target="_blank" rel="noopener">
+          Read the docs
+        </a>
+      </div>
+      <p class="start-note">
+        Playing a gig? Any static host works — just send the
+        <code class="inline">Cross-Origin-Opener-Policy</code> and
+        <code class="inline">Cross-Origin-Embedder-Policy</code> headers, or the
+        browser silently confiscates your audio engine. Nginx, Apache and Caddy
+        snippets are in the README.
+      </p>
+    </div>
+
+    <div class="term">
+      <div class="term-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="term-title">bash</span>
+      </div>
+      <pre class="term-body"><code>{shell}</code></pre>
+    </div>
+  </div>
+</section>
+
+<style>
+  .start-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .start-list {
+    list-style: none;
+    padding: 0;
+    margin: 26px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 15px;
+    color: var(--text-2);
+  }
+  .start-list li { padding-left: 22px; position: relative; }
+  .start-list li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--green);
+  }
+  .start-list b { color: var(--text-1); font-weight: 600; }
+  .start-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .start-note { font-size: 14px; color: var(--text-2); margin: 0; max-width: 56ch; }
+
+  .term {
+    border: 1px solid var(--border-2);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-1);
+    box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+  }
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 11px 14px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border-1);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background: #f85149; }
+  .dot.y { background: #d29922; }
+  .dot.g { background: #3fb950; }
+  .term-title {
+    margin-left: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .term-body {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-1);
+    overflow-x: auto;
+  }
+  @media (max-width: 860px) { .start-grid { grid-template-columns: 1fr; gap: 32px; } }
+</style>
