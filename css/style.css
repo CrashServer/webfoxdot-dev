@@ -176,14 +176,19 @@ body {
     display: flex;
     align-items: center;
     gap: 7px;
+    row-gap: 6px;
     padding: 6px 12px;
     background: linear-gradient(var(--bg-2), var(--bg-1));
     border-bottom: 1px solid var(--border-1);
     flex-shrink: 0;
-    flex-wrap: nowrap;        /* never wrap → buttons keep their place */
-    overflow-x: auto;         /* if it's ever too narrow, scroll instead of reflow */
+    flex-wrap: wrap;          /* too narrow → flow onto a second row, nothing clipped */
 }
 #toolbar > * { flex-shrink: 0; }   /* nothing collapses/resizes as text changes */
+/* On narrow screens, tighten spacing so more fits per row before wrapping. */
+@media (max-width: 760px) {
+    #toolbar { gap: 5px; row-gap: 5px; padding: 6px 8px; }
+    #toolbar button, #toolbar #examples-btn { padding: 3px 8px; font-size: 10px; }
+}
 
 .title {
     color: var(--green);

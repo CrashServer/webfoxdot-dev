@@ -34,7 +34,9 @@ let curHue = 0.5, hueTarget = 0.5;
 let flash = 0, pulse = 0, beatPulse = 0, glitch = 0, bigFlash = 0, calm = 0, bpmFlash = 0;
 let lastBeat = -1, editing = null;
 const codeLines = [];
-let mode = 'scenes';                              // 'scenes' (audio autopilot) | 'code' (per-player) | 'live' (vN layers)
+// Default is 'idle': no visual until you run visual code (vN layers). The audio
+// autopilot ('scenes') and per-player 'code' view are opt-in via [a] / [m].
+let mode = 'idle';                                // 'idle' | 'live' (vN layers) | 'scenes' (autopilot) | 'code' (per-player)
 const vlayers = new Map();                        // name → { scene, params, fx, born } — authored vN >> layers
 let lastMsgTs = 0;                                 // when the bridge last sent anything (connection status)
 const meta = { section: '', autoplay: false };    // active #@ section + autoplay
@@ -162,8 +164,8 @@ chan.onmessage = (e) => {
         });
         mode = 'live';
     }
-    else if (m.t === 'vstop')  { vlayers.delete(m.name); if (!vlayers.size && mode === 'live') mode = 'scenes'; }
-    else if (m.t === 'vclear') { vlayers.clear(); if (mode === 'live') mode = 'scenes'; }
+    else if (m.t === 'vstop')  { vlayers.delete(m.name); if (!vlayers.size && mode === 'live') mode = 'idle'; }
+    else if (m.t === 'vclear') { vlayers.clear(); if (mode === 'live') mode = 'idle'; }
     else if (m.t === 'players') {
         players = m.list || [];
         for (const pl of players) { const s = pmap[pl.name] || (pmap[pl.name] = { step: -1, pulse: 0 }); if (pl.step !== s.step) { s.step = pl.step; s.pulse = 1; } }
@@ -172,9 +174,9 @@ chan.onmessage = (e) => {
 
 // ── keys (optional overrides; touching one drops out of auto) ────────────────────
 addEventListener('keydown', (e) => {
-    if (e.key === 'm') { const seq = ['scenes', 'code', 'live']; mode = seq[(seq.indexOf(mode) + 1) % seq.length]; return; }
-    if (e.key === 'a') { auto = !auto; return; }
-    if (e.key === ' ') { auto = false; startTransition((scene + 1) % SCENES.length); }
+    if (e.key === 'm') { const seq = ['idle', 'live', 'scenes', 'code']; mode = seq[(seq.indexOf(mode) + 1) % seq.length]; return; }
+    if (e.key === 'a') { mode = 'scenes'; auto = true; return; }               // opt in to the audio autopilot
+    if (e.key === ' ') { mode = 'scenes'; auto = false; startTransition((scene + 1) % SCENES.length); }
     else if (e.key === 'g') { glitch = 1.3; }
     else if (e.key === 't') { auto = false; fxT.trails = fxT.trails > 0.3 ? 0 : 0.85; }
     else if (e.key === 's') { auto = false; fxT.scan = fxT.scan > 0.3 ? 0 : 0.6; }
@@ -485,6 +487,26 @@ function renderLive(ts) {
     hud.textContent = `live  ·  ${vlayers.size} layer${vlayers.size === 1 ? '' : 's'}  ·  ${[...vlayers.keys()].join(' ') || '—'}  ·  ${A.bpm | 0} bpm  ·  [m] mode`;
 }
 
+// idle: no visual code running → (near-)black screen with a faint wordmark.
+// "Without running code, there is no visual." A logo can replace this later.
+function renderIdle(ts) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    const pulse = 0.5 + 0.5 * Math.sin(ts / 1500);
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.11 + pulse * 0.10;
+    ctx.fillStyle = '#63b982'; ctx.font = 'bold 30px monospace';
+    ctx.fillText('▦ crashDot', W / 2, H / 2 - 12);
+    ctx.globalAlpha = 0.09 + pulse * 0.06;
+    ctx.fillStyle = '#8a97a0'; ctx.font = '13px monospace';
+    ctx.fillText('run  v1 >> plasma()  in the editor to begin   ·   [a] autopilot', W / 2, H / 2 + 18);
+    ctx.restore(); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `${CELL}px monospace`;
+    // just the connection dot (no "waiting" overlay — the blank screen is intentional)
+    const waiting = ts - lastMsgTs > 1500;
+    ctx.beginPath(); ctx.arc(W - 16, 16, 5, 0, Math.PI * 2);
+    ctx.fillStyle = waiting ? '#3a4750' : '#3fb950'; ctx.fill();
+    hud.textContent = 'idle  ·  no visual code running  ·  [m] mode  [a] autopilot';
+}
+
 // transport: active #@ section + a beat grid (bar phase) at the top — for performers
 function drawTransport() {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -534,6 +556,8 @@ function frame(ts) {
     flash = Math.max(flash, bpmFlash);
     if (sceneStart === 0) sceneStart = ts;
 
+    // idle: nothing running → blank (no autopilot unless opted in)
+    if (mode === 'idle') { renderIdle(ts); return; }
     // live mode: authored vN >> visual layers, resolved & blended
     if (mode === 'live') { renderLive(ts); return; }
     // code-truthful mode: a panel per active player, driven by its own degree/oct/fx

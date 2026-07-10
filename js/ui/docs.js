@@ -210,7 +210,7 @@ export const VERSION = 'beta01';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'beta01', title: 'Code your visuals · offline PWA · zoomable galaxy · private jams · new site', items: [
-        'Code your visuals — a new FoxDot-close visual language drives the ▦ pop-out window from the SAME editor as your audio. Name a visual player vN and give it a scene: v1 >> plasma(hue=.6, speed=2). Layers stack and blend, react to the live audio, and chain screen-FX with +: v2 >> tunnel(hue=[0,.3], dur=4) + scan(.5) + trails(.7). 18 scenes (plasma, tunnel, spectrum, nebula, fire, spiral…), patterned params, v1.stop() to drop a layer. The window still autopilots the music when no vN layers are running. Full reference in the Visuals docs tab.',
+        'Code your visuals — a new FoxDot-close visual language drives the ▦ pop-out window from the SAME editor as your audio. Name a visual player vN and give it a scene: v1 >> plasma(hue=.6, speed=2). Layers stack and blend, react to the live audio, and chain screen-FX with +: v2 >> tunnel(hue=[0,.3], dur=4) + scan(.5) + trails(.7). 18 scenes (plasma, tunnel, spectrum, nebula, fire, spiral…), patterned params, v1.stop() to drop a layer. The window stays dark until you run visual code — no code, no visual (press [a] for an audio-reactive autopilot). Full reference in the Visuals docs tab.',
         'Install it & go offline — crashDot is now a Progressive Web App: add it to your desktop or phone (⬇ install, or Share → Add to Home Screen) and it boots and plays with NO connection at all. The engine, every synth/FX, and the examples are cached; load the sample kit once online and it comes offline too. Only live multiplayer + the shared galaxy need a connection — solo coding never does.',
         'Private jams — a session is public (listed in the galaxy) by default, but the Session panel now has a 🌐/🔒 toggle: flip it to unlisted and the jam vanishes from the galaxy — joinable only by people you share the link with. The setting is shared across everyone in the room and syncs live. Your code is always visible to whoever\'s in the room; only who can find it changes.',
         'Galaxy scales to thousands — jams now sit on a stable spiral (each holds its spot for its lifetime, none overlap, no more central pile-up), and the map is fully zoomable & pannable: scroll to zoom, drag to pan, ⌂ to reset. Labels thin out as you zoom past a crowd and reappear as you zoom in, so a busy galaxy stays readable.',
@@ -2270,9 +2270,10 @@ shutup()             # clears audio + visuals</pre>
         <table class="docs-table"><tbody>${params}</tbody></table>
         <div class="docs-group-label" style="margin-top:14px">Post-FX (chain with +)</div>
         <table class="docs-table"><tbody>${fxs}</tbody></table>
-        <p class="docs-p" style="margin-top:12px">The window has three modes (<b>[m]</b> to cycle): <b>live</b> (your
-        <code>vN</code> layers), <b>autopilot</b> (audio-reactive scene director when no layers are running), and
-        <b>code</b> (one panel per audio player). It runs in its own window, so it never competes with the audio clock.</p>`;
+        <p class="docs-p" style="margin-top:12px">By default the window is <b>idle</b> (dark) until you run visual code —
+        no code, no visual. <b>[m]</b> cycles the modes: <b>idle</b> · <b>live</b> (your <code>vN</code> layers) ·
+        <b>autopilot</b> (audio-reactive scene director, or press <b>[a]</b>) · <b>code</b> (one panel per audio player).
+        It runs in its own window, so it never competes with the audio clock.</p>`;
 }
 
 // ── Panel lifecycle ────────────────────────────────────────────────────────────
