@@ -1,0 +1,19 @@
+{
+  "name": "crashDot — live-code music",
+  "short_name": "crashDot",
+  "description": "Browser-native live coding music. Boot the WASM synth engine, write patterns, and jam — installable and fully offline once loaded.",
+  "id": "/",
+  "start_url": "./?src=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "categories": ["music", "entertainment", "developer"],
+  "icons": [
+    { "src": "icons/icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg",              "sizes": "any",     "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

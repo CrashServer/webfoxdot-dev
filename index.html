@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>crashDot</title>
-  <link rel="icon" href="data:,">  <!-- suppress favicon.ico 404 -->
+  <!-- PWA: installable + offline (see sw.js, manifest.webmanifest) -->
+  <link rel="icon" href="./icons/icon-48.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0d1117">
   <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
   <link rel="stylesheet" href="lib/codemirror/show-hint.css">
   <link rel="stylesheet" href="lib/codemirror/foldgutter.css">

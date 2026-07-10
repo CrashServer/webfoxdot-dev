@@ -17,12 +17,18 @@
 // To remove the SW during dev: DevTools → Application → Service Workers → Unregister
 // (or bump CACHE below).
 
-const CACHE = 'wfd-offline-spike-v1';
+const CACHE = 'wfd-offline-v2';
 const COI = {
     'Cross-Origin-Opener-Policy':   'same-origin',
     'Cross-Origin-Embedder-Policy': 'require-corp',
     'Cross-Origin-Resource-Policy': 'same-origin',
 };
+// The sample kit loads from these CDNs (see DEFAULT_KIT_URL). We cache-on-use so a
+// kit loaded once online plays offline afterwards. (Their responses are CORS with the
+// headers COEP needs, so caching preserves them.)
+const SAMPLE_HOSTS = ['cdn.jsdelivr.net', 'raw.githubusercontent.com', 'fastly.jsdelivr.net'];
+// Never intercept the collab server (multiplayer + the galaxy poll must stay live).
+const isCollabPath = (p) => /^\/(ws(\/|$)|sessions|monitor|metrics|status)\b/.test(p);
 
 // self.__WFD_PRECACHE — the app-shell file list (scripts/gen-sw-manifest.sh).
 try { importScripts('./sw-manifest.js'); } catch (_) { self.__WFD_PRECACHE = ['./index.html']; }
@@ -59,22 +65,32 @@ self.addEventListener('fetch', (e) => {
     if (req.method !== 'GET') return;                      // leave POST/etc. alone
     let url;
     try { url = new URL(req.url); } catch (_) { return; }
-    if (url.origin !== self.location.origin) return;       // cross-origin → untouched
+    const sameOrigin = url.origin === self.location.origin;
+    const sampleHost = SAMPLE_HOSTS.includes(url.hostname);
+
+    // Collab endpoints (same-origin /ws · /sessions on deploy) must always hit the
+    // network — never cache them, or the galaxy/multiplayer would go stale.
+    if (sameOrigin && isCollabPath(url.pathname)) return;
+    // Only the app shell (same-origin) and the sample CDN are handled; everything else
+    // (other cross-origin) is left exactly as today.
+    if (!sameOrigin && !sampleHost) return;
 
     e.respondWith((async () => {
         try {
-            // NETWORK-FIRST: online is unchanged. Cache a clone for offline use.
+            // NETWORK-FIRST: online is unchanged. Cache a clone for offline use —
+            // same-origin ('basic') app shell + CORS sample responses.
             const net = await fetch(req);
-            if (net && net.ok && net.type === 'basic') {
+            if (net && net.ok && (net.type === 'basic' || net.type === 'cors')) {
                 const copy = net.clone();
                 caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
             }
             return net;                                    // UNMODIFIED response online
         } catch (err) {
-            // OFFLINE: serve from cache, re-asserting COI so scsynth still gets threads.
+            // OFFLINE: serve from cache. Re-assert COI on same-origin responses so
+            // scsynth still gets threads; sample (CORS) responses keep their own headers.
             const cached = await caches.match(req);
-            if (cached) return withCOI(cached);
-            if (req.mode === 'navigate') {
+            if (cached) return sameOrigin ? withCOI(cached) : cached;
+            if (sameOrigin && req.mode === 'navigate') {
                 const shell = (await caches.match('./index.html')) || (await caches.match('./'));
                 if (shell) return withCOI(shell);
             }

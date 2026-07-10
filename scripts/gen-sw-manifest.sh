@@ -12,6 +12,8 @@ OUT="sw-manifest.js"
 {
   echo "index.html"
   echo "config.json"
+  [ -f manifest.webmanifest ] && echo "manifest.webmanifest"
+  find icons -type f \( -name '*.png' -o -name '*.svg' \) 2>/dev/null
   [ -f css/style.css ] && echo "css/style.css"
   find js -name '*.js' -type f
   find lib/codemirror -type f \( -name '*.js' -o -name '*.css' \)
