@@ -30,11 +30,31 @@ function chan() {
 
 export function openVisuals() {
     if (_win && !_win.closed) { _win.focus(); return _win; }
+    return _openWin();
+}
+
+// Open without stealing focus — used when a `vN >>` line auto-launches the window.
+function ensureVisualsOpen() {
+    if (_win && !_win.closed) return _win;
+    return _openWin();
+}
+function _openWin() {
     _win = window.open('visuals.html', 'crashdot-visuals',
                        'width=960,height=600,menubar=no,toolbar=no,location=no');
     chan();   // ensure the channel exists so posts reach the new window
     return _win;
 }
+
+// ── Visual-language layers (vN >> scene(...)) ────────────────────────────────
+// Post/update a visual layer. Auto-opens the window on the first layer (works
+// because eval runs inside the Ctrl+Enter user gesture; blocked posts are silently
+// dropped for remote/autoplay evals, and the user can open it with the ▦ button).
+export function postVLayer(name, layer) {
+    ensureVisualsOpen();
+    chan().postMessage({ t: 'vplayer', name, ...layer });
+}
+export function postVStop(name)  { if (_chan) chan().postMessage({ t: 'vstop', name }); }
+export function postVClear()     { if (_chan) chan().postMessage({ t: 'vclear' }); }
 
 // Tap the scsynth worklet output with an analyser (sc.node → analyser; the worklet
 // stays connected to the destination too, so this only *reads* the signal).

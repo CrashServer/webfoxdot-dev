@@ -34,7 +34,8 @@ let curHue = 0.5, hueTarget = 0.5;
 let flash = 0, pulse = 0, beatPulse = 0, glitch = 0, bigFlash = 0, calm = 0, bpmFlash = 0;
 let lastBeat = -1, editing = null;
 const codeLines = [];
-let mode = 'scenes';                              // 'scenes' (audio autopilot) | 'code' (per-player)
+let mode = 'scenes';                              // 'scenes' (audio autopilot) | 'code' (per-player) | 'live' (vN layers)
+const vlayers = new Map();                        // name → { scene, params, fx, born } — authored vN >> layers
 let lastMsgTs = 0;                                 // when the bridge last sent anything (connection status)
 const meta = { section: '', autoplay: false };    // active #@ section + autoplay
 let players = [];                                 // live snapshot from the bridge
@@ -151,6 +152,18 @@ chan.onmessage = (e) => {
     } else if (m.t === 'code') { onCode(m); }
     else if (m.t === 'instant') { const x = (m.text || '').trim(); editing = x ? { runs: tokenise(x), name: m.name || '', color: m.color || '' } : null; }
     else if (m.t === 'step') { pulse = 1; }
+    else if (m.t === 'vplayer') {      // authored visual layer — vN >> scene(...) + fx(...)
+        const cur = vlayers.get(m.name) || { params: {}, fx: {} };
+        vlayers.set(m.name, {
+            scene:  m.scene || cur.scene || null,
+            params: m.reset ? (m.params || {}) : { ...cur.params, ...(m.params || {}) },   // attrs inherit across evals (FoxDot-style); ~vN resets
+            fx:     m.reset ? (m.fx || {})     : { ...cur.fx, ...(m.fx || {}) },
+            born:   performance.now(),
+        });
+        mode = 'live';
+    }
+    else if (m.t === 'vstop')  { vlayers.delete(m.name); if (!vlayers.size && mode === 'live') mode = 'scenes'; }
+    else if (m.t === 'vclear') { vlayers.clear(); if (mode === 'live') mode = 'scenes'; }
     else if (m.t === 'players') {
         players = m.list || [];
         for (const pl of players) { const s = pmap[pl.name] || (pmap[pl.name] = { step: -1, pulse: 0 }); if (pl.step !== s.step) { s.step = pl.step; s.pulse = 1; } }
@@ -159,7 +172,7 @@ chan.onmessage = (e) => {
 
 // ── keys (optional overrides; touching one drops out of auto) ────────────────────
 addEventListener('keydown', (e) => {
-    if (e.key === 'm') { mode = mode === 'scenes' ? 'code' : 'scenes'; return; }
+    if (e.key === 'm') { const seq = ['scenes', 'code', 'live']; mode = seq[(seq.indexOf(mode) + 1) % seq.length]; return; }
     if (e.key === 'a') { auto = !auto; return; }
     if (e.key === ' ') { auto = false; startTransition((scene + 1) % SCENES.length); }
     else if (e.key === 'g') { glitch = 1.3; }
@@ -398,6 +411,80 @@ function drawPlayerCell(pl, x, y, w, h, t) {
     ctx.font = `${CELL}px monospace`;
 }
 
+// ── live mode: authored vN >> layers, resolved against the beat & blended ────────
+function sceneHue(n) { let h = 0; for (let i = 0; i < (n || '').length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return (h % 360) / 360; }
+// A patterned param [a,b,c] advances one step every `dur` beats (like a FoxDot pattern).
+function resolveParam(v, beat, dur) {
+    if (Array.isArray(v)) { const d = dur || 1, i = Math.floor(beat / d), el = v[((i % v.length) + v.length) % v.length]; return Array.isArray(el) ? el[0] : el; }
+    return v;
+}
+function layerColor(v, hue, bright) {
+    const h = ((hue * 360) + v * 50) % 360;
+    const l = Math.min(82, 12 + v * 62 * bright + beatPulse * 10 + pulse * 8 + flash * 8);
+    return `hsl(${h.toFixed(0)} 88% ${l.toFixed(0)}%)`;
+}
+function renderLiveLayer(layer, tsSec, beat) {
+    const name = layer.scene; if (!name) return;
+    const p = layer.params || {}, f = layer.fx || {};
+    const dur = Number(p.dur) || 1;
+    let hue = resolveParam(p.hue, beat, dur);
+    if (hue == null) hue = SCENE_HUE[name] != null ? SCENE_HUE[name] : sceneHue(name);
+    hue = Number(hue); hue = hue > 1 ? (hue / 360) % 1 : ((hue % 1) + 1) % 1;
+    const speed  = Number(resolveParam(p.speed,  beat, dur)) || 1;
+    const bright = Number(resolveParam(p.bright, beat, dur)) || 1;
+    const t = tsSec * speed * ((A.bpm || 120) / 120) * (0.6 + energy * 0.7);
+    if (POINT.has(name)) {
+        if (name === 'lissajous') {
+            const a = 2 + Math.floor(A.bass * 5), b = 3 + Math.floor(A.treble * 5), N = 900;
+            for (let i = 0; i < N; i++) { const th = i / N * Math.PI * 2; ctx.fillStyle = layerColor(0.5 + 0.5 * Math.sin(th * 3 + t), hue, bright); ctx.fillText('•', (Math.sin(a * th + t) * 0.45 + 0.5) * W, (Math.sin(b * th) * 0.45 + 0.5) * H); }
+        } else {
+            const a = -2.1 + Math.sin(t * 0.3) + A.bass, b = -2.0 + Math.cos(t * 0.21), c = -1.2 + A.mid, d = 2.0 - A.treble;
+            let xx = 0.1, yy = 0.1; const N = 1700;
+            for (let i = 0; i < N; i++) { const nx = Math.sin(a * yy) - Math.cos(b * xx); yy = Math.sin(c * xx) - Math.cos(d * yy); xx = nx; ctx.fillStyle = layerColor(0.35 + 0.65 * (i / N), hue, bright); ctx.fillText('·', (xx * 0.22 + 0.5) * W, (yy * 0.22 + 0.5) * H); }
+        }
+        return;
+    }
+    const post = Number(f.posterize) || 0, cw = W / cols, ch = H / rows;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        let v = fieldVal(name, x, y, t); if (v <= 0.06) continue;
+        if (post) v = Math.round(v * post) / post;
+        const g = RAMP[Math.min(RAMP.length - 1, Math.max(0, Math.floor(v * RAMP.length)))];
+        if (g === ' ') continue;
+        ctx.fillStyle = layerColor(v, hue, bright); ctx.fillText(g, x * cw, y * ch);
+    }
+}
+function renderLive(ts) {
+    const tsSec = ts / 1000, beat = A.beat || 0;
+    // post-FX are screen-wide: take the strongest value each frame across all layers
+    let pTrails = 0, pScan = 0, pVig = 0.15, pInvert = false;
+    for (const l of vlayers.values()) {
+        const f = l.fx || {};
+        if (f.trails > pTrails) pTrails = f.trails;
+        if (f.scan > pScan) pScan = f.scan;
+        if (f.vignette != null && f.vignette > pVig) pVig = f.vignette;
+        if (f.glitch) glitch = Math.max(glitch, f.glitch);
+        if (f.invert) pInvert = true;
+    }
+    ctx.fillStyle = `rgba(0,0,0,${0.06 + (1 - pTrails) * 0.94})`; ctx.fillRect(0, 0, W, H);   // trails → feedback
+    if (!vlayers.size) {
+        ctx.fillStyle = '#5a6a74'; ctx.font = '16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('live mode — write  v1 >> plasma()  in the editor', W / 2, H / 2);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `${CELL}px monospace`;
+    } else {
+        ctx.globalCompositeOperation = 'lighter';                 // layers stack additively (glow)
+        for (const l of vlayers.values()) renderLiveLayer(l, tsSec, beat);
+        ctx.globalCompositeOperation = 'source-over';
+    }
+    if (glitch > 0.05) applyGlitch();
+    if (pInvert) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }
+    if (pScan > 0.02) { fx.scan = pScan; drawScanlines(); }
+    if (pVig > 0.02 && vgrad) { ctx.globalAlpha = pVig; ctx.fillStyle = vgrad; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+    drawCode(ts);
+    drawTransport();
+    drawStatus(ts);
+    hud.textContent = `live  ·  ${vlayers.size} layer${vlayers.size === 1 ? '' : 's'}  ·  ${[...vlayers.keys()].join(' ') || '—'}  ·  ${A.bpm | 0} bpm  ·  [m] mode`;
+}
+
 // transport: active #@ section + a beat grid (bar phase) at the top — for performers
 function drawTransport() {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -447,6 +534,8 @@ function frame(ts) {
     flash = Math.max(flash, bpmFlash);
     if (sceneStart === 0) sceneStart = ts;
 
+    // live mode: authored vN >> visual layers, resolved & blended
+    if (mode === 'live') { renderLive(ts); return; }
     // code-truthful mode: a panel per active player, driven by its own degree/oct/fx
     if (mode === 'code') {
         const tt = ts / 1000 * ((A.bpm || 120) / 120);

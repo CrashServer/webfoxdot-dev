@@ -41,8 +41,7 @@
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
-      <!-- visuals pop-out hidden until the feature is ready -->
-      <button id="btn-visuals" title="pop out the audio + code reactive visuals window" style="display:none">▦</button>
+      <button id="btn-visuals" title="pop out the visuals window — reacts to audio &amp; code, and renders vN visual players (v1 &gt;&gt; plasma())">▦ visuals</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -56,6 +55,7 @@
         <button class="docs-tab" data-tab="patterns">Patterns</button>
         <button class="docs-tab" data-tab="functions">Functions</button>
         <button class="docs-tab" data-tab="guide">Guide</button>
+        <button class="docs-tab" data-tab="visuals">Visuals</button>
         <button class="docs-tab" data-tab="changelog">Changelog</button>
         <button id="docs-close">✕</button>
       </div>
@@ -223,7 +223,8 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, postCode, postStep, postInstant } from './js/visuals/bridge.js';
+    import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, postVClear } from './js/visuals/bridge.js';
+    import { visualBuilders, getVisualPlayer, isVisualName } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -289,7 +290,8 @@
         set(t, k, v) { t[k] = v; if (k === 'default') log(`Root.default = ${v}`, 'ok'); return true; }
     });
 
-    function __p(name) { return clock.getPlayer(name, Player); }
+    // vN player names (v1, v2, …) drive the visuals window, not the audio engine.
+    function __p(name) { return isVisualName(name) ? getVisualPlayer(name) : clock.getPlayer(name, Player); }
 
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;
@@ -403,7 +405,7 @@
             darker:  () => { SCALE_BRIGHT.step(1);  log(`Scale.default = ${JSON.stringify(Scale._name)}`, 'ok'); },
             lighter: () => { SCALE_BRIGHT.step(-1); log(`Scale.default = ${JSON.stringify(Scale._name)}`, 'ok'); },
             // shutup() — stop every player (and the jam bot). A softer panic.
-            shutup: () => { clock.clear(); if (_jamBot) _jamBot.stop(true); log('shutup — all players stopped', 'info'); },
+            shutup: () => { clock.clear(); if (_jamBot) _jamBot.stop(true); postVClear(); log('shutup — all players stopped', 'info'); },
             // swap(a, b, key) — swap one attribute between two named players live.
             // (FoxDot calls this `switch`, but that's a reserved word in JS.)
             swap: (aName, bName, key) => {
@@ -416,6 +418,8 @@
             cancelSection,
             __p,
             ...SYNTHS,
+            ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players
+
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,
             PEuclid, PEuclid2, PEuclidR, PRange, PStep, PSine, PTri,
@@ -1208,6 +1212,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             };
         }
     }
+
+    // ── Visuals pop-out — reactive scenes + the vN >> visual language ───────────
+    document.getElementById('btn-visuals').onclick = () => {
+        openVisuals();
+        log('visuals window opened — try  v1 >> plasma(hue=.6)  ·  v1.stop()', 'info');
+    };
 
     // ── Load the default sample pack (webfoxdot-kit) from GitHub, one click ──────
     const DEFAULT_KIT_URL = 'https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json';

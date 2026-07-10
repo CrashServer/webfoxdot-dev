@@ -898,6 +898,8 @@ body.zen #docs-panel { display: none !important; }
     border-bottom: 1px solid var(--border-1);
     margin-bottom: 4px;
 }
+.docs-p { margin: 8px 0; line-height: 1.55; color: var(--text-2); font-size: 13px; }
+.docs-p code { color: var(--text-1); }
 
 /* Synths grid */
 .docs-synth {
