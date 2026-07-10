@@ -168,7 +168,9 @@ let   monAt       = Date.now();
 let   liveCpuPct  = 0;
 
 function roomMetaFor(slug) {
-    if (!roomMeta.has(slug)) roomMeta.set(slug, { createdAt: Date.now(), evals: 0, lastEval: null });
+    // listed:true → the jam shows in the galaxy's public /sessions feed. A client can
+    // flip it to false ('listing' message) to make the room unlisted (link-only).
+    if (!roomMeta.has(slug)) roomMeta.set(slug, { createdAt: Date.now(), evals: 0, lastEval: null, listed: true });
     return roomMeta.get(slug);
 }
 function sseBroadcast(event, data) {
@@ -203,6 +205,7 @@ function publicSessions() {
     // Iterate roomMeta so DORMANT (emptied) sessions are still listed, decaying, until
     // their TTL — the galaxy shows them fading and they can be rejoined.
     for (const [slug, m] of roomMeta) {
+        if (m.listed === false) continue;                    // unlisted — link-only, hidden from the galaxy
         const clients = (rooms.get(slug) && rooms.get(slug).size) || 0;
         const dormant = clients === 0;
         const decayMs = dormant && m.emptiedAt ? now - m.emptiedAt : 0;
@@ -579,6 +582,12 @@ wss.on('connection', (ws, req) => {
                 break;
             case 'eval':      stats.msgs.eval++;      stats.bytesOut += Buffer.byteLength(str) * broadcast(slug, ws, str); recordEval(slug, msg); break;
             case 'beat_sync': stats.msgs.beat_sync++; stats.bytesOut += Buffer.byteLength(str) * broadcast(slug, ws, str); break;
+            case 'listing': {  // room-level galaxy visibility (shared via the Yjs doc; clients report it here)
+                const m = roomMetaFor(slug); const was = m.listed;
+                m.listed = msg.listed !== false;
+                if (was !== m.listed) { console.log(`[listing] ${slug} → ${m.listed ? 'listed' : 'unlisted'}`); pushState(); }
+                break;
+            }
             default:          stats.msgs.other++;     stats.bytesOut += Buffer.byteLength(str) * broadcast(slug, ws, str);
         }
     });

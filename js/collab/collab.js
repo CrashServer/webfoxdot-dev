@@ -20,7 +20,7 @@ function randomColor() {
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -31,6 +31,10 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     const ydoc     = new Y.Doc();
     const provider = new WebsocketProvider(wsBase, sessionSlug, ydoc);
     const ytext    = ydoc.getText('code');
+    // Room settings shared across all peers (persists in the doc, survives reloads).
+    // `listed` (default true) controls galaxy visibility — see setListed/reportListing.
+    const ymeta    = ydoc.getMap('meta');
+    const isListed = () => ymeta.get('listed') !== false;
     // Scoped per-user undo: a Y.UndoManager so Ctrl-Z reverts only YOUR edits, not a
     // collaborator's (y-codemirror wires CM undo/redo to it when passed).
     const undoManager = new Y.UndoManager(ytext);
@@ -180,6 +184,24 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         setTimeout(electBeatMaster, 500);
     });
 
+    // ── Galaxy listing (listed / unlisted) — a shared room setting ────────────
+    // Stored in the Yjs doc so every peer agrees and it survives reloads; each client
+    // reports the SYNCED value to the collab server, which filters unlisted rooms out
+    // of the public /sessions feed. We only report once the doc has synced, so a fresh
+    // joiner can't momentarily re-list a private room with the default `true`.
+    let _docSynced = provider.synced || false;
+    function reportListing() {
+        if (_docSynced && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'listing', listed: isListed() }));
+        }
+    }
+    function setListed(v) { ymeta.set('listed', !!v); }   // syncs → observer reports + notifies UI
+    const _onSynced = () => { _docSynced = true; reportListing(); onListing?.(isListed()); };
+    provider.on('sync', _onSynced);
+    provider.on('synced', _onSynced);
+    ymeta.observe(() => { reportListing(); onListing?.(isListed()); });
+    ws.addEventListener('open', reportListing);
+
     // Re-elect if someone leaves
     provider.awareness.on('change', electBeatMaster);
 
@@ -240,11 +262,12 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         window.removeEventListener('beforeunload', _onBeforeUnload);
         try { provider.awareness.off('change', electBeatMaster); } catch (_) {}
         try { provider.awareness.off('change', _onPeersChange); } catch (_) {}
+        try { provider.off('sync', _onSynced); provider.off('synced', _onSynced); } catch (_) {}
         ws.close();
         binding.destroy();
         provider.destroy();
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setUser, getPeers, sendChat, getClockOffset, destroy };
+    return { broadcastEval, broadcastAction, setUser, getPeers, sendChat, getClockOffset, isListed, setListed, destroy };
 }

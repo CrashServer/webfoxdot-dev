@@ -120,6 +120,7 @@
 
     <div class="cp-section" id="cp-session">
       <h3>Session</h3>
+      <button id="btn-listing" class="listing-toggle" hidden>🌐 listed in galaxy</button>
       <div id="user-box" title="your name &amp; colour — shown to others in this session">
         <input type="color" id="user-color" title="your cursor colour">
         <input type="text" id="user-name" maxlength="24" placeholder="your name" spellcheck="false">
@@ -1955,14 +1956,38 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             const s = JSON.parse(localStorage.getItem('wfd-seed') || 'null');
             if (s && s.slug === _sessionSlug) { _seedText = s.code; localStorage.removeItem('wfd-seed'); }
         } catch (_) {}
+        // Galaxy listing toggle — listed (public, in the galaxy) vs unlisted (link-only).
+        const listBtn = document.getElementById('btn-listing');
+        let _lastListed = null;
+        const renderListing = (listed) => {
+            listBtn.hidden = false;
+            listBtn.textContent = listed ? '🌐 listed in galaxy' : '🔒 unlisted · link-only';
+            listBtn.title = listed
+                ? 'anyone can find & join this jam from the galaxy — click to make it link-only'
+                : 'hidden from the galaxy; only people with the link can join — click to list it';
+            listBtn.classList.toggle('is-private', !listed);
+            // A peer flipped it (not our own click, which logs below) → note the change.
+            if (_lastListed !== null && _lastListed !== listed)
+                log(listed ? 'this jam is now listed in the galaxy' : 'this jam is now unlisted (link-only)', 'info');
+            _lastListed = listed;
+        };
+        listBtn.onclick = () => {
+            if (!_collab) return;
+            const next = !_collab.isListed();
+            _collab.setListed(next);
+            renderListing(next);
+            log(next ? 'listed — this jam now appears in the galaxy' : 'unlisted — hidden from the galaxy, share the link to invite', 'success');
+        };
+
         initCollab(_sessionSlug, clock, editor, (msg) => {
             // Peer eval received — flash lines and run without re-broadcasting
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
             runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color });
-        }, applyAction, renderPeers, appendChat, _seedText).then(collab => {
+        }, applyAction, renderPeers, appendChat, _seedText, renderListing).then(collab => {
             _collab = collab;
+            renderListing(collab.isListed());
             log(`Session ready. Share: ${location.href}`, 'ok');
         }).catch(err => {
             log(`Collab failed: ${err.message}`, 'error');

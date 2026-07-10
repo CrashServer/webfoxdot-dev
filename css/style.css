@@ -244,6 +244,19 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 #load-meter.mid { color: var(--yellow); }
 #load-meter.hi  { color: var(--red); }
 
+/* Galaxy listing toggle — listed (public) vs unlisted (link-only) */
+.listing-toggle {
+    display: block; width: 100%; margin-bottom: 8px;
+    padding: 5px 8px; font: inherit; font-size: 12px; text-align: left;
+    background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-2); border-radius: 5px; cursor: pointer;
+}
+.listing-toggle:hover { border-color: var(--green, #63b982); }
+.listing-toggle.is-private {
+    background: color-mix(in srgb, var(--bg-1) 82%, #b08300 18%);
+    border-color: color-mix(in srgb, var(--border-2) 55%, #c99a00 45%);
+}
+
 /* User identity — lives in the sidebar Session section */
 #user-box { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 #user-name {
