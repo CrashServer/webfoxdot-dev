@@ -55,6 +55,34 @@
     --cm-def:      #ffff00;
 }
 
+/* Nova — a beta-01 celebration: indigo night, gold + aurora-teal + rose. */
+:root.nova {
+    --bg-1:        #0b0a1e;
+    --bg-2:        #141230;
+    --bg-3:        #1d1a44;
+    --border-1:    #322a5e;
+    --border-2:    #ffcf6b;
+    --text-1:      #f4ecff;
+    --text-2:      #a99fd6;
+    --green:       #5ff0c8;
+    --green-dim:   rgba(95,240,200,0.16);
+    --glow:        rgba(255,207,107,0.4);
+    --blue:        #7cc4ff;
+    --yellow:      #ffd76b;
+    --red:         #ff6b9d;
+    --purple:      #c9a0ff;
+    --orange:      #ff9e64;
+    --flash-col:   rgba(255,207,107,0.3);
+    --synth-col:   #5ff0c8;
+    --pattern-col: #c9a0ff;
+    --timevar-col: #ffd76b;
+    --keyword-col: #7cc4ff;
+    --cm-keyword:  #ff6b9d;
+    --cm-number:   #7cc4ff;
+    --cm-string:   #5ff0c8;
+    --cm-def:      #ffd76b;
+}
+
 :root.synthwave {
     --bg-1:        #241734;
     --bg-2:        #2b1d44;

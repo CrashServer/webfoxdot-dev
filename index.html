@@ -31,9 +31,11 @@
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥 go live</button>
-      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌 galaxy</button>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
+      <!-- right cluster: galaxy · examples · docs · split · zen — kept together so they
+           wrap as one group onto the second row on narrow windows -->
+      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌 galaxy</button>
       <div id="examples-dd">
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
         <div id="examples-pop" hidden></div>
@@ -121,7 +123,8 @@
 
     <div class="cp-section" id="cp-session">
       <h3>Session</h3>
-      <button id="btn-listing" class="listing-toggle" hidden>🌐 listed in galaxy</button>
+      <!-- unlisted/private sessions: hidden for now (all sessions stay listed) -->
+      <button id="btn-listing" class="listing-toggle" hidden style="display:none">🌐 listed in galaxy</button>
       <div id="user-box" title="your name &amp; colour — shown to others in this session">
         <input type="color" id="user-color" title="your cursor colour">
         <input type="text" id="user-name" maxlength="24" placeholder="your name" spellcheck="false">
@@ -159,6 +162,7 @@
       <h3>Settings</h3>
       <select class="cp-select" id="theme-select">
         <option value="dark">Dark</option>
+        <option value="nova">Nova ✨</option>
         <option value="cyberpunk">Cyberpunk</option>
         <option value="synthwave">Synthwave</option>
         <option value="terminal">Terminal</option>
@@ -1437,9 +1441,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }
     });
 
+    // Version prefix glyph: β for beta releases, α for alpha (derived from VERSION).
+    const _verGlyph = /^beta/i.test(VERSION) ? 'β' : /^alpha/i.test(VERSION) ? 'α' : '';
+    const _verLabel = _verGlyph + VERSION.replace(/[^0-9]/g, '');   // "beta01" → "β01"
+
     // ── About card ────────────────────────────────────────────────────────────
     const aboutOverlay = document.getElementById('about-overlay');
-    document.getElementById('about-version').textContent = 'α' + VERSION.replace(/[^0-9]/g, '');
+    document.getElementById('about-version').textContent = _verLabel;
     const openAbout  = () => { aboutOverlay.hidden = false; };
     const closeAbout = () => { aboutOverlay.hidden = true; };
     document.getElementById('btn-about').onclick = openAbout;
@@ -1449,7 +1457,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // Version label → derived from docs VERSION; click opens the changelog
     const vtag = document.getElementById('version-tag');
-    vtag.textContent = 'α' + VERSION.replace(/[^0-9]/g, '');   // "alpha07" → "α07"
+    vtag.textContent = _verLabel;   // "beta01" → "β01"
     vtag.title = VERSION + ' — changelog';
     vtag.onclick = () => openDocs('changelog');
 
