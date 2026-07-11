@@ -456,6 +456,14 @@
             start_guided_tour: () => { if (_tour) _tour.start(); return '▸ starting the guided tour…'; },
             next: () => { if (_tour) _tour.next(); },
             back: () => { if (_tour) _tour.back(); },
+            // tour()  lists every lesson · tour(n)  jumps straight to lesson n.
+            tour: (n) => {
+                if (!_tour) return;
+                if (n != null && Number(n) >= 1) { _tour.go(n); return; }
+                const items = _tour.list();
+                log(`guided tour — ${items.length} lessons · evaluate  tour(n)  to jump to one:`, 'info');
+                items.forEach(l => log(`  ${String(l.n).padStart(2)}.  ${l.title}`, 'info'));
+            },
             __p,
             ...SYNTHS,
             ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players

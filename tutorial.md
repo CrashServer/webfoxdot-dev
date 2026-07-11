@@ -114,11 +114,15 @@ Lines that are intentionally incomplete (e.g. the autocomplete lesson's bare
 
 - **`js/ui/tour.js`** exports `initTour(editor)` → `{ start, next, back }`.
 - **`index.html`** creates the tour after the editor (`_tour = initTour(editor)`),
-  wires the **tour** button to `_tour.start()`, and puts three functions in the eval
-  scope so lessons can drive it:
+  wires the **tour** button to `_tour.start()`, and puts these functions in the eval
+  scope so lessons/learners can drive it:
   - `start_guided_tour()` → `_tour.start()` (also sits in the default buffer)
-  - `next()` → `_tour.next()`
-  - `back()` → `_tour.back()`
+  - `next()` → `_tour.next()` · `back()` → `_tour.back()`
+  - `tour()` → logs the full lesson menu · `tour(n)` → `_tour.go(n)` jumps to lesson n
+- `initTour(editor)` returns `{ start, next, back, list, go }`. `list()` gives
+  `[{ n, title }]` (used by `tour()` to print the menu); `go(n)` jumps to a lesson.
+  Each `LESSONS` entry is now `{ n, title, text }` — so if you add/remove a lesson,
+  the menu and jumping stay correct automatically (just keep `n`/`TOTAL` right).
 
 Pressing tour / `start_guided_tour()` **replaces** the editor buffer with Lesson 1
 (the running sound keeps playing; **Ctrl+Z** restores the previous buffer if pressed

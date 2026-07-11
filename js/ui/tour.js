@@ -24,12 +24,13 @@ function lesson(n, title, body) {
     const nav = last
         ? `#  you've finished the tour! 🎉   evaluate   back()   to revisit any lesson.`
         : `#  ▶ evaluate   next()   for the next lesson        ·        back()   to go back`;
-    return `${head}
+    const text = `${head}
 ${body}
 
 ${DIV}
 ${nav}
 ${DIV}${last ? '' : '\nnext()'}`;
+    return { n, title, text };
 }
 
 const LESSONS = [
@@ -41,8 +42,8 @@ const LESSONS = [
 #   • Read the # comment lines.
 #   • Run the  ▶  example lines: put the cursor on the line, press Ctrl+Enter.
 #   • When ready, evaluate  next()  (bottom of each lesson) to continue.
-#     back()  goes back a lesson. Your sounds keep playing as you move on —
-#     press  Ctrl+;  any time to stop everything.
+#     back()  goes back ·  tour()  lists every lesson ·  tour(5)  jumps to lesson 5.
+#     Your sounds keep playing as you move on — press  Ctrl+;  to stop everything.
 #
 # FIRST: click  ▸ boot  (top-left) to start the audio engine.
 # Then put the cursor on the  next()  line below and press Ctrl+Enter.`),
@@ -339,11 +340,20 @@ let editor = null, idx = 0, active = false;
 
 export function initTour(_editor) {
     editor = _editor;
-    return { start, next, back, isActive: () => active, notify() {} };
+    return { start, next, back, list, go, isActive: () => active, notify() {} };
+}
+
+// [{ n, title }] for every lesson — for tour() to print a menu.
+function list() { return LESSONS.map(l => ({ n: l.n, title: l.title })); }
+// Jump straight to lesson n (1-based), starting the tour there if needed.
+function go(n) {
+    const i = Math.round(Number(n)) - 1;
+    if (i >= 0 && i < LESSONS.length) { active = true; idx = i; show(); }
+    return '';
 }
 
 function show() {
-    const text = LESSONS[idx];
+    const text = LESSONS[idx].text;
     editor.setValue(text);
     // Drop the cursor on the first runnable line (the ▶ example) so Ctrl+Enter works
     // right away; if the lesson has no example, land on next()/back().
