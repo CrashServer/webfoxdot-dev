@@ -210,8 +210,8 @@ export const VERSION = 'beta01';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'beta01', title: 'Beta! · new Nova theme · offline PWA · zoomable galaxy', items: [
-        'New Nova theme — a cosmic celebration palette (indigo night, gold + aurora-teal + rose) to mark the beta. Pick it in Settings ▸ Theme.',
+    { v: 'beta01', title: 'Beta! · 3 new themes · offline PWA · zoomable galaxy', items: [
+        'Three new themes (Settings ▸ Theme): Nova — a cosmic beta-celebration palette (indigo night · gold · aurora-teal · rose); Hacker — pure-black matrix green with a phosphor glow; Brutalist — stark monochrome + one acid-yellow accent, zero rounding and raw blocky borders.',
         'Go offline — crashDot is now a Progressive Web App: install it from your browser (Chrome/Edge: the install icon in the address bar · iPhone/iPad: Share → Add to Home Screen) and it boots and plays with NO connection at all. The engine, every synth/FX, and the examples are cached; load the sample kit once online and it comes offline too. Only live multiplayer + the shared galaxy need a connection — solo coding never does.',
         'Galaxy scales to thousands — jams now sit on a stable spiral (each holds its spot for its lifetime, none overlap, no more central pile-up), and the map is fully zoomable & pannable: scroll to zoom, drag to pan, ⌂ to reset. Labels thin out as you zoom past a crowd and reappear as you zoom in, so a busy galaxy stays readable.',
         'New synth: ikea — CrashServer\'s generative glitch-percussion machine. One note spawns a self-generating texture (glitch bursts, sub sines, noise, a swept bass, snare, a resonant melody). Play it long: p1 >> ikea(dur=8, sus=8). Rebuilt on WASM-safe UGens with musical controls: density, per-layer levels (glitch/noise/bass/tone/snare), bright, harm.',

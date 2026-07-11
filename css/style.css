@@ -166,6 +166,73 @@
     --cm-def:      #8a5a1e;   /* sienna — distinct from string green */
 }
 
+/* Hacker — pure black, electric matrix green, neon cyan, alert red. Phosphor glow. */
+:root.hacker {
+    --bg-1:        #000000;
+    --bg-2:        #010a01;
+    --bg-3:        #021302;
+    --border-1:    #0d3d0d;
+    --border-2:    #00ff41;
+    --text-1:      #00ff41;
+    --text-2:      #06a828;
+    --green:       #00ff41;
+    --green-dim:   rgba(0,255,65,0.14);
+    --glow:        rgba(0,255,65,0.55);
+    --blue:        #00e5ff;
+    --yellow:      #d6ff00;
+    --red:         #ff003c;
+    --purple:      #64ff8f;
+    --orange:      #ff6a00;
+    --flash-col:   rgba(0,255,65,0.25);
+    --synth-col:   #00ff41;
+    --pattern-col: #00e5ff;
+    --timevar-col: #d6ff00;
+    --keyword-col: #ff003c;
+    --cm-keyword:  #ff003c;
+    --cm-number:   #00e5ff;
+    --cm-string:   #7dff9e;
+    --cm-def:      #00ff41;
+}
+/* signature: phosphor glow on the wordmark, beat readout and active player names */
+:root.hacker .title,
+:root.hacker #cp-beat { text-shadow: 0 0 7px var(--glow), 0 0 2px var(--glow); }
+:root.hacker .fd-player { text-shadow: 0 0 5px var(--glow); }
+
+/* Brutalist — raw, stark, blocky. Monochrome + one loud accent, zero rounding. */
+:root.brutalist {
+    --bg-1:        #0c0c0c;
+    --bg-2:        #161616;
+    --bg-3:        #202020;
+    --border-1:    #4a4a4a;
+    --border-2:    #ededed;
+    --text-1:      #ededed;
+    --text-2:      #8a8a8a;
+    --green:       #ededed;              /* monochrome — UI "green" goes stark white */
+    --green-dim:   rgba(237,237,237,0.12);
+    --glow:        rgba(0,0,0,0);        /* brutalism does not glow */
+    --blue:        #ededed;
+    --yellow:      #ffee00;              /* the ONE loud accent */
+    --red:         #ff2200;
+    --purple:      #ededed;
+    --orange:      #ffee00;
+    --flash-col:   rgba(255,238,0,0.22);
+    --synth-col:   #ffee00;              /* code reads white / acid-yellow / red on black */
+    --pattern-col: #ededed;
+    --timevar-col: #ff2200;
+    --keyword-col: #ffee00;
+    --cm-keyword:  #ffee00;
+    --cm-number:   #ededed;
+    --cm-string:   #8a8a8a;
+    --cm-def:      #ffee00;
+}
+/* signature: no rounded corners, thicker raw borders, no soft glow */
+:root.brutalist button, :root.brutalist input, :root.brutalist select,
+:root.brutalist textarea, :root.brutalist .cp-section, :root.brutalist #crash-panel,
+:root.brutalist #toolbar, :root.brutalist .listing-toggle, :root.brutalist #docs-panel,
+:root.brutalist .cp-select, :root.brutalist #bpm-input { border-radius: 0 !important; }
+:root.brutalist button, :root.brutalist .cp-btn, :root.brutalist input, :root.brutalist select { border-width: 2px !important; }
+:root.brutalist .title { text-shadow: none !important; letter-spacing: 1px; }
+
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
