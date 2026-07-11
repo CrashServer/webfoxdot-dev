@@ -224,7 +224,7 @@
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
     import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
-    import { visualBuilders, getVisualPlayer, isVisualName, clearAll as clearVisuals } from './js/visuals/vlang.js';
+    import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -291,8 +291,32 @@
         set(t, k, v) { t[k] = v; if (k === 'default') log(`Root.default = ${v}`, 'ok'); return true; }
     });
 
-    // vN player names (v1, v2, …) drive the visuals window, not the audio engine.
-    function __p(name) { return isVisualName(name) ? getVisualPlayer(name) : clock.getPlayer(name, Player); }
+    // Audio vs video is decided by the RIGHT-HAND SIDE, never the player name — so
+    // ANY name works for either:  v3 >> a_hhat(...) makes sound · v3 >> plasma() shows
+    // video · p1 >> tunnel() shows video too. A visual scene/mix/fx evaluates to a
+    // VSpec; anything else (a synth call) is audio. Switching a name between the two
+    // stops its old role first, so it never plays twice.
+    const _visualNames = new Set();
+    const _isVisualSpec = (s) => !!(s && (s instanceof VSpec || s.isMix));
+    function __p(name) {
+        const current = () => (_visualNames.has(name) ? getVisualPlayer(name) : clock.getPlayer(name, Player));
+        return new Proxy({}, {
+            get(_t, prop) {
+                if (prop === '__rshift__') return (spec, reset) => {
+                    if (_isVisualSpec(spec)) {
+                        if (!_visualNames.has(name)) { const ap = clock._players.get(name); if (ap) ap.stop(); }  // audio → video
+                        _visualNames.add(name);
+                        return getVisualPlayer(name).__rshift__(spec, reset);
+                    }
+                    if (_visualNames.has(name)) { getVisualPlayer(name).stop(); _visualNames.delete(name); }       // video → audio
+                    return clock.getPlayer(name, Player).__rshift__(spec, reset);
+                };
+                const target = current();
+                const v = target[prop];
+                return typeof v === 'function' ? v.bind(target) : v;
+            },
+        });
+    }
 
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;

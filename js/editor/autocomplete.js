@@ -283,9 +283,8 @@ function getContext(cm) {
     // p1.pen both offer player methods (a `)`/`]` before the dot used to fall through).
     if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.$/))    return { type: 'method', word: '' };
     if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.\w+$/)) return { type: 'method', word };
-    // `name >> ` — a vN player offers visual scenes, everything else offers synths.
-    const shiftM = before.match(/([a-zA-Z_]\w*)\s*>>\s*[a-zA-Z_]*$/);
-    if (shiftM) return { type: /^v\d+$/.test(shiftM[1]) ? 'vscene' : 'synth', word };
+    // `name >> ` — any player can be audio (a synth) OR video (a scene); offer both.
+    if (before.match(/[a-zA-Z_]\w*\s*>>\s*[a-zA-Z_]*$/)) return { type: 'synth', word };
     const scaleM = before.match(/Scale\s*\.\s*default\s*=\s*["']([a-zA-Z]*)$/);
     if (scaleM) return { type: 'scale', word: scaleM[1] };
 
@@ -439,15 +438,11 @@ function hintFn(cm) {
         // Picking a synth inserts the full call (all params); play() opens parens.
         // Synths are grouped into families (bass/lead/keys/…) so the list is
         // browsable; typing filters across all of them (dropEmptySeps prunes).
-        list = [playItem(), ...synthFamilyList()];
-        list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
-    } else if (ctx.type === 'vscene') {
-        // vN >> — visual scenes, the crossfader, and fx (chained with +)
-        list = [
-            sep('— scenes —'), ...VSCENES.map(n => item(n + '()', 'hint-synth', n)),
-            sep('— mixer —'),  item('mix()', 'hint-keyword', 'mix'),
-            sep('— fx (+ chain) —'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n)),
-        ];
+        // Audio synths (grouped by family) + a visuals category (scenes/mixer/fx) —
+        // any player can be either; the RHS you pick decides.
+        list = [playItem(), ...synthFamilyList(),
+            sep('visuals'), ...VSCENES.map(n => item(n + '()', 'hint-synth', n)),
+            item('mix()', 'hint-keyword', 'mix'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
         list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
     } else if (ctx.type === 'vparam') {
         const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;
