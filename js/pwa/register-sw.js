@@ -67,30 +67,57 @@
         });
     });
 
-    // ── Install prompt → an "install" chip ──────────────────────────────────
+    // ── Install — ALWAYS offer the affordance (the site tells people to click it) ──
+    // Chrome/Edge over HTTPS(or localhost) fire `beforeinstallprompt` → one-click
+    // install. Firefox/Safari/plain-http never fire it, so the button would silently
+    // never appear. Instead we always show it (unless already installed) and, when
+    // there's no native prompt, explain the manual path.
     let deferred = null;
     const standalone = () =>
         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferred = e;
-        if (standalone()) return;
+    function installHint() {
+        let tip = document.getElementById('pwa-install-tip');
+        if (tip) { tip.remove(); return; }
+        const secure = location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
+        tip = document.createElement('div');
+        tip.id = 'pwa-install-tip';
+        tip.style.cssText = 'position:fixed;top:46px;right:12px;max-width:310px;z-index:9999;background:#0d1512;color:#c8d6cd;'
+            + 'border:1px solid #1f4d2b;border-radius:8px;padding:12px 14px;font:12px/1.55 monospace;box-shadow:0 8px 28px rgba(0,0,0,.55)';
+        tip.innerHTML = '<b style="color:#63b982">Install crashDot</b><br>'
+            + (secure ? '' : '⚠ Install needs <b>HTTPS</b> (or localhost). This page is plain http, so browsers won\'t offer it.<br><br>')
+            + '<b>Chrome / Edge</b> — the ⊕ / install icon in the address bar, or ⋮ menu → “Install crashDot…”.<br>'
+            + '<b>iPhone / iPad</b> — Share → Add to Home Screen.<br>'
+            + '<b>Firefox</b> — no app install, but it still runs offline in the browser.'
+            + '<div style="text-align:right;margin-top:9px"><button id="pwa-tip-x" style="padding:2px 9px">got it</button></div>';
+        document.body.appendChild(tip);
+        document.getElementById('pwa-tip-x').onclick = () => tip.remove();
+    }
+
+    function showInstall() {
+        if (standalone()) return;                 // already installed → nothing to do
         const btn = chip('btn-install', '⬇ install', 'Install crashDot as an app — runs offline');
         if (!btn) return;
         btn.style.display = '';
         btn.onclick = async () => {
-            if (!deferred) return;
-            btn.disabled = true;
-            deferred.prompt();
-            try { await deferred.userChoice; } catch (_) {}
-            deferred = null;
-            btn.remove();
+            if (deferred) {                        // native one-click install available
+                btn.disabled = true;
+                deferred.prompt();
+                try { await deferred.userChoice; } catch (_) {}
+                deferred = null; btn.disabled = false;
+            } else {
+                installHint();                     // explain the manual path
+            }
         };
-    });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; showInstall(); });
     window.addEventListener('appinstalled', () => {
         deferred = null;
-        const btn = document.getElementById('btn-install');
-        if (btn) btn.remove();
+        const btn = document.getElementById('btn-install'); if (btn) btn.remove();
+        const tip = document.getElementById('pwa-install-tip'); if (tip) tip.remove();
     });
+    // Surface it immediately, without waiting for a prompt event that may never come.
+    if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', showInstall);
+    else showInstall();
 })();
