@@ -1880,6 +1880,88 @@ v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime
 #@end(16)`)}
     `, 'shorelines');
 
+    const flickering = section('Flickering Streets at Dawn — svdk', `
+        ${note('A long dark <code>#@</code> set by <b>svdk</b> — detuned <code>synthbass</code> arps drifting through root &amp; scale changes, then an andalusian <code>darkpad</code> with rich <code>cs80</code> chords (<code>PRoman</code> / <code>PProg</code>) and a slow unwind to a lone <code>cs80</code>. Boot audio, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through the whole arrangement.')}
+        ${code(`#flickering streets at dawn
+#svdk
+Clock.bpm = 120
+
+#@intro(20)
+Root.default = "F"
+ld >> synthbass(arp([0, 3, <3, 7>, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=2, drive=1.3, echo=0.3, echo_time=0.375, pan=<-0.4 0.4>, amp=0.45).every(8, "shuffle").unison(3)
+
+#@synth(32)
+b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), res=0.42, fenv=4, drive=1.7, pumper=0.7).unison(5)
+
+#@rootchange(24)
+Root.default = "C"
+ld >> synthbass(arp([0, 3, 7, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=4, drive=1.3, echo=0.3, echo_time=0.375, pan=<-0.4 0.4>, amp=0.45).every(8, "shuffle").unison(3)
+
+
+
+#@varyingroot(16)
+Root.default = var(["E", "G", "E#", "A"])
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), res=0.4, fenv=3, drive=0.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
+
+#@tweakb4(8)
+b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), res=0.42, fenv=8, drive=1.7, pumper=0.7).unison(5)
+
+#@masteroctave(16)
+b4.oct=3
+ld.oct=3
+b1.oct=4
+
+#@follow(24)
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), res=0.4, fenv=3, drive=1.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
+
+#@padding(16)
+Scale.default = "minor"
+Root.default = "C"
+pad >> darkpad(PProg("andalusian"), oct=4, dur=4, sus=4, attack=1.6, amp=0.4, cutoff=sinvar([500, 2200], [16]), res=0.3, reverb=0.6, room=0.9, chorus=0.5)
+ld.stop()
+key >> cs80(PRoman("i9 VII VI7 V"), oct=6, dur=4, sus=3.5, amp=0.2, attack=1.2, lpf=3200, res=0.2, reverb=0.5, chorus=0.4)
+top >> pluck(PContour("wave", 8, 7), oct=5, dur=1/2, sus=0.3, amp=0.24, echo=0.3, echo_time=0.375, lpf=sinvar([1800, 6000], [8]), pan=<-0.3 0.3>)
+
+#@part10(8)
+bs >> synthbass([0, 6, 5, 4], oct=5, dur=4, sus=2, detune=0.3, cutoff=linvar([400, 1300], [16]), res=0.4, fenv=3, drive=1.5, amp=0.5).unison(3)
+
+#@part11(4)
+b4.oct=3
+b1.oct=2
+pad.oct=2
+
+#@part12(12)
+key >> cs80(PRoman("i VI III VII"), drive=0.5, tanh=1, amp=1)
+
+#@part13(8)
+key >> cs80(PRoman("i iv VI v7 III VII iv V"), oct=5, dur=2)
+
+#@part14(16)
+pad >> darkpad(PProg("minor"))
+top >> pluck(arp([0,2,4,6], "updown", 2), oct=(4, 5), dur=1/4)
+
+#@part15(16)
+b4.stop()
+pad.stop()
+
+#@part16(16)
+b1.stop()
+
+#@part17(16)
+key.only()
+
+#@part18(12)
+top.stop()
+
+#@part19(12)
+bs.stop()
+
+#@part20(16)
+key.stop()
+
+#@end(16)`)}
+    `, 'flickering');
+
     // Grouped into COLLAPSIBLE categories, with a table-of-contents overview at
     // the top (the page got long). Each category is a <div class="docs-catgroup">
     // whose header (.docs-cat-toggle) folds its .docs-catbody; all but the first
@@ -1907,7 +1989,7 @@ v9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, shorelines, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [rise, shorelines, flickering, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
