@@ -40,6 +40,7 @@
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
         <div id="examples-pop" hidden></div>
       </div>
+      <button id="btn-tour" title="guided tour — learn live coding from scratch">🎓 tour</button>
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
@@ -1249,6 +1250,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             };
         }
     }
+
+    // ── Guided tour — launch the beginner walkthrough ───────────────────────────
+    document.getElementById('btn-tour').onclick = () => { if (_tour) _tour.start(); };
 
     // ── Visuals pop-out — reactive scenes + the vN >> visual language ───────────
     document.getElementById('btn-visuals').onclick = () => {
