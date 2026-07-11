@@ -2171,5 +2171,5 @@ function show() {
 }
 
 function start() { active = true; idx = 0; show(); }
-function next() { if (!active) return ''; if (idx < LESSONS.length - 1) { idx++; show(); } return ''; }
+function next() { if (!active) return ''; if (idx < lessons().length - 1) { idx++; show(); } return ''; }
 function back() { if (!active) return ''; if (idx > 0) { idx--; show(); } return ''; }
