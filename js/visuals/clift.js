@@ -494,6 +494,8 @@ function cellColor(v, hue, bright, palName) {
 function renderLiveLayer(g2, layer, tsSec) {
     const name = layer.scene; if (!name) return;
     const p = layer.params || {}, f = layer.fx || {};
+    const alpha = p.alpha != null ? Math.max(0, Math.min(1, Number(p.alpha))) : 1;
+    if (alpha <= 0) return;
     let hue = p.hue;
     if (hue == null) hue = SCENE_HUE[name] != null ? SCENE_HUE[name] : sceneHue(name);
     hue = Number(hue); hue = hue > 1 ? (hue / 360) % 1 : ((hue % 1) + 1) % 1;
@@ -502,7 +504,8 @@ function renderLiveLayer(g2, layer, tsSec) {
     const palName = p.pal || vstate.palette || null;
     const ramp = RENDER_MODES[p.mode || vstate.mode] || RAMP;
     const t = tsSec * speed * ((A.bpm || 120) / 120) * (0.6 + energy * 0.7);
-    if (POINT.has(name)) { renderPointScene(g2, name, t, hue, bright, palName); return; }
+    const prevA = g2.globalAlpha; g2.globalAlpha = prevA * alpha;
+    if (POINT.has(name)) { renderPointScene(g2, name, t, hue, bright, palName); g2.globalAlpha = prevA; return; }
     const post = Number(f.posterize) || 0, cw = W / cols, ch = H / rows;
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
         let v = fieldVal(name, x, y, t); if (v <= 0.06) continue;
@@ -511,6 +514,7 @@ function renderLiveLayer(g2, layer, tsSec) {
         if (gch === ' ') continue;
         g2.fillStyle = cellColor(v, hue, bright, palName); g2.fillText(gch, x * cw, y * ch);
     }
+    g2.globalAlpha = prevA;
 }
 function renderPointScene(g2, name, t, hue, bright, palName) {
     if (name === 'lissajous') {
@@ -572,16 +576,16 @@ function renderLive(ts) {
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = `rgba(0,0,0,${0.06 + (1 - pTrails) * 0.94})`; ctx.fillRect(0, 0, W, H);   // trails feedback
     if (!mixing) {                                                   // single deck — draw every layer onto main
-        ctx.globalCompositeOperation = 'lighter';
-        for (const l of vstate.layers) renderLiveLayer(ctx, l, tsSec);
+        // Layers stack paint-over: an upper layer sits on the one below, and its
+        // empty cells reveal the layer beneath — so stacked scenes stay distinct
+        // (additive blending used to merge similar scenes into one bright mass).
         ctx.globalCompositeOperation = 'source-over';
+        for (const l of vstate.layers) renderLiveLayer(ctx, l, tsSec);
     } else {                                                         // two decks → offscreen → crossfade
         for (let ch = 0; ch < 2; ch++) {
             const g2 = chanCtx[ch];
             g2.globalCompositeOperation = 'source-over'; g2.globalAlpha = 1; g2.fillStyle = '#000'; g2.fillRect(0, 0, W, H);
-            g2.globalCompositeOperation = 'lighter';
-            for (const l of byCh[ch]) renderLiveLayer(g2, l, tsSec);
-            g2.globalCompositeOperation = 'source-over';
+            for (const l of byCh[ch]) renderLiveLayer(g2, l, tsSec);   // paint-over within the channel
         }
         crossfade(vstate.mix.value, vstate.mix.blend);
         ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(mixCv, 0, 0); ctx.globalCompositeOperation = 'source-over';

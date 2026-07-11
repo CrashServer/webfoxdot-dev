@@ -9,7 +9,7 @@ import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
 const VFX_NAMES   = ['scan', 'trails', 'vignette', 'glitch', 'invert', 'posterize'];
-const VSCENE_PARAMS = ['hue=', 'speed=', 'bright=', 'ch=', 'pal=', 'mode=', 'dur='];
+const VSCENE_PARAMS = ['hue=', 'speed=', 'bright=', 'alpha=', 'ch=', 'pal=', 'mode=', 'dur='];
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [

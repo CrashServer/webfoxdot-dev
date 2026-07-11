@@ -2257,8 +2257,9 @@ const V_PARAMS = [
     ['hue', '0–1 colour (a pattern like [0,.3] or a var like sinvar([0,1],8) animates it)'],
     ['speed', 'animation rate multiplier (default 1)'],
     ['bright', 'brightness multiplier (default 1)'],
+    ['alpha', 'layer opacity 0–1 (default 1) — dial a stacked layer back over the one below'],
     ['dur', 'beats per step for any patterned param (default 1)'],
-    ['ch', 'channel 0 or 1 — which mixer deck this layer feeds (default 0)'],
+    ['ch', 'channel 0 or 1 — which mixer deck this layer feeds (default 0). Layers on a channel stack (upper over lower)'],
     ['pal', 'per-layer palette, e.g. pal="fire" (overrides the global palette())'],
     ['mode', 'per-layer glyph set, e.g. mode="shade"'],
 ];
