@@ -34,7 +34,7 @@ function starColor(n) {
 // ── Layout constants (WORLD units — the camera scales them to screen) ──────────
 const GOLDEN  = Math.PI * (3 - Math.sqrt(5));   // ~137.5° — the sunflower angle
 const SP_JAM  = 46;                             // spiral spacing between adjacent jams
-const R_EX    = 360;                            // radius of the example-nebula ring
+let   R_EX    = 360;                            // radius of the example-nebula ring (grows with cluster count)
 
 export function initGalaxy(onPickExample) {
     const overlay  = document.getElementById('galaxy-overlay');
@@ -96,18 +96,27 @@ export function initGalaxy(onPickExample) {
             const c = byCat.get(e.cat || 'misc');
             const h = hash('ex:' + e.id);
             return { isExample: true, exId: e.id, title: e.title, cat: e.cat, cl: c, hue: c.hue,
-                offAng: (h % 628) / 100, offRad: 22 + (h % 46), phase: ((h >>> 9) % 628) / 100 };
+                h, phase: ((h >>> 9) % 628) / 100 };
         });
         placeExamples();
     }
     function placeExamples() {
         const n = clusters.length || 1;
+        // Grow the ring with the cluster count so the ARC between neighbours stays
+        // roughly constant — then nebulae don't overlap and stars stay in their cluster.
+        R_EX = Math.max(360, 46 * n);
+        const gap = (Math.PI * 2 / n) * R_EX;      // arc between adjacent cluster centres
         clusters.forEach((c, i) => {
-            const ang = (i / n) * Math.PI * 2 + (c.fx - 0.5) * 0.5;   // even ring + jitter
-            const rad = 0.9 + c.fy * 0.28;
+            const ang = (i / n) * Math.PI * 2 + (c.fx - 0.5) * 0.18;   // even ring + slight jitter
+            const rad = 0.97 + c.fy * 0.06;
             c.wx = Math.cos(ang) * R_EX * rad; c.wy = Math.sin(ang) * R_EX * rad;
         });
-        for (const nd of exNodes) { nd.wx = nd.cl.wx + Math.cos(nd.offAng) * nd.offRad; nd.wy = nd.cl.wy + Math.sin(nd.offAng) * nd.offRad; }
+        for (const nd of exNodes) {
+            const offAng = (nd.h % 628) / 100;
+            const offRad = gap * (0.07 + (nd.h % 100) / 100 * 0.11);   // ≤18% of the gap → hugs its cluster
+            nd.wx = nd.cl.wx + Math.cos(offAng) * offRad;
+            nd.wy = nd.cl.wy + Math.sin(offAng) * offRad;
+        }
         buildSprites();
     }
 
@@ -115,7 +124,7 @@ export function initGalaxy(onPickExample) {
     function buildSprites() {
         for (const c of clusters) {
             const live = c.cat === 'Live sets';
-            const NR = live ? 150 : 120;               // nebula sprite radius (world px)
+            const NR = live ? 110 : 88;                // nebula sprite radius (world px) — sized to stay within its ring slot
             const ns = document.createElement('canvas'); ns.width = ns.height = NR * 2;
             const nc = ns.getContext('2d');
             const g = nc.createRadialGradient(NR, NR, 0, NR, NR, NR);
