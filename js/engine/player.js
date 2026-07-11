@@ -222,7 +222,13 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
     const playBars = Math.max(BAR, snap(playTime));            // drop after ≥1 bar
     const dropBars = Math.max(BAR, snap(dropTime));            // stay dropped ≥1 bar
     const start = nextMod(clock, BAR);                          // begin on the next bar
+    // Un-mute EVERY player. The original FoxDot relies on this blanket reset (at each
+    // loop and at the end) so a drop can NEVER leave something silent — a single lost
+    // "restore this subset" callback, a re-eval mid-drop, or an overlapping drop() used
+    // to strand a player at _amplify=0 (which a plain re-eval doesn't clear).
+    const restoreAll = () => clock._players.forEach(p => { p._amplify = 1; });
     const runLoop = (loop, base) => {
+        clock._schedule(base, restoreAll);                     // clean slate at the loop start
         if (loop <= 0) return;
         const active = [...clock._players.values()].filter(p => p._active);
         if (active.length === 0) return;
@@ -234,15 +240,18 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
         const dropAt    = base + playBars;                     // on a bar
         const restoreAt = dropAt + dropBars;                   // on a bar
         clock._schedule(dropAt, () => {
-            subset.forEach(p => p._amplify = 0);
+            subset.forEach(p => { if (p._active) p._amplify = 0; });
             if (log) log(loop === 1 ? `drop: FINAL — ${names}` : `drop: ${names}  (${loop - 1} left)`);
         });
         clock._schedule(restoreAt, () => {
-            subset.forEach(p => p._amplify = 1);
+            restoreAll();                                      // restore EVERYONE, not just the subset
             runLoop(loop - 1, restoreAt);
         });
     };
     runLoop(nbloop, start);
+    // Belt-and-braces: whatever happened, un-mute everyone a bar after the sequence
+    // should have ended — so sound always comes back.
+    clock._schedule(start + nbloop * (playBars + dropBars) + BAR, restoreAll);
 }
 
 // ── soloRnd(time=8) — solo a random active player on the next `time` boundary,
