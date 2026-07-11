@@ -12,7 +12,7 @@
 //   tour.start();  // ← 🎓 button / start_guided_tour()
 //   tour.next();   // ← next()      tour.back(); // ← back()
 
-const TOTAL = 30;
+const TOTAL = 34;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 function lesson(n, title, body) {
@@ -382,7 +382,51 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`),
 p1 >> saw([0, 4, 7], dur=1/2, lpf=1500, amp=0.4)
 b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)`),
 
-    lesson(30, 'You’re ready ✨',
+    lesson(30, 'Live-tweak — change one knob mid-flight',
+`# You don't have to retype a whole line to change one thing. On a RUNNING player:
+#
+#   p1.lpf = linvar([500, 5000], [8])   set just ONE attribute (here, a filter sweep)
+#   p1.every(8, "reverse")              attach a transform without restarting it
+#   ~p1 >> pluck([0, 4])                the  ~  RESETS a player (drops inherited knobs)
+#
+# ▶ Start this, then run the p1.lpf line below it to sweep the filter live:
+p1 >> saw([0, 4, 7, 9], dur=1/2, amp=0.4)
+p1.lpf = linvar([500, 5000], [8])`),
+
+    lesson(31, 'Rests, gaps & dynamics',
+`# Silence shapes a groove as much as notes:
+#
+#   [0, _, 4, _]        _  (or  rest ) = a true rest — a hole in the pattern
+#   play("x. .x")       .  or space = a rest between hits
+#   amp=[0.6, 0.3]      per-step volume · amplify=Pacc("offbeat") = ready-made accents
+#
+# ▶ A bass with rests, and a hat with offbeat accents (needs the kit for the hat):
+p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
+h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`),
+
+    lesson(32, 'Lock players together',
+`# Players can WATCH each other so parts move as one:
+#
+#   p1.degree           reference another player's current note inside a pattern
+#   p2.follow("p1")     make p2 track p1's degree every step
+#   p1.reroll(8)        auto-re-evaluate every 8 beats (frozen randoms reroll on their own)
+#
+# ▶ A pad, and a bass that plays the pad's root two octaves down:
+p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
+b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`),
+
+    lesson(33, 'Save, share & recall',
+`# Your work is safe and shareable:
+#
+#   • the editor AUTO-SAVES to this browser — reload the page and it's still here.
+#   • ⤴ share (top bar) copies a self-contained LINK: the whole composition rides in
+#     the URL, so anyone who opens it gets your exact code — no server needed.
+#   • rec code (right panel) records your evals into a replayable #@ set;
+#     rec audio captures the sound itself to a file.
+#
+# (Nothing to run — press ⤴ share once you've made something you like.)`),
+
+    lesson(34, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
