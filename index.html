@@ -1650,6 +1650,59 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }
         return null;
     }
+    // ── arp() highlight support ──────────────────────────────────────────────
+    // arp([…], mode, octaves) plays its base array in a mode-dependent order, so the
+    // live highlight must step through the SOURCE elements in that same order.
+    const _ARP_MODES = ['up', 'down', 'updown', 'downup', 'random'];
+    // Top-level (comma-separated) arg substrings between the '(' at `open` and its ')'.
+    function topArgs(text, open, close) {
+        const args = []; let d = 0, start = open + 1;
+        for (let k = open + 1; k <= close; k++) {
+            const c = text[k];
+            if (k === close || (c === ',' && d === 0)) { args.push(text.slice(start, k)); start = k + 1; }
+            else if ('([{<'.includes(c)) d++;
+            else if (')]}>'.includes(c)) d--;
+        }
+        return args;
+    }
+    // A mode arg → mode name. "downup"/'downup' → name; an integer → index into
+    // _ARP_MODES; anything else (a var/expr) → 'up' (a sensible default order).
+    function parseArpMode(s) {
+        s = (s || '').trim();
+        const q = s.match(/^["']([a-zA-Z]+)["']$/); if (q) return q[1].toLowerCase();
+        if (/^-?\d+(\.\d+)?$/.test(s)) return _ARP_MODES[((Math.round(+s) % 5) + 5) % 5];
+        return 'up';
+    }
+    // Parse `arp( … )` whose '(' is at `open`: return the base array's element spans
+    // plus the resolved mode/octaves, and where the call ends.
+    function arpArg(text, open) {
+        const close = matchBracket(text, open);
+        if (close < 0) return null;
+        let depth = 0, arrOpen = -1;
+        for (let k = open; k <= close; k++) {
+            const c = text[k];
+            if ('([{<'.includes(c)) { depth++; if (c === '[' && depth === 2) { arrOpen = k; break; } }
+            else if (')]}>'.includes(c)) depth--;
+        }
+        if (arrOpen < 0) return null;
+        const r = arraySpans(text, arrOpen);
+        if (!r || !r.spans.length) return null;
+        const args = topArgs(text, open, close);
+        const mode = parseArpMode(args[1]);
+        let oct = 1; if (args[2] != null) { const o = parseFloat(args[2]); if (!isNaN(o)) oct = Math.max(1, Math.round(o)); }
+        return { spans: r.spans, mode, oct, end: close };
+    }
+    // Which SOURCE index (0..len-1) arp is sounding at `step`. -1 = can't pin (random).
+    function arpIndex(len, step, mode, oct) {
+        oct = Math.max(1, oct || 1);
+        let seq = Array.from({ length: len * oct }, (_, i) => i % len);   // base spanned across octaves
+        if (mode === 'random') return -1;
+        if (mode === 'down') seq.reverse();
+        else if (mode === 'updown') seq = seq.concat(seq.slice(1, -1).reverse());
+        else if (mode === 'downup') seq = seq.slice().reverse().concat(seq.slice(1, -1));
+        return seq[((step % seq.length) + seq.length) % seq.length];
+    }
+
     // All stepped arrays on a line: the degree + every direct param=[...] (and for
     // play(), the chars of a flat string). Each is highlighted at step % its length.
     function parseArrays(lineText) {
@@ -1691,6 +1744,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 // group (its notes fire together). A nested call foo(...) is preceded by
                 // an identifier/] , so it just deepens the paren depth instead.
                 let p = k - 1; while (p >= 0 && /\s/.test(lineText[p])) p--;
+                // arp([…], mode) as a direct arg → track its base array in play order.
+                if (pdepth === 1) {
+                    let q = p; while (q >= 0 && /\w/.test(lineText[q])) q--;
+                    if (lineText.slice(q + 1, p + 1) === 'arp') {
+                        const info = arpArg(lineText, k);
+                        if (info) { const arr = info.spans; arr.arp = { mode: info.mode, oct: info.oct }; out.push(arr); k = info.end; continue; }
+                    }
+                }
                 if (pdepth === 1 && (p < 0 || lineText[p] === '(' || lineText[p] === ',')) {
                     const j = matchBracket(lineText, k);
                     if (j > k) { const sp = [k, j + 1]; const a = nestedAltSpans(lineText, k, j + 1); if (a) sp.alt = a; out.push([sp]); k = j; continue; }
@@ -1751,7 +1812,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const altPicks = [];        // [s, e] of the ACTIVE <…> item inside an element
         let sig = line + ':';
         for (const spans of arrays) {
-            const sp = spans[((step % spans.length) + spans.length) % spans.length];
+            let idx = ((step % spans.length) + spans.length) % spans.length;
+            if (spans.arp) {                                   // step through arp's play order
+                const ai = arpIndex(spans.length, step, spans.arp.mode, spans.arp.oct);
+                if (ai < 0) { sig += 'x,'; continue; }          // random → can't pin, skip
+                idx = ai;
+            }
+            const sp = spans[idx];
             picks.push(sp[0], sp[1]); sig += sp[0] + '-' + sp[1];
             // Nested <a b …> alternation (e.g. the (<4, 8>, 2) chord) — the item it's
             // on advances once per full cycle of this array, so index = ⌊step/len⌋.
