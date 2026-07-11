@@ -2,6 +2,7 @@
 
 import { SYNTH_DEFS } from '../synths/registry.js';
 import { FX_REGISTRY } from '../fx/registry.js';
+import { SCENES as V_SCENE_LIST, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +211,7 @@ export const VERSION = 'beta01';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'beta01', title: 'Code your visuals · offline PWA · zoomable galaxy · private jams · new site', items: [
-        'Code your visuals — a new FoxDot-close visual language drives the ▦ pop-out window from the SAME editor as your audio. Name a visual player vN and give it a scene: v1 >> plasma(hue=.6, speed=2). Layers stack and blend, react to the live audio, and chain screen-FX with +: v2 >> tunnel(hue=[0,.3], dur=4) + scan(.5) + trails(.7). 18 scenes (plasma, tunnel, spectrum, nebula, fire, spiral…), patterned params, v1.stop() to drop a layer. The window stays dark until you run visual code — no code, no visual (press [a] for an audio-reactive autopilot). Full reference in the Visuals docs tab.',
+'Code your visuals + a 2-channel video mixer — a new FoxDot-close visual language drives the ▦ pop-out from the SAME editor as your audio. Name a visual player vN and give it a scene: v1 >> plasma(hue=.6, speed=2). 32 scenes (ported from CLIFT — ikeda bars/matrix/moire, tunnels, demoscene copperbars, voronoi, mandala…), 10 palettes (palette("fire")), swappable glyph modes (vmode("shade")), and screen-FX chained with +. It\'s a real 2-deck mixer: put layers on ch=0 / ch=1 and crossfade with mix() — whose value can be a pattern or TimeVar, so v9 >> mix(linvar([0,1],16), dur=1/4, blend="screen") auto-fades A→B (the whole FoxDot pattern vocabulary works in visuals, resolved on the audio clock). Autocomplete + example set included; the window stays dark until you run visual code — no code, no visual (press [a] for an audio-reactive autopilot). Full reference in the Visuals docs tab.',
         'Install it & go offline — crashDot is now a Progressive Web App: add it to your desktop or phone (⬇ install, or Share → Add to Home Screen) and it boots and plays with NO connection at all. The engine, every synth/FX, and the examples are cached; load the sample kit once online and it comes offline too. Only live multiplayer + the shared galaxy need a connection — solo coding never does.',
         'Private jams — a session is public (listed in the galaxy) by default, but the Session panel now has a 🌐/🔒 toggle: flip it to unlisted and the jam vanishes from the galaxy — joinable only by people you share the link with. The setting is shared across everyone in the room and syncs live. Your code is always visible to whoever\'s in the room; only who can find it changes.',
         'Galaxy scales to thousands — jams now sit on a stable spiral (each holds its spot for its lifetime, none overlap, no more central pile-up), and the map is fully zoomable & pannable: scroll to zoom, drag to pan, ⌂ to reset. Labels thin out as you zoom past a crowd and reappear as you zoom in, so a busy galaxy stays readable.',
@@ -1887,6 +1888,25 @@ v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime
     // start collapsed so the tab opens as a scannable overview. exampleList() reads
     // the .docs-cat-name header (in document order) so the dropdown optgroups stay
     // in sync with this page.
+    const vShow = section('Code your visuals — scenes · palette · glyph mode', `
+        ${note('Open <b>▦ visuals</b> (top bar), then run these. <code>vN</code> players drive the pop-out; layers stack and react to the audio. <code>+ scan()</code> chains a screen-FX; <code>palette()</code> / <code>vmode()</code> are global. Ctrl+Space after <code>v1 &gt;&gt; </code> lists every scene. Full reference in the <b>Visuals</b> docs tab.')}
+        ${code(`v1 >> plasma(hue=0.6, speed=2)
+v2 >> bars() + scan(0.4)
+palette("fire")
+vmode("shade")
+# v1.stop()`)}
+    `, 'vis-basics');
+    const vMix = section('2-channel video mixer — decks A/B + crossfader', `
+        ${note('Put layers on channel 0 or 1 with <code>ch=</code>, then <code>mix()</code> crossfades A↔B. The mix value can be a number, a pattern, or a TimeVar, so it animates on the beat. <code>blend=</code> picks the mode (mix/add/screen/multiply/difference/wipe/dissolve). <code>mix</code> is a singleton — a new one replaces the old.')}
+        ${code(`v1 >> tunnel(pal="ice")            # channel 0 (deck A)
+v2 >> starfield(ch=0)
+v3 >> nebula(ch=1, pal="acid")     # channel 1 (deck B)
+v4 >> moire(ch=1)
+v9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
+# v9 >> mix(0.5)                   # manual crossfade
+# v9 >> mix(PWhite(0,1), dur=1)    # random every beat`)}
+    `, 'vis-mixer');
+
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
         ['Live sets',       [rise, shorelines, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
@@ -1895,6 +1915,7 @@ v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
         ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, alpha29new, samples, loop]],
         ['Perform & MIDI',  [sections, midi, perf]],
+        ['Visuals',         [vShow, vMix]],
         ['Deep dives',      DEEP],
         ...TUT_CATS,
     ];
@@ -2231,15 +2252,15 @@ function buildFunctions() {
 }
 
 // Visual language reference — the vN >> scene(...) mini-language rendered in the
-// pop-out window (▦ visuals). Kept in sync with js/visuals/vlang.js + clift.js.
-const V_SCENES = ['plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain', 'aurora',
-    'cells', 'starfield', 'fire', 'ripple', 'interference', 'helix', 'spiral',
-    'nebula', 'flow', 'lissajous', 'attractor'];
+// pop-out window (▦ visuals). Scene/palette/mode/blend lists come from vdata.js.
 const V_PARAMS = [
-    ['hue', '0–1 colour (a pattern like [0,.3] cycles it — one step per <code>dur</code> beats)'],
+    ['hue', '0–1 colour (a pattern like [0,.3] or a var like sinvar([0,1],8) animates it)'],
     ['speed', 'animation rate multiplier (default 1)'],
     ['bright', 'brightness multiplier (default 1)'],
     ['dur', 'beats per step for any patterned param (default 1)'],
+    ['ch', 'channel 0 or 1 — which mixer deck this layer feeds (default 0)'],
+    ['pal', 'per-layer palette, e.g. pal="fire" (overrides the global palette())'],
+    ['mode', 'per-layer glyph set, e.g. mode="shade"'],
 ];
 const V_FX = [
     ['scan(x)', 'CRT scanlines, 0–1'],
@@ -2250,26 +2271,41 @@ const V_FX = [
     ['posterize(n)', 'quantise to n brightness steps'],
 ];
 function buildVisuals() {
-    const scenes = V_SCENES.map(s => `<code class="docs-key">${s}</code>`).join(' ');
+    const scenes = V_SCENE_LIST.map(s => `<code class="docs-key">${s}</code>`).join(' ');
     const params = V_PARAMS.map(([k, d]) => `<tr><td class="docs-key">${k}</td><td>${d}</td></tr>`).join('');
     const fxs    = V_FX.map(([k, d]) => `<tr><td class="docs-key">${k}</td><td>${d}</td></tr>`).join('');
+    const pals   = PALETTE_NAMES.map(s => `<code class="docs-key">${s}</code>`).join(' ');
+    const modes  = RENDER_MODE_NAMES.map(s => `<code class="docs-key">${s}</code>`).join(' ');
+    const blends = BLEND_NAMES.map((s, i) => `<code class="docs-key">${i} ${s}</code>`).join(' ');
     return `
         <div class="docs-group-label">Code your visuals</div>
         <p class="docs-p">Open the pop-out with <b>▦ visuals</b> (top bar). Then, in the <b>same editor</b> as your
         audio, drive it with visual players named <code>v1</code>, <code>v2</code>, … — a FoxDot-close syntax.
-        Layers stack (blend additively) and react to the live audio; <code>+ fx()</code> adds screen effects.</p>
+        Layers stack (blend additively) and react to the live audio; <code>+ fx()</code> chains screen effects.</p>
         <pre class="docs-code">v1 &gt;&gt; plasma(hue=0.6, speed=2)
-v2 &gt;&gt; tunnel(hue=[0,.3], dur=4) + scan(.5)
-v3 &gt;&gt; spectrum() + trails(.7) + vignette(.4)
-~v1 &gt;&gt; nebula()      # ~ resets inherited params
-v1.stop()            # remove one layer
-shutup()             # clears audio + visuals</pre>
+v2 &gt;&gt; tunnel(hue=sinvar([0,1],8)) + scan(.5)
+palette("fire")   vmode("shade")     # global colour ramp / glyph set
+v1.stop()                            # remove one layer · shutup() clears all</pre>
+        <div class="docs-group-label" style="margin-top:14px">2-channel video mixer</div>
+        <p class="docs-p">Put layers on channel 0 or 1 with <code>ch=</code>; <code>mix()</code> is the A↔B crossfader
+        (0 = channel&nbsp;0 … 1 = channel&nbsp;1). Its value can be a number, a pattern, or a TimeVar — so it animates
+        on the beat. <code>mix</code> is a <b>singleton</b>: a new one replaces the old.</p>
+        <pre class="docs-code">v1 &gt;&gt; tunnel(pal="ice")               # deck A (channel 0)
+v3 &gt;&gt; nebula(ch=1, pal="acid")        # deck B (channel 1)
+v9 &gt;&gt; mix(linvar([0,1],16), dur=1/4, blend="screen")   # auto-fade A→B
+v9 &gt;&gt; mix(PWhite(0,1), dur=1)         # or a random crossfader</pre>
         <div class="docs-group-label" style="margin-top:14px">Scenes (the visual "synths")</div>
         <p class="docs-p">${scenes}</p>
         <div class="docs-group-label" style="margin-top:14px">Scene params</div>
         <table class="docs-table"><tbody>${params}</tbody></table>
         <div class="docs-group-label" style="margin-top:14px">Post-FX (chain with +)</div>
         <table class="docs-table"><tbody>${fxs}</tbody></table>
+        <div class="docs-group-label" style="margin-top:14px">Palettes  ·  palette("…")  or  pal="…"</div>
+        <p class="docs-p">${pals}</p>
+        <div class="docs-group-label" style="margin-top:14px">Glyph modes  ·  vmode("…")  or  mode="…"</div>
+        <p class="docs-p">${modes}</p>
+        <div class="docs-group-label" style="margin-top:14px">Blend modes  ·  mix(x, blend=…)</div>
+        <p class="docs-p">${blends}</p>
         <p class="docs-p" style="margin-top:12px">By default the window is <b>idle</b> (dark) until you run visual code —
         no code, no visual. <b>[m]</b> cycles the modes: <b>idle</b> · <b>live</b> (your <code>vN</code> layers) ·
         <b>autopilot</b> (audio-reactive scene director, or press <b>[a]</b>) · <b>code</b> (one panel per audio player).

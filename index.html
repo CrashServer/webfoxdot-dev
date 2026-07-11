@@ -223,8 +223,8 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, postVClear } from './js/visuals/bridge.js';
-    import { visualBuilders, getVisualPlayer, isVisualName } from './js/visuals/vlang.js';
+    import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
+    import { visualBuilders, getVisualPlayer, isVisualName, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
@@ -260,6 +260,7 @@
 
     // ── Clock + TimeVar ───────────────────────────────────────────────────────
     const clock = new Clock();
+    initVisuals(clock);   // visual-language state resolves on this clock (works pre-boot too)
     let _jamBot = null;   // generative jam bot (son/soff), created on first son()
     // Mode brightness order (Lydian brightest → Locrian darkest) for darker()/lighter().
     const SCALE_BRIGHT = {
@@ -405,7 +406,7 @@
             darker:  () => { SCALE_BRIGHT.step(1);  log(`Scale.default = ${JSON.stringify(Scale._name)}`, 'ok'); },
             lighter: () => { SCALE_BRIGHT.step(-1); log(`Scale.default = ${JSON.stringify(Scale._name)}`, 'ok'); },
             // shutup() — stop every player (and the jam bot). A softer panic.
-            shutup: () => { clock.clear(); if (_jamBot) _jamBot.stop(true); postVClear(); log('shutup — all players stopped', 'info'); },
+            shutup: () => { clock.clear(); if (_jamBot) _jamBot.stop(true); clearVisuals(); log('shutup — all players stopped', 'info'); },
             // swap(a, b, key) — swap one attribute between two named players live.
             // (FoxDot calls this `switch`, but that's a reserved word in JS.)
             swap: (aName, bName, key) => {

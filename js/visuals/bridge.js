@@ -13,6 +13,7 @@
 
 import { patGet, isGroup } from '../patterns/sequences.js';
 import { FX_KEYS }         from '../fx/registry.js';
+import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook } from './vlang.js';
 
 let _chan  = null;
 let _win   = null;
@@ -22,6 +23,7 @@ let _getMeta = null;      // () => { section, autoplay }
 let _an    = null;
 let _freq  = null;
 let _timer = null;
+let _vTimer = null;
 
 function chan() {
     if (!_chan) _chan = new BroadcastChannel('crashdot-visuals');
@@ -34,7 +36,7 @@ export function openVisuals() {
 }
 
 // Open without stealing focus — used when a `vN >>` line auto-launches the window.
-function ensureVisualsOpen() {
+export function ensureVisualsOpen() {
     if (_win && !_win.closed) return _win;
     return _openWin();
 }
@@ -45,16 +47,25 @@ function _openWin() {
     return _win;
 }
 
-// ── Visual-language layers (vN >> scene(...)) ────────────────────────────────
-// Post/update a visual layer. Auto-opens the window on the first layer (works
-// because eval runs inside the Ctrl+Enter user gesture; blocked posts are silently
-// dropped for remote/autoplay evals, and the user can open it with the ▦ button).
-export function postVLayer(name, layer) {
-    ensureVisualsOpen();
-    chan().postMessage({ t: 'vplayer', name, ...layer });
+// ── Visual language (vN >> scene / mix) ──────────────────────────────────────
+// The authoritative layer/mixer state lives in vlang.js (main window). Every ~33ms
+// we resolve it against the audio clock (so patterns/TimeVars in params & the mix
+// crossfader animate) and stream the plain-number snapshot to the renderer. Running
+// off a clock reference means visual code works even before audio boots (beat = 0).
+export function initVisuals(clock) {
+    if (clock) _clock = _clock || clock;
+    setOpenHook(ensureVisualsOpen);          // a vN >> line auto-opens the window
+    if (_vTimer) return;
+    let wasContent = false;
+    _vTimer = setInterval(() => {
+        if (!_win || _win.closed) return;
+        const has = vHasContent();
+        if (!has && !wasContent) return;     // idle and already idle → stay quiet
+        wasContent = has;
+        const beat = _clock ? _clock.now() : 0;
+        chan().postMessage({ t: 'vstate', ...vSnapshot(beat) });
+    }, 33);
 }
-export function postVStop(name)  { if (_chan) chan().postMessage({ t: 'vstop', name }); }
-export function postVClear()     { if (_chan) chan().postMessage({ t: 'vclear' }); }
 
 // Tap the scsynth worklet output with an analyser (sc.node → analyser; the worklet
 // stays connected to the destination too, so this only *reads* the signal).

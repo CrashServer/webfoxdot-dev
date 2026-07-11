@@ -5,17 +5,15 @@
 // pertinent scenes on musical moments, CROSSFADES between them, and evolves the FX,
 // hue and speed smoothly — no keys needed. Keys are optional overrides.
 
+import { SCENES, POINT_SCENES as POINT, PALETTES, paletteLut, BLEND_MODES, RENDER_MODES } from './vdata.js';
+
 const cv  = document.getElementById('vis');
 const ctx = cv.getContext('2d', { alpha: false });
 const hud = document.getElementById('hud');
 
-const RAMP = ' .,:;-=+*o#%@';
+const RAMP = RENDER_MODES.ascii;   // default glyph ramp (vmode() swaps it)
 const FPS  = 30;
 const CELL = 13;
-const SCENES = ['plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain',
-                'aurora', 'cells', 'starfield', 'fire', 'ripple', 'interference',
-                'helix', 'spiral', 'nebula', 'flow', 'lissajous', 'attractor'];
-const POINT = new Set(['lissajous', 'attractor']);
 const SCENE_HUE = { fire: 0.04, aurora: 0.42, nebula: 0.62 };
 // energy-grouped pools — the director draws calm scenes when quiet, intense when loud
 const CALM = ['nebula', 'aurora', 'flow', 'cells', 'wave', 'ripple', 'plasma'];
@@ -37,7 +35,7 @@ const codeLines = [];
 // Default is 'idle': no visual until you run visual code (vN layers). The audio
 // autopilot ('scenes') and per-player 'code' view are opt-in via [a] / [m].
 let mode = 'idle';                                // 'idle' | 'live' (vN layers) | 'scenes' (autopilot) | 'code' (per-player)
-const vlayers = new Map();                        // name → { scene, params, fx, born } — authored vN >> layers
+let vstate = { layers: [], mix: null, palette: null, mode: null };   // resolved from the main window ~30×/s
 let lastMsgTs = 0;                                 // when the bridge last sent anything (connection status)
 const meta = { section: '', autoplay: false };    // active #@ section + autoplay
 let players = [];                                 // live snapshot from the bridge
@@ -55,7 +53,14 @@ function resize() {
     ctx.font = `${CELL}px monospace`; ctx.textBaseline = 'top';
     vgrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.72);
     vgrad.addColorStop(0, 'rgba(0,0,0,0)'); vgrad.addColorStop(1, 'rgba(0,0,0,1)');
+    for (const c of [chanCv[0], chanCv[1], mixCv]) { c.width = W; c.height = H; }
+    for (const c of [chanCtx[0], chanCtx[1], mixCtx]) { c.font = `${CELL}px monospace`; c.textBaseline = 'top'; }
 }
+// Offscreen buffers for the 2-channel video mixer (chan 0, chan 1, crossfade result).
+const chanCv = [document.createElement('canvas'), document.createElement('canvas')];
+const chanCtx = [chanCv[0].getContext('2d'), chanCv[1].getContext('2d')];
+const mixCv = document.createElement('canvas');
+const mixCtx = mixCv.getContext('2d');
 window.addEventListener('resize', resize); resize();
 
 // ── code parsing ────────────────────────────────────────────────────────────────
@@ -154,18 +159,11 @@ chan.onmessage = (e) => {
     } else if (m.t === 'code') { onCode(m); }
     else if (m.t === 'instant') { const x = (m.text || '').trim(); editing = x ? { runs: tokenise(x), name: m.name || '', color: m.color || '' } : null; }
     else if (m.t === 'step') { pulse = 1; }
-    else if (m.t === 'vplayer') {      // authored visual layer — vN >> scene(...) + fx(...)
-        const cur = vlayers.get(m.name) || { params: {}, fx: {} };
-        vlayers.set(m.name, {
-            scene:  m.scene || cur.scene || null,
-            params: m.reset ? (m.params || {}) : { ...cur.params, ...(m.params || {}) },   // attrs inherit across evals (FoxDot-style); ~vN resets
-            fx:     m.reset ? (m.fx || {})     : { ...cur.fx, ...(m.fx || {}) },
-            born:   performance.now(),
-        });
-        mode = 'live';
+    else if (m.t === 'vstate') {       // resolved visual-language state (layers + mixer + master)
+        vstate = m;
+        if (vstate.layers.length) mode = 'live';
+        else if (mode === 'live') mode = 'idle';
     }
-    else if (m.t === 'vstop')  { vlayers.delete(m.name); if (!vlayers.size && mode === 'live') mode = 'idle'; }
-    else if (m.t === 'vclear') { vlayers.clear(); if (mode === 'live') mode = 'idle'; }
     else if (m.t === 'players') {
         players = m.list || [];
         for (const pl of players) { const s = pmap[pl.name] || (pmap[pl.name] = { step: -1, pulse: 0 }); if (pl.step !== s.step) { s.step = pl.step; s.pulse = 1; } }
@@ -275,6 +273,72 @@ function fieldVal(name, x, y, t) {
     if (name === 'flow') {
         const fxw = u + 0.22 * Math.sin(w * 5 + t), fyw = w + 0.22 * Math.sin(u * 5 - t * 0.8);
         return Math.max(0, Math.sin(fxw * 11 + t) * Math.sin(fyw * 11 - t * 1.3 + A.mid * 5)) * (0.45 + A.level * 1.3);
+    }
+    // ── ported from clift_final (ikeda / demoscene / tunnels / generative) ──
+    if (name === 'bars') {                       // spectrum bars
+        const nb = 28, bi = Math.floor(u * nb);
+        const band = bi % 3 === 0 ? A.bass : bi % 3 === 1 ? A.mid : A.treble;
+        const bv = 0.15 + 0.85 * Math.abs(Math.sin(bi * 1.7 + t * 0.5)) * (0.3 + band * 1.5);
+        const gap = (u * nb) % 1 < 0.16 ? 0 : 1;
+        return w > 1 - bv ? (0.55 + (w - (1 - bv)) * 1.1) * gap : 0;
+    }
+    if (name === 'matrix') {                      // digital rain columns
+        const sd = Math.sin(x * 91.7) * 4193.2, fr = sd - Math.floor(sd);
+        const head = (fr * 3 + t * (0.15 + fr * 0.5 + A.level * 0.4)) % 1;
+        const d = ((w - head) % 1 + 1) % 1;       // distance below the head, wrapping
+        return Math.max(0, 1 - d * 3.4) * (0.5 + A.treble);
+    }
+    if (name === 'moire') {                       // two interfering circular gratings
+        const d1 = Math.hypot(u - 0.35, w - 0.5), d2 = Math.hypot(u - 0.65, w - 0.5);
+        return (Math.sin(d1 * 60 - t * 2 + A.bass * 8) * Math.sin(d2 * 60 + t * 1.5) * 0.5 + 0.5) * (0.4 + A.level * 1.2);
+    }
+    if (name === 'voronoi') {                     // nearest-seed cells
+        let m1 = 9, idx = 0;
+        for (let i = 0; i < 7; i++) {
+            const px = 0.5 + 0.45 * Math.sin(t * 0.4 + i * 2.1 + A.bass), py = 0.5 + 0.45 * Math.cos(t * 0.33 + i * 1.7);
+            const d = Math.hypot(u - px, w - py); if (d < m1) { m1 = d; idx = i; }
+        }
+        return (0.35 + (idx / 7) * 0.6) * (0.6 + A.level) * Math.max(0, 1 - m1 * 0.6);
+    }
+    if (name === 'copperbars') {                  // demoscene horizontal sine bars
+        const bar = Math.sin(w * 14 + t * 1.5 + Math.sin(t * 0.5) * 2);
+        return Math.pow(Math.max(0, bar), 2.2) * (0.6 + A.bass * 1.2);
+    }
+    if (name === 'hextunnel') {
+        const rings = Math.sin(r * 24 * z - t * 3 - A.bass * 8);
+        const hex = Math.sin(ang * 6 + Math.sin(r * 10 - t * 2) * 1.5);
+        return Math.max(0, rings * 0.5 + hex * 0.5) * (0.5 + A.level * 1.4) * (1 - r * 0.5);
+    }
+    if (name === 'kaleido') {                      // kaleidoscopic wedge mirror
+        const a2 = Math.abs((ang % (Math.PI / 3)) - Math.PI / 6), rr = r * 3;
+        return (Math.sin(a2 * 8 + t) + Math.sin(rr * 6 - t * 2 + A.mid * 6)) * 0.25 + 0.5 > 0
+            ? ((Math.sin(a2 * 8 + t) + Math.sin(rr * 6 - t * 2 + A.mid * 6)) * 0.25 + 0.5) * (0.45 + A.level * 1.2) : 0;
+    }
+    if (name === 'scope') {                        // oscilloscope trace
+        const wave = 0.5 + Math.sin(u * 20 + t * 4) * 0.2 * (0.4 + A.bass) + Math.sin(u * 40 - t * 6) * 0.15 * A.treble + Math.sin(u * 7 + t) * 0.08;
+        return Math.max(0, 1 - Math.abs(w - wave) * 14) * (0.7 + A.level);
+    }
+    if (name === 'mandala') {
+        const petals = 8 + Math.floor(A.treble * 6);
+        return Math.max(0, Math.sin(ang * petals + Math.sin(r * 14 - t) * 2) * Math.cos(r * 20 * z - t * 1.5)) * (0.5 + A.level * 1.3) * (1 - r * 0.6);
+    }
+    if (name === 'lattice') {
+        const sx = ((u * 16 + t * 0.5) % 1 + 1) % 1, sy = ((w * 16 - t * 0.3) % 1 + 1) % 1;
+        const line = Math.max(1 - Math.abs(sx - 0.5) * 8, 1 - Math.abs(sy - 0.5) * 8);
+        return Math.max(0, line) * (0.5 + A.level * 1.4) * (0.6 + Math.sin(r * 10 - t * 2) * 0.4);
+    }
+    if (name === 'warp') {                         // hyperspace warp streaks
+        const streak = Math.sin(ang * 3 + Math.sin(ang * 20) * 0.5);
+        const zoom = ((r * 4 - t * (0.5 + A.level)) % 1 + 1) % 1;
+        return Math.max(0, 1 - Math.abs(zoom - 0.5) * 4) * (0.4 + Math.abs(streak)) * (0.5 + A.bass * 1.5) * r;
+    }
+    if (name === 'checker') {                       // warped checkerboard
+        const wx = u * 10 + Math.sin(w * 6 + t) * 0.4, wy = w * 10 + Math.sin(u * 6 - t * 0.8) * 0.4;
+        return ((Math.floor(wx) + Math.floor(wy)) % 2 === 0 ? 1 : 0) * (0.4 + A.level * 1.3) * (0.6 + beatPulse * 0.4);
+    }
+    if (name === 'diamond') {                       // concentric diamonds (L1 rings)
+        const d = Math.abs(cx) + Math.abs(cy);
+        return (Math.sin(d * 30 * z - t * 3 - A.bass * 8) * 0.5 + 0.5) * (0.4 + A.level * 1.3) * Math.max(0, 1 - d * 0.7);
     }
     const col = Math.sin(x * 12.9898) * 43758.5453, seed = col - Math.floor(col);
     const head = (w + t * (0.2 + seed * 0.5 + A.level * 0.6)) % 1;
@@ -413,53 +477,87 @@ function drawPlayerCell(pl, x, y, w, h, t) {
     ctx.font = `${CELL}px monospace`;
 }
 
-// ── live mode: authored vN >> layers, resolved against the beat & blended ────────
+// ── live mode: authored vN >> layers → a 2-channel video mixer ───────────────────
+// Params arrive already resolved to plain numbers (the main window steps patterns/
+// TimeVars on the clock), so here we just draw. Layers sharing a `ch` stack (blend
+// additively) into that channel; mix() crossfades channel 0 ↔ channel 1.
 function sceneHue(n) { let h = 0; for (let i = 0; i < (n || '').length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return (h % 360) / 360; }
-// A patterned param [a,b,c] advances one step every `dur` beats (like a FoxDot pattern).
-function resolveParam(v, beat, dur) {
-    if (Array.isArray(v)) { const d = dur || 1, i = Math.floor(beat / d), el = v[((i % v.length) + v.length) % v.length]; return Array.isArray(el) ? el[0] : el; }
-    return v;
-}
-function layerColor(v, hue, bright) {
+function cellColor(v, hue, bright, palName) {
+    if (palName && PALETTES[palName]) {
+        const c = paletteLut(palName)[Math.max(0, Math.min(255, Math.floor(v * 255)))];
+        return `rgb(${Math.min(255, c[0] * bright) | 0},${Math.min(255, c[1] * bright) | 0},${Math.min(255, c[2] * bright) | 0})`;
+    }
     const h = ((hue * 360) + v * 50) % 360;
     const l = Math.min(82, 12 + v * 62 * bright + beatPulse * 10 + pulse * 8 + flash * 8);
     return `hsl(${h.toFixed(0)} 88% ${l.toFixed(0)}%)`;
 }
-function renderLiveLayer(layer, tsSec, beat) {
+function renderLiveLayer(g2, layer, tsSec) {
     const name = layer.scene; if (!name) return;
     const p = layer.params || {}, f = layer.fx || {};
-    const dur = Number(p.dur) || 1;
-    let hue = resolveParam(p.hue, beat, dur);
+    let hue = p.hue;
     if (hue == null) hue = SCENE_HUE[name] != null ? SCENE_HUE[name] : sceneHue(name);
     hue = Number(hue); hue = hue > 1 ? (hue / 360) % 1 : ((hue % 1) + 1) % 1;
-    const speed  = Number(resolveParam(p.speed,  beat, dur)) || 1;
-    const bright = Number(resolveParam(p.bright, beat, dur)) || 1;
+    const speed  = Number(p.speed)  || 1;
+    const bright = Number(p.bright) || 1;
+    const palName = p.pal || vstate.palette || null;
+    const ramp = RENDER_MODES[p.mode || vstate.mode] || RAMP;
     const t = tsSec * speed * ((A.bpm || 120) / 120) * (0.6 + energy * 0.7);
-    if (POINT.has(name)) {
-        if (name === 'lissajous') {
-            const a = 2 + Math.floor(A.bass * 5), b = 3 + Math.floor(A.treble * 5), N = 900;
-            for (let i = 0; i < N; i++) { const th = i / N * Math.PI * 2; ctx.fillStyle = layerColor(0.5 + 0.5 * Math.sin(th * 3 + t), hue, bright); ctx.fillText('•', (Math.sin(a * th + t) * 0.45 + 0.5) * W, (Math.sin(b * th) * 0.45 + 0.5) * H); }
-        } else {
-            const a = -2.1 + Math.sin(t * 0.3) + A.bass, b = -2.0 + Math.cos(t * 0.21), c = -1.2 + A.mid, d = 2.0 - A.treble;
-            let xx = 0.1, yy = 0.1; const N = 1700;
-            for (let i = 0; i < N; i++) { const nx = Math.sin(a * yy) - Math.cos(b * xx); yy = Math.sin(c * xx) - Math.cos(d * yy); xx = nx; ctx.fillStyle = layerColor(0.35 + 0.65 * (i / N), hue, bright); ctx.fillText('·', (xx * 0.22 + 0.5) * W, (yy * 0.22 + 0.5) * H); }
-        }
-        return;
-    }
+    if (POINT.has(name)) { renderPointScene(g2, name, t, hue, bright, palName); return; }
     const post = Number(f.posterize) || 0, cw = W / cols, ch = H / rows;
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
         let v = fieldVal(name, x, y, t); if (v <= 0.06) continue;
         if (post) v = Math.round(v * post) / post;
-        const g = RAMP[Math.min(RAMP.length - 1, Math.max(0, Math.floor(v * RAMP.length)))];
-        if (g === ' ') continue;
-        ctx.fillStyle = layerColor(v, hue, bright); ctx.fillText(g, x * cw, y * ch);
+        const gch = ramp[Math.min(ramp.length - 1, Math.max(0, Math.floor(v * ramp.length)))];
+        if (gch === ' ') continue;
+        g2.fillStyle = cellColor(v, hue, bright, palName); g2.fillText(gch, x * cw, y * ch);
     }
 }
+function renderPointScene(g2, name, t, hue, bright, palName) {
+    if (name === 'lissajous') {
+        const a = 2 + Math.floor(A.bass * 5), b = 3 + Math.floor(A.treble * 5), N = 900;
+        for (let i = 0; i < N; i++) { const th = i / N * Math.PI * 2; g2.fillStyle = cellColor(0.5 + 0.5 * Math.sin(th * 3 + t), hue, bright, palName); g2.fillText('•', (Math.sin(a * th + t) * 0.45 + 0.5) * W, (Math.sin(b * th) * 0.45 + 0.5) * H); }
+    } else if (name === 'swarm') {
+        const N = 640;
+        for (let i = 0; i < N; i++) {
+            const ph = i * 0.7;
+            const sx = 0.5 + 0.4 * Math.sin(t * 0.6 + ph) * Math.cos(t * 0.3 + i * 0.03 + A.bass * 3);
+            const sy = 0.5 + 0.4 * Math.cos(t * 0.5 + ph * 1.3) * Math.sin(t * 0.4 + i * 0.05 + A.mid * 2);
+            g2.fillStyle = cellColor(0.4 + 0.6 * (i / N), hue, bright, palName); g2.fillText('·', sx * W, sy * H);
+        }
+    } else {   // attractor (Clifford)
+        const a = -2.1 + Math.sin(t * 0.3) + A.bass, b = -2.0 + Math.cos(t * 0.21), c = -1.2 + A.mid, d = 2.0 - A.treble;
+        let xx = 0.1, yy = 0.1; const N = 1700;
+        for (let i = 0; i < N; i++) { const nx = Math.sin(a * yy) - Math.cos(b * xx); yy = Math.sin(c * xx) - Math.cos(d * yy); xx = nx; g2.fillStyle = cellColor(0.35 + 0.65 * (i / N), hue, bright, palName); g2.fillText('·', (xx * 0.22 + 0.5) * W, (yy * 0.22 + 0.5) * H); }
+    }
+}
+// Composite chan0 + chan1 into mixCv per the crossfader value + blend mode.
+function crossfade(xf, blendIdx) {
+    const m = mixCtx, blend = BLEND_MODES[blendIdx] || BLEND_MODES[0];
+    m.globalCompositeOperation = 'source-over'; m.globalAlpha = 1; m.fillStyle = '#000'; m.fillRect(0, 0, W, H);
+    if (blend.name === 'mix') {                                   // additive crossfade A*(1-xf)+B*xf
+        m.globalCompositeOperation = 'lighter';
+        m.globalAlpha = 1 - xf; m.drawImage(chanCv[0], 0, 0);
+        m.globalAlpha = xf;     m.drawImage(chanCv[1], 0, 0);
+    } else if (blend.name === 'wipe') {                           // horizontal wipe at xf
+        m.drawImage(chanCv[0], 0, 0);
+        const wx = xf * W; m.save(); m.beginPath(); m.rect(wx, 0, W - wx, H); m.clip(); m.drawImage(chanCv[1], 0, 0); m.restore();
+    } else if (blend.name === 'dissolve') {                       // block dissolve, proportion xf
+        m.drawImage(chanCv[0], 0, 0);
+        const bs = 20;
+        for (let yy = 0; yy < H; yy += bs) for (let xx = 0; xx < W; xx += bs) {
+            const hsh = ((xx * 73856093) ^ (yy * 19349663)) >>> 0;
+            if ((hsh % 1000) / 1000 < xf) m.drawImage(chanCv[1], xx, yy, bs, bs, xx, yy, bs, bs);
+        }
+    } else {                                                      // add / screen / multiply / difference
+        m.drawImage(chanCv[0], 0, 0);
+        m.globalCompositeOperation = blend.op || 'lighter'; m.globalAlpha = xf; m.drawImage(chanCv[1], 0, 0);
+    }
+    m.globalCompositeOperation = 'source-over'; m.globalAlpha = 1;
+}
 function renderLive(ts) {
-    const tsSec = ts / 1000, beat = A.beat || 0;
-    // post-FX are screen-wide: take the strongest value each frame across all layers
+    const tsSec = ts / 1000;
     let pTrails = 0, pScan = 0, pVig = 0.15, pInvert = false;
-    for (const l of vlayers.values()) {
+    for (const l of vstate.layers) {
         const f = l.fx || {};
         if (f.trails > pTrails) pTrails = f.trails;
         if (f.scan > pScan) pScan = f.scan;
@@ -467,24 +565,36 @@ function renderLive(ts) {
         if (f.glitch) glitch = Math.max(glitch, f.glitch);
         if (f.invert) pInvert = true;
     }
-    ctx.fillStyle = `rgba(0,0,0,${0.06 + (1 - pTrails) * 0.94})`; ctx.fillRect(0, 0, W, H);   // trails → feedback
-    if (!vlayers.size) {
-        ctx.fillStyle = '#5a6a74'; ctx.font = '16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('live mode — write  v1 >> plasma()  in the editor', W / 2, H / 2);
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = `${CELL}px monospace`;
-    } else {
-        ctx.globalCompositeOperation = 'lighter';                 // layers stack additively (glow)
-        for (const l of vlayers.values()) renderLiveLayer(l, tsSec, beat);
+    const byCh = [[], []];
+    for (const l of vstate.layers) byCh[l.ch === 1 ? 1 : 0].push(l);
+    const mixing = vstate.mix && byCh[0].length && byCh[1].length;   // crossfade only when both channels have content
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(0,0,0,${0.06 + (1 - pTrails) * 0.94})`; ctx.fillRect(0, 0, W, H);   // trails feedback
+    if (!mixing) {                                                   // single deck — draw every layer onto main
+        ctx.globalCompositeOperation = 'lighter';
+        for (const l of vstate.layers) renderLiveLayer(ctx, l, tsSec);
         ctx.globalCompositeOperation = 'source-over';
+    } else {                                                         // two decks → offscreen → crossfade
+        for (let ch = 0; ch < 2; ch++) {
+            const g2 = chanCtx[ch];
+            g2.globalCompositeOperation = 'source-over'; g2.globalAlpha = 1; g2.fillStyle = '#000'; g2.fillRect(0, 0, W, H);
+            g2.globalCompositeOperation = 'lighter';
+            for (const l of byCh[ch]) renderLiveLayer(g2, l, tsSec);
+            g2.globalCompositeOperation = 'source-over';
+        }
+        crossfade(vstate.mix.value, vstate.mix.blend);
+        ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(mixCv, 0, 0); ctx.globalCompositeOperation = 'source-over';
     }
     if (glitch > 0.05) applyGlitch();
     if (pInvert) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }
     if (pScan > 0.02) { fx.scan = pScan; drawScanlines(); }
     if (pVig > 0.02 && vgrad) { ctx.globalAlpha = pVig; ctx.fillStyle = vgrad; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
-    drawCode(ts);
-    drawTransport();
-    drawStatus(ts);
-    hud.textContent = `live  ·  ${vlayers.size} layer${vlayers.size === 1 ? '' : 's'}  ·  ${[...vlayers.keys()].join(' ') || '—'}  ·  ${A.bpm | 0} bpm  ·  [m] mode`;
+    drawCode(ts); drawTransport(); drawStatus(ts);
+    const names = vstate.layers.map(l => l.name + (l.ch ? ':1' : '')).join(' ');
+    const mixTxt = vstate.mix ? `  ·  mix ${vstate.mix.value.toFixed(2)} ${(BLEND_MODES[vstate.mix.blend] || {}).name}` : '';
+    const palTxt = vstate.palette ? `  ·  ${vstate.palette}` : '';
+    hud.textContent = `live  ·  ${vstate.layers.length} layer${vstate.layers.length === 1 ? '' : 's'}  ·  ${names || '—'}${mixTxt}${palTxt}  ·  ${A.bpm | 0} bpm`;
 }
 
 // idle: no visual code running → (near-)black screen with a faint wordmark.

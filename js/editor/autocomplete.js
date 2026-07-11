@@ -4,8 +4,12 @@
 
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
+import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
+const VSCENE_SET  = new Set(VSCENES);
+const VFX_NAMES   = ['scan', 'trails', 'vignette', 'glitch', 'invert', 'posterize'];
+const VSCENE_PARAMS = ['hue=', 'speed=', 'bright=', 'ch=', 'pal=', 'mode=', 'dur='];
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
@@ -279,7 +283,9 @@ function getContext(cm) {
     // p1.pen both offer player methods (a `)`/`]` before the dot used to fall through).
     if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.$/))    return { type: 'method', word: '' };
     if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.\w+$/)) return { type: 'method', word };
-    if (before.match(/[a-zA-Z_]\w*\s*>>\s*[a-zA-Z_]*$/)) return { type: 'synth', word };
+    // `name >> ` — a vN player offers visual scenes, everything else offers synths.
+    const shiftM = before.match(/([a-zA-Z_]\w*)\s*>>\s*[a-zA-Z_]*$/);
+    if (shiftM) return { type: /^v\d+$/.test(shiftM[1]) ? 'vscene' : 'synth', word };
     const scaleM = before.match(/Scale\s*\.\s*default\s*=\s*["']([a-zA-Z]*)$/);
     if (scaleM) return { type: 'scale', word: scaleM[1] };
 
@@ -287,6 +293,20 @@ function getContext(cm) {
     // chords/groups/arrays (which contain their own ")") don't fool us.
     const call = enclosingCall(before);
     if (call && call.fn) {
+        // ── Visual language: scene(...) / mix(...) / palette(...) / vmode(...) ──
+        const vfn = call.fn;
+        if (vfn === 'palette') return { type: 'vnames', kind: 'palette', word };
+        if (vfn === 'vmode')   return { type: 'vnames', kind: 'mode', word };
+        if (VSCENE_SET.has(vfn) || vfn === 'mix') {
+            const eqM = before.match(/([a-zA-Z_]\w*)\s*=\s*["']?[\w.]*$/);
+            if (eqM) {
+                if (eqM[1] === 'pal')   return { type: 'vnames', kind: 'palette', word };
+                if (eqM[1] === 'mode')  return { type: 'vnames', kind: 'mode', word };
+                if (eqM[1] === 'blend') return { type: 'vnames', kind: 'blend', word };
+                return { type: 'value', word };                 // hue=, mix value → patterns/timevars
+            }
+            return { type: 'vparam', vfn, word };
+        }
         // value position: right after `param=` → suggest patterns/timevars
         if (before.match(/[a-zA-Z_]\w*\s*=\s*[a-zA-Z_]*$/)) return { type: 'value', word };
         // First positional arg of a synth = the DEGREE → suggest pattern generators
@@ -421,6 +441,20 @@ function hintFn(cm) {
         // browsable; typing filters across all of them (dropEmptySeps prunes).
         list = [playItem(), ...synthFamilyList()];
         list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
+    } else if (ctx.type === 'vscene') {
+        // vN >> — visual scenes, the crossfader, and fx (chained with +)
+        list = [
+            sep('— scenes —'), ...VSCENES.map(n => item(n + '()', 'hint-synth', n)),
+            sep('— mixer —'),  item('mix()', 'hint-keyword', 'mix'),
+            sep('— fx (+ chain) —'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n)),
+        ];
+        list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
+    } else if (ctx.type === 'vparam') {
+        const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;
+        list = filter(ps.map(p => item(p, 'hint-param', p.replace('=', ''))));
+    } else if (ctx.type === 'vnames') {
+        const names = ctx.kind === 'palette' ? PALETTE_NAMES : ctx.kind === 'mode' ? RENDER_MODE_NAMES : BLEND_NAMES;
+        list = filter(names.map(n => item(`"${n}"`, 'hint-param', n)));
     } else if (ctx.type === 'scale') {
         list = filter(SCALE_NAMES.map(n => item(`"${n}"`, 'hint-param', n)));
     } else if (ctx.type === 'value') {
