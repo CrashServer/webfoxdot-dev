@@ -233,6 +233,7 @@
     import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
+    import { initTour } from './js/ui/tour.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
@@ -268,6 +269,7 @@
     // ── Clock + TimeVar ───────────────────────────────────────────────────────
     const clock = new Clock();
     initVisuals(clock);   // visual-language state resolves on this clock (works pre-boot too)
+    let _tour = null;     // interactive guided tour (start_guided_tour()); created after the editor
     let _jamBot = null;   // generative jam bot (son/soff), created on first son()
     // Mode brightness order (Lydian brightest → Locrian darkest) for darker()/lighter().
     const SCALE_BRIGHT = {
@@ -448,6 +450,8 @@
                 const tmp = ta[key]; ta[key] = tb[key]; tb[key] = tmp;
             },
             cancelSection,
+            // Launch the interactive beginner tour (sits in the default starting buffer).
+            start_guided_tour: () => { if (_tour) _tour.start(); return '▸ starting the guided tour…'; },
             __p,
             ...SYNTHS,
             ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players
@@ -629,6 +633,7 @@
                 _fnCache.set(js, entry);
             }
             entry.fn(...Object.values(ctx));
+            if (_tour) _tour.notify('eval', raw);   // guided tour: detect "you ran a line"
             // code reactivity → visuals window (tagged with the author: self or peer)
             { const u = getUser(); postCode(raw.trim(), author || u.name, color || u.color); }
         } catch (e) {
@@ -961,17 +966,15 @@
     const INITIAL_CODE = `# ────────────────────────────────────────────────────────────────────────
 #  crashDot — browser-native FoxDot live coding
 # ────────────────────────────────────────────────────────────────────────
-#  GETTING STARTED
-#   1. Click  [ boot ]  (top-left) to start the audio engine.
-#   2. Load the sound kit: put the cursor on the loadpack line below and
-#      press Ctrl+Enter (use the GitHub line instead if the CDN is cold).
-#   3. Put the cursor on  #@intro(16)  and press Ctrl+Enter — the set plays
-#      and auto-advances.   Ctrl+;  stops everything.
-#
-#  > Best in Chromium / Brave / Edge.  Firefox has audio + sample issues.
-#  > Keys: Ctrl+Enter = run line · Ctrl+Alt+Enter = run block · Alt+X = stop
-#          Alt+Up / Alt+Down = nudge the number under the cursor, live.
-#  > Docs, examples & changelog: the  [ ? ]  button (top-right).  Have fun!
+#  ✦  NEW HERE?  Put your cursor on the next line and press  Ctrl+Enter  —
+#     it starts a short guided tour that teaches you everything.
+
+start_guided_tour()
+
+#  ── Already know your way around?  Quick start: ──
+#   1. Click [ boot ] (top-left).   2. Load the kit (cursor on a line, Ctrl+Enter).
+#   3. Cursor on #@intro(16) → Ctrl+Enter — the set plays & auto-advances.
+#   Ctrl+; stops all · Alt+Up/Down nudges a number live · Best in Chromium · [ ? ] = docs.
 # ────────────────────────────────────────────────────────────────────────
 
 # ── load the default kit — evaluate ONE of these (cursor on it, Ctrl+Enter)
@@ -1133,6 +1136,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
         },
     });
+
+    _tour = initTour(editor);   // interactive guided tour, launched by start_guided_tour()
 
     // A share link (#c=…) loads its composition into the editor (async decode).
     // Only when not joining a live session (that has its own shared buffer).
