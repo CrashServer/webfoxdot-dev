@@ -1,168 +1,227 @@
-// Interactive guided tour — teaches the basics of live coding directly in the
-// crashDot UI, for people who've never used FoxDot. Launched by evaluating
-// start_guided_tour() (which sits in the default starting buffer).
+// Guided tour — an interactive tutorial that lives IN THE EDITOR (no popup).
 //
-// Each step shows a short instruction and AUTO-ADVANCES when it detects you did the
-// thing (booted, ran a line, nudged a number, opened autocomplete, pressed Alt+I,
-// stopped everything…). The app feeds it eval events via notify(); key presses and
-// boot state the tour watches itself. Fully skippable.
+// Pressing 🎓 tour (or evaluating start_guided_tour()) loads Lesson 1 into the
+// editor. You read the comments, run the ▶ example lines with Ctrl+Enter, and then
+// evaluate  next()  to move on (or  back()  to go back). Your sounds keep playing as
+// you progress; Ctrl+; stops everything. It's a real live-coding session that
+// teaches itself, top to bottom — booting, synths, editing live, params, loading a
+// sample kit, drums, patterns, generators, TimeVars, effects, multiple players,
+// autocomplete, and arranging a set.
 //
 //   const tour = initTour(editor);
-//   tour.start();                 // ← start_guided_tour()
-//   tour.notify('eval', codeStr); // ← call from runCode
+//   tour.start();  // ← 🎓 button / start_guided_tour()
+//   tour.next();   // ← next()      tour.back(); // ← back()
 
-const STEPS = [
-    { title: 'Welcome to live coding 🌍',
-      html: 'You write code, <b>evaluate</b> it, and hear sound instantly — then change it <i>while it plays</i>. This 2-minute tour walks you through the essentials. Ready?',
-      advance: { manual: true } },
+const TOTAL = 14;
+const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
-    { title: '1 · Start the audio engine',
-      html: 'Click <b>▸ boot</b> in the top-left to load the synth engine (takes a few seconds the first time).',
-      spot: '#btn-boot',
-      advance: { boot: true } },
+function lesson(n, title, body) {
+    const head =
+`# ═══════════════════════════════════════════════════════════════════════════
+#  🎓 TOUR   ·   ${n} / ${TOTAL}   ·   ${title}
+# ═══════════════════════════════════════════════════════════════════════════`;
+    const last = n >= TOTAL;
+    const nav = last
+        ? `#  you've finished the tour! 🎉   evaluate   back()   to revisit any lesson.`
+        : `#  ▶ evaluate   next()   for the next lesson        ·        back()   to go back`;
+    return `${head}
+${body}
 
-    { title: '2 · Make your first sound',
-      html: 'I’ve added a line at the bottom of the editor. Put your cursor on it and press <b>Ctrl+Enter</b> to run it.',
-      code: 'p1 >> pluck([0, 2, 4, 7])',
-      spot: '#btn-run',
-      advance: { eval: /pluck/ } },
+${DIV}
+${nav}
+${DIV}${last ? '' : '\nnext()'}`;
+}
 
-    { title: '🎉 You’re live!',
-      html: '<code>p1</code> is a <b>player</b>. It plays the <code>pluck</code> synth through the notes <code>[0, 2, 4, 7]</code> — looping forever. The list in <code>[…]</code> is the melody.',
-      advance: { manual: true } },
+const LESSONS = [
+    lesson(1, 'Welcome — how this tour works',
+`# Live coding = you write code, EVALUATE it, and hear sound instantly — then
+# change it WHILE it plays. This whole tour happens right here in the editor.
+#
+# HOW IT WORKS:
+#   • Read the # comment lines.
+#   • Run the  ▶  example lines: put the cursor on the line, press Ctrl+Enter.
+#   • When ready, evaluate  next()  (bottom of each lesson) to continue.
+#     back()  goes back a lesson. Your sounds keep playing as you move on —
+#     press  Ctrl+;  any time to stop everything.
+#
+# FIRST: click  ▸ boot  (top-left) to start the audio engine.
+# Then put the cursor on the  next()  line below and press Ctrl+Enter.`),
 
-    { title: '3 · Change it while it plays',
-      html: 'No stopping needed. Put the cursor on a <b>number</b> in the pattern and press <b>Alt+↑ / Alt+↓</b> to nudge it — then Ctrl+Enter to hear the change. Give it a nudge now.',
-      advance: { key: 'alt-arrow' } },
+    lesson(2, 'Your first player',
+`# A PLAYER makes sound. It reads:     name  >>  synth( pattern )
+#
+#   p1          the player's name (ANY name works: p1, bass, lead, d1 …)
+#   pluck       the synth — the instrument
+#   [0,2,4,7]   the pattern of notes, one per step, LOOPING forever
+#
+# ▶ Run this (cursor on the line, Ctrl+Enter) — a looping arpeggio:
+p1 >> pluck([0, 2, 4, 7])
+#
+# It keeps going. Editing never stops it — that's the whole idea.`),
 
-    { title: '4 · The one rule',
-      html: 'Every player reads <code>name &gt;&gt; synth(pattern, params)</code>. The <b>name</b> (<code>p1</code>, <code>bass</code>, anything) is the track; then a <b>synth</b>; then the notes and knobs like <code>amp=</code>, <code>dur=</code>, <code>oct=</code>.',
-      advance: { manual: true } },
+    lesson(3, 'Change it while it plays',
+`# The magic is editing LIVE. Put the cursor on a number below, press
+# Alt+Up / Alt+Down to nudge it, then Ctrl+Enter to hear the change.
+#
+# ▶ Nudge a number here, re-run, repeat:
+p1 >> pluck([0, 2, 4, 7])
+#
+# Try turning a 4 into a 5, or add notes:  [0, 2, 4, 7, 9, 12]
+# Nothing to compile, nothing to restart — just run it again.`),
 
-    { title: '5 · Autocomplete (Ctrl+Space)',
-      html: 'Not sure what to type? Press <b>Ctrl+Space</b>. After <code>&gt;&gt;</code> it lists synths; inside <code>()</code> it lists params. ↑↓ move, → opens a group, ↵ picks. Try it now.',
-      advance: { key: 'ctrl-space' } },
+    lesson(4, 'Params — shaping the sound',
+`# After the notes come PARAMS — knobs, written  name=value :
+#
+#   amp   volume 0–1            dur  note length in beats (1/2 = eighth notes)
+#   oct   octave up/down        pan  stereo position (-1 left … 1 right)
+#
+# ▶ The same synth, shaped — faster, softer, higher, drifting L↔R:
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+#
+# Every synth has its own extra knobs too — autocomplete (lesson 12) finds them.`),
 
-    { title: '6 · Layer another player',
-      html: 'Players stack and play together. Run this drum line — now two things are going at once.',
-      code: 'd1 >> play("x-o-")',
-      advance: { eval: /play\s*\(/ } },
+    lesson(5, 'Two kinds of sound — load a kit',
+`# There are TWO sound sources:
+#   • SYNTHS   made from math (pluck, saw, pads …) — nothing to download.
+#   • SAMPLES  recorded audio (drums, hits) — these need a KIT loaded first.
+#
+# ▶ Load the default kit — evaluate this and WAIT a few seconds for it to finish
+#   (progress shows in the log, bottom-left):
+loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
+#
+# Once it says loaded, evaluate  next()  for drums.`),
 
-    { title: '7 · Instant pattern help (Alt+I)',
-      html: 'Functions like <code>PRand</code> generate notes. Put the cursor on <code>PRand</code> in the line below and press <b>Alt+I</b> for an instant explanation.',
-      code: 'p2 >> blip(PRand([0, 2, 4, 7]), dur=1/2, amp=0.6)',
-      advance: { key: 'alt-i' } },
+    lesson(6, 'Drums with play()',
+`# play("…") triggers SAMPLES from the kit. Each character is one step:
+#
+#   x = kick     o = snare     - = hi-hat     .  or space = a rest (silence)
+#   X / O louder ·  [xx] = two hits in one step (a roll) ·  <a b> alternates
+#
+# ▶ A basic beat (needs the kit from lesson 5):
+d1 >> play("x-o-")
+#
+# ▶ Busier — run it to swap the pattern live, no gap:
+d1 >> play("x.x.o.[xx]")`),
 
-    { title: '8 · Mute one player (Alt+X)',
-      html: 'Press <b>Alt+X</b> on any player’s line to comment it out and stop just that player. Alt+X again (or uncomment + Ctrl+Enter) brings it back.',
-      advance: { key: 'alt-x' } },
+    lesson(7, 'Patterns — lists, chords, alternation',
+`# The list in [ … ] is a PATTERN: one value per step, looping. It's how
+# EVERYTHING cycles. Three building blocks:
+#
+#   [0, 2, 4]    a sequence — one note per step
+#   (0, 4, 7)    a CHORD — those notes sound together (a group)
+#   <7 9>        ALTERNATE — 7 one cycle, 9 the next, then repeat
+#
+# ▶ All three in one line:
+p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`),
 
-    { title: '9 · Stop everything (Ctrl+;)',
-      html: 'When you want silence, press <b>Ctrl+;</b> to stop all players at once. Try it.',
-      advance: { key: 'ctrl-semicolon' } },
+    lesson(8, 'Generators — patterns that write themselves',
+`# Instead of typing every note, GENERATORS build patterns for you:
+#
+#   PRand([0,2,4,7])     pick a random note each step
+#   PEuclid(3, 8)        a euclidean rhythm — 3 hits spread over 8 steps
+#   arp([0,4,7], "up")   arpeggiate a chord: up / down / updown / random
+#
+# ▶ A random-note line:
+p1 >> blip(PRand([0, 2, 4, 7, 9]), dur=1/2, amp=0.5)
+#
+# TIP: put the cursor on  PRand  and press  Alt+I  for an instant explanation of
+# ANY pattern function.`),
 
-    { title: 'You’ve got it! ✨',
-      html: 'That’s the whole loop: <b>write → run → change</b>. Now explore the <b>examples ▾</b> (top bar) and the <b>?</b> docs, clear this buffer, and make something. Welcome aboard!',
-      advance: { manual: true, last: true } },
+    lesson(9, 'TimeVars — values that move',
+`# A value can EVOLVE over time — perfect for filter sweeps and slow motion:
+#
+#   sinvar([300, 4000], [8])   glides 300→4000→300 (a sine) over 8 beats
+#   linvar([0, 1], [16])       ramps 0→1 in a straight line over 16 beats
+#
+# ▶ A saw whose low-pass filter opens and closes on its own:
+p1 >> saw([0, 4, 7], dur=1/2, lpf=sinvar([400, 5000], [8]), amp=0.4)
+#
+# ANY param takes a var — cutoff, amp, pan, dur … everything can breathe.`),
+
+    lesson(10, 'Effects',
+`# Effects are just params — add them to any player and stack them:
+#
+#   lpf / hpf  filters        reverb + room  space        echo + echo_time  delay
+#   chorus · drive · crush · chop · … (dozens — autocomplete lists them all)
+#
+# ▶ A lush pad through reverb and a gentle filter:
+p1 >> pads([0, 4, 7], dur=4, sus=4, reverb=0.6, room=0.9, lpf=1400, chorus=0.4, amp=0.4)`),
+
+    lesson(11, 'Many players — layer & control',
+`# Players stack: give each a name and they all play together. And you control them:
+#
+#   Alt+X on a line  → comments it out and STOPS just that player
+#   Ctrl+;           → stops EVERYTHING at once
+#
+# ▶ Run these three (one at a time, or select all + Ctrl+Alt+Enter):
+b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
+p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
+d1 >> play("x-o-")
+#
+# Now press Alt+X on the b1 line to mute the bass. Ctrl+; stops all.`),
+
+    lesson(12, 'Autocomplete — never memorise',
+`# Stuck on what to type? Press  Ctrl+Space :
+#
+#   after  >>    the list of synths
+#   inside ( )   that synth's params + effects
+#   after  =     patterns / vars you can drop in
+#
+# ▶ Click at the END of the next line and press Ctrl+Space to explore:
+p1 >>
+#
+# Arrows move · → / ← open & close a group · Enter / Tab picks · Esc closes.`),
+
+    lesson(13, 'Arranging — sections & sets',
+`# For whole tracks, mark SECTIONS with  #@name(bars) . Put the cursor on a #@
+# line and Ctrl+Enter — it plays and AUTO-ADVANCES after that many bars.
+# #@#@ groups sections into a foldable track.
+#
+# ▶ A tiny two-part set — put the cursor on  #@a(8)  and press Ctrl+Enter:
+#@#@ my_set
+#@a(8)
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+#@b(8)
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+d1 >> play("x-o-")`),
+
+    lesson(14, 'You’re ready ✨',
+`# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
+#
+# Where to go next:
+#   • examples ▾ (top bar)  full tracks & techniques — click one to load it
+#   • the  ?  button        docs: every synth, effect, pattern & shortcut
+#   • 🌌 galaxy             browse & jam with other people, live
+#
+# Now clear this buffer (Ctrl+A, Delete) and make something of your own.
+# Welcome aboard!`),
 ];
 
-let editor = null, panel = null, idx = -1, active = false, spotEl = null, pollT = null;
+let editor = null, idx = 0, active = false;
 
 export function initTour(_editor) {
     editor = _editor;
-    document.addEventListener('keydown', onKey, true);   // capture — see combos before CodeMirror
-    return { start, notify, isActive: () => active };
+    return { start, next, back, isActive: () => active, notify() {} };
 }
 
-function onKey(e) {
-    if (!active) return;
-    let k = null;
-    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) k = 'alt-arrow';
-    else if (e.altKey && (e.key === 'i' || e.key === 'I')) k = 'alt-i';
-    else if (e.altKey && (e.key === 'x' || e.key === 'X')) k = 'alt-x';
-    else if (e.ctrlKey && (e.key === ' ' || e.key === 'Spacebar')) k = 'ctrl-space';
-    else if (e.ctrlKey && (e.key === ';' || e.key === ',')) k = 'ctrl-semicolon';
-    else if (e.key === 'Escape') { end(); return; }
-    if (k) check({ key: k });
-}
-function notify(ev, data) { if (active) check({ event: ev, data }); }
-
-function start() {
-    if (active) return;
-    active = true;
-    buildPanel();
-    pollT = setInterval(() => { if (active) check({ poll: true }); }, 600);
-    go(0);
-}
-function end() {
-    active = false;
-    clearInterval(pollT); pollT = null;
-    clearSpot();
-    if (panel) { panel.remove(); panel = null; }
-    idx = -1;
-}
-
-// Does the current step's advance condition match this signal?
-function check(sig) {
-    const step = STEPS[idx]; if (!step) return;
-    const a = step.advance || {};
-    let hit = false;
-    if (a.boot && sig.poll) hit = document.getElementById('status-dot')?.className === 'ready';
-    else if (a.key && sig.key === a.key) hit = true;
-    else if (a.eval && sig.event === 'eval') hit = a.eval.test(String(sig.data || ''));
-    if (hit) next();
-}
-
-function next() { go(idx + 1); }
-
-function go(i) {
-    if (i >= STEPS.length) { end(); return; }
-    idx = i;
-    clearSpot();
-    const step = STEPS[i];
-    if (step.code) insertBlock(step.code);
-    if (step.spot) setSpot(step.spot);
-    render();
-}
-
-function render() {
-    const step = STEPS[idx];
-    const manual = !!(step.advance && step.advance.manual);
-    const dots = STEPS.map((_, i) => `<span class="tour-dot${i === idx ? ' on' : ''}${i < idx ? ' done' : ''}"></span>`).join('');
-    panel.innerHTML =
-        `<div class="tour-head"><span class="tour-step">${idx + 1} / ${STEPS.length}</span>` +
-        `<button class="tour-x" title="end tour">✕</button></div>` +
-        `<div class="tour-title">${step.title}</div>` +
-        `<div class="tour-body">${step.html}</div>` +
-        `<div class="tour-dots">${dots}</div>` +
-        `<div class="tour-btns">` +
-        (step.advance && step.advance.last
-            ? `<button class="tour-btn tour-primary" data-act="end">Finish ✓</button>`
-            : manual
-                ? `<button class="tour-btn" data-act="end">end</button><button class="tour-btn tour-primary" data-act="next">Next →</button>`
-                : `<button class="tour-btn" data-act="end">end</button><button class="tour-btn" data-act="next">skip step →</button>`) +
-        `</div>`;
-    panel.querySelector('.tour-x').onclick = end;
-    panel.querySelectorAll('[data-act]').forEach(b => b.onclick = () => (b.dataset.act === 'end' ? end() : next()));
-}
-
-function buildPanel() {
-    panel = document.createElement('div');
-    panel.id = 'tour-panel';
-    document.body.appendChild(panel);
-}
-
-// Spotlight a UI element with a pulsing outline.
-function setSpot(sel) { const el = document.querySelector(sel); if (el) { el.classList.add('tour-spot'); spotEl = el; } }
-function clearSpot() { if (spotEl) { spotEl.classList.remove('tour-spot'); spotEl = null; } }
-
-// Append a runnable block at the end of the buffer and drop the cursor on it.
-function insertBlock(code) {
-    const last = editor.lastLine();
-    const end = { line: last, ch: editor.getLine(last).length };
-    editor.replaceRange('\n\n' + code, end);
-    const line = editor.lastLine();
-    editor.setCursor({ line, ch: editor.getLine(line).length });
-    editor.scrollIntoView({ line, ch: 0 });
+function show() {
+    const text = LESSONS[idx];
+    editor.setValue(text);
+    // Drop the cursor on the first runnable line (the ▶ example) so Ctrl+Enter works
+    // right away; if the lesson has no example, land on next()/back().
+    const lines = text.split('\n');
+    let target = -1;
+    for (let i = 0; i < lines.length; i++) {
+        const t = lines[i].trim();
+        if (t && !t.startsWith('#') && t !== 'next()' && t !== 'back()') { target = i; break; }
+    }
+    if (target < 0) for (let i = lines.length - 1; i >= 0; i--) { const t = lines[i].trim(); if (t === 'next()' || t === 'back()') { target = i; break; } }
+    if (target < 0) target = 0;
+    editor.setCursor({ line: target, ch: lines[target].length });
+    editor.scrollTo(0, 0);
     editor.focus();
 }
+
+function start() { active = true; idx = 0; show(); }
+function next() { if (!active) return ''; if (idx < LESSONS.length - 1) { idx++; show(); } return ''; }
+function back() { if (!active) return ''; if (idx > 0) { idx--; show(); } return ''; }

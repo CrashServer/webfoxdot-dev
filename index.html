@@ -451,8 +451,11 @@
                 const tmp = ta[key]; ta[key] = tb[key]; tb[key] = tmp;
             },
             cancelSection,
-            // Launch the interactive beginner tour (sits in the default starting buffer).
+            // Guided tour (lives in the editor): start_guided_tour() loads lesson 1,
+            // next()/back() move between lessons. No-ops when no tour is running.
             start_guided_tour: () => { if (_tour) _tour.start(); return '▸ starting the guided tour…'; },
+            next: () => { if (_tour) _tour.next(); },
+            back: () => { if (_tour) _tour.back(); },
             __p,
             ...SYNTHS,
             ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players
