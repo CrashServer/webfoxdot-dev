@@ -50,11 +50,19 @@ This is translated **data**, not duplicated **logic**.
 2. **The tour** — a full French `tour.fr.js`, the highest-value content for beginners.
 3. **Docs / examples / changelog** — English fallback until each section is translated.
 
+## Status
+- **Shipped**: `js/i18n/lang.js` (the shared `getLang()`/`setLang()` state, auto-detecting
+  the browser locale) + a **fully bilingual guided tour**. The tour lessons are data
+  (`EN[]` + `FR[]` in `js/ui/tour.js`); `lessons()` picks by language, per-lesson falling
+  back to English. Code in the examples stays English; only the `#` prose is translated.
+- **Language switch (for now)**: no UI dropdown yet — evaluate `language("fr")` /
+  `language("en")` in the editor. It sets `lang` and live-re-renders the current lesson
+  (`_tour.refresh()`). Lesson 1 advertises the command in the other language. A Settings
+  dropdown + `translateDOM()` come with Phase 1 (the rest of the UI).
+
 ## Notes / decisions still open
 - **Key style**: semantic keys (`nav.boot`) grouped by area — cleaner for devs and
   handles same-word-different-context. `fr.js` starts as a copy of `en.js` so the
   translator sees the English value while replacing it.
-- **Switching language**: simplest v1 = save `lang` and reload the page (avoids
-  partial-state bugs); a live re-`translateDOM()` + content re-render can come later.
 - crashDot code strings (synth/param/pattern names) stay English — they're the
   language of the tool, like keywords; only human-facing prose is translated.

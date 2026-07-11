@@ -235,6 +235,7 @@
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, examplesAsCode, exampleList, exampleCode } from './js/ui/docs.js';
     import { initTour } from './js/ui/tour.js';
+    import { getLang, setLang } from './js/i18n/lang.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
@@ -456,6 +457,14 @@
             start_guided_tour: () => { if (_tour) _tour.start(); return '▸ starting the guided tour…'; },
             next: () => { if (_tour) _tour.next(); },
             back: () => { if (_tour) _tour.back(); },
+            // language("fr" | "en")  sets the language (drives the tour for now).
+            language: (l) => {
+                if (l == null) { log(`language: ${getLang() === 'fr' ? 'français (fr)' : 'english (en)'}  ·  language("fr") / language("en")`, 'info'); return; }
+                const v = String(l).toLowerCase().startsWith('f') ? 'fr' : 'en';
+                setLang(v);
+                if (_tour) _tour.refresh();   // re-render the current lesson in the new language
+                log(v === 'fr' ? '🇫🇷 langue → français' : '🇬🇧 language → english', 'info');
+            },
             // tour()  lists every lesson · tour(n)  jumps straight to lesson n.
             tour: (n) => {
                 if (!_tour) return;

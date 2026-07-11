@@ -11,19 +11,34 @@
 //   const tour = initTour(editor);
 //   tour.start();  // ← 🎓 button / start_guided_tour()
 //   tour.next();   // ← next()      tour.back(); // ← back()
+//
+// The lessons are DATA (English EN[] + French FR[]); the engine is shared. Language
+// follows the app's lang setting, per-lesson falling back to English. To translate a
+// language, edit its content array — no code changes. (See translate.md.)
+
+import { getLang } from '../i18n/lang.js';
 
 const TOTAL = 34;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
-function lesson(n, title, body) {
+// Localised chrome (header word + footer navigation).
+const LABEL = {
+    en: { tour: 'TOUR',
+          next: `#  ▶ evaluate   next()   for the next lesson        ·        back()   to go back`,
+          done: `#  you've finished the tour! 🎉   evaluate   back()   to revisit any lesson.` },
+    fr: { tour: 'VISITE',
+          next: `#  ▶ évaluez   next()   pour la leçon suivante        ·        back()   pour revenir`,
+          done: `#  visite terminée ! 🎉   évaluez   back()   pour revoir une leçon.` },
+};
+
+function lesson(n, title, body, lang = 'en') {
+    const L = LABEL[lang] || LABEL.en;
     const head =
 `# ═══════════════════════════════════════════════════════════════════════════
-#  🎓 TOUR   ·   ${n} / ${TOTAL}   ·   ${title}
+#  🎓 ${L.tour}   ·   ${n} / ${TOTAL}   ·   ${title}
 # ═══════════════════════════════════════════════════════════════════════════`;
     const last = n >= TOTAL;
-    const nav = last
-        ? `#  you've finished the tour! 🎉   evaluate   back()   to revisit any lesson.`
-        : `#  ▶ evaluate   next()   for the next lesson        ·        back()   to go back`;
+    const nav = last ? L.done : L.next;
     const text = `${head}
 ${body}
 
@@ -33,10 +48,12 @@ ${DIV}${last ? '' : '\nnext()'}`;
     return { n, title, text };
 }
 
-const LESSONS = [
+const EN = [
     lesson(1, 'Welcome — how this tour works',
 `# Live coding = you write code, EVALUATE it, and hear sound instantly — then
 # change it WHILE it plays. This whole tour happens right here in the editor.
+#
+# 🇫🇷  En français ?  évalue   language("fr")   pour faire la visite en français.
 #
 # HOW IT WORKS:
 #   • Read the # comment lines.
@@ -438,24 +455,444 @@ b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`),
 # Welcome aboard!`),
 ];
 
+// ── FRANÇAIS ─────────────────────────────────────────────────────────────────
+// Traduction des leçons. Le CODE des exemples reste en anglais (c'est le langage de
+// l'outil) ; seuls les commentaires # sont traduits. Pour corriger une traduction,
+// édite ce tableau — aucune modification de code. (Voir translate.md.)
+const FR = [
+    lesson(1, 'Bienvenue — comment fonctionne cette visite',
+`# Le live coding = tu écris du code, tu l'ÉVALUES, et tu entends le son
+# instantanément — puis tu le changes PENDANT qu'il joue. Toute la visite se
+# passe ici, dans l'éditeur.
+#
+# 🇬🇧  In English?  evaluate   language("en")   to take the tour in English.
+#
+# COMMENT ÇA MARCHE :
+#   • Lis les lignes de commentaire (celles qui commencent par #).
+#   • Lance les lignes d'exemple  ▶  : place le curseur dessus, Ctrl+Entrée.
+#   • Quand tu es prêt, évalue  next()  (en bas de chaque leçon) pour continuer.
+#     back()  revient ·  tour()  liste les leçons ·  tour(5)  saute à la leçon 5.
+#     Le son continue quand tu avances — appuie sur  Ctrl+;  pour tout arrêter.
+#
+# D'ABORD : clique sur  ▸ boot  (en haut à gauche) pour démarrer le moteur audio.
+# Puis place le curseur sur la ligne  next()  ci-dessous et fais Ctrl+Entrée.`, 'fr'),
+
+    lesson(2, 'Ton premier player',
+`# Un PLAYER produit du son. Il se lit :     nom  >>  synthé( pattern )
+#
+#   p1          le nom du player (N'IMPORTE quel nom : p1, bass, lead, d1 …)
+#   pluck       le synthé — l'instrument
+#   [0,2,4,7]   le pattern de notes, une par pas, EN BOUCLE à l'infini
+#
+# ▶ Lance ceci (curseur sur la ligne, Ctrl+Entrée) — un arpège en boucle :
+p1 >> pluck([0, 2, 4, 7])
+#
+# Ça continue. L'éditer ne l'arrête jamais — c'est tout l'intérêt.`, 'fr'),
+
+    lesson(3, 'Modifie-le pendant qu’il joue',
+`# La magie, c'est d'éditer EN DIRECT. Place le curseur sur un nombre ci-dessous,
+# appuie sur Alt+Haut / Alt+Bas pour l'ajuster, puis Ctrl+Entrée pour l'entendre.
+#
+# ▶ Ajuste un nombre ici, relance, recommence :
+p1 >> pluck([0, 2, 4, 7])
+#
+# Essaie de changer un 4 en 5, ou d'ajouter des notes :  [0, 2, 4, 7, 9, 12]
+# Rien à compiler, rien à redémarrer — relance simplement.`, 'fr'),
+
+    lesson(4, 'Les params — façonner le son',
+`# Après les notes viennent les PARAMS — des réglages, écrits  nom=valeur :
+#
+#   amp   volume 0–1            dur  durée d'une note en temps (1/2 = croches)
+#   oct   octave plus haut/bas  pan  position stéréo (-1 gauche … 1 droite)
+#
+# ▶ Le même synthé, façonné — plus rapide, plus doux, plus haut, qui dérive G↔D :
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+#
+# Chaque synthé a aussi ses propres réglages — l'autocomplétion (leçon 12) les trouve.`, 'fr'),
+
+    lesson(5, 'Deux sources de son — charger un kit',
+`# Il y a DEUX sources de son :
+#   • les SYNTHÉS  faits à partir de maths (pluck, saw, pads …) — rien à télécharger.
+#   • les SAMPLES  de l'audio enregistré (batterie, hits) — il faut charger un KIT.
+#
+# ▶ Charge le kit par défaut — évalue ceci et ATTENDS quelques secondes qu'il finisse
+#   (la progression s'affiche dans le journal, en bas à gauche) :
+loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
+#
+# Quand il affiche « loaded », évalue  next()  pour la batterie.`, 'fr'),
+
+    lesson(6, 'La batterie avec play()',
+`# play("…") déclenche des SAMPLES du kit. Chaque caractère est un pas :
+#
+#   x = grosse caisse   o = caisse claire   - = charleston   .  ou espace = un silence
+#   X / O plus fort ·  [xx] = deux frappes en un pas (un roulement) ·  <a b> alterne
+#
+# ▶ Un beat de base (nécessite le kit de la leçon 5) :
+d1 >> play("x-o-")
+#
+# ▶ Plus dense — lance-le pour changer le pattern en direct :
+d1 >> play("x.x.o.[xx]")`, 'fr'),
+
+    lesson(7, 'Les patterns — listes, accords, alternance',
+`# La liste dans [ … ] est un PATTERN : une valeur par pas, en boucle. C'est ainsi
+# que TOUT tourne. Trois briques de base :
+#
+#   [0, 2, 4]    une séquence — une note par pas
+#   (0, 4, 7)    un ACCORD — ces notes sonnent ensemble (un groupe)
+#   <7 9>        ALTERNE — 7 un cycle, 9 le suivant, puis ça se répète
+#
+# ▶ Les trois dans une seule ligne :
+p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`, 'fr'),
+
+    lesson(8, 'Les générateurs — des patterns automatiques',
+`# Plutôt que de taper chaque note, les GÉNÉRATEURS construisent les patterns :
+#
+#   PRand([0,2,4,7])     choisit une note au hasard à chaque pas
+#   PEuclid(3, 8)        un rythme euclidien — 3 frappes réparties sur 8 pas
+#   arp([0,4,7], "up")   arpège un accord : up / down / updown / random
+#
+# ▶ Une ligne de notes aléatoires :
+p1 >> blip(PRand([0, 2, 4, 7, 9]), dur=1/2, amp=0.5)
+#
+# ASTUCE : place le curseur sur  PRand  et appuie sur  Alt+I  pour une explication
+# instantanée de N'IMPORTE quelle fonction de pattern.`, 'fr'),
+
+    lesson(9, 'Les TimeVars — des valeurs qui bougent',
+`# Une valeur peut ÉVOLUER dans le temps — parfait pour les balayages de filtre :
+#
+#   sinvar([300, 4000], [8])   glisse 300→4000→300 (une sinusoïde) sur 8 temps
+#   linvar([0, 1], [16])       monte 0→1 en ligne droite sur 16 temps
+#
+# ▶ Un saw dont le filtre passe-bas s'ouvre et se ferme tout seul :
+p1 >> saw([0, 4, 7], dur=1/2, lpf=sinvar([400, 5000], [8]), amp=0.4)
+#
+# N'IMPORTE quel param accepte une var — cutoff, amp, pan, dur … tout peut respirer.`, 'fr'),
+
+    lesson(10, 'Les effets',
+`# Les effets ne sont que des params — ajoute-les à n'importe quel player, empile-les :
+#
+#   lpf / hpf  filtres        reverb + room  espace        echo + echo_time  délai
+#   chorus · drive · crush · chop · … (des dizaines — l'autocomplétion les liste)
+#
+# ▶ Un pad ample à travers une réverb et un filtre doux :
+p1 >> pads([0, 4, 7], dur=4, sus=4, reverb=0.6, room=0.9, lpf=1400, chorus=0.4, amp=0.4)`, 'fr'),
+
+    lesson(11, 'Plusieurs players — superposer & contrôler',
+`# Les players s'empilent : donne un nom à chacun, ils jouent ensemble. Et tu les contrôles :
+#
+#   Alt+X sur une ligne  → la commente et ARRÊTE ce player uniquement
+#   Ctrl+;               → arrête TOUT d'un coup
+#
+# ▶ Lance ces trois (une à une, ou tout sélectionner + Ctrl+Alt+Entrée) :
+b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
+p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
+d1 >> play("x-o-")
+#
+# Maintenant Alt+X sur la ligne b1 pour couper la basse. Ctrl+; arrête tout.`, 'fr'),
+
+    lesson(12, 'L’autocomplétion — ne rien mémoriser',
+`# Bloqué sur ce qu'il faut taper ? Appuie sur  Ctrl+Espace :
+#
+#   après  nom >>    la liste des synthés
+#   dans   ( )       les params de ce synthé + les effets
+#   après  param =   les patterns / vars à insérer
+#
+# ▶ Clique à la FIN de la ligne suivante et appuie sur Ctrl+Espace pour explorer :
+p1 >>
+#
+# Flèches : déplacer · → / ← ouvrir & fermer un groupe · Entrée / Tab choisir · Échap fermer.`, 'fr'),
+
+    lesson(13, 'Arranger — sections & sets',
+`# Pour des morceaux entiers, marque des SECTIONS avec  #@nom(mesures) . Place le
+# curseur sur une ligne #@ et Ctrl+Entrée — elle joue et AVANCE toute seule après ce
+# nombre de mesures. #@#@ regroupe des sections en une piste repliable.
+#
+# ▶ Un petit set en deux parties — curseur sur  #@a(8)  et Ctrl+Entrée :
+#@#@ my_set
+#@a(8)
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+#@b(8)
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+d1 >> play("x-o-")`, 'fr'),
+
+    lesson(14, 'Partie 2 — transformer un pattern en direct',
+`# ✦ Bien joué — voilà les bases. La Partie 2 va plus loin.
+#
+# Enchaîne des TRANSFORMATIONS sur un player pour le remodeler en jouant :
+#
+#   .every(8, "reverse")      toutes les 8 mesures, inverse le pattern
+#   .sometimes("stutter", 2)  de temps en temps, roule un pas en 2
+#   méthodes de liste :  [0,2,4,7].rotate(1) · .mirror() · .shuffle() · .palindrome()
+#
+# ▶ Une ligne qui se transforme sans cesse :
+p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`, 'fr'),
+
+    lesson(15, 'Harmonie — gamme, accords & progressions',
+`# Règle la TONALITÉ une fois et tout la suit :
+Scale.default = "minor"
+Root.default  = "C"
+#
+#   PChord(0, "7")           un accord de 7e sur la tonique (un groupe de notes)
+#   PRoman("i VI III VII")   une progression écrite en chiffres romains
+#   PProg("pop")             une progression nommée (I V vi IV)
+#
+# ▶ Un pad qui dérive à travers une progression mineure :
+p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'fr'),
+
+    lesson(16, 'Génératif — laisse la machine te surprendre',
+`# Deux façons de céder un peu de contrôle :
+#
+#   chaos()   COLLE un bloc de players aléatoires dans l'éditeur — relis-le, ajuste-le,
+#             puis Ctrl+Alt+Entrée pour lancer le bloc (il ne joue pas tout seul).
+#   son()     lance un « robot de jam » qui fait évoluer les players seul · soff() l'arrête.
+#
+# ▶ Confie les rênes au robot (soff() ou Ctrl+; pour l'arrêter) :
+son()
+#
+# ▶ …ou génère un bloc à examiner (il apparaît en dessous — lance-le avec Ctrl+Alt+Entrée) :
+chaos()`, 'fr'),
+
+    lesson(17, 'Crée ton propre synthé — defsynth()',
+`# Tu n'es pas limité aux synthés intégrés — DÉFINIS ton instrument. Donne-lui un nom,
+# des params, une fonction de construction en UGens ; convertis la hauteur avec
+# note.midicps() ; termine par Out.ar(...).  (Le boot doit être fait.)
+#
+# ▶ Sélectionne tout ce bloc et fais Ctrl+Alt+Entrée pour définir « buzz » :
+defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release, cutoff }) => {
+  const env = EnvGen.ar(Env.perc(attack, sus, 1, -4), { doneAction: 2 })
+  const sig = RLPF.ar(Saw.ar(note.midicps()), cutoff, 0.4).mul(env).mul(amp)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+#
+# ▶ …puis joue-le comme n'importe quel synthé :
+p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'fr'),
+
+    lesson(18, 'Enregistre ton set',
+`# Capture ce que tu fais — les boutons sont dans le panneau de droite (Settings) :
+#
+#   rec code    enregistre tes évaluations en une composition #@ rejouable
+#   rec audio   capture la sortie audio dans un fichier (coche « share tab audio »)
+#
+# Et  Alt+T  arme l'enregistreur d'AUTOMATION : bouge un réglage avec Alt+Haut/Bas sur
+# quelques temps et il écrit le mouvement en linvar pour toi.
+#
+# (Rien à lancer ici — essaie les boutons quand tu veux, puis évalue next().)`, 'fr'),
+
+    lesson(19, 'Jamme avec d’autres',
+`# crashDot est multijoueur. Deux façons d'entrer :
+#
+#   👥 go live   transforme ton code en session partagée — envoie le lien et d'autres
+#               éditent le MÊME buffer avec toi, en sync, curseurs compris.
+#   🌌 galaxy    une carte en direct de chaque jam public — clique une étoile pour y sauter.
+#
+# En session, chacun voit les évaluations des autres ; le chat est dans le panneau de droite.
+# (Rien à lancer — clique go live quand tu veux partager. Puis évalue next().)`, 'fr'),
+
+    lesson(20, 'Jouer en live — solo & mute',
+`# Jouer en live, c'est couper et rallumer. Au clavier, sur la ligne au curseur :
+#
+#   Alt+X      commente + arrête ce player (rallume de la même façon)
+#   Alt+S      SOLO ce player (coupe les autres) · Ctrl+Alt+S annule le solo
+#   Alt+O      solo-drop : solo quelques mesures, puis tout revient
+#   Ctrl+;     arrête tout
+#
+# ▶ Lance les trois (tout sélectionner + Ctrl+Alt+Entrée), puis Alt+S sur la ligne p1 :
+b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
+p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
+d1 >> play("x-o-")`, 'fr'),
+
+    lesson(21, 'La boîte à outils P[…]',
+`# P[…] construit un pattern que tu TRANSFORMES avec des méthodes enchaînables :
+#
+#   P[0,2,4,7].rotate(1)     décale la séquence
+#   .mirror() · .palindrome() · .shuffle() · .reverse()
+#   .stutter(2) · .every(4, "reverse") · .arp([0,4,7]) · .layer("add", 2)
+#
+# ▶ Une mélodie qui se replie sur elle-même :
+p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`, 'fr'),
+
+    lesson(22, 'Groove & swing',
+`# Des notes rectilignes sonnent robotiques — ajoute du GROOVE avec un pattern de dur :
+#
+#   PGroove("swing")   feeling swingué   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PDur(3, 8)         durées euclidiennes — 3 frappes réparties sur 8
+#
+# ▶ Un charleston swingué sur une basse au galop :
+h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'fr'),
+
+    lesson(23, 'Apporte tes propres sons',
+`# Charge N'IMPORTE quel audio par URL — samples, boucles, ou un kit entier :
+#
+#   loadsample("z", "https://…/clap.wav")    puis utilise-le :   d1 >> play("z-z-")
+#   loadloop("brk", "https://…/loop.wav")    une boucle calée sur le tempo :  l1 >> loop("brk", dur=4)
+#   loadpack("…/pack.json")                  un kit entier d'un coup (leçon 5)
+#
+# (Mets une vraie URL et lance-le — les exemples ci-dessus ne se chargeront pas tels quels.)`, 'fr'),
+
+    lesson(24, 'Des sets qui ne se répètent jamais — #@goto',
+`# #@goto(partie, prob) est un AIGUILLEUR de durée nulle : une chance  prob  de sauter
+# à une autre section, sinon on continue. Enchaîne-les pour un set qui bifurque
+# différemment à chaque fois — un arrangement à la Markov.
+#
+# ▶ Curseur sur  #@a(8)  et Ctrl+Entrée — il peut boucler A ou passer à B, 50/50 :
+#@#@ branching
+#@a(8)
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+#@goto(a, 0.5)
+#@b(8)
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'fr'),
+
+    lesson(25, 'MIDI — piloter du matériel externe',
+`# crashDot parle MIDI : pilote des synthés & boîtes à rythmes matériels, ou joue depuis
+# un contrôleur. Active-le avec le bouton MIDI (panneau de droite), puis :
+#
+#   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   envoie des notes en sortie
+#   midiin()      joue les synthés intégrés DEPUIS un clavier
+#   mlearn()      bouge un réglage pour l'associer à un param (MIDI CC)
+#
+# (Nécessite un appareil MIDI + l'autorisation du navigateur — rien à lancer sans ça.)`, 'fr'),
+
+    lesson(26, 'L’autocomplétion en détail',
+`# Ctrl+Espace est CONTEXTUEL — il propose exactement ce qui convient là où est le curseur :
+#
+#   après  nom >>      les synthés, groupés par famille (bass · lead · keys · pads …)
+#   dans   ( )         les params de ce synthé + un groupe  fx
+#   le groupe  fx      se déplie par famille : filtres · réverbs · délais · distorsion …
+#                      en choisir un insère tous ses réglages (ex. reverb + room)
+#   après  param =     patterns & vars (PRand, PEuclid, sinvar, var …)
+#   Scale.default = "  les noms de gammes   ·   pal="   les noms de palettes
+#
+# ▶ Clique juste après le  (  ci-dessous, Ctrl+Espace, ouvre le groupe  fx , choisis-en un :
+p1 >> pluck([0, 2, 4, 7])
+#
+# → / ← ouvrent & ferment un groupe · ↑ ↓ déplacent · Entrée / Tab choisit · Échap ferme.`, 'fr'),
+
+    lesson(27, 'Plus de patterns',
+`# Les patterns sont au cœur de tout. Un tour des GÉNÉRATEURS (curseur dessus → Alt+I) :
+#
+#   PRand · PWhite · PWalk        tirages aléatoires & marches ivres
+#   PEuclid(3,8) · PDur · PBeat    rythmes (frappes/durées réparties sur une longueur)
+#   PStep · PRange · PSine         formes & rampes
+#   arp · PArp · melody            arpèges & phrases
+#
+# Les patterns s'IMBRIQUENT — un pattern dans une liste se résout à chaque pas :
+#   [0, {2, 4}, 7]    choisit 2 ou 4 au hasard sur ce pas
+#   [0, [4, 2]]       une sous-séquence (4 puis 2) dans un seul pas
+#
+# ▶ Une note d'accent aléatoire avec des durées euclidiennes :
+p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'fr'),
+
+    lesson(28, 'Raccourcis & navigation',
+`# Les raccourcis à connaître (tous marchent pendant l'édition) :
+#
+#   Ctrl+Entrée     lance la ligne au curseur      Ctrl+Alt+Entrée  lance le bloc
+#   Alt+Haut / Bas  ajuste le nombre au curseur, en direct
+#   Alt+X           commente + arrête ce player     Ctrl+;   arrête tout
+#   Alt+I           explique la fonction au curseur
+#   Ctrl+Espace     autocomplétion                  Ctrl+/   commente/décommente
+#   Alt+T           enregistre un mouvement de réglage en automation
+#   Ctrl+Alt+P      SAUTE à la section ACTIVE — là où le set en cours joue
+#   Shift+Alt+Z     mode zen (masque toute l'UI)  ·  F1 / ?  docs
+#
+# Ctrl+Alt+P est le saut « aller à la position de la composition ».`, 'fr'),
+
+    lesson(29, 'Fonctions pratiques',
+`# Des fonctions à évaluer quand tu veux :
+#
+#   drop(14, 2)                une montée → un DROP balayé sur les players en cours
+#   shutup()                   arrête tous les players (plus doux que Ctrl+;)
+#   swap("p1", "p2", "degree") échange un attribut entre deux players, en direct
+#   darker() / lighter()       change l'humeur de la gamme, un mode à la fois
+#   linbpm(120, 140, 16)       glisse le tempo 120→140 sur 16 temps
+#   say("salut")   print("…")  parle / affiche
+#
+# ▶ Lance deux players, puis évalue  drop(8, 2)  pour entendre une montée + un drop :
+p1 >> saw([0, 4, 7], dur=1/2, lpf=1500, amp=0.4)
+b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)`, 'fr'),
+
+    lesson(30, 'Ajuste un réglage à la volée',
+`# Pas besoin de retaper toute une ligne pour changer une chose. Sur un player EN COURS :
+#
+#   p1.lpf = linvar([500, 5000], [8])   règle UN seul attribut (ici, un balayage de filtre)
+#   p1.every(8, "reverse")              attache une transfo sans le redémarrer
+#   ~p1 >> pluck([0, 4])                le  ~  RÉINITIALISE un player (efface les réglages hérités)
+#
+# ▶ Lance ceci, puis lance la ligne p1.lpf en dessous pour balayer le filtre en direct :
+p1 >> saw([0, 4, 7, 9], dur=1/2, amp=0.4)
+p1.lpf = linvar([500, 5000], [8])`, 'fr'),
+
+    lesson(31, 'Silences, trous & dynamique',
+`# Le silence façonne un groove autant que les notes :
+#
+#   [0, _, 4, _]        _  (ou  rest ) = un vrai silence — un trou dans le pattern
+#   play("x. .x")       .  ou espace = un silence entre les frappes
+#   amp=[0.6, 0.3]      volume par pas · amplify=Pacc("offbeat") = des accents tout prêts
+#
+# ▶ Une basse avec des silences, et un charleston aux accents à contretemps (kit requis) :
+p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
+h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`, 'fr'),
+
+    lesson(32, 'Synchroniser des players',
+`# Les players peuvent SE SURVEILLER pour que les parties bougent ensemble :
+#
+#   p1.degree           référence la note en cours d'un autre player dans un pattern
+#   p2.follow("p1")     fait suivre à p2 le degree de p1 à chaque pas
+#   p1.reroll(8)        se réévalue toutes les 8 mesures (les aléas figés se relancent)
+#
+# ▶ Un pad, et une basse qui joue la fondamentale du pad deux octaves plus bas :
+p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
+b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`, 'fr'),
+
+    lesson(33, 'Sauvegarder, partager & retrouver',
+`# Ton travail est en sécurité et partageable :
+#
+#   • l'éditeur SAUVEGARDE tout seul dans ce navigateur — recharge la page, il est là.
+#   • ⤴ share (en haut) copie un LIEN autonome : toute la composition tient dans l'URL,
+#     donc qui l'ouvre récupère ton code exact — aucun serveur nécessaire.
+#   • rec code (panneau de droite) enregistre tes évaluations en un set #@ rejouable ;
+#     rec audio capture le son lui-même dans un fichier.
+#
+# (Rien à lancer — clique ⤴ share quand tu as fait quelque chose qui te plaît.)`, 'fr'),
+
+    lesson(34, 'Tu es prêt ✨',
+`# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
+#
+# Où aller ensuite :
+#   • examples ▾ (en haut)  morceaux & techniques complets — clique pour en charger un
+#   • le bouton  ?          docs : chaque synthé, effet, pattern & raccourci
+#   • 🌌 galaxy             parcours & jamme avec d'autres, en direct
+#
+# Maintenant vide ce buffer (Ctrl+A, Suppr) et fais quelque chose à toi.
+# Bienvenue à bord !`, 'fr'),
+];
+
+// The lesson set for the current language, falling back to English per lesson.
+function lessons() {
+    if (getLang() !== 'fr') return EN;
+    return EN.map((en, i) => FR[i] || en);
+}
+
 let editor = null, idx = 0, active = false;
 
 export function initTour(_editor) {
     editor = _editor;
-    return { start, next, back, list, go, isActive: () => active, notify() {} };
+    // refresh() re-renders the current lesson (used after language() switches).
+    return { start, next, back, list, go, refresh: () => { if (active) show(); }, isActive: () => active, notify() {} };
 }
 
 // [{ n, title }] for every lesson — for tour() to print a menu.
-function list() { return LESSONS.map(l => ({ n: l.n, title: l.title })); }
+function list() { return lessons().map(l => ({ n: l.n, title: l.title })); }
 // Jump straight to lesson n (1-based), starting the tour there if needed.
 function go(n) {
+    const set = lessons();
     const i = Math.round(Number(n)) - 1;
-    if (i >= 0 && i < LESSONS.length) { active = true; idx = i; show(); }
+    if (i >= 0 && i < set.length) { active = true; idx = i; show(); }
     return '';
 }
 
 function show() {
-    const text = LESSONS[idx].text;
+    const text = lessons()[idx].text;
     editor.setValue(text);
     // Drop the cursor on the first runnable line (the ▶ example) so Ctrl+Enter works
     // right away; if the lesson has no example, land on next()/back().
