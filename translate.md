@@ -51,14 +51,21 @@ This is translated **data**, not duplicated **logic**.
 3. **Docs / examples / changelog** — English fallback until each section is translated.
 
 ## Status
-- **Shipped**: `js/i18n/lang.js` (the shared `getLang()`/`setLang()` state, auto-detecting
-  the browser locale) + a **fully bilingual guided tour**. The tour lessons are data
-  (`EN[]` + `FR[]` in `js/ui/tour.js`); `lessons()` picks by language, per-lesson falling
-  back to English. Code in the examples stays English; only the `#` prose is translated.
+- **Shipped**: `js/i18n/lang.js` (the shared `getLang()`/`setLang()` state; **English is
+  the default** — no locale auto-detect, so a French browser still starts in English) +
+  a **five-language guided tour**: English, French, German, Spanish, Japanese. The tour
+  lessons are data (`EN[]` · `FR[]` · `DE[]` · `ES[]` · `JA[]` in `js/ui/tour.js`);
+  `lessons()` picks by language, per-lesson falling back to English. Example CODE stays
+  English (the tool's language); only the `#` prose is translated.
 - **Language switch (for now)**: no UI dropdown yet — evaluate `language("fr")` /
-  `language("en")` in the editor. It sets `lang` and live-re-renders the current lesson
-  (`_tour.refresh()`). Lesson 1 advertises the command in the other language. A Settings
-  dropdown + `translateDOM()` come with Phase 1 (the rest of the UI).
+  `language("de")` / `language("es")` / `language("ja")` / `language("en")` in the editor.
+  It sets `lang` and live-re-renders the current lesson (`_tour.refresh()`). Lesson 1 of
+  every language lists the **other four** as runnable `language(...)` lines, each with its
+  how-to-evaluate hint written in that target language. A Settings dropdown +
+  `translateDOM()` come with Phase 1 (the rest of the UI).
+- **To add a language**: add its code to `LANGS` in `js/i18n/lang.js`, a `LABEL.<code>`
+  entry + a `<CODE>[]` lesson array in `js/ui/tour.js`, wire it into `lessons()`'s map and
+  the `language()` resolver in `index.html`. Everything else falls back to English.
 
 ## Notes / decisions still open
 - **Key style**: semantic keys (`nav.boot`) grouped by area — cleaner for devs and

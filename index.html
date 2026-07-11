@@ -459,11 +459,17 @@
             back: () => { if (_tour) _tour.back(); },
             // language("fr" | "en")  sets the language (drives the tour for now).
             language: (l) => {
-                if (l == null) { log(`language: ${getLang() === 'fr' ? 'français (fr)' : 'english (en)'}  ·  language("fr") / language("en")`, 'info'); return; }
-                const v = String(l).toLowerCase().startsWith('f') ? 'fr' : 'en';
+                const NAME = { en: 'english (en)', fr: 'français (fr)', de: 'deutsch (de)', es: 'español (es)', ja: '日本語 (ja)' };
+                if (l == null) { log(`language: ${NAME[getLang()] || NAME.en}  ·  language("en") / language("fr") / language("de") / language("es") / language("ja")`, 'info'); return; }
+                const s = String(l).toLowerCase();
+                const v = (s.startsWith('f')) ? 'fr'
+                        : (s.startsWith('d') || s.startsWith('ger')) ? 'de'
+                        : (s.startsWith('es') || s.startsWith('sp')) ? 'es'
+                        : (s.startsWith('j') || s.startsWith('日')) ? 'ja'
+                        : 'en';
                 setLang(v);
                 if (_tour) _tour.refresh();   // re-render the current lesson in the new language
-                log(v === 'fr' ? '🇫🇷 langue → français' : '🇬🇧 language → english', 'info');
+                log({ fr: '🇫🇷 langue → français', de: '🇩🇪 Sprache → deutsch', es: '🇪🇸 idioma → español', ja: '🇯🇵 言語 → 日本語', en: '🇬🇧 language → english' }[v], 'info');
             },
             // tour()  lists every lesson · tour(n)  jumps straight to lesson n.
             tour: (n) => {
