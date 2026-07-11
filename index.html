@@ -41,7 +41,8 @@
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
-      <button id="btn-visuals" title="pop out the visuals window — reacts to audio &amp; code, and renders vN visual players (v1 &gt;&gt; plasma())">▦ visuals</button>
+      <!-- visuals: hidden until thoroughly tested (the vN >> scene language still works if typed) -->
+      <button id="btn-visuals" title="pop out the visuals window — reacts to audio &amp; code, and renders vN visual players (v1 &gt;&gt; plasma())" style="display:none">▦ visuals</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -55,7 +56,7 @@
         <button class="docs-tab" data-tab="patterns">Patterns</button>
         <button class="docs-tab" data-tab="functions">Functions</button>
         <button class="docs-tab" data-tab="guide">Guide</button>
-        <button class="docs-tab" data-tab="visuals">Visuals</button>
+        <button class="docs-tab" data-tab="visuals" style="display:none">Visuals</button>
         <button class="docs-tab" data-tab="changelog">Changelog</button>
         <button id="docs-close">✕</button>
       </div>
@@ -163,7 +164,7 @@
         <option value="terminal">Terminal</option>
         <option value="paper">Paper &amp; Ink</option>
       </select>
-      <div class="cp-row" style="gap:4px;margin-top:4px">
+      <div class="cp-row rec-row" style="gap:4px;margin-top:4px">
         <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
         <button id="btn-rec-audio" class="cp-btn" title="record the audio output to a file">rec audio</button>
       </div>

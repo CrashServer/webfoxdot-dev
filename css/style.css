@@ -255,6 +255,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     padding: 5px 8px; font: inherit; font-size: 12px; text-align: left;
     background: var(--bg-1); color: var(--text-1);
     border: 1px solid var(--border-2); border-radius: 5px; cursor: pointer;
+    white-space: normal;   /* wrap inside the panel instead of spilling out when narrow */
 }
 .listing-toggle:hover { border-color: var(--green, #63b982); }
 .listing-toggle.is-private {
@@ -391,7 +392,10 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     border-radius: 1px; opacity: 0.9; pointer-events: none; will-change: transform;
 }
 /* rec buttons sit side by side in the sidebar Settings section */
-#cp-settings .cp-row .cp-btn { flex: 1; width: auto; }
+/* rec buttons: share the row, but shrink (min-width:0) and wrap onto two lines
+   rather than spilling out of the panel when it's dragged narrow. */
+#cp-settings .cp-row .cp-btn { flex: 1 1 84px; width: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rec-row { flex-wrap: wrap; }   /* narrow panel → the two buttons stack, full labels intact */
 
 /* ── Editor ───────────────────────────────────────────────────────────────── */
 #editor-wrap { flex: 1; overflow: hidden; min-height: 0; }

@@ -94,7 +94,12 @@
         document.getElementById('pwa-tip-x').onclick = () => tip.remove();
     }
 
+    // Our custom install chip is HIDDEN until the PWA flow is thoroughly tested. The
+    // service worker still registers (offline works), and Chrome/Edge still show their
+    // native address-bar install icon — we just don't surface our own button yet.
+    const SHOW_INSTALL_BUTTON = false;
     function showInstall() {
+        if (!SHOW_INSTALL_BUTTON) return;
         if (standalone()) return;                 // already installed → nothing to do
         const btn = chip('btn-install', '⬇ install', 'Install crashDot as an app — runs offline');
         if (!btn) return;
