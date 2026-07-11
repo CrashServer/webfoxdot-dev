@@ -12,7 +12,7 @@
 //   tour.start();  // ← 🎓 button / start_guided_tour()
 //   tour.next();   // ← next()      tour.back(); // ← back()
 
-const TOTAL = 20;
+const TOTAL = 26;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 function lesson(n, title, body) {
@@ -258,7 +258,72 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`),
 # In a session everyone sees each other's evals; the chat is in the right panel.
 # (Nothing to run — press go live when you want to share. Then evaluate next().)`),
 
-    lesson(20, 'You’re ready ✨',
+    lesson(20, 'Perform — solo & mute',
+`# Playing live is muting and un-muting. Keyboard, on the line at the cursor:
+#
+#   Alt+X      comment out + stop this player (toggle it back the same way)
+#   Alt+S      SOLO this player (mute the rest) · Ctrl+Alt+S un-solos
+#   Alt+O      solo-drop: solo for a few bars, then everything returns
+#   Ctrl+;     stop everything
+#
+# ▶ Run all three (select + Ctrl+Alt+Enter), then press Alt+S on the p1 line:
+b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
+p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
+d1 >> play("x-o-")`),
+
+    lesson(21, 'Pattern toolbox — P[…] methods',
+`# P[…] builds a pattern you can TRANSFORM with chainable methods:
+#
+#   P[0,2,4,7].rotate(1)     shift the sequence along
+#   .mirror() · .palindrome() · .shuffle() · .reverse()
+#   .stutter(2) · .every(4, "reverse") · .arp([0,4,7]) · .layer("add", 2)
+#
+# ▶ A self-folding melody:
+p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`),
+
+    lesson(22, 'Groove & swing',
+`# Straight notes feel robotic — add GROOVE with a dur pattern:
+#
+#   PGroove("swing")   swung feel   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PDur(3, 8)         euclidean durations — 3 hits spread across 8
+#
+# ▶ A swung hat over a galloping bass:
+h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`),
+
+    lesson(23, 'Bring your own sounds',
+`# Load ANY audio by URL — samples, loops, or a whole kit:
+#
+#   loadsample("z", "https://…/clap.wav")    then use it:   d1 >> play("z-z-")
+#   loadloop("brk", "https://…/loop.wav")    a beat-synced loop:  l1 >> loop("brk", dur=4)
+#   loadpack("…/pack.json")                  a whole kit at once (lesson 5)
+#
+# (Swap in a real URL and run it — the placeholders above won't load as-is.)`),
+
+    lesson(24, 'Sets that never repeat — #@goto',
+`# #@goto(part, prob) is a zero-length ROUTER: a  prob  chance to jump to another
+# section, else fall through. Chain them for a set that branches differently every
+# time — a Markov-style arrangement.
+#
+# ▶ Cursor on  #@a(8)  and Ctrl+Enter — it may loop A or move to B, 50/50:
+#@#@ branching
+#@a(8)
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+#@goto(a, 0.5)
+#@b(8)
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`),
+
+    lesson(25, 'MIDI — play external gear',
+`# crashDot speaks MIDI: drive hardware synths & drum machines, or play from a
+# controller. Turn it on with the MIDI button (right panel), then:
+#
+#   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   send notes out
+#   midiin()      play the built-in synths FROM a keyboard
+#   mlearn()      wiggle a knob to map it to a param (MIDI CC)
+#
+# (Needs a MIDI device + the browser's permission — nothing to run without one.)`),
+
+    lesson(26, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
