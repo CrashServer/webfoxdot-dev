@@ -12,7 +12,7 @@
 //   tour.start();  // ← 🎓 button / start_guided_tour()
 //   tour.next();   // ← next()      tour.back(); // ← back()
 
-const TOTAL = 26;
+const TOTAL = 30;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 function lesson(n, title, body) {
@@ -324,7 +324,65 @@ p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`),
 #
 # (Needs a MIDI device + the browser's permission — nothing to run without one.)`),
 
-    lesson(26, 'You’re ready ✨',
+    lesson(26, 'Autocomplete in depth',
+`# Ctrl+Space is CONTEXT-AWARE — it offers exactly what fits where the cursor is:
+#
+#   after  name >>      synths, grouped by family (bass · lead · keys · pads …)
+#   inside ( )          that synth's params + an  fx  group
+#   the  fx  group      unfolds by family: filters · reverbs · delays · distortion …
+#                       picking one inserts its whole knob set (e.g. reverb + room)
+#   after  param =      patterns & vars (PRand, PEuclid, sinvar, var …)
+#   Scale.default = "   scale names   ·   pal="   palette names
+#
+# ▶ Click just after the  (  below, press Ctrl+Space, open the  fx  group, pick one:
+p1 >> pluck([0, 2, 4, 7])
+#
+# → / ← open & close a group · ↑ ↓ move · Enter / Tab picks · Esc closes.`),
+
+    lesson(27, 'More patterns',
+`# Patterns are the heart of it. A tour of GENERATORS (cursor on any → Alt+I):
+#
+#   PRand · PWhite · PWalk        random picks & drunk walks
+#   PEuclid(3,8) · PDur · PBeat    rhythms (hits/durations spread over a span)
+#   PStep · PRange · PSine         shapes & ramps
+#   arp · PArp · melody            arpeggios & phrases
+#
+# Patterns NEST — one inside a list resolves each step:
+#   [0, {2, 4}, 7]    picks 2 or 4 randomly on that step
+#   [0, [4, 2]]       a sub-sequence (4 then 2) inside one step
+#
+# ▶ A random accent note with euclidean note-lengths:
+p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`),
+
+    lesson(28, 'Shortcuts & navigation',
+`# The shortcuts worth knowing (all work while editing):
+#
+#   Ctrl+Enter      run the line at the cursor      Ctrl+Alt+Enter  run the block
+#   Alt+Up / Down   nudge the number under the cursor, live
+#   Alt+X           comment out + stop this player   Ctrl+;   stop everything
+#   Alt+I           explain the function at the cursor
+#   Ctrl+Space      autocomplete                     Ctrl+/   toggle comment
+#   Alt+T           record a knob move as automation
+#   Ctrl+Alt+P      JUMP to the ACTIVE section — where the running set is right now
+#   Shift+Alt+Z     zen mode (hide all UI)  ·  F1 / ?  docs
+#
+# Ctrl+Alt+P is the "go to composition position" jump — handy in a long #@ set.`),
+
+    lesson(29, 'Handy functions',
+`# Global helpers you can evaluate any time:
+#
+#   drop(14, 2)                a build → filter-sweep DROP over the running players
+#   shutup()                   stop every player (a softer Ctrl+;)
+#   swap("p1", "p2", "degree") swap one attribute between two players, live
+#   darker() / lighter()       shift the scale's mood one mode at a time
+#   linbpm(120, 140, 16)       glide the tempo 120→140 over 16 beats
+#   say("hi")   print("…")     speak / log
+#
+# ▶ Get two players going, then evaluate  drop(8, 2)  to hear a build + drop:
+p1 >> saw([0, 4, 7], dur=1/2, lpf=1500, amp=0.4)
+b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)`),
+
+    lesson(30, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
