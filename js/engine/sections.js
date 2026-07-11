@@ -300,6 +300,30 @@ function runSection(sectionLine) {
         return true;
     }
 
+    if (type === 'end') {
+        // Terminal control node: stop everything after `beats` (or immediately if
+        // none), then halt the sequence. It has NO playable body — the lines below
+        // it belong to whatever follows in the document (e.g. a tutorial footer),
+        // so they must never be auto-evaluated.
+        const stopAll = () => {
+            if (_sequenceId !== myId) return;
+            _evalFn('__stopAll()');
+            setActive(-1);
+            setAutoplay(false);
+            if (_onChange) _onChange();
+        };
+        if (beats) {
+            setActive(sectionLine);
+            _activeStart = _clock.now();
+            _activeBeats = beats;
+            setAutoplay(true);
+            _clock._schedule(_clock.now() + beats, stopAll);
+        } else {
+            stopAll();
+        }
+        return true;
+    }
+
     // Mark this as the active section (highlight + blink in the editor)
     setActive(sectionLine);
 
@@ -324,18 +348,6 @@ function runSection(sectionLine) {
     setAutoplay(true);
 
     const targetBeat = _clock.now() + beats;
-
-    if (type === 'end') {
-        // After beats, stop all players
-        _clock._schedule(targetBeat, () => {
-            if (_sequenceId !== myId) return; // stale
-            _evalFn('__stopAll()');
-            setActive(-1);
-            setAutoplay(false);
-            if (_onChange) _onChange();
-        });
-        return true;
-    }
 
     if (type === 'loop') {
         // After beats: weighted-jump to a target, or loop this section if none.

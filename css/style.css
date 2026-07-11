@@ -110,34 +110,6 @@
     --cm-def:      #fede5d;
 }
 
-/* Terminal — pure black, green phosphor + amber. */
-:root.terminal {
-    --bg-1:        #000000;
-    --bg-2:        #050805;
-    --bg-3:        #0a120a;
-    --border-1:    #154015;
-    --border-2:    #1f6b1f;
-    --text-1:      #33ff66;
-    --text-2:      #1f9d4d;
-    --green:       #33ff66;
-    --green-dim:   rgba(51,255,102,0.15);
-    --glow:        rgba(51,255,102,0.45);
-    --blue:        #33ddcc;
-    --yellow:      #ffcc33;
-    --red:         #ff5544;
-    --purple:      #66ffaa;
-    --orange:      #ffaa33;
-    --flash-col:   rgba(51,255,102,0.22);
-    --synth-col:   #33ff66;
-    --pattern-col: #66ffaa;
-    --timevar-col: #ffcc33;
-    --keyword-col: #00ffaa;
-    --cm-keyword:  #00ffaa;
-    --cm-number:   #ffcc33;
-    --cm-string:   #66ff99;
-    --cm-def:      #33ff66;
-}
-
 /* Paper & Ink — warm cream paper, dark sepia ink, muted ink accents (light theme). */
 :root.paper {
     --bg-1:        #f2ead6;   /* page / editor — warm paper   */
@@ -232,6 +204,36 @@
 :root.brutalist .cp-select, :root.brutalist #bpm-input { border-radius: 0 !important; }
 :root.brutalist button, :root.brutalist .cp-btn, :root.brutalist input, :root.brutalist select { border-width: 2px !important; }
 :root.brutalist .title { text-shadow: none !important; letter-spacing: 1px; }
+
+/* Sakura — soft blossom-pink daylight: plum ink on pink paper, no glow (light theme). */
+:root.sakura {
+    --bg-1:        #fff0f5;   /* page / editor — blossom white   */
+    --bg-2:        #ffe2ee;   /* toolbar / panels — soft pink frame */
+    --bg-3:        #fff8fb;   /* buttons / insets — raised petal  */
+    --border-1:    #f4c6da;
+    --border-2:    #e05a8c;
+    --text-1:      #4a2c3d;   /* plum ink */
+    --text-2:      #9c7488;   /* faded mauve */
+    --green:       #2fa98a;   /* mint */
+    --green-dim:   rgba(47,169,138,0.14);
+    --glow:        rgba(224,90,140,0.18);   /* soft pink halo, not neon */
+    --blue:        #5b8fd6;   /* spring sky */
+    --yellow:      #d99441;   /* apricot gold */
+    --red:         #d6455f;   /* cherry */
+    --purple:      #9b5bb0;   /* plum */
+    --orange:      #e07a4a;   /* coral */
+    --flash-col:   rgba(224,90,140,0.16);
+    --synth-col:   #2fa98a;
+    --pattern-col: #9b5bb0;
+    --timevar-col: #c0842b;   /* deeper gold — readable on light bg */
+    --keyword-col: #5b8fd6;
+    --cm-keyword:  #d6455f;   /* cherry */
+    --cm-number:   #5b8fd6;   /* sky */
+    --cm-string:   #2fa98a;   /* mint */
+    --cm-def:      #c06a2b;   /* sienna — distinct from string mint */
+}
+/* signature: a whisper of blossom pink under the wordmark — soft, never neon */
+:root.sakura .title { text-shadow: 0 0 6px rgba(224,90,140,0.25); }
 
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }

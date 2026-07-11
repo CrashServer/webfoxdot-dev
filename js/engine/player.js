@@ -559,6 +559,12 @@ export class Player {
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
+                // Silent (amp≤0 — e.g. muted by a drop/solo, _amplify=0) → spawn NO
+                // server node. Firing amp-0 synths every step would pile up nodes on
+                // scsynth until it hits its node cap and stops sounding entirely (a
+                // "stuck engine" only a reboot clears). The step/reschedule below still
+                // run, so the player resumes the instant amp comes back.
+                if (!(amp > 0)) continue;
                 this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP + vi * strumSec, outBus, secPerBeat);
             }
         };
@@ -640,7 +646,9 @@ export class Player {
         };
         // .degrade(prob): randomly drop this step (bookkeeping still advances below)
         if (!(this._degrade > 0 && Math.random() < this._degrade)) {
-            for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
+            // amp≤0 (muted by drop/solo) → render NO sample: silent play() steps would
+            // otherwise pile up nodes on scsynth until it wedges. Step still advances.
+            if (amp > 0) for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
             emitStep(this.name, step);   // editor highlight (play strings)
         }
 

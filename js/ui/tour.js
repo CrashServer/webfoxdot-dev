@@ -190,7 +190,8 @@ b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
 p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
 d1 >> play("x-o-")
 #
-# Now press Alt+X on the b1 line to mute the bass. Ctrl+; stops all.`),
+# Now press Alt+X on the b1 line to mute the bass. Ctrl+; stops all.
+# The Players panel (right sidebar) lists everything currently playing — your live overview.`),
 
     lesson(12, 'Autocomplete — never memorise',
 `# Stuck on what to type? Press  Ctrl+Space :
@@ -207,7 +208,12 @@ p1 >>
     lesson(13, 'Arranging — sections & sets',
 `# For whole tracks, mark SECTIONS with  #@name(bars) . Put the cursor on a #@
 # line and Ctrl+Enter — it plays and AUTO-ADVANCES after that many bars.
-# #@#@ groups sections into a foldable track.
+# #@#@ groups sections into a foldable track ·  #@end  stops the set at the finish.
+#
+# Watch the Composition panel (right sidebar) while it runs: it lists the parts and
+# shows a live progress bar of where the set is — click a part to jump there.
+#   Ctrl+Alt+P  jump to the ACTIVE part   ·   Ctrl+Alt+;  (or ■ stop autoplay in the
+#   panel) halts the auto-advance but leaves players running   ·   Ctrl+;  stops all.
 #
 # ▶ A tiny two-part set — put the cursor on  #@a(8)  and press Ctrl+Enter:
 #@#@ my_set
@@ -215,7 +221,8 @@ p1 >>
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@b(8)
 p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
-d1 >> play("x-o-")`),
+d1 >> play("x-o-")
+#@end`),
 
     lesson(14, 'Part 2 — transforms: reshape a pattern live',
 `# ✦ Nice — that's the basics. Part 2 goes deeper.
@@ -230,7 +237,8 @@ d1 >> play("x-o-")`),
 p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`),
 
     lesson(15, 'Harmony — scale, chords & progressions',
-`# Set the KEY once and everything follows it:
+`# Set the KEY once and everything follows it — in code, or with the Scale & Root
+# dropdowns in the right-side panel (under Clock):
 Scale.default = "minor"
 Root.default  = "C"
 #
@@ -314,13 +322,16 @@ d1 >> play("x-o-")`),
 p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`),
 
     lesson(22, 'Groove & swing',
-`# Straight notes feel robotic — add GROOVE with a dur pattern:
+`# Straight notes feel robotic — add GROOVE with a dur pattern. The catch: groove is a
+# pattern of DURATIONS, so it only swings CONSECUTIVE hits. On an on/off pattern like
+# "-.-.-." each hit+rest pair fills a whole beat and the swing cancels out — so use a
+# SOLID hit ("-" loops one hat every step) to actually hear it:
 #
-#   PGroove("swing")   swung feel   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PGroove("swing")   swung feel · "swing16" (faster) · "shuffle" · "gallop" · "triplet"
 #   PDur(3, 8)         euclidean durations — 3 hits spread across 8
 #
-# ▶ A swung hat over a galloping bass:
-h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+# ▶ A swung 16th hat (every step a hit, so the swing is audible) over a galloping bass:
+h1 >> play("-", dur=PGroove("swing16"), hpf=6000, amp=0.5)
 b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`),
 
     lesson(23, 'Bring your own sounds',
@@ -343,7 +354,8 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`),
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@goto(a, 0.5)
 #@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`),
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+#@end`),
 
     lesson(25, 'MIDI — play external gear',
 `# crashDot speaks MIDI: drive hardware synths & drum machines, or play from a
@@ -365,7 +377,8 @@ p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`),
 #   after  param =      patterns & vars (PRand, PEuclid, sinvar, var …)
 #   Scale.default = "   scale names   ·   pal="   palette names
 #
-# ▶ Click just after the  (  below, press Ctrl+Space, open the  fx  group, pick one:
+# ▶ Click just BEFORE the closing  )  below (right after the pattern), press Ctrl+Space,
+#   open the  fx  group, pick one:
 p1 >> pluck([0, 2, 4, 7])
 #
 # → / ← open & close a group · ↑ ↓ move · Enter / Tab picks · Esc closes.`),
@@ -431,20 +444,29 @@ p1.lpf = linvar([500, 5000], [8])`),
 #   play("x. .x")       .  or space = a rest between hits
 #   amp=[0.6, 0.3]      per-step volume · amplify=Pacc("offbeat") = ready-made accents
 #
-# ▶ A bass with rests, and a hat with offbeat accents (needs the kit for the hat):
+# ▶ A bass with rests, and a steady hat whose OFFBEATS are accented (needs the kit).
+#   The hat is a solid "-" every step so the accents actually land on hits:
 p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
-h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`),
+h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`),
 
     lesson(32, 'Lock players together',
-`# Players can WATCH each other so parts move as one:
+`# Players can WATCH each other, so parts move as one. Four ways to link them:
 #
-#   p1.degree           reference another player's current note inside a pattern
-#   p2.follow("p1")     make p2 track p1's degree every step
-#   p1.reroll(8)        auto-re-evaluate every 8 beats (frozen randoms reroll on their own)
+#   p1.degree         a LIVE reference to p1's current note — drop it into another
+#                     player's args and that player tracks p1 note-for-note (here the
+#                     bass plays p1's root, its own octave & duration).
+#   .follow("p1")     shortcut for the same idea: play p1's degree every step — a
+#                     UNISON double, but with your own synth / oct / dur.
+#   .accompany("p1")  HARMONISE: p1's note plus a cycling chord shape ([0,2,4] thirds
+#                     by default) — an automatic harmony line that tracks the melody.
+#   p1.reroll(8)      re-evaluate p1 every 8 bars, so a frozen random (PRand, a
+#                     shuffled motif…) rolls fresh each time instead of repeating.
 #
-# ▶ A pad, and a bass that plays the pad's root two octaves down:
+# ▶ A pad, a bass on its root, a unison double, and a harmony — all locked to p1:
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
-b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`),
+b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
+b3 >> blip(dur=1/2).follow("p1")
+b4 >> blip(dur=1/4).accompany("p1")`),
 
     lesson(33, 'Save, share & recall',
 `# Your work is safe and shareable:
@@ -606,7 +628,8 @@ b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
 p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
 d1 >> play("x-o-")
 #
-# Maintenant Alt+X sur la ligne b1 pour couper la basse. Ctrl+; arrête tout.`, 'fr'),
+# Maintenant Alt+X sur la ligne b1 pour couper la basse. Ctrl+; arrête tout.
+# Le panneau Players (barre de droite) liste tout ce qui joue — ta vue d'ensemble en direct.`, 'fr'),
 
     lesson(12, 'L’autocomplétion — ne rien mémoriser',
 `# Bloqué sur ce qu'il faut taper ? Appuie sur  Ctrl+Espace :
@@ -623,7 +646,14 @@ p1 >>
     lesson(13, 'Arranger — sections & sets',
 `# Pour des morceaux entiers, marque des SECTIONS avec  #@nom(mesures) . Place le
 # curseur sur une ligne #@ et Ctrl+Entrée — elle joue et AVANCE toute seule après ce
-# nombre de mesures. #@#@ regroupe des sections en une piste repliable.
+# nombre de mesures. #@#@ regroupe des sections en une piste repliable ·  #@end  arrête
+# le set à la fin.
+#
+# Regarde le panneau Composition (barre de droite) pendant la lecture : il liste les
+# parties et affiche une barre de progression indiquant où en est le set — clique une
+# partie pour y sauter.
+#   Ctrl+Alt+P  saute à la partie ACTIVE   ·   Ctrl+Alt+;  (ou ■ stop autoplay dans le
+#   panneau) stoppe l'avance auto mais laisse les players tourner   ·   Ctrl+;  arrête tout.
 #
 # ▶ Un petit set en deux parties — curseur sur  #@a(8)  et Ctrl+Entrée :
 #@#@ my_set
@@ -631,7 +661,8 @@ p1 >>
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@b(8)
 p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
-d1 >> play("x-o-")`, 'fr'),
+d1 >> play("x-o-")
+#@end`, 'fr'),
 
     lesson(14, 'Partie 2 — transformer un pattern en direct',
 `# ✦ Bien joué — voilà les bases. La Partie 2 va plus loin.
@@ -646,7 +677,8 @@ d1 >> play("x-o-")`, 'fr'),
 p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`, 'fr'),
 
     lesson(15, 'Harmonie — gamme, accords & progressions',
-`# Règle la TONALITÉ une fois et tout la suit :
+`# Règle la TONALITÉ une fois et tout la suit — en code, ou avec les menus Scale & Root
+# dans le panneau de droite (sous Clock) :
 Scale.default = "minor"
 Root.default  = "C"
 #
@@ -730,13 +762,17 @@ d1 >> play("x-o-")`, 'fr'),
 p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`, 'fr'),
 
     lesson(22, 'Groove & swing',
-`# Des notes rectilignes sonnent robotiques — ajoute du GROOVE avec un pattern de dur :
+`# Des notes rectilignes sonnent robotiques — ajoute du GROOVE avec un pattern de dur.
+# Le hic : le groove est un pattern de DURÉES, il ne swingue donc que des frappes
+# CONSÉCUTIVES. Sur un pattern on/off comme "-.-.-." chaque frappe+silence remplit un
+# temps entier et le swing s'annule — utilise une frappe PLEINE ("-" boucle un charley
+# à chaque pas) pour vraiment l'entendre :
 #
-#   PGroove("swing")   feeling swingué   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PGroove("swing")   swingué · "swing16" (plus rapide) · "shuffle" · "gallop" · "triplet"
 #   PDur(3, 8)         durées euclidiennes — 3 frappes réparties sur 8
 #
-# ▶ Un charleston swingué sur une basse au galop :
-h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+# ▶ Un charley swingué en doubles-croches (une frappe par pas, swing audible) sur une basse au galop :
+h1 >> play("-", dur=PGroove("swing16"), hpf=6000, amp=0.5)
 b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'fr'),
 
     lesson(23, 'Apporte tes propres sons',
@@ -759,7 +795,8 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'fr'),
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@goto(a, 0.5)
 #@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'fr'),
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+#@end`, 'fr'),
 
     lesson(25, 'MIDI — piloter du matériel externe',
 `# crashDot parle MIDI : pilote des synthés & boîtes à rythmes matériels, ou joue depuis
@@ -781,7 +818,8 @@ p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'fr'),
 #   après  param =     patterns & vars (PRand, PEuclid, sinvar, var …)
 #   Scale.default = "  les noms de gammes   ·   pal="   les noms de palettes
 #
-# ▶ Clique juste après le  (  ci-dessous, Ctrl+Espace, ouvre le groupe  fx , choisis-en un :
+# ▶ Clique juste AVANT la  )  fermante ci-dessous (juste après le pattern), Ctrl+Espace,
+#   ouvre le groupe  fx , choisis-en un :
 p1 >> pluck([0, 2, 4, 7])
 #
 # → / ← ouvrent & ferment un groupe · ↑ ↓ déplacent · Entrée / Tab choisit · Échap ferme.`, 'fr'),
@@ -847,20 +885,30 @@ p1.lpf = linvar([500, 5000], [8])`, 'fr'),
 #   play("x. .x")       .  ou espace = un silence entre les frappes
 #   amp=[0.6, 0.3]      volume par pas · amplify=Pacc("offbeat") = des accents tout prêts
 #
-# ▶ Une basse avec des silences, et un charleston aux accents à contretemps (kit requis) :
+# ▶ Une basse avec des silences, et un charley dont les CONTRETEMPS sont accentués (kit
+#   requis). Le charley est un "-" plein à chaque pas pour que les accents tombent sur des frappes :
 p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
-h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`, 'fr'),
+h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'fr'),
 
     lesson(32, 'Synchroniser des players',
-`# Les players peuvent SE SURVEILLER pour que les parties bougent ensemble :
+`# Les players peuvent SE SURVEILLER, pour que les parties bougent comme une seule.
+# Quatre façons de les lier :
 #
-#   p1.degree           référence la note en cours d'un autre player dans un pattern
-#   p2.follow("p1")     fait suivre à p2 le degree de p1 à chaque pas
-#   p1.reroll(8)        se réévalue toutes les 8 mesures (les aléas figés se relancent)
+#   p1.degree         une référence VIVE à la note en cours de p1 — glisse-la dans les
+#                     args d'un autre player, qui suit p1 note pour note (ici la basse
+#                     joue la fondamentale de p1, avec sa propre octave & durée).
+#   .follow("p1")     raccourci pour la même idée : joue le degree de p1 à chaque pas —
+#                     un doublage à l'UNISSON, mais avec ton synthé / oct / dur.
+#   .accompany("p1")  HARMONISE : la note de p1 plus une forme d'accord cyclique ([0,2,4]
+#                     tierces par défaut) — une ligne d'harmonie qui suit la mélodie.
+#   p1.reroll(8)      réévalue p1 toutes les 8 mesures, pour qu'un aléa figé (PRand, un
+#                     motif mélangé…) se relance à chaque fois au lieu de se répéter.
 #
-# ▶ Un pad, et une basse qui joue la fondamentale du pad deux octaves plus bas :
+# ▶ Un pad, une basse sur sa fondamentale, un doublage à l'unisson et une harmonie — tout calé sur p1 :
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
-b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`, 'fr'),
+b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
+b3 >> blip(dur=1/2).follow("p1")
+b4 >> blip(dur=1/4).accompany("p1")`, 'fr'),
 
     lesson(33, 'Sauvegarder, partager & retrouver',
 `# Ton travail est en sécurité et partageable :
@@ -1021,7 +1069,8 @@ b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
 p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
 d1 >> play("x-o-")
 #
-# Jetzt Alt+X auf der b1-Zeile, um den Bass stummzuschalten. Strg+; stoppt alles.`, 'de'),
+# Jetzt Alt+X auf der b1-Zeile, um den Bass stummzuschalten. Strg+; stoppt alles.
+# Das Players-Panel (rechte Leiste) listet alles, was gerade spielt — dein Live-Überblick.`, 'de'),
 
     lesson(12, 'Autovervollständigung — nichts merken',
 `# Nicht sicher, was du tippen sollst? Drücke  Strg+Leertaste :
@@ -1038,7 +1087,12 @@ p1 >>
     lesson(13, 'Arrangieren — Sections & Sets',
 `# Für ganze Stücke markiere SECTIONS mit  #@name(Takte) . Setze den Cursor auf eine
 # #@-Zeile und Strg+Enter — sie spielt und WECHSELT nach so vielen Takten von selbst.
-# #@#@ fasst Sections zu einem einklappbaren Track zusammen.
+# #@#@ fasst Sections zu einem einklappbaren Track zusammen ·  #@end  stoppt das Set am Ende.
+#
+# Sieh dabei aufs Composition-Panel (rechte Leiste): es listet die Teile und zeigt eine
+# Live-Fortschrittsleiste, wo das Set gerade steht — klicke einen Teil, um dorthin zu springen.
+#   Strg+Alt+P  springt zum AKTIVEN Teil   ·   Strg+Alt+;  (oder ■ stop autoplay im Panel)
+#   hält das Auto-Weiterschalten an, lässt die Player aber laufen   ·   Strg+;  stoppt alles.
 #
 # ▶ Ein kleines Set in zwei Teilen — Cursor auf  #@a(8)  und Strg+Enter:
 #@#@ my_set
@@ -1046,7 +1100,8 @@ p1 >>
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@b(8)
 p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
-d1 >> play("x-o-")`, 'de'),
+d1 >> play("x-o-")
+#@end`, 'de'),
 
     lesson(14, 'Teil 2 — ein Pattern live umformen',
 `# ✦ Gut gemacht — das waren die Grundlagen. Teil 2 geht tiefer.
@@ -1061,7 +1116,8 @@ d1 >> play("x-o-")`, 'de'),
 p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`, 'de'),
 
     lesson(15, 'Harmonie — Tonleiter, Akkorde & Progressionen',
-`# Stelle die TONART einmal ein, und alles folgt ihr:
+`# Stelle die TONART einmal ein, und alles folgt ihr — im Code, oder mit den Menüs
+# Scale & Root im rechten Panel (unter Clock):
 Scale.default = "minor"
 Root.default  = "C"
 #
@@ -1145,13 +1201,16 @@ d1 >> play("x-o-")`, 'de'),
 p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`, 'de'),
 
     lesson(22, 'Groove & Swing',
-`# Gerade Noten klingen roboterhaft — füge GROOVE mit einem dur-Pattern hinzu:
+`# Gerade Noten klingen roboterhaft — füge GROOVE mit einem dur-Pattern hinzu. Der Haken:
+# Groove ist ein Pattern von DAUERN, es swingt also nur AUFEINANDERFOLGENDE Schläge. Bei
+# einem An/Aus-Pattern wie "-.-.-." füllt jedes Schlag+Pause-Paar einen ganzen Beat und der
+# Swing hebt sich auf — nimm einen VOLLEN Schlag ("-" loopt jede Stufe eine Hi-Hat), um ihn zu hören:
 #
-#   PGroove("swing")   Swing-Feel   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PGroove("swing")   Swing-Feel · "swing16" (schneller) · "shuffle" · "gallop" · "triplet"
 #   PDur(3, 8)         euklidische Dauern — 3 Schläge über 8 verteilt
 #
-# ▶ Eine geswingte Hi-Hat über einem galoppierenden Bass:
-h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+# ▶ Eine geswingte 16tel-Hi-Hat (jede Stufe ein Schlag, Swing hörbar) über galoppierendem Bass:
+h1 >> play("-", dur=PGroove("swing16"), hpf=6000, amp=0.5)
 b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'de'),
 
     lesson(23, 'Bring deine eigenen Klänge mit',
@@ -1174,7 +1233,8 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'de'),
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@goto(a, 0.5)
 #@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'de'),
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+#@end`, 'de'),
 
     lesson(25, 'MIDI — externe Geräte spielen',
 `# crashDot spricht MIDI: steuere Hardware-Synths & Drum-Machines oder spiele von einem
@@ -1196,7 +1256,8 @@ p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'de'),
 #   nach  param =      Patterns & vars (PRand, PEuclid, sinvar, var …)
 #   Scale.default = "  Tonleiter-Namen   ·   pal="   Paletten-Namen
 #
-# ▶ Klicke gleich hinter das  (  unten, Strg+Leertaste, öffne die  fx -Gruppe, wähle eine:
+# ▶ Klicke direkt VOR die schließende  )  unten (gleich hinter dem Pattern), Strg+Leertaste,
+#   öffne die  fx -Gruppe, wähle eine:
 p1 >> pluck([0, 2, 4, 7])
 #
 # → / ← öffnen & schließen eine Gruppe · ↑ ↓ bewegen · Enter / Tab wählt · Esc schließt.`, 'de'),
@@ -1262,20 +1323,30 @@ p1.lpf = linvar([500, 5000], [8])`, 'de'),
 #   play("x. .x")       .  oder Leerzeichen = eine Pause zwischen Schlägen
 #   amp=[0.6, 0.3]      Lautstärke pro Schritt · amplify=Pacc("offbeat") = fertige Akzente
 #
-# ▶ Ein Bass mit Pausen und eine Hi-Hat mit Offbeat-Akzenten (Kit nötig):
+# ▶ Ein Bass mit Pausen und eine Hi-Hat, deren OFFBEATS betont sind (Kit nötig). Die
+#   Hi-Hat ist ein volles "-" pro Stufe, damit die Akzente auf Schläge fallen:
 p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
-h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`, 'de'),
+h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'de'),
 
     lesson(32, 'Player koppeln',
-`# Player können EINANDER BEOBACHTEN, damit sich die Parts gemeinsam bewegen:
+`# Player können EINANDER BEOBACHTEN, damit sich die Parts wie einer bewegen. Vier Wege,
+# sie zu koppeln:
 #
-#   p1.degree           referenziert die aktuelle Note eines anderen Players in einem Pattern
-#   p2.follow("p1")     lässt p2 dem degree von p1 bei jedem Schritt folgen
-#   p1.reroll(8)        wertet sich alle 8 Takte neu aus (eingefrorene Zufälle würfeln neu)
+#   p1.degree         eine LEBENDE Referenz auf p1s aktuelle Note — setze sie in die Args
+#                     eines anderen Players, und der folgt p1 Note für Note (hier spielt
+#                     der Bass p1s Grundton, mit eigener Oktave & Dauer).
+#   .follow("p1")     Kurzform derselben Idee: spiele p1s degree bei jedem Schritt — eine
+#                     UNISONO-Verdopplung, aber mit deinem Synth / oct / dur.
+#   .accompany("p1")  HARMONISIERE: p1s Note plus eine zyklische Akkordform ([0,2,4] Terzen
+#                     als Default) — eine automatische Harmoniestimme, die der Melodie folgt.
+#   p1.reroll(8)      werte p1 alle 8 Takte neu aus, damit ein eingefrorener Zufall (PRand,
+#                     ein gemischtes Motiv…) jedes Mal neu würfelt statt sich zu wiederholen.
 #
-# ▶ Ein Pad und ein Bass, der den Grundton des Pads zwei Oktaven tiefer spielt:
+# ▶ Ein Pad, ein Bass auf dem Grundton, eine Unisono-Verdopplung und eine Harmonie — alle an p1 gekoppelt:
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
-b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`, 'de'),
+b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
+b3 >> blip(dur=1/2).follow("p1")
+b4 >> blip(dur=1/4).accompany("p1")`, 'de'),
 
     lesson(33, 'Speichern, teilen & wiederfinden',
 `# Deine Arbeit ist sicher und teilbar:
@@ -1435,7 +1506,8 @@ b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
 p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
 d1 >> play("x-o-")
 #
-# Ahora Alt+X en la línea b1 para silenciar el bajo. Ctrl+; detiene todo.`, 'es'),
+# Ahora Alt+X en la línea b1 para silenciar el bajo. Ctrl+; detiene todo.
+# El panel Players (barra derecha) lista todo lo que suena — tu vista general en vivo.`, 'es'),
 
     lesson(12, 'Autocompletado — no memorices nada',
 `# ¿No sabes qué teclear? Pulsa  Ctrl+Espacio :
@@ -1452,7 +1524,12 @@ p1 >>
     lesson(13, 'Arreglar — sections y sets',
 `# Para temas completos, marca SECTIONS con  #@nombre(compases) . Pon el cursor en una
 # línea #@ y Ctrl+Enter — suena y CAMBIA sola tras esos compases.
-# #@#@ agrupa sections en una pista plegable.
+# #@#@ agrupa sections en una pista plegable ·  #@end  detiene el set al terminar.
+#
+# Mira el panel Composition (barra derecha) mientras suena: lista las partes y muestra
+# una barra de progreso de por dónde va el set — haz clic en una parte para saltar allí.
+#   Ctrl+Alt+P  salta a la parte ACTIVA   ·   Ctrl+Alt+;  (o ■ stop autoplay en el panel)
+#   detiene el avance automático pero deja los players sonando   ·   Ctrl+;  detiene todo.
 #
 # ▶ Un pequeño set en dos partes — cursor en  #@a(8)  y Ctrl+Enter:
 #@#@ my_set
@@ -1460,7 +1537,8 @@ p1 >>
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@b(8)
 p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
-d1 >> play("x-o-")`, 'es'),
+d1 >> play("x-o-")
+#@end`, 'es'),
 
     lesson(14, 'Parte 2 — transformar un pattern en vivo',
 `# ✦ Bien hecho — eso eran los fundamentos. La Parte 2 profundiza.
@@ -1475,7 +1553,8 @@ d1 >> play("x-o-")`, 'es'),
 p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`, 'es'),
 
     lesson(15, 'Armonía — escala, acordes y progresiones',
-`# Fija la TONALIDAD una vez, y todo la sigue:
+`# Fija la TONALIDAD una vez, y todo la sigue — en código, o con los menús Scale & Root
+# del panel derecho (bajo Clock):
 Scale.default = "minor"
 Root.default  = "C"
 #
@@ -1559,13 +1638,16 @@ d1 >> play("x-o-")`, 'es'),
 p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`, 'es'),
 
     lesson(22, 'Groove y swing',
-`# Las notas rectas suenan robóticas — añade GROOVE con un pattern de dur:
+`# Las notas rectas suenan robóticas — añade GROOVE con un pattern de dur. El truco: el
+# groove es un pattern de DURACIONES, así que solo balancea golpes CONSECUTIVOS. En un
+# pattern on/off como "-.-.-." cada golpe+silencio llena un beat entero y el swing se
+# anula — usa un golpe SÓLIDO ("-" repite un charles en cada paso) para oírlo de verdad:
 #
-#   PGroove("swing")   feel de swing   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PGroove("swing")   swing · "swing16" (más rápido) · "shuffle" · "gallop" · "triplet"
 #   PDur(3, 8)         duraciones euclidianas — 3 golpes repartidos en 8
 #
-# ▶ Un charles con swing sobre un bajo al galope:
-h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+# ▶ Un charles con swing en semicorcheas (un golpe por paso, swing audible) sobre un bajo al galope:
+h1 >> play("-", dur=PGroove("swing16"), hpf=6000, amp=0.5)
 b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'es'),
 
     lesson(23, 'Trae tus propios sonidos',
@@ -1588,7 +1670,8 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'es'),
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@goto(a, 0.5)
 #@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'es'),
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+#@end`, 'es'),
 
     lesson(25, 'MIDI — tocar equipos externos',
 `# crashDot habla MIDI: controla synths y cajas de ritmo por hardware, o toca desde un
@@ -1610,7 +1693,8 @@ p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'es'),
 #   tras  param =      patterns y vars (PRand, PEuclid, sinvar, var …)
 #   Scale.default = "  nombres de escala   ·   pal="   nombres de paleta
 #
-# ▶ Haz clic justo tras el  (  de abajo, Ctrl+Espacio, abre el grupo  fx , elige uno:
+# ▶ Haz clic justo ANTES del  )  de cierre de abajo (justo tras el pattern), Ctrl+Espacio,
+#   abre el grupo  fx , elige uno:
 p1 >> pluck([0, 2, 4, 7])
 #
 # → / ← abren y cierran un grupo · ↑ ↓ mueven · Enter / Tab elige · Esc cierra.`, 'es'),
@@ -1676,20 +1760,30 @@ p1.lpf = linvar([500, 5000], [8])`, 'es'),
 #   play("x. .x")       .  o espacio = un silencio entre golpes
 #   amp=[0.6, 0.3]      volumen por paso · amplify=Pacc("offbeat") = acentos listos
 #
-# ▶ Un bajo con silencios y un charles con acentos a contratiempo (necesita kit):
+# ▶ Un bajo con silencios y un charles cuyos CONTRATIEMPOS van acentuados (necesita kit).
+#   El charles es un "-" sólido en cada paso para que los acentos caigan sobre golpes:
 p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
-h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`, 'es'),
+h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'es'),
 
     lesson(32, 'Acoplar players',
-`# Los players pueden OBSERVARSE entre sí para que las partes se muevan juntas:
+`# Los players pueden OBSERVARSE entre sí, para que las partes se muevan como una. Cuatro
+# formas de enlazarlos:
 #
-#   p1.degree           referencia la nota actual de otro player dentro de un pattern
-#   p2.follow("p1")     hace que p2 siga el degree de p1 en cada paso
-#   p1.reroll(8)        se re-evalúa cada 8 compases (vuelve a tirar los azares congelados)
+#   p1.degree         una referencia VIVA a la nota actual de p1 — ponla en los args de
+#                     otro player y ese seguirá a p1 nota a nota (aquí el bajo toca la
+#                     fundamental de p1, con su propia octava y duración).
+#   .follow("p1")     atajo para lo mismo: toca el degree de p1 en cada paso — un doblaje
+#                     al UNÍSONO, pero con tu synth / oct / dur.
+#   .accompany("p1")  ARMONIZA: la nota de p1 más una forma de acorde cíclica ([0,2,4]
+#                     terceras por defecto) — una línea de armonía que sigue a la melodía.
+#   p1.reroll(8)      re-evalúa p1 cada 8 compases, para que un azar congelado (PRand, un
+#                     motivo barajado…) vuelva a tirar cada vez en lugar de repetirse.
 #
-# ▶ Un pad y un bajo que toca la fundamental del pad dos octavas abajo:
+# ▶ Un pad, un bajo en su fundamental, un doblaje al unísono y una armonía — todos atados a p1:
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
-b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`, 'es'),
+b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
+b3 >> blip(dur=1/2).follow("p1")
+b4 >> blip(dur=1/4).accompany("p1")`, 'es'),
 
     lesson(33, 'Guardar, compartir y recuperar',
 `# Tu trabajo está a salvo y se puede compartir:
@@ -1849,7 +1943,8 @@ b1 >> pluck([0, 0, 7, 0], oct=3, dur=1/2, amp=0.5)
 p1 >> saw([0, 4, 7], dur=1/2, lpf=2000, amp=0.35)
 d1 >> play("x-o-")
 #
-# では b1 の行で Alt+X してベースをミュート。Ctrl+; ですべて停止。`, 'ja'),
+# では b1 の行で Alt+X してベースをミュート。Ctrl+; ですべて停止。
+# 右サイドバーの Players パネルに、今鳴っているものがすべて並ぶ — ライブの全体像。`, 'ja'),
 
     lesson(12, 'オートコンプリート — 何も覚えない',
 `# 何を打つか分からない？  Ctrl+スペース を押す：
@@ -1866,7 +1961,12 @@ p1 >>
     lesson(13, 'アレンジ — セクションとセット',
 `# 曲全体には  #@名前(小節数)  で「セクション」を印す。#@ の行にカーソルを置いて
 # Ctrl+Enter — 再生され、その小節数のあと自動で「切り替わる」。
-# #@#@ はセクションを折りたためるトラックにまとめる。
+# #@#@ はセクションを折りたためるトラックにまとめる ·  #@end  で最後にセットを止める。
+#
+# 再生中は Composition パネル（右サイドバー）を見る：パートが並び、セットが今どこかを
+# 示すライブの進捗バーが出る — パートをクリックするとそこへジャンプ。
+#   Ctrl+Alt+P  「アクティブ」なパートへジャンプ   ·   Ctrl+Alt+;  （またはパネルの
+#   ■ stop autoplay）は自動送りを止めるがプレイヤーは鳴らし続ける   ·   Ctrl+;  で全停止。
 #
 # ▶ 2部構成の小さなセット — カーソルを  #@a(8)  に置いて Ctrl+Enter：
 #@#@ my_set
@@ -1874,7 +1974,8 @@ p1 >>
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@b(8)
 p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
-d1 >> play("x-o-")`, 'ja'),
+d1 >> play("x-o-")
+#@end`, 'ja'),
 
     lesson(14, 'パート2 — パターンをライブで変形',
 `# ✦ よくできました — ここまでが基礎。パート2はより深く。
@@ -1889,7 +1990,8 @@ d1 >> play("x-o-")`, 'ja'),
 p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`, 'ja'),
 
     lesson(15, 'ハーモニー — スケール・和音・進行',
-`# 「調」を一度決めれば、すべてがそれに従う：
+`# 「調」を一度決めれば、すべてがそれに従う — コードで、または右パネルの
+# Scale & Root メニュー（Clock の下）で：
 Scale.default = "minor"
 Root.default  = "C"
 #
@@ -1973,13 +2075,16 @@ d1 >> play("x-o-")`, 'ja'),
 p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`, 'ja'),
 
     lesson(22, 'グルーヴとスウィング',
-`# まっすぐな音符はロボット的 — dur のパターンで「グルーヴ」を足す：
+`# まっすぐな音符はロボット的 — dur のパターンで「グルーヴ」を足す。ただし注意：グルーヴは
+# 「長さ」のパターンなので、スウィングするのは「連続する」打だけ。"-.-.-." のようなオン/オフの
+# パターンでは、打+休符の各ペアが1拍を埋めてスウィングが打ち消し合う — 実際に聴くには
+# 「詰まった」打（"-" は各ステップにハイハットをループ）を使う：
 #
-#   PGroove("swing")   スウィング感   ·   "shuffle" · "gallop" · "dotted" · "triplet"
+#   PGroove("swing")   スウィング · "swing16"（速い）· "shuffle" · "gallop" · "triplet"
 #   PDur(3, 8)         ユークリッドの長さ — 8に3打を配分
 #
-# ▶ 疾走するベースの上に、スウィングするハイハット：
-h1 >> play("-.-.-.-.", dur=PGroove("swing"), hpf=6000, amp=0.5)
+# ▶ スウィングした16分のハイハット（各ステップに1打なのでスウィングが聴こえる）＋疾走するベース：
+h1 >> play("-", dur=PGroove("swing16"), hpf=6000, amp=0.5)
 b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'ja'),
 
     lesson(23, '自分の音を持ち込む',
@@ -2001,7 +2106,8 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'ja'),
 p1 >> pluck([0, 2, 4, 7], dur=1/2)
 #@goto(a, 0.5)
 #@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'ja'),
+p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+#@end`, 'ja'),
 
     lesson(25, 'MIDI — 外部機器を鳴らす',
 `# crashDot は MIDI を話す：ハードのシンセやドラムマシンを操ったり、コントローラーから
@@ -2023,7 +2129,8 @@ p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)`, 'ja'),
 #   param =  の後      パターンと var（PRand, PEuclid, sinvar, var …）
 #   Scale.default = "  スケール名   ·   pal="   パレット名
 #
-# ▶ 下の  (  の直後をクリック、Ctrl+スペース、fx  グループを開いて1つ選ぶ：
+# ▶ 下の閉じ  )  の「直前」（パターンのすぐ後ろ）をクリック、Ctrl+スペース、
+#   fx  グループを開いて1つ選ぶ：
 p1 >> pluck([0, 2, 4, 7])
 #
 # → / ← でグループ開閉 · ↑ ↓ で移動 · Enter / Tab で選択 · Esc で閉じる。`, 'ja'),
@@ -2089,20 +2196,29 @@ p1.lpf = linvar([500, 5000], [8])`, 'ja'),
 #   play("x. .x")       .  または空白 = 打の間の休み
 #   amp=[0.6, 0.3]      ステップごとの音量 · amplify=Pacc("offbeat") = 出来合いのアクセント
 #
-# ▶ 休符のあるベースと、オフビートにアクセントのハイハット（キットが必要）：
+# ▶ 休符のあるベースと、「オフビート」が強調されたハイハット（キットが必要）。
+#   ハイハットは各ステップに詰まった "-"、アクセントが打の上に乗るように：
 p1 >> pluck([0, _, 0, _, 7, _], oct=3, dur=1/4, amp=0.5)
-h1 >> play("-.-.-.-.", amplify=Pacc("offbeat"), hpf=6000)`, 'ja'),
+h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'ja'),
 
     lesson(32, 'プレイヤーを連動させる',
-`# プレイヤーは互いを「見る」ことができ、パートが一緒に動く：
+`# プレイヤーは互いを「見る」ことができ、パートが一つのように動く。連動のさせ方は4つ：
 #
-#   p1.degree           パターン内で別プレイヤーの現在の音を参照する
-#   p2.follow("p1")     p2 を各ステップで p1 の degree に追従させる
-#   p1.reroll(8)        8小節ごとに再評価（固まった乱数を振り直す）
+#   p1.degree         p1 の今の音への「生きた」参照 — 別プレイヤーの引数に入れると、その
+#                     プレイヤーは p1 に音符ごと追従する（ここではベースが p1 の根音を、
+#                     自分のオクターブと長さで弾く）。
+#   .follow("p1")     同じことの近道：各ステップで p1 の degree を弾く — 「ユニゾン」の
+#                     重ね、ただし自分のシンセ / oct / dur で。
+#   .accompany("p1")  「ハモる」：p1 の音に、循環する和音の形（既定は [0,2,4] の3度）を足す
+#                     — メロディに追従する自動ハーモニー。
+#   p1.reroll(8)      8小節ごとに p1 を再評価 — 固まった乱数（PRand、シャッフルした動機…）が
+#                     繰り返さず毎回振り直される。
 #
-# ▶ パッドと、その根音を2オクターブ下で弾くベース：
+# ▶ パッド、その根音のベース、ユニゾンの重ね、ハーモニー — すべて p1 に連動：
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
-b1 >> bass(p1.degree, oct=2, dur=2, amp=0.5)`, 'ja'),
+b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
+b3 >> blip(dur=1/2).follow("p1")
+b4 >> blip(dur=1/4).accompany("p1")`, 'ja'),
 
     lesson(33, '保存・共有・呼び戻し',
 `# 作業は安全に、共有もできる：
@@ -2138,6 +2254,17 @@ let editor = null, idx = 0, active = false;
 
 export function initTour(_editor) {
     editor = _editor;
+    // Recover the tour across a page reload. The editor autosaves its buffer, so if
+    // it's still showing a tour lesson, re-activate at THAT lesson's number (read from
+    // the header) — otherwise next()/back() would be inert after a refresh (active was
+    // reset to false). Tying "active" to the actual buffer (not a stored flag) means a
+    // user who cleared the lesson and wrote their own code is correctly NOT in the tour,
+    // so a later language() switch can't overwrite their work.
+    try {
+        const buf = editor.getValue ? editor.getValue() : '';
+        const m = buf.match(/🎓[^\n]*·\s*(\d+)\s*\/\s*\d+\s*·/);
+        if (m) { const n = parseInt(m[1], 10); if (n >= 1 && n <= TOTAL) { active = true; idx = n - 1; } }
+    } catch (_) {}
     // refresh() re-renders the current lesson (used after language() switches).
     return { start, next, back, list, go, refresh: () => { if (active) show(); }, isActive: () => active, notify() {} };
 }

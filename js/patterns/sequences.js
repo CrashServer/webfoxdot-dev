@@ -1135,7 +1135,7 @@ export function PContour(shape = 'arch', n = 8, range = 7) {
 // Named rhythmic feels as a cyclic dur pattern (works for sus too).
 const _GROOVES = {
     straight: [1], eighths: [0.5], sixteenths: [0.25],
-    swing: [2 / 3, 1 / 3], shuffle: [2 / 3, 1 / 3], triplet: [1 / 3, 1 / 3, 1 / 3],
+    swing: [2 / 3, 1 / 3], swing16: [1 / 3, 1 / 6], shuffle: [2 / 3, 1 / 3], triplet: [1 / 3, 1 / 3, 1 / 3],
     dotted: [0.75, 0.25], gallop: [0.5, 0.25, 0.25], revgallop: [0.25, 0.25, 0.5],
     tresillo: [0.75, 0.75, 0.5], habanera: [0.75, 0.25, 0.5, 0.5], clave: [0.75, 0.75, 0.5],
 };

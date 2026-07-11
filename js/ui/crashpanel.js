@@ -233,7 +233,8 @@ function _initWidthResize() {
 function _initTheme() {
     const sel = document.getElementById('theme-select');
     if (!sel) return;
-    const stored = localStorage.getItem('theme') ?? 'cyberpunk';
+    let stored = localStorage.getItem('theme') ?? 'cyberpunk';
+    if (stored === 'terminal') { stored = 'hacker'; localStorage.setItem('theme', stored); }  // Terminal retired → Hacker
     document.documentElement.className = stored === 'dark' ? '' : stored;
     sel.value = stored;
     sel.onchange = () => {
