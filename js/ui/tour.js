@@ -12,7 +12,7 @@
 //   tour.start();  // ← 🎓 button / start_guided_tour()
 //   tour.next();   // ← next()      tour.back(); // ← back()
 
-const TOTAL = 14;
+const TOTAL = 20;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 function lesson(n, title, body) {
@@ -185,7 +185,80 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2)
 p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
 d1 >> play("x-o-")`),
 
-    lesson(14, 'You’re ready ✨',
+    lesson(14, 'Part 2 — transforms: reshape a pattern live',
+`# ✦ Nice — that's the basics. Part 2 goes deeper.
+#
+# Chain TRANSFORMS onto a player to reshape it as it plays, periodically:
+#
+#   .every(8, "reverse")      every 8 bars, reverse the pattern
+#   .sometimes("stutter", 2)  now and then, roll a step into 2
+#   list methods too:  [0,2,4,7].rotate(1) · .mirror() · .shuffle() · .palindrome()
+#
+# ▶ A line that keeps mutating itself:
+p1 >> pluck([0, 2, 4, 7, 9], dur=1/2).every(8, "reverse").sometimes("stutter", 2)`),
+
+    lesson(15, 'Harmony — scale, chords & progressions',
+`# Set the KEY once and everything follows it:
+Scale.default = "minor"
+Root.default  = "C"
+#
+#   PChord(0, "7")           a 7th chord on the tonic (a group of notes)
+#   PRoman("i VI III VII")   a progression written in roman numerals
+#   PProg("pop")             a named progression (I V vi IV)
+#
+# ▶ A pad drifting through a minor progression:
+p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`),
+
+    lesson(16, 'Generative — let the machine surprise you',
+`# Two ways to hand over some control:
+#
+#   chaos()   PASTES a fresh block of random players into the editor — review it,
+#             tweak it, then Ctrl+Alt+Enter to run the block (it won't auto-play).
+#   son()     starts a "jam bot" that evolves players on its own · soff() stops it.
+#
+# ▶ Hand the reins to the bot (soff() or Ctrl+; to stop):
+son()
+#
+# ▶ …or generate a block to inspect (it appears below — run it with Ctrl+Alt+Enter):
+chaos()`),
+
+    lesson(17, 'Build your own synth — defsynth()',
+`# You're not limited to the built-ins — DEFINE your own instrument. Give it a name,
+# params, and a build function of UGens; convert pitch with note.midicps(); end with
+# Out.ar(...).  (Boot must be done.)
+#
+# ▶ Select this whole block and press Ctrl+Alt+Enter to define "buzz":
+defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release, cutoff }) => {
+  const env = EnvGen.ar(Env.perc(attack, sus, 1, -4), { doneAction: 2 })
+  const sig = RLPF.ar(Saw.ar(note.midicps()), cutoff, 0.4).mul(env).mul(amp)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+#
+# ▶ …then play it like any synth:
+p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`),
+
+    lesson(18, 'Record your set',
+`# Capture what you make — the buttons live in the right panel (Settings):
+#
+#   rec code    records your evaluations into a replayable #@ composition
+#   rec audio   records the actual audio output to a file (tick "share tab audio")
+#
+# And  Alt+T  arms the AUTOMATION recorder: nudge a knob with Alt+Up/Down over a few
+# beats and it writes the movement as a linvar for you — a hands-on way to automate.
+#
+# (Nothing to run here — try the buttons whenever you like, then evaluate next().)`),
+
+    lesson(19, 'Jam with other people',
+`# crashDot is multiplayer. Two ways in:
+#
+#   👥 go live   turns your current code into a shared session — send the link and
+#               others edit the SAME buffer with you, in sync, cursors and all.
+#   🌌 galaxy    a live map of every public jam — click a star to hop into one.
+#
+# In a session everyone sees each other's evals; the chat is in the right panel.
+# (Nothing to run — press go live when you want to share. Then evaluate next().)`),
+
+    lesson(20, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
