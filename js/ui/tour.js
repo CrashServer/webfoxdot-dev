@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 35;
+const TOTAL = 36;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -247,7 +247,7 @@ Root.default  = "C"
 #   PProg("pop")             a named progression (I V vi IV)
 #
 # ▶ A pad drifting through a minor progression:
-p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`),
+p1 >> pads(PProg("pop"), oct=(6, 7), dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`),
 
     lesson(16, 'Generative — let the machine surprise you',
 `# Two ways to hand over some control:
@@ -349,17 +349,38 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`),
 # (Swap in a real URL and run it — the placeholders above won't load as-is.)`),
 
     lesson(24, 'Sets that never repeat — #@goto',
-`# #@goto(part, prob) is a zero-length ROUTER: a  prob  chance to jump to another
-# section, else fall through. Chain them for a set that branches differently every
-# time — a Markov-style arrangement.
+`# #@goto(part, prob) is a zero-length ROUTER: a  prob  chance to jump to that section,
+# else fall THROUGH to the next line. Chain several and you get weighted multi-way
+# branching — a Markov-style set that takes a different path every play, forever.
 #
-# ▶ Cursor on  #@a(8)  and Ctrl+Enter — it may loop A or move to B, 50/50:
-#@#@ branching
-#@a(8)
-p1 >> pluck([0, 2, 4, 7], dur=1/2)
-#@goto(a, 0.5)
-#@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+# ▶ Cursor on  #@intro(8) , Ctrl+Enter, then just listen — the arrows under each part
+#   decide where it goes next (needs the kit from lesson 5 for the drums):
+#@#@ markov_set
+#@intro(8)
+p1 >> pads([0, 4], oct=(5, 6), dur=4, sus=4, reverb=0.7, lpf=1200, amp=0.3)
+#@goto(intro, 0.3)      # 30%: linger in the intro — else roll into the verse
+#@verse(16)
+p1 >> pads([0, 4, 5, 3], oct=5, dur=4, sus=4, reverb=0.5, lpf=1600, amp=0.3)
+b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(chorus, 0.5)     # 50%: jump to the chorus — else fall to the bridge
+#@bridge(8)
+p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(verse, 0.6)      # 60%: back to the verse — else on to the chorus
+#@chorus(16)
+p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
+d1 >> play("x-[oo]", dur=1/2)
+h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
+#@goto(drop, 0.4)       # 40%: into the drop …
+#@goto(verse, 1)        # … the other 60%: back to the verse (chained gotos = multi-way)
+#@drop(8)
+p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
+d1 >> play("X", dur=1/4, amp=0.9)
+#@goto(verse, 1)        # the drop always resolves back to the verse
 #@end`),
 
     lesson(25, 'MIDI — play external gear',
@@ -504,7 +525,24 @@ Clock.bpm = linvar([110, 150], [8])
 # too). Clock.meter is beats-per-bar; Clock.nextBar(fn) / Clock.mod(4, fn) run your own
 # one-shots on the grid.`),
 
-    lesson(35, 'You’re ready ✨',
+    lesson(35, 'Fatten & widen — .unison()',
+`# .unison(n) layers n DETUNED copies of a voice, spread across the stereo field — an
+# instant "supersaw" thickness and width from one line. Tune it with detune & spread:
+#
+#   .unison(3)            3 voices, gentle default detune, full-width spread
+#   .unison(5, 0.3)       5 voices, ±0.3-semitone detune (wider = more shimmer)
+#   .unison(4, 0.2, 60)   4 voices, tighter detune, 60% stereo width
+#
+# It works on samples too — each copy is pitch-shifted and panned.
+#
+# ▶ The same line, dry then fattened — run each and hear it bloom:
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35)
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
+#
+# Great on leads, pads and basses. Keep n small on busy parts — each voice is a real
+# extra note, so it costs CPU. Pair with reverb for a huge wall of sound.`),
+
+    lesson(36, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
@@ -712,7 +750,7 @@ Root.default  = "C"
 #   PProg("pop")             une progression nommée (I V vi IV)
 #
 # ▶ Un pad qui dérive à travers une progression mineure :
-p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'fr'),
+p1 >> pads(PProg("pop"), oct=(6, 7), dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'fr'),
 
     lesson(16, 'Génératif — laisse la machine te surprendre',
 `# Deux façons de céder un peu de contrôle :
@@ -815,17 +853,39 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'fr'),
 # (Mets une vraie URL et lance-le — les exemples ci-dessus ne se chargeront pas tels quels.)`, 'fr'),
 
     lesson(24, 'Des sets qui ne se répètent jamais — #@goto',
-`# #@goto(partie, prob) est un AIGUILLEUR de durée nulle : une chance  prob  de sauter
-# à une autre section, sinon on continue. Enchaîne-les pour un set qui bifurque
-# différemment à chaque fois — un arrangement à la Markov.
+`# #@goto(partie, prob) est un AIGUILLEUR de durée nulle : une chance  prob  de sauter à
+# cette section, sinon on TOMBE sur la ligne suivante. Enchaîne-en plusieurs et tu as un
+# branchement pondéré multi-voies — un set à la Markov qui prend un chemin différent à
+# chaque lecture, à l'infini.
 #
-# ▶ Curseur sur  #@a(8)  et Ctrl+Entrée — il peut boucler A ou passer à B, 50/50 :
-#@#@ branching
-#@a(8)
-p1 >> pluck([0, 2, 4, 7], dur=1/2)
-#@goto(a, 0.5)
-#@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+# ▶ Curseur sur  #@intro(8) , Ctrl+Entrée, puis écoute — les flèches sous chaque partie
+#   décident de la suite (le kit de la leçon 5 est requis pour les drums) :
+#@#@ markov_set
+#@intro(8)
+p1 >> pads([0, 4], oct=(5, 6), dur=4, sus=4, reverb=0.7, lpf=1200, amp=0.3)
+#@goto(intro, 0.3)      # 30% : reste dans l'intro — sinon roule vers le couplet
+#@verse(16)
+p1 >> pads([0, 4, 5, 3], oct=5, dur=4, sus=4, reverb=0.5, lpf=1600, amp=0.3)
+b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(chorus, 0.5)     # 50% : saute au refrain — sinon tombe sur le pont
+#@bridge(8)
+p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(verse, 0.6)      # 60% : retour au couplet — sinon vers le refrain
+#@chorus(16)
+p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
+d1 >> play("x-[oo]", dur=1/2)
+h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
+#@goto(drop, 0.4)       # 40% : dans le drop …
+#@goto(verse, 1)        # … les 60% restants : retour au couplet (gotos chaînés = multi-voies)
+#@drop(8)
+p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
+d1 >> play("X", dur=1/4, amp=0.9)
+#@goto(verse, 1)        # le drop revient toujours au couplet
 #@end`, 'fr'),
 
     lesson(25, 'MIDI — piloter du matériel externe',
@@ -971,7 +1031,25 @@ Clock.bpm = linvar([110, 150], [8])
 # la grille (Alt+X attend aussi la mesure). Clock.meter = temps par mesure ; Clock.nextBar(fn)
 # / Clock.mod(4, fn) lancent tes propres one-shots sur la grille.`, 'fr'),
 
-    lesson(35, 'Tu es prêt ✨',
+    lesson(35, 'Épaissir & élargir — .unison()',
+`# .unison(n) empile n copies DÉSACCORDÉES d'une voix, réparties dans le champ stéréo —
+# une épaisseur et une largeur « supersaw » instantanées à partir d'une seule ligne.
+# Règle-la avec le désaccord & la largeur :
+#
+#   .unison(3)            3 voix, léger désaccord par défaut, largeur pleine
+#   .unison(5, 0.3)       5 voix, ±0,3 demi-ton de désaccord (plus large = plus de chatoiement)
+#   .unison(4, 0.2, 60)   4 voix, désaccord plus serré, 60% de largeur stéréo
+#
+# Ça marche aussi sur les samples — chaque copie est repitchée et panoramiquée.
+#
+# ▶ La même ligne, sèche puis épaissie — lance chacune et écoute-la s'ouvrir :
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35)
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
+#
+# Parfait sur les leads, pads et basses. Garde n petit sur les parties chargées — chaque
+# voix est une vraie note en plus, donc ça coûte du CPU. Ajoute une réverb pour un mur de son.`, 'fr'),
+
+    lesson(36, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
@@ -1176,7 +1254,7 @@ Root.default  = "C"
 #   PProg("pop")             eine benannte Progression (I V vi IV)
 #
 # ▶ Ein Pad, das durch eine Moll-Progression driftet:
-p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'de'),
+p1 >> pads(PProg("pop"), oct=(6, 7), dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'de'),
 
     lesson(16, 'Generativ — lass die Maschine dich überraschen',
 `# Zwei Wege, etwas Kontrolle abzugeben:
@@ -1278,17 +1356,39 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'de'),
 # (Setze eine echte URL ein und führe es aus — die Platzhalter oben laden so nicht.)`, 'de'),
 
     lesson(24, 'Sets, die sich nie wiederholen — #@goto',
-`# #@goto(teil, prob) ist eine WEICHE ohne Länge: eine Chance  prob , zu einer anderen
-# Section zu springen, sonst geht es weiter. Verkette sie für ein Set, das sich jedes
-# Mal anders verzweigt — ein Markov-artiges Arrangement.
+`# #@goto(teil, prob) ist eine WEICHE ohne Länge: eine Chance  prob , zu diesem Teil zu
+# springen, sonst FÄLLT es auf die nächste Zeile. Verkette mehrere und du bekommst
+# gewichtete Mehrweg-Verzweigung — ein Markov-artiges Set, das bei jedem Durchlauf einen
+# anderen Weg nimmt, endlos.
 #
-# ▶ Cursor auf  #@a(8)  und Strg+Enter — es kann A wiederholen oder zu B wechseln, 50/50:
-#@#@ branching
-#@a(8)
-p1 >> pluck([0, 2, 4, 7], dur=1/2)
-#@goto(a, 0.5)
-#@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+# ▶ Cursor auf  #@intro(8) , Strg+Enter, dann hör zu — die Pfeile unter jedem Teil
+#   entscheiden, wie es weitergeht (Kit aus Lektion 5 für die Drums nötig):
+#@#@ markov_set
+#@intro(8)
+p1 >> pads([0, 4], oct=(5, 6), dur=4, sus=4, reverb=0.7, lpf=1200, amp=0.3)
+#@goto(intro, 0.3)      # 30%: im Intro bleiben — sonst weiter zur Strophe
+#@verse(16)
+p1 >> pads([0, 4, 5, 3], oct=5, dur=4, sus=4, reverb=0.5, lpf=1600, amp=0.3)
+b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(chorus, 0.5)     # 50%: zum Refrain springen — sonst zur Bridge fallen
+#@bridge(8)
+p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(verse, 0.6)      # 60%: zurück zur Strophe — sonst weiter zum Refrain
+#@chorus(16)
+p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
+d1 >> play("x-[oo]", dur=1/2)
+h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
+#@goto(drop, 0.4)       # 40%: in den Drop …
+#@goto(verse, 1)        # … die anderen 60%: zurück zur Strophe (verkettete gotos = Mehrweg)
+#@drop(8)
+p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
+d1 >> play("X", dur=1/4, amp=0.9)
+#@goto(verse, 1)        # der Drop kehrt immer zur Strophe zurück
 #@end`, 'de'),
 
     lesson(25, 'MIDI — externe Geräte spielen',
@@ -1434,7 +1534,25 @@ Clock.bpm = linvar([110, 150], [8])
 # ein (auch Alt+X wartet auf den Takt). Clock.meter = Beats pro Takt; Clock.nextBar(fn) /
 # Clock.mod(4, fn) starten eigene One-Shots auf dem Raster.`, 'de'),
 
-    lesson(35, 'Du bist bereit ✨',
+    lesson(35, 'Fetter & breiter — .unison()',
+`# .unison(n) stapelt n VERSTIMMTE Kopien einer Stimme, über das Stereofeld verteilt —
+# sofortige „Supersaw"-Dicke und -Breite aus einer Zeile. Stelle sie mit Verstimmung
+# & Breite ein:
+#
+#   .unison(3)            3 Stimmen, sanfte Standard-Verstimmung, volle Breite
+#   .unison(5, 0.3)       5 Stimmen, ±0,3 Halbton Verstimmung (breiter = mehr Schimmer)
+#   .unison(4, 0.2, 60)   4 Stimmen, engere Verstimmung, 60% Stereobreite
+#
+# Es funktioniert auch bei Samples — jede Kopie wird verstimmt und gepannt.
+#
+# ▶ Dieselbe Zeile, trocken und dann fett — werte jede aus und höre sie aufblühen:
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35)
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
+#
+# Top für Leads, Pads und Bässe. Halte n bei dichten Parts klein — jede Stimme ist eine
+# echte Extra-Note, kostet also CPU. Kombiniere es mit Hall für eine riesige Klangwand.`, 'de'),
+
+    lesson(36, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
@@ -1638,7 +1756,7 @@ Root.default  = "C"
 #   PProg("pop")             una progresión con nombre (I V vi IV)
 #
 # ▶ Un pad que deriva por una progresión menor:
-p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'es'),
+p1 >> pads(PProg("pop"), oct=(6, 7), dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'es'),
 
     lesson(16, 'Generativo — deja que la máquina te sorprenda',
 `# Dos formas de ceder algo de control:
@@ -1740,17 +1858,39 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'es'),
 # (Pon una URL real y ejecútalo — los marcadores de arriba no cargan así.)`, 'es'),
 
     lesson(24, 'Sets que nunca se repiten — #@goto',
-`# #@goto(parte, prob) es una BIFURCACIÓN sin duración: una probabilidad  prob  de saltar
-# a otra section, si no continúa. Encadénalas para un set que se ramifica distinto cada
-# vez — un arreglo tipo Markov.
+`# #@goto(parte, prob) es un ENRUTADOR sin duración: una probabilidad  prob  de saltar a
+# esa section, si no CAE a la línea siguiente. Encadena varios y tienes una ramificación
+# ponderada de varias vías — un set tipo Markov que toma un camino distinto en cada
+# reproducción, sin fin.
 #
-# ▶ Cursor en  #@a(8)  y Ctrl+Enter — puede repetir A o pasar a B, 50/50:
-#@#@ branching
-#@a(8)
-p1 >> pluck([0, 2, 4, 7], dur=1/2)
-#@goto(a, 0.5)
-#@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+# ▶ Cursor en  #@intro(8) , Ctrl+Enter, y escucha — las flechas bajo cada parte deciden
+#   adónde va después (necesita el kit de la lección 5 para la batería):
+#@#@ markov_set
+#@intro(8)
+p1 >> pads([0, 4], oct=(5, 6), dur=4, sus=4, reverb=0.7, lpf=1200, amp=0.3)
+#@goto(intro, 0.3)      # 30%: quédate en la intro — si no, entra al verso
+#@verse(16)
+p1 >> pads([0, 4, 5, 3], oct=5, dur=4, sus=4, reverb=0.5, lpf=1600, amp=0.3)
+b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(chorus, 0.5)     # 50%: salta al estribillo — si no, cae al puente
+#@bridge(8)
+p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(verse, 0.6)      # 60%: de vuelta al verso — si no, hacia el estribillo
+#@chorus(16)
+p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
+d1 >> play("x-[oo]", dur=1/2)
+h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
+#@goto(drop, 0.4)       # 40%: al drop …
+#@goto(verse, 1)        # … el otro 60%: de vuelta al verso (gotos encadenados = varias vías)
+#@drop(8)
+p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
+d1 >> play("X", dur=1/4, amp=0.9)
+#@goto(verse, 1)        # el drop siempre vuelve al verso
 #@end`, 'es'),
 
     lesson(25, 'MIDI — tocar equipos externos',
@@ -1896,7 +2036,25 @@ Clock.bpm = linvar([110, 150], [8])
 # espera al compás). Clock.meter = pulsos por compás; Clock.nextBar(fn) / Clock.mod(4, fn)
 # lanzan tus propios one-shots en la rejilla.`, 'es'),
 
-    lesson(35, 'Estás listo ✨',
+    lesson(35, 'Engordar & ensanchar — .unison()',
+`# .unison(n) apila n copias DESAFINADAS de una voz, repartidas por el campo estéreo —
+# un grosor y una anchura «supersaw» al instante desde una sola línea. Ajústalo con la
+# desafinación & la anchura:
+#
+#   .unison(3)            3 voces, desafinación suave por defecto, anchura completa
+#   .unison(5, 0.3)       5 voces, ±0.3 semitonos de desafinación (más ancho = más brillo)
+#   .unison(4, 0.2, 60)   4 voces, desafinación más ceñida, 60% de anchura estéreo
+#
+# También funciona en samples — cada copia se repitcha y se panea.
+#
+# ▶ La misma línea, seca y luego engordada — ejecuta cada una y óyela abrirse:
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35)
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
+#
+# Genial en leads, pads y bajos. Mantén n pequeño en partes cargadas — cada voz es una
+# nota real extra, así que cuesta CPU. Combínalo con reverb para un muro de sonido enorme.`, 'es'),
+
+    lesson(36, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
@@ -2100,7 +2258,7 @@ Root.default  = "C"
 #   PProg("pop")             名前付きの進行（I V vi IV）
 #
 # ▶ マイナー進行を漂うパッド：
-p1 >> pads(PProg("pop"), oct=4, dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'ja'),
+p1 >> pads(PProg("pop"), oct=(6, 7), dur=4, sus=4, reverb=0.6, room=0.9, lpf=1600, amp=0.4)`, 'ja'),
 
     lesson(16, 'ジェネラティブ — マシンに驚かせてもらう',
 `# コントロールを手放す2つの方法：
@@ -2202,16 +2360,38 @@ b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`, 'ja'),
 # （本物のURLを入れて実行 — 上のプレースホルダーではこのままでは読めない。）`, 'ja'),
 
     lesson(24, '決して繰り返さないセット — #@goto',
-`# #@goto(パート, 確率) は長さのない「分岐」：確率  prob  で別のセクションへ飛び、
-# そうでなければ続く。連ねれば、毎回違う枝分かれをするセットになる — マルコフ的な構成。
+`# #@goto(パート, 確率) は長さのない「ルーター」：確率  prob  でそのセクションへ飛び、
+# 外れると次の行へ「落ちる」。いくつも連ねると重み付きの多方向分岐になる — 毎回違う道を
+# たどる、終わらないマルコフ的なセット。
 #
-# ▶ カーソルを  #@a(8)  に置いて Ctrl+Enter — Aを繰り返すかBへ進むか、50/50：
-#@#@ branching
-#@a(8)
-p1 >> pluck([0, 2, 4, 7], dur=1/2)
-#@goto(a, 0.5)
-#@b(8)
-p1 >> pluck([7, 4, 2, 0], dur=1/4, echo=0.3)
+# ▶ カーソルを  #@intro(8)  に置いて Ctrl+Enter、あとは聴くだけ — 各パートの下の矢印が
+#   次の行き先を決める（ドラムにはレッスン5のキットが必要）：
+#@#@ markov_set
+#@intro(8)
+p1 >> pads([0, 4], oct=(5, 6), dur=4, sus=4, reverb=0.7, lpf=1200, amp=0.3)
+#@goto(intro, 0.3)      # 30%：イントロに留まる — 外れれば verse へ
+#@verse(16)
+p1 >> pads([0, 4, 5, 3], oct=5, dur=4, sus=4, reverb=0.5, lpf=1600, amp=0.3)
+b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(chorus, 0.5)     # 50%：サビへ飛ぶ — 外れれば bridge へ落ちる
+#@bridge(8)
+p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
+d1 >> play("x-o-", dur=1/2)
+#@goto(verse, 0.6)      # 60%：verse に戻る — 外れれば chorus へ
+#@chorus(16)
+p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
+d1 >> play("x-[oo]", dur=1/2)
+h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
+#@goto(drop, 0.4)       # 40%：drop へ …
+#@goto(verse, 1)        # … 残り60%：verse に戻る（goto を連ねる = 多方向）
+#@drop(8)
+p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
+d1 >> play("X", dur=1/4, amp=0.9)
+#@goto(verse, 1)        # drop は必ず verse に戻る
 #@end`, 'ja'),
 
     lesson(25, 'MIDI — 外部機器を鳴らす',
@@ -2355,7 +2535,24 @@ Clock.bpm = linvar([110, 150], [8])
 # プレイヤーを足してもグリッドに吸い付く（Alt+X の停止も小節を待つ）。Clock.meter は
 # 1小節の拍数、Clock.nextBar(fn) / Clock.mod(4, fn) で自分の単発処理をグリッドに乗せる。`, 'ja'),
 
-    lesson(35, '準備完了 ✨',
+    lesson(35, '太く・広く — .unison()',
+`# .unison(n) は1つの声を n 個「デチューン」して重ね、ステレオに広げる — 1行から
+# 一瞬で「スーパーソウ」の厚みと広がりが出る。デチューン量と広がりで調整：
+#
+#   .unison(3)            3声、控えめな既定のデチューン、フル幅
+#   .unison(5, 0.3)       5声、±0.3半音のデチューン（広いほど揺らぎが増す）
+#   .unison(4, 0.2, 60)   4声、狭めのデチューン、ステレオ幅60%
+#
+# サンプルにも効く — 各コピーがピッチシフト＋パンされる。
+#
+# ▶ 同じ1行を、素のまま → 太く — それぞれ実行して開花を聴く：
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35)
+p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
+#
+# リード・パッド・ベースに最適。詰まったパートでは n を小さく — 各声は本物の追加音
+# なので CPU を食う。リバーブと組み合わせれば巨大な音の壁に。`, 'ja'),
+
+    lesson(36, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
