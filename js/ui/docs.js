@@ -100,7 +100,7 @@ export const PATTERNS = [
     { name: 'PStrum(n, spread)',        desc: 'Group of onset delays that fan out like a guitar strum — use as delay=PStrum(4)' },
     { name: 'PZip2(a, b)',              desc: 'Zip two lists into a group per step over their LCM length' },
     { name: 'PZ12(tokens, p)',          desc: '"Dearth" algorithm — emits 2 tokens so their frequency tracks target probs p (evenly spread, not clumped)' },
-    { name: 'PChord(deg, type)',        desc: 'Diatonic chord group on a scale degree — quality follows the Scale. type: triad/7/9/6/sus2/sus4/add9/5/oct. e.g. PChord(0,"7")' },
+    { name: 'PChord(deg, type)',        desc: 'Diatonic chord group on a scale degree — quality follows the Scale. type: triad/7/9/6/sus2/sus4/add9/5/oct (integers 7/9/6 work too). BOTH args can MOVE — a pattern advances per step, a var per bar: PChord([0,3,4],"9") walks the root, PChord(0, var([7,9,6])) morphs the quality (voice count changes; absent voices go silent). e.g. PChord(0,"7") · PChord([0,3,4],"9")' },
     { name: 'PRoman("I IV V vi")',      desc: 'Roman-numeral progression → chord groups (I..VII = degrees 0..6). Suffixes work: "V7", "ii7", "Isus4"' },
     { name: 'PProg(name)',              desc: 'Named progression → chords: 50s, pop/axis, 251/jazz, blues, andalusian, minor, canon — by name, an integer index, or a var. Unknown name = a roman string' },
     { name: 'PClave(name)',             desc: '16-step clave/bell play()-string: son, rumba, bossa, shiko, soukous, gahu, son23, rumba23 — by name, an integer index, or a var. e.g. play(PClave("son"))' },
@@ -211,6 +211,7 @@ export const VERSION = 'beta01';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'beta01', title: 'Beta! · 3 new themes · offline PWA · zoomable galaxy', items: [
+        'PChord can now morph its QUALITY over time — the type (2nd arg) accepts a var or pattern, not just a fixed name: PChord(0, var([7,9,6])) walks through a 7th → 9th → 6th (per bar), PChord(0, [7,9,6]) per step. The voice count follows the chord (triad=3 … 13th=7); voices the current chord doesn\'t use fall silent. The root (1st arg) already moved this way — now both do.',
         'Three new themes (Settings ▸ Theme): Nova — a cosmic beta-celebration palette (indigo night · gold · aurora-teal · rose); Hacker — pure-black matrix green with a phosphor glow; Brutalist — stark monochrome + one acid-yellow accent, zero rounding and raw blocky borders.',
         'Go offline — crashDot is now a Progressive Web App: install it from your browser (Chrome/Edge: the install icon in the address bar · iPhone/iPad: Share → Add to Home Screen) and it boots and plays with NO connection at all. The engine, every synth/FX, and the examples are cached; load the sample kit once online and it comes offline too. Only live multiplayer + the shared galaxy need a connection — solo coding never does.',
         'Galaxy scales to thousands — jams now sit on a stable spiral (each holds its spot for its lifetime, none overlap, no more central pile-up), and the map is fully zoomable & pannable: scroll to zoom, drag to pan, ⌂ to reset. Labels thin out as you zoom past a crowd and reappear as you zoom in, so a busy galaxy stays readable.',

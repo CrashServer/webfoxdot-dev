@@ -11,8 +11,11 @@ import { osc }                    from '../../lib/dist/supersonic.js';
 
 // Rest sentinel — a degree of REST fires no note (true silence). Emitted by the
 // transpiler for a standalone `_` or bare `rest` in a degree list, and returned by
-// the rest() global. (Distinct from `.` → null, which still plays degree 0.)
-export const REST = Symbol('rest');
+// the rest() global. (Distinct from `.` → null, which still plays degree 0.) Lives in
+// a shared leaf module so the pattern layer can emit it too; re-exported here so every
+// existing `import { REST } from './player.js'` keeps working.
+import { REST } from '../patterns/rest.js';
+export { REST };
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
 const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);

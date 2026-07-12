@@ -2,6 +2,7 @@
 // patGet resolves any value: plain scalar, array, or pattern object.
 
 import { isEnv, envValue, currentBeat } from './timevars.js';
+import { REST } from './rest.js';
 
 export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
@@ -847,12 +848,31 @@ const _CHORD_TYPES = {
 };
 
 // PChord(degree, type) — a diatonic chord group on `degree`. e.g. PChord(0, "7").
+const _moves = (v) => v != null && typeof v === 'object' && (typeof v.get === 'function' || Array.isArray(v));
+const _offsetsFor = (t) => _CHORD_TYPES[String(t).toLowerCase().trim()] || _CHORD_TYPES[''];
+const _MAX_VOICES = Math.max(...Object.values(_CHORD_TYPES).map(a => a.length));   // 7 (a 13th)
+
 export function PChord(degree = 0, type = '') {
-    const off = _CHORD_TYPES[String(type).toLowerCase().trim()] || _CHORD_TYPES[''];
-    // A pattern/timevar/list root → each voice resolves (root + offset) per step, so
+    const rootMoves = _moves(degree);
+    const typeMoves = _moves(type);
+    const rootAt = (step) => Number(patGet(degree, step)) || 0;
+
+    // A pattern/timevar TYPE → the chord QUALITY changes over time, so the voice count
+    // varies (triad=3 … 13th=7). Build a group sized to the largest chord; each voice
+    // resolves the current type per step and plays its note, or a REST when that voice
+    // isn't part of the current (smaller) chord: PChord(0, var([7, 9, 6])) morphs quality.
+    if (typeMoves) {
+        return _group(...Array.from({ length: _MAX_VOICES }, (_v, vi) => ({ get: (step) => {
+            const off = _offsetsFor(patGet(type, step));
+            return vi < off.length ? rootAt(step) + off[vi] : REST;
+        } })));
+    }
+
+    const off = _offsetsFor(type);
+    // A pattern/timevar/list ROOT → each voice resolves (root + offset) per step, so
     // the whole chord can move: PChord(var([1,2,3]), "9").
-    if (degree != null && typeof degree === 'object' && (typeof degree.get === 'function' || Array.isArray(degree))) {
-        return _group(...off.map(o => ({ get: (step) => (Number(patGet(degree, step)) || 0) + o })));
+    if (rootMoves) {
+        return _group(...off.map(o => ({ get: (step) => rootAt(step) + o })));
     }
     return _group(...off.map(o => degree + o));
 }
