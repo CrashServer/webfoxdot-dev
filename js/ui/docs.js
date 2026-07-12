@@ -212,6 +212,7 @@ export const VERSION = 'beta01';
 const CHANGELOG = [
     { v: 'beta01', title: 'Beta! · 3 new themes · offline PWA · zoomable galaxy', items: [
         'PChord can now morph its QUALITY over time — the type (2nd arg) accepts a var or pattern, not just a fixed name: PChord(0, var([7,9,6])) walks through a 7th → 9th → 6th (per bar), PChord(0, [7,9,6]) per step. The voice count follows the chord (triad=3 … 13th=7); voices the current chord doesn\'t use fall silent. The root (1st arg) already moved this way — now both do.',
+        'New Live set — Dubplate (svdk): a dub-techno #@ set built on a rhodes skank whose chord quality morphs via PChord(0, var([3,7,6],8)), a deep evolving dbass sub, squiz percussion and a pbuild techno engine, unwinding to a frozen-reverb outro. In the examples dropdown, the Examples page, and the galaxy.',
         'Three new themes (Settings ▸ Theme): Nova — a cosmic beta-celebration palette (indigo night · gold · aurora-teal · rose); Hacker — pure-black matrix green with a phosphor glow; Brutalist — stark monochrome + one acid-yellow accent, zero rounding and raw blocky borders.',
         'Go offline — crashDot is now a Progressive Web App: install it from your browser (Chrome/Edge: the install icon in the address bar · iPhone/iPad: Share → Add to Home Screen) and it boots and plays with NO connection at all. The engine, every synth/FX, and the examples are cached; load the sample kit once online and it comes offline too. Only live multiplayer + the shared galaxy need a connection — solo coding never does.',
         'Galaxy scales to thousands — jams now sit on a stable spiral (each holds its spot for its lifetime, none overlap, no more central pile-up), and the map is fully zoomable & pannable: scroll to zoom, drag to pan, ⌂ to reset. Labels thin out as you zoom past a crowd and reappear as you zoom in, so a busy galaxy stays readable.',
@@ -1885,6 +1886,83 @@ v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime
 #@end(16)`)}
     `, 'shorelines');
 
+    const dubplate = section('Dubplate — svdk', `
+        ${note('A dub-techno live <code>#@</code> set by <b>svdk</b> — a <code>rhodes</code> skank on the offbeat whose chord quality morphs via <code>PChord(0, var([3,7,6], 8))</code>, a deep evolving <code>dbass</code> sub, <code>squiz</code> percussion and a <code>pbuild</code> techno engine, unwinding to a frozen-reverb outro. Boot + load the kit first, then put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through the whole arrangement.')}
+        ${code(`#@#@ dubplate
+
+#@intro(8)
+Clock.bpm = 130
+Root.default = "D"
+Scale.default = "minor"
+
+# a rhodes chord skank on the offbeat, drenched in delay + reverb, glued with comp
+#@build(28)
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=4, dur=1, sus=0.35, release=0.3, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+#@peak(16)
+b1 >> dbass([0, 0, 5, 3], oct=(5, 4), dur=2, tanh=0.2, lpf=linvar([700, 1000, 1100, 1400, 1700, 2000, 2300, 2400, 2700, 2900], [1, 2, 1, 1, 1, 1, 1, 2, 1, 0.25]), amp=0.6).unison(3)
+
+#@break(8)
+b1 >> dbass([0, 0, 5, 3], fbdelay=0.5, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, oct=(5, 6), dur=2, tanh=0.2, lpf=linvar([700, 1000, 1100, 1400, 1700, 2000, 2300, 2400, 2700, 2900], [1, 2, 1, 1, 1, 1, 1, 2, 1, 0.25]), amp=0.6).unison(3)
+
+#@drop(8)
+d2 >> play("...c", dur=1, squiz=0.6, squizpitch=3, room=0.5, amp=0.4).sometimes("stutter", 3)
+
+#@outro(16)
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=(4, 5), dur=2, sus=0.5, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+#@part7(8)
+p1 >> supersaw([0, (0,3,7)], oct=4, dur=1, cutoff=sinvar([600, 4000], [8]), squiz=0.4, squizpitch=2, amp=0.3).every(8, "reverse")
+
+#@part8(8)
+d1 >> play("x", dur=1, amp=0.8)
+h1 >> play(".-", dur=0.5, hpf=7000, amp=0.4)
+
+#@part9(8)
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=4, dur=2, sus=0.5, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+#@part10(8)
+d1 >> play("x", dur=1, amp=0.8, sample=2)
+h1 >> play("[--]", dur=0.5, hpf=7000, amp=0.4)
+d2 >> play("...c", dur=1, squiz=0.6, squizpitch=3, room=0.5, amp=0.4).sometimes("stutter", 3)
+
+#@part11(4)
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=5, dur=2, sus=0.5, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+#@part12(8)
+b1 >> dbass([0, 0, 5, 3], oct=5, hpf=200, dur=2, tanh=0.2, lpf=linvar([700, 1000, 1100, 1400, 1700, 2000, 2300, 2400, 2700, 2900], [1, 2, 1, 1, 1, 1, 1, 2, 1, 0.25]), amp=0.6).unison(3)
+
+#@part13(16)
+h1.stop()
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=5, dur=1, sus=0.5, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+d1.rate=2
+d1.fbdelay=0.25
+p1.oct=4
+k1.oct=4
+b1.stop()
+
+#@part14(8)
+v1 >> play(pbuild("techno", evolve=8, fill=4, density=1, kick=1, snare=1, hat=1, perc=1))
+
+#@part15(8)
+p1.stop()
+d2.stop()
+v1.stop()
+
+#@part16(8)
+d1.stop()
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=<5 6>, dur=2, sus=1, cutoff=linvar([1800, 700], [16]), echo=0.6, echo_time=0.375, echo_dec=0.85, mverb=0.7, comp=0.6, compthresh=0.2, amp=0.32).offbeat()
+b1 >> dbass([0, 5], oct=4, dur=4, lpf=linvar([1600, 250], [16]), tanh=0.2, amp=linvar([0.6, 0.15], [16])).unison(3)
+h1 >> play("-", dur=2, hpf=9000, amp=0.2)
+
+#@part17(16)
+h1.stop()
+b1.stop()
+k1 >> rhodes(PChord(0, "add9"), oct=5, dur=16, sus=16, cutoff=520, echo=0.7, echo_dec=0.9, mverb=0.9, mverbfreeze=1, comp=0.6, compthresh=0.2, amp=linvar([0.3, 0], [16])).offbeat()
+
+#@end(16)`)}
+    `, 'dubplate');
+
     const flickering = section('Flickering Streets at Dawn — svdk', `
         ${note('A long dark <code>#@</code> set by <b>svdk</b> — detuned <code>synthbass</code> arps drifting through root &amp; scale changes, then an andalusian <code>darkpad</code> with rich <code>cs80</code> chords (<code>PRoman</code> / <code>PProg</code>) and a slow unwind to a lone <code>cs80</code>. Boot audio, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through the whole arrangement.')}
         ${code(`#flickering streets at dawn
@@ -1994,7 +2072,7 @@ v9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, shorelines, flickering, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
