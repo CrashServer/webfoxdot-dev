@@ -823,6 +823,14 @@ body.zen #docs-panel { display: none !important; }
     width: 100%;
     margin-top: 2px;
 }
+/* Theme the open popup too — the native <option> list otherwise falls back to the
+   browser default (white/black), which clashes with every dark theme. Chromium/
+   Firefox on Linux honour option colours; where they don't, it's a harmless no-op. */
+.cp-select option {
+    background: var(--bg-2);
+    color: var(--text-1);
+}
+.cp-select option:checked { background: var(--bg-3); color: var(--green); }
 
 /* ── CodeMirror show-hint ─────────────────────────────────────────────────── */
 .CodeMirror-hints {
