@@ -277,16 +277,21 @@ defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release,
 # ▶ …then play it like any synth:
 p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`),
 
-    lesson(18, 'Record your set',
-`# Capture what you make — the buttons live in the right panel (Settings):
+    lesson(18, 'Record your set · themes',
+`# The right panel (Settings) holds a few live-set tools:
 #
+#   Theme       a dropdown of 8 skins (top of Settings) — Dark, Nova, Synthwave,
+#               Hacker, Sakura, Paper… changes colours instantly, saved for next time.
 #   rec code    records your evaluations into a replayable #@ composition
 #   rec audio   records the actual audio output to a file (tick "share tab audio")
 #
 # And  Alt+T  arms the AUTOMATION recorder: nudge a knob with Alt+Up/Down over a few
 # beats and it writes the movement as a linvar for you — a hands-on way to automate.
 #
-# (Nothing to run here — try the buttons whenever you like, then evaluate next().)`),
+# ▶ Prefer the keyboard? Switch skin from code (theme() alone lists them all):
+theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+#
+# (The rec buttons need no code — try them whenever, then evaluate next().)`),
 
     lesson(19, 'Jam with other people',
 `# crashDot is multiplayer. Two ways in:
@@ -717,16 +722,21 @@ defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release,
 # ▶ …puis joue-le comme n'importe quel synthé :
 p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'fr'),
 
-    lesson(18, 'Enregistre ton set',
-`# Capture ce que tu fais — les boutons sont dans le panneau de droite (Settings) :
+    lesson(18, 'Enregistre ton set · thèmes',
+`# Le panneau de droite (Settings) réunit quelques outils pour jouer en live :
 #
+#   Theme       un menu de 8 skins (en haut de Settings) — Dark, Nova, Synthwave,
+#               Hacker, Sakura, Paper… change les couleurs aussitôt, gardé pour la fois suivante.
 #   rec code    enregistre tes évaluations en une composition #@ rejouable
 #   rec audio   capture la sortie audio dans un fichier (coche « share tab audio »)
 #
 # Et  Alt+T  arme l'enregistreur d'AUTOMATION : bouge un réglage avec Alt+Haut/Bas sur
 # quelques temps et il écrit le mouvement en linvar pour toi.
 #
-# (Rien à lancer ici — essaie les boutons quand tu veux, puis évalue next().)`, 'fr'),
+# ▶ Tu préfères le clavier ? Change de skin en code (theme() seul les liste tous) :
+theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+#
+# (Les boutons rec ne demandent aucun code — essaie-les quand tu veux, puis évalue next().)`, 'fr'),
 
     lesson(19, 'Jamme avec d’autres',
 `# crashDot est multijoueur. Deux façons d'entrer :
@@ -1156,16 +1166,21 @@ defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release,
 # ▶ …dann spiele ihn wie jeden Synth:
 p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'de'),
 
-    lesson(18, 'Nimm dein Set auf',
-`# Halte fest, was du machst — die Buttons sind im rechten Panel (Settings):
+    lesson(18, 'Nimm dein Set auf · Themes',
+`# Das rechte Panel (Settings) bündelt ein paar Werkzeuge fürs Live-Spielen:
 #
+#   Theme       ein Menü mit 8 Skins (oben in Settings) — Dark, Nova, Synthwave,
+#               Hacker, Sakura, Paper… ändert die Farben sofort, für nächstes Mal gespeichert.
 #   rec code    nimmt deine Auswertungen als abspielbare #@-Komposition auf
 #   rec audio   nimmt das Audio-Signal in eine Datei auf (hake „share tab audio" an)
 #
 # Und  Alt+T  aktiviert den AUTOMATIONS-Recorder: bewege einen Regler mit Alt+Hoch/Runter
 # über ein paar Beats, und er schreibt die Bewegung als linvar für dich.
 #
-# (Hier nichts auszuführen — probiere die Buttons, wann du willst, dann werte next() aus.)`, 'de'),
+# ▶ Lieber per Tastatur? Wechsle den Skin im Code (theme() allein listet alle auf):
+theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+#
+# (Die rec-Buttons brauchen keinen Code — probiere sie jederzeit, dann werte next() aus.)`, 'de'),
 
     lesson(19, 'Jamme mit anderen',
 `# crashDot ist Mehrspieler. Zwei Wege hinein:
@@ -1593,16 +1608,21 @@ defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release,
 # ▶ …luego tócalo como cualquier synth:
 p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'es'),
 
-    lesson(18, 'Graba tu set',
-`# Captura lo que haces — los botones están en el panel derecho (Settings):
+    lesson(18, 'Graba tu set · temas',
+`# El panel derecho (Settings) reúne varias herramientas para tocar en vivo:
 #
+#   Theme       un menú de 8 skins (arriba en Settings) — Dark, Nova, Synthwave,
+#               Hacker, Sakura, Paper… cambia los colores al instante, guardado para la próxima.
 #   rec code    graba tus evaluaciones como una composición #@ reproducible
 #   rec audio   graba la señal de audio a un archivo (marca «share tab audio»)
 #
 # Y  Alt+T  activa el grabador de AUTOMATIZACIÓN: mueve una perilla con Alt+Arriba/Abajo
 # durante unos beats y escribe el movimiento como un linvar por ti.
 #
-# (Nada que ejecutar aquí — prueba los botones cuando quieras, luego evalúa next().)`, 'es'),
+# ▶ ¿Prefieres el teclado? Cambia de skin desde código (theme() solo los lista todos):
+theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+#
+# (Los botones rec no necesitan código — pruébalos cuando quieras, luego evalúa next().)`, 'es'),
 
     lesson(19, 'Improvisa con otros',
 `# crashDot es multijugador. Dos formas de entrar:
@@ -2030,16 +2050,21 @@ defsynth("buzz", { cutoff: 1500 }, ({ out, note, amp, sus, pan, attack, release,
 # ▶ …あとは普通のシンセと同じように鳴らす：
 p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'ja'),
 
-    lesson(18, 'セットを録音する',
-`# 演奏を残す — ボタンは右パネル（Settings）に：
+    lesson(18, 'セットを録音する · テーマ',
+`# 右パネル（Settings）にはライブ演奏用のツールがいくつか：
 #
+#   Theme       8種のスキンのメニュー（Settings の上部）— Dark, Nova, Synthwave,
+#               Hacker, Sakura, Paper… 色が即座に変わり、次回まで保存される。
 #   rec code    評価の履歴を、再生できる #@ コンポジションとして記録
 #   rec audio   音声信号をファイルに録音（「share tab audio」にチェック）
 #
 # さらに  Alt+T  で「オートメーション」記録がオン：Alt+上/下 でつまみを数ビート動かすと、
 # その動きを linvar として書き出してくれる。
 #
-# （ここで実行するものはない — 好きなときにボタンを試して、next() を評価。）`, 'ja'),
+# ▶ キーボード派？ コードでスキンを切り替え（theme() だけで一覧）：
+theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+#
+# （rec ボタンはコード不要 — 好きなときに試して、next() を評価。）`, 'ja'),
 
     lesson(19, 'みんなでジャム',
 `# crashDot はマルチプレイヤー。入り口は2つ：

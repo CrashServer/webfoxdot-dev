@@ -471,6 +471,19 @@
                 if (_tour) _tour.refresh();   // re-render the current lesson in the new language
                 log({ fr: '🇫🇷 langue → français', de: '🇩🇪 Sprache → deutsch', es: '🇪🇸 idioma → español', ja: '🇯🇵 言語 → 日本語', en: '🇬🇧 language → english' }[v], 'info');
             },
+            // theme()  reports the current skin · theme("synthwave")  switches it (same set
+            // as Settings ▸ Theme). Mirrors the dropdown: sets the root class + persists it.
+            theme: (name) => {
+                const THEMES = ['dark', 'nova', 'cyberpunk', 'synthwave', 'hacker', 'brutalist', 'paper', 'sakura'];
+                if (name == null) { log(`theme: ${localStorage.getItem('theme') || 'cyberpunk'}  ·  theme("synthwave") — one of: ${THEMES.join(', ')}`, 'info'); return; }
+                const q = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+                const t = THEMES.find(x => x === q) || THEMES.find(x => x.startsWith(q)) || THEMES.find(x => q.startsWith(x));
+                if (!t) { log(`unknown theme "${name}" — try: ${THEMES.join(', ')}`, 'error'); return; }
+                document.documentElement.className = t === 'dark' ? '' : t;
+                try { localStorage.setItem('theme', t); } catch (_) {}
+                const sel = document.getElementById('theme-select'); if (sel) sel.value = t;
+                log(`🎨 theme → ${t}`, 'info');
+            },
             // tour()  lists every lesson · tour(n)  jumps straight to lesson n.
             tour: (n) => {
                 if (!_tour) return;
