@@ -188,6 +188,10 @@
   <!-- mobile-only scrim behind the panel drawer; tap to close (see @media in style.css) -->
   <div id="cp-backdrop"></div>
 
+  <!-- mobile-only accessory key bar — fast symbol/token entry above the soft keyboard.
+       Populated + positioned in JS; shown only while the editor is focused on touch. -->
+  <div id="keybar"></div>
+
   <!-- ── Scripts — load order matters ─────────────────────────────────── -->
   <script src="lib/codemirror/codemirror.min.js"></script>
   <script src="lib/codemirror/python.min.js"></script>
@@ -1232,6 +1236,59 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const end = () => { if (dragging) { dragging = false; wrap.classList.remove('cm-nudging'); } };
         wrap.addEventListener('touchend', end, { capture: true });
         wrap.addEventListener('touchcancel', end, { capture: true });
+    })();
+
+    // ── Mobile accessory key bar (Tier 3) ──────────────────────────────────────
+    // A scrollable row of the symbols/tokens live coding needs (>> [ ] ( ) , " . #@
+    // dur= …) that soft keyboards bury behind mode switches — plus a button that opens
+    // the context-aware autocomplete (which handles the long synth/param names) and a
+    // run button. Buttons preventDefault so the editor keeps focus (keyboard stays up).
+    // Pinned above the keyboard via the VisualViewport API; touch devices only.
+    (() => {
+        const bar = document.getElementById('keybar');
+        if (!bar || !matchMedia('(pointer: coarse)').matches) return;
+        // t: text to insert · then: open autocomplete after · ac: open autocomplete · run: run line
+        const KEYS = [
+            { l: 'p1 ▸', t: 'p1 >> ', then: true }, { l: '>>', t: ' >> ', then: true },
+            { l: '[', t: '[' }, { l: ']', t: ']' }, { l: '(', t: '(' }, { l: ')', t: ')' },
+            { l: ',', t: ', ' }, { l: '"', t: '"' }, { l: '.', t: '.' }, { l: '-', t: '-' },
+            { l: '_', t: '_' }, { l: 'dur', t: 'dur=' }, { l: 'amp', t: 'amp=' }, { l: 'oct', t: 'oct=' },
+            { l: '½', t: '1/2' }, { l: '¼', t: '1/4' }, { l: '#@', t: '#@' },
+            { l: '⌨', ac: true }, { l: '▶', run: true },
+        ];
+        for (const k of KEYS) {
+            const b = document.createElement('button');
+            b.className = 'keybar-key' + (k.ac || k.run ? ' keybar-act' : '');
+            b.textContent = k.l;
+            b.addEventListener('pointerdown', (e) => {
+                e.preventDefault();                         // keep editor focus → keyboard stays up
+                if (k.ac)  { triggerAutocomplete(editor); return; }
+                if (k.run) { runLineAtCursor(); return; }
+                editor.replaceSelection(k.t);
+                editor.focus();
+                if (k.then) triggerAutocomplete(editor);    // e.g. after ">>" → synth menu
+            });
+            bar.appendChild(b);
+        }
+        // Show only while the editor is focused AND the soft keyboard is actually up
+        // (so it doesn't sit at the bottom from the initial autofocus), pinned just above
+        // the keyboard via VisualViewport. No VisualViewport → fall back to show-on-focus.
+        const vv = window.visualViewport;
+        let focused = false;
+        const update = () => {
+            let show = focused, bottom = 0;
+            if (vv) {
+                const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+                bottom = kb;
+                show = focused && kb > 120;   // keyboard occupies real space
+            }
+            document.body.classList.toggle('keybar-on', show);
+            bar.style.bottom = bottom + 'px';
+        };
+        editor.on('focus', () => { focused = true; update(); });
+        editor.on('blur',  () => { setTimeout(() => { focused = false; update(); }, 150); });
+        vv?.addEventListener('resize', update);
+        vv?.addEventListener('scroll', update);
     })();
 
     // A share link (#c=…) loads its composition into the editor (async decode).

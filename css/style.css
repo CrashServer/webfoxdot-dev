@@ -1634,3 +1634,31 @@ body.is-offline #btn-galaxy {
 }
 /* While dragging a number to nudge it (touch), show it's a knob, not text. */
 .cm-nudging, .cm-nudging .CodeMirror-lines { cursor: ns-resize !important; }
+
+/* Mobile accessory key bar (Tier 3) — fast symbol entry above the soft keyboard. */
+#keybar { display: none; }
+@media (pointer: coarse) {
+    #keybar {
+        position: fixed; left: 0; right: 0; bottom: 0;
+        z-index: 70;
+        gap: 5px; padding: 5px 6px;
+        background: var(--bg-2);
+        border-top: 1px solid var(--border-1);
+        overflow-x: auto; white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        scrollbar-width: none;
+    }
+    #keybar::-webkit-scrollbar { display: none; }
+    body.keybar-on #keybar { display: flex; }
+    .keybar-key {
+        flex: 0 0 auto;
+        min-width: 42px; min-height: 42px;
+        background: var(--bg-3); color: var(--text-1);
+        border: 1px solid var(--border-1); border-radius: 7px;
+        font-family: monospace; font-size: 16px; font-weight: bold;
+        cursor: pointer; touch-action: manipulation;
+    }
+    .keybar-key:active { background: var(--green-dim); border-color: var(--green); }
+    .keybar-key.keybar-act { color: var(--green); border-color: var(--green); }
+}
