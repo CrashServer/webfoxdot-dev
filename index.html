@@ -905,10 +905,11 @@
             // Phone/low-RAM tier: shrink the sample buffer pool. The full 128MB pool
             // (allocated once, never grown — see below) can OOM a mobile tab, especially
             // on iOS. 64MB still holds a normal kit + the lazy built-ins; a very large
-            // pack may drop a few samples rather than crash the engine. Detected from a
-            // coarse pointer / small screen, or a low navigator.deviceMemory reading.
-            const _lowMem = (navigator.deviceMemory && navigator.deviceMemory <= 4)
-                || matchMedia('(pointer: coarse) and (max-width: 900px)').matches;
+            // pack may drop a few samples rather than crash the engine. Gated on a COARSE
+            // pointer so a desktop (even a 4GB one) always gets the full pool — only a
+            // phone-ish touch device (small screen, or a low deviceMemory reading) is capped.
+            const _touch  = matchMedia('(pointer: coarse)').matches;
+            const _lowMem = _touch && (((navigator.deviceMemory ?? 8) <= 4) || matchMedia('(max-width: 900px)').matches);
             const _poolMB = _lowMem ? 64 : 128;
             if (_lowMem) log(`  mobile/low-RAM device — sample pool capped at ${_poolMB}MB`, 'info');
 
