@@ -1596,71 +1596,64 @@ body.is-offline #btn-galaxy {
 #btn-update { color: var(--green); border-color: var(--green); font-weight: bold; }
 #btn-install { color: var(--blue); border-color: var(--blue); }
 
-/* ── Mixer console (pop-out) ─────────────────────────────────────────────────── */
+/* ── Mixer console — non-modal floating panel, vertical strips, square, compact ── */
 #mixer-modal {
-    position: fixed; inset: 0; z-index: 200;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
+    position: fixed; left: 12px; bottom: 46px; z-index: 120;
+    background: var(--bg-2); border: 1px solid var(--border-2);
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5);
+    font-family: monospace;
+    display: flex; flex-direction: column;
+    max-width: 94vw;
 }
 #mixer-modal.hidden { display: none; }
-.mixer-box {
-    background: var(--bg-2); border: 1px solid var(--border-2);
-    border-radius: 10px; box-shadow: 0 12px 44px rgba(0, 0, 0, 0.6);
-    width: min(440px, 94vw); max-height: 86vh;
-    display: flex; flex-direction: column;
-    font-family: monospace;
-}
-.mixer-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-1); }
-.mixer-title { color: var(--green); font-weight: bold; font-size: 13px; }
-.mixer-scope {
-    background: var(--bg-3); color: var(--text-1); border: 1px solid var(--border-1);
-    border-radius: 5px; padding: 4px 10px; font-family: monospace; font-size: 11px; cursor: pointer;
-}
-.mixer-scope.per-part { color: var(--yellow); border-color: var(--yellow); }
-.mixer-close { background: none; border: none; color: var(--text-2); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+.mixer-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--border-1); cursor: move; }
+.mixer-title { color: var(--green); font-weight: bold; font-size: 12px; }
+.mixer-drag { flex: 1; align-self: stretch; }
+.mixer-close { background: none; border: none; color: var(--text-2); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 3px; }
 .mixer-close:hover { color: var(--red); }
-.mixer-chans { overflow-y: auto; padding: 4px 12px 12px; }
-.mixer-chan { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--bg-3); }
-.mixer-master { padding: 10px 12px; border-bottom: 1px solid var(--border-1); background: var(--bg-1); }
-.mixer-chan-name { color: var(--blue); font-weight: bold; min-width: 52px; cursor: pointer; user-select: none; }
+/* source-part picker */
+.mixer-parts { display: flex; gap: 4px; padding: 5px 8px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--border-1); max-width: 100%; scrollbar-width: none; }
+.mixer-parts::-webkit-scrollbar { display: none; }
+.mixer-part-chip {
+    flex: 0 0 auto; background: var(--bg-3); color: var(--text-2);
+    border: 1px solid var(--border-1); padding: 2px 8px;
+    font-family: monospace; font-size: 10px; cursor: pointer;
+}
+.mixer-part-chip.playing::before { content: '● '; color: var(--green); }
+.mixer-part-chip.selected { color: var(--yellow); border-color: var(--yellow); background: var(--bg-1); }
+/* channel strips — vertical, side by side */
+.mixer-body { display: flex; gap: 2px; padding: 6px 8px; overflow-x: auto; align-items: flex-start; }
+.mixer-chans { display: flex; gap: 2px; }
+.mixer-chan { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 42px; flex: 0 0 auto; padding: 2px 0; }
+.mixer-master { border-right: 1px solid var(--border-1); margin-right: 4px; padding-right: 6px; }
+.mixer-chan-name { color: var(--blue); font-weight: bold; font-size: 11px; cursor: pointer; user-select: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .mixer-chan-name:hover { color: var(--green); }
 .mixer-chan-name:active { opacity: 0.6; }
 .mixer-master .mixer-chan-name { color: var(--green); cursor: default; }
-.mixer-chan.inactive { opacity: 0.45; }
-.mixer-chan-mute {
+.mixer-chan.inactive { opacity: 0.5; }
+.mixer-chan-fader {
+    writing-mode: vertical-lr; direction: rtl;      /* vertical, bottom = 0, top = max */
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 96px; margin: 2px 0;
+    background: var(--bg-1); cursor: pointer;
+}
+.mixer-chan-fader::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 9px; border-radius: 0; background: var(--green); cursor: pointer; }
+.mixer-chan-fader::-moz-range-thumb { width: 18px; height: 9px; border-radius: 0; background: var(--green); border: none; cursor: pointer; }
+.mixer-chan-lvl { font-size: 9px; color: var(--text-2); }
+.mixer-chan-mute, .mixer-chan-stop {
+    width: 24px; height: 18px; padding: 0;
     background: none; border: 1px solid var(--border-1); color: var(--text-2);
-    border-radius: 4px; min-width: 26px; height: 24px; cursor: pointer; font-weight: bold; font-size: 11px;
+    font-size: 10px; font-weight: bold; cursor: pointer;
 }
 .mixer-chan-mute.on { color: var(--red); border-color: var(--red); background: rgba(248, 81, 73, 0.12); }
-.mixer-chan-fader {
-    flex: 1 1 0; min-width: 0; height: 5px; margin: 0 6px;
-    -webkit-appearance: none; appearance: none; background: var(--bg-3); border-radius: 3px; cursor: pointer;
-}
-.mixer-chan-fader::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--green); cursor: pointer; }
-.mixer-chan-fader::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--green); border: none; cursor: pointer; }
-.mixer-chan-lvl { font-size: 11px; color: var(--text-2); min-width: 34px; text-align: right; }
-/* the • that marks a track with a per-part override (hidden unless the row .has-ovr) */
-.mixer-chan-ovr { color: var(--yellow); font-size: 15px; width: 10px; visibility: hidden; }
-.mixer-chan.has-ovr .mixer-chan-ovr { visibility: visible; }
-/* part picker — chips for ★Global + each part; selected = editing, ● = playing */
-.mixer-parts { display: flex; gap: 5px; padding: 8px 12px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--border-1); scrollbar-width: none; }
-.mixer-parts::-webkit-scrollbar { display: none; }
-.mixer-part-chip {
-    flex: 0 0 auto;
-    background: var(--bg-3); color: var(--text-2);
-    border: 1px solid var(--border-1); border-radius: 5px;
-    padding: 3px 10px; font-family: monospace; font-size: 11px; cursor: pointer;
-}
-.mixer-part-chip.playing::before { content: '● '; color: var(--green); }
-.mixer-part-chip.selected { color: var(--text-1); border-color: var(--border-2); background: var(--bg-1); }
-.mixer-part-chip.selected:not([data-part="*"]) { color: var(--yellow); border-color: var(--yellow); }
-.mixer-hint { padding: 8px 12px; font-size: 10px; color: var(--text-2); border-top: 1px solid var(--border-1); }
+.mixer-chan-stop { color: var(--red); }
+.mixer-chan-mute:hover, .mixer-chan-stop:hover { background: var(--bg-3); }
+.mixer-hint { padding: 5px 8px; font-size: 9px; color: var(--text-2); border-top: 1px solid var(--border-1); }
 @media (pointer: coarse) {
-    .mixer-part-chip { min-height: 32px; }
-    .mixer-chan-fader { height: 7px; }
-    .mixer-chan-fader::-webkit-slider-thumb { width: 22px; height: 22px; }
-    .mixer-chan-fader::-moz-range-thumb { width: 22px; height: 22px; }
-    .mixer-chan-mute { min-width: 36px; height: 34px; }
+    .mixer-part-chip { min-height: 30px; }
+    .mixer-chan { width: 52px; }
+    .mixer-chan-fader { width: 30px; height: 124px; }
+    .mixer-chan-mute, .mixer-chan-stop { width: 34px; height: 28px; }
 }
 
 /* ── Mobile / touch (Tier 1) ──────────────────────────────────────────────────

@@ -1,64 +1,45 @@
-// Mixer — a pop-out console of volume faders over a composition's tracks, plus the
-// per-SECTION level model. Faders drive each player's persistent `_mixLevel` (read
-// every note in the engine), kept separate from `_amplify` (mute/solo/drop).
+// Mixer — a non-modal, draggable floating console. It's a clip-launcher + volume desk
+// for performing a composition by hand:
 //
-// The model (answers the "how does it know the parts" questions):
-//  • TRACKS = every player that appears in the composition — the union of `name >>`
-//    lines parsed from the #@ sections (commented lines included) and the currently
-//    ACTIVE players. So a track shows up even before it has played.
-//  • SAME PLAYER IN DIFFERENT PARTS = still ONE track (one player object, one
-//    `_mixLevel`). To let it be a different volume per part, levels are stored per
-//    scope: LEVELS['*'] is the global level for a track everywhere; LEVELS[sectionName]
-//    is an override for that part only.
-//        effective(player, section) = LEVELS[section]?.[p] ?? LEVELS['*']?.[p] ?? 1
-//  • ON SECTION ENTRY (auto-advance, tap-to-jump, OR manually evaluating a #@ line —
-//    all go through runSection → onActive) we apply effective(p, section) to every
-//    active player. So evaluating `#@drop` in code applies the drop's mix; the same
-//    d1 can be quiet in the build and loud in the drop, resolved live.
-//  • MASTER scales everything (setMasterMix).
+//  • VOLUME is shared per player NAME (one _mixLevel per name, read every note). One
+//    vertical fader per track — the same d1 has ONE volume wherever it plays.
+//  • LAUNCH: tap a track's name → evaluate its `name >>` line and start it on its own
+//    (no auto-advance needed). The SOURCE part picker chooses which part's version a
+//    launch pulls from, so you can play v1 from part 1, v3 from part 2, v1 from part 4…
+//  • STOP: ■ stops the track, quantised to the next bar.
+//  • MASTER scales everything.
+//
+// It's non-modal (no backdrop) so you can keep coding while it's open; drag its header
+// to move it out of the way.
 
 import { setMasterMix, getMasterMix } from '../engine/player.js';
 
 let _clock = null, _editor = null, _runCode = null;
-const LEVELS = { '*': {} };     // scope → { player → level }.  '*' = global default.
-let _scope = '*';               // which scope the console faders currently edit
-let _activeSection = null;      // the section playing now (from onSectionActive)
+const _levels = {};            // player name → volume (persists even before it's launched)
+let _source = null;            // which part a launch pulls from (null = the part playing, else first)
+let _activeSection = null;     // the part playing now (for the ● marker)
 let _open = false;
-let _lastTracks = '';           // to rebuild channels only when the track set changes
+let _lastTracks = '';
+let _partsKey = '';
 
 export function initMixer(clock, editor, runCode) { _clock = clock; _editor = editor; _runCode = runCode; }
 
-// Launch a track from the mixer: evaluate its `name >>` line so it starts playing on
-// its own — no need to run the auto-advancing composition, so you can build a mix by
-// hand. Picks the line from the part selected in the picker (else the part playing now,
-// else the first occurrence), so you choose which version of the track to launch.
-// Volume is the shared per-name _mixLevel, so re-launching keeps the fader where it is.
-function launchPlayer(name) {
-    if (!_runCode || !_editor || !_editor.getValue) return;
-    const want = _scope !== '*' ? _scope : _activeSection;   // preferred part, if any
-    let part = null, pick = null, first = null;
-    for (const raw of _editor.getValue().split('\n')) {
-        const t = raw.trim();
-        const sec = t.match(/^#@([a-zA-Z_]\w*)/);
-        if (sec && !t.startsWith('#@#@')) { part = sec[1]; continue; }
-        const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);        // a real (uncommented) definition
-        if (pm && pm[1] === name) {
-            if (first == null) first = raw;
-            if (want == null || part === want) { pick = raw; break; }
-        }
-    }
-    if (pick ?? first) _runCode(pick ?? first);
-}
-
-const eff = (player, section) =>
-    (LEVELS[section] && LEVELS[section][player] != null) ? LEVELS[section][player]
-    : (LEVELS['*'][player] != null) ? LEVELS['*'][player] : 1;
-
-// Apply a section's effective levels to every active player. Called on section entry.
+// The part playing now — only drives the ● marker. Volumes are shared per name, so a
+// section change never touches them.
 export function onSectionActive(sectionName) {
     _activeSection = sectionName || null;
-    if (_clock) for (const [name, p] of _clock._players) p._mixLevel = eff(name, _activeSection);
     if (_open) updateConsole();
+}
+
+function levelOf(name) {
+    if (_levels[name] != null) return _levels[name];
+    const p = _clock && _clock._players.get(name);
+    return p ? (p._mixLevel ?? 1) : 1;
+}
+function setLevel(name, v) {
+    _levels[name] = v;
+    const p = _clock && _clock._players.get(name);
+    if (p) p._mixLevel = v;
 }
 
 // The composition's tracks: players in #@ lines (incl. `# p1 >>` stops) ∪ active players.
@@ -70,55 +51,67 @@ function tracks() {
     return [...set].sort();
 }
 
-// The composition's PARTS: named #@ sections in document order (not #@#@ tracks, not
-// the control nodes goto/end/clear). These become the part-picker chips.
+// The composition's named parts (not #@#@ tracks, not goto/end/clear).
 function parts() {
     const out = [];
     if (_editor && _editor.getValue) {
         for (const m of _editor.getValue().matchAll(/^\s*#@([a-zA-Z_]\w*)\s*(?:\(|$)/gm)) {
-            const name = m[1];
-            if (!/^(goto|end|endfade|clear)$/i.test(name)) out.push(name);
+            if (!/^(goto|end|endfade|clear)$/i.test(m[1])) out.push(m[1]);
         }
     }
     return [...new Set(out)];
 }
 
-// Level for a track in the CURRENT edit scope (what the console fader shows).
-function levelForScope(player) {
-    if (LEVELS[_scope] && LEVELS[_scope][player] != null) return LEVELS[_scope][player];
-    return _scope === '*' ? 1 : (LEVELS['*'][player] != null ? LEVELS['*'][player] : 1);
-}
-// Write a level into the current scope, and apply it live if it affects what's playing.
-function setLevel(player, level) {
-    (LEVELS[_scope] || (LEVELS[_scope] = {}))[player] = level;
-    const p = _clock && _clock._players.get(player);
-    if (p) p._mixLevel = eff(player, _activeSection);
+// Launch a track: evaluate its `name >>` line from the SOURCE part (else the part
+// playing, else the first occurrence). Volume is the shared per-name level, re-applied.
+function launchPlayer(name) {
+    if (!_runCode || !_editor || !_editor.getValue) return;
+    const want = _source ?? _activeSection;
+    let part = null, pick = null, first = null;
+    for (const raw of _editor.getValue().split('\n')) {
+        const t = raw.trim();
+        const sec = t.match(/^#@([a-zA-Z_]\w*)/);
+        if (sec && !t.startsWith('#@#@')) { part = sec[1]; continue; }
+        const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);        // a real (uncommented) definition
+        if (pm && pm[1] === name) { if (first == null) first = raw; if (want == null || part === want) { pick = raw; break; } }
+    }
+    const code = pick ?? first;
+    if (!code) return;
+    _runCode(code);
+    const p = _clock && _clock._players.get(name);
+    if (p && _levels[name] != null) p._mixLevel = _levels[name];
+    if (_open) updateConsole();
 }
 
-// ── Console UI ──────────────────────────────────────────────────────────────
+// Stop a track, quantised to the next bar.
+function stopPlayer(name) {
+    const p = _clock && _clock._players.get(name);
+    if (p && p._active) p.stop((_clock && _clock.meter) || 4);
+}
+
+// ── Console UI (non-modal, vertical strips) ────────────────────────────────────
 let _modal = null, _chansEl = null, _partsEl = null, _hintEl = null, _masterFader = null, _masterLvl = null;
-let _partsKey = '';
 
 function build() {
     _modal = document.createElement('div');
     _modal.id = 'mixer-modal';
     _modal.className = 'hidden';
     _modal.innerHTML = `
-        <div class="mixer-box">
-            <div class="mixer-head">
-                <span class="mixer-title">🎚 mixer</span>
-                <div style="flex:1"></div>
-                <button class="mixer-close" title="close">×</button>
-            </div>
-            <div class="mixer-parts" title="pick which part's levels the faders edit · ● = the part playing now"></div>
+        <div class="mixer-head">
+            <span class="mixer-title">🎚 mixer</span>
+            <div class="mixer-drag"></div>
+            <button class="mixer-close" title="close">×</button>
+        </div>
+        <div class="mixer-parts" title="which part a launch pulls from · ● = the part playing now"></div>
+        <div class="mixer-body">
             <div class="mixer-chan mixer-master">
-                <span class="mixer-chan-name">MASTER</span>
+                <span class="mixer-chan-name">MAS</span>
                 <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
                 <span class="mixer-chan-lvl">1.00</span>
             </div>
             <div class="mixer-chans"></div>
-            <div class="mixer-hint"></div>
-        </div>`;
+        </div>
+        <div class="mixer-hint"></div>`;
     document.body.appendChild(_modal);
     _chansEl     = _modal.querySelector('.mixer-chans');
     _partsEl     = _modal.querySelector('.mixer-parts');
@@ -126,31 +119,50 @@ function build() {
     _masterFader = _modal.querySelector('.mixer-master .mixer-chan-fader');
     _masterLvl   = _modal.querySelector('.mixer-master .mixer-chan-lvl');
     _modal.querySelector('.mixer-close').onclick = closeMixer;
-    _modal.addEventListener('click', (e) => { if (e.target === _modal) closeMixer(); });   // backdrop
     _masterFader.oninput = () => { setMasterMix(parseFloat(_masterFader.value)); _masterLvl.textContent = parseFloat(_masterFader.value).toFixed(2); };
+    initDrag(_modal.querySelector('.mixer-head'));
 }
 
-// The part-picker chips: ★Global + one per named part. Selected = editing; ● = playing.
+// Drag the panel by its header (non-modal — move it off your code).
+function initDrag(handle) {
+    let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
+    handle.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.mixer-close')) return;
+        on = true; const r = _modal.getBoundingClientRect();
+        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
+        _modal.style.left = ox + 'px'; _modal.style.top = oy + 'px';
+        _modal.style.right = 'auto'; _modal.style.bottom = 'auto';
+        e.preventDefault();
+    });
+    window.addEventListener('pointermove', (e) => {
+        if (!on) return;
+        _modal.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+        _modal.style.top  = Math.max(0, oy + e.clientY - sy) + 'px';
+    });
+    window.addEventListener('pointerup', () => { on = false; });
+}
+
+// Source-part picker: 'auto' + one chip per part. Selected = launch source; ● = playing.
 function renderParts() {
     const ps = parts();
-    if (_scope !== '*' && !ps.includes(_scope)) _scope = '*';   // scope's part was removed
-    const key = ['*', ...ps].join(',');
+    if (_source != null && !ps.includes(_source)) _source = null;
+    const key = ['auto', ...ps].join(',');
     if (key !== _partsKey) {
         _partsEl.innerHTML = '';
-        for (const name of ['*', ...ps]) {
+        for (const name of ['auto', ...ps]) {
             const chip = document.createElement('button');
             chip.className = 'mixer-part-chip';
             chip.dataset.part = name;
-            chip.textContent = name === '*' ? '★ Global' : name;
-            chip.onclick = () => { _scope = name; updateConsole(); };
+            chip.textContent = name;
+            chip.onclick = () => { _source = name === 'auto' ? null : name; updateConsole(); };
             _partsEl.appendChild(chip);
         }
         _partsKey = key;
     }
     for (const chip of _partsEl.children) {
         const name = chip.dataset.part;
-        chip.classList.toggle('selected', _scope === name);
-        chip.classList.toggle('playing', name !== '*' && name === _activeSection);
+        chip.classList.toggle('selected', (name === 'auto' && _source == null) || name === _source);
+        chip.classList.toggle('playing', name !== 'auto' && name === _activeSection);
     }
 }
 
@@ -161,22 +173,21 @@ function rebuildChannels(names) {
         row.className = 'mixer-chan';
         row.dataset.name = name;
         row.innerHTML = `
-            <span class="mixer-chan-name" title="tap to (re)launch this track — evaluates its line, no autoplay needed">▸ ${name}</span>
-            <span class="mixer-chan-ovr" title="this part overrides the global level">•</span>
-            <button class="mixer-chan-mute" title="mute">M</button>
+            <span class="mixer-chan-name" title="tap to launch this track's selected-part version">${name}</span>
             <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
-            <span class="mixer-chan-lvl">1.00</span>`;
-        // Tap the name → launch/evaluate this track (perform without the composition).
+            <span class="mixer-chan-lvl">1.00</span>
+            <button class="mixer-chan-mute" title="mute">M</button>
+            <button class="mixer-chan-stop" title="stop (quantised to the bar)">■</button>`;
         row.querySelector('.mixer-chan-name').onclick = () => launchPlayer(name);
         row.querySelector('.mixer-chan-fader').oninput = (e) => {
             setLevel(name, parseFloat(e.target.value));
             row.querySelector('.mixer-chan-lvl').textContent = parseFloat(e.target.value).toFixed(2);
-            row.classList.add('has-ovr');   // moving a fader in a part-scope creates an override
         };
         row.querySelector('.mixer-chan-mute').onclick = () => {
             const p = _clock && _clock._players.get(name);
             if (p) { p._amplify = p._amplify === 0 ? 1 : 0; updateConsole(); }
         };
+        row.querySelector('.mixer-chan-stop').onclick = () => stopPlayer(name);
         _chansEl.appendChild(row);
     }
 }
@@ -187,32 +198,25 @@ function updateConsole() {
     const names = tracks();
     const key = names.join(',');
     if (key !== _lastTracks) { rebuildChannels(names); _lastTracks = key; }
-    // hint: what the faders currently edit
-    _hintEl.textContent = _scope === '*'
-        ? 'editing: Global — the base level for every part'
-        : `editing: ${_scope}` + (_scope === _activeSection ? ' — the part playing now' : ' — not playing (authoring its level)');
-    // master
+    _hintEl.textContent = 'tap a name ▸ to launch · source: ' + (_source ?? 'the part playing (or first)');
     if (document.activeElement !== _masterFader) { const m = getMasterMix(); _masterFader.value = m; _masterLvl.textContent = m.toFixed(2); }
-    // channels
     for (const row of _chansEl.children) {
         const name = row.dataset.name;
         const p = _clock && _clock._players.get(name);
         const fader = row.querySelector('.mixer-chan-fader');
         if (document.activeElement !== fader) {
-            const lv = levelForScope(name);
+            const lv = levelOf(name);
             fader.value = lv;
             row.querySelector('.mixer-chan-lvl').textContent = lv.toFixed(2);
         }
-        row.classList.toggle('inactive', !p || !p._active);     // dim tracks not currently playing
+        row.classList.toggle('inactive', !p || !p._active);
         row.querySelector('.mixer-chan-mute').classList.toggle('on', !!(p && p._amplify === 0));
-        // override dot: this track has a level set for the picked part (not Global)
-        row.classList.toggle('has-ovr', _scope !== '*' && LEVELS[_scope] && LEVELS[_scope][name] != null);
     }
 }
 
 export function openMixer() {
     if (!_modal) build();
-    _open = true; _lastTracks = '';
+    _open = true; _lastTracks = ''; _partsKey = '';
     _modal.classList.remove('hidden');
     updateConsole();
     if (!openMixer._timer) openMixer._timer = setInterval(() => { if (_open) updateConsole(); }, 400);
