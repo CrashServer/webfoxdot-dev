@@ -13,6 +13,7 @@
 // to move it out of the way.
 
 import { setMasterMix, getMasterMix } from '../engine/player.js';
+import { midiControl, clearMidiControl, enableMidi, midiSupported } from '../midi/midi.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
@@ -40,6 +41,55 @@ function setLevel(name, v) {
     _levels[name] = v;
     const p = _clock && _clock._players.get(name);
     if (p) p._mixLevel = v;
+}
+
+// Players a part (re)defines — the names on its uncommented `name >>` lines. Used to
+// colour the channels a launch from the selected part would actually (re)start.
+function playersInPart(part) {
+    const set = new Set();
+    if (!part || !_editor || !_editor.getValue) return set;
+    let cur = null;
+    for (const raw of _editor.getValue().split('\n')) {
+        const t = raw.trim();
+        const sec = t.match(/^#@([a-zA-Z_]\w*)/);
+        if (sec && !t.startsWith('#@#@')) { cur = sec[1]; continue; }
+        const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);
+        if (pm && cur === part) set.add(pm[1]);
+    }
+    return set;
+}
+
+// ── MIDI: map a hardware CC to a channel's volume (0..1 → 0..1.5) ───────────────
+const _midi = {};   // name (or '__master__') → { ctrl, cc, armed }
+function midiApply(name, v) {
+    const lvl = Math.round(v * 150) / 100;              // 0..1 CC → 0..1.5 fader
+    if (name === '__master__') {
+        setMasterMix(lvl);
+        if (_masterFader && document.activeElement !== _masterFader) { _masterFader.value = lvl; _masterLvl.textContent = lvl.toFixed(2); }
+    } else {
+        setLevel(name, lvl);
+        const row = _chansEl && _chansEl.querySelector(`.mixer-chan[data-name="${name}"]`);
+        const f = row && row.querySelector('.mixer-chan-fader');
+        if (f && document.activeElement !== f) { f.value = lvl; row.querySelector('.mixer-chan-lvl').textContent = lvl.toFixed(2); }
+    }
+}
+async function midiLearn(name) {
+    if (_midi[name]) { clearMidiControl(_midi[name].ctrl); delete _midi[name]; updateConsole(); return; }  // toggle off
+    if (!midiSupported()) return;
+    try { await enableMidi(); } catch (_) { return; }
+    const ctrl = midiControl((v, cc) => { const e = _midi[name]; if (!e) return; e.cc = cc; e.armed = false; midiApply(name, v); updateMidiBtn(name); });
+    _midi[name] = { ctrl, cc: null, armed: true };
+    updateConsole();
+}
+function updateMidiBtn(name) {
+    const btn = name === '__master__'
+        ? (_modal && _modal.querySelector('.mixer-master .mixer-chan-midi'))
+        : (_chansEl && _chansEl.querySelector(`.mixer-chan[data-name="${name}"] .mixer-chan-midi`));
+    if (!btn) return;
+    const e = _midi[name];
+    btn.textContent = e ? (e.armed ? '…' : 'c' + e.cc) : 'm';
+    btn.classList.toggle('armed', !!(e && e.armed));
+    btn.classList.toggle('mapped', !!(e && !e.armed));
 }
 
 // The composition's tracks: players in #@ lines (incl. `# p1 >>` stops) ∪ active players.
@@ -108,6 +158,7 @@ function build() {
                 <span class="mixer-chan-name">MAS</span>
                 <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
                 <span class="mixer-chan-lvl">1.00</span>
+                <button class="mixer-chan-midi" title="MIDI-learn: click, then move a hardware fader">m</button>
             </div>
             <div class="mixer-chans"></div>
         </div>
@@ -120,6 +171,7 @@ function build() {
     _masterLvl   = _modal.querySelector('.mixer-master .mixer-chan-lvl');
     _modal.querySelector('.mixer-close').onclick = closeMixer;
     _masterFader.oninput = () => { setMasterMix(parseFloat(_masterFader.value)); _masterLvl.textContent = parseFloat(_masterFader.value).toFixed(2); };
+    _modal.querySelector('.mixer-master .mixer-chan-midi').onclick = () => midiLearn('__master__');
     initDrag(_modal.querySelector('.mixer-head'));
 }
 
@@ -177,8 +229,10 @@ function rebuildChannels(names) {
             <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
             <span class="mixer-chan-lvl">1.00</span>
             <button class="mixer-chan-mute" title="mute">M</button>
-            <button class="mixer-chan-stop" title="stop (quantised to the bar)">■</button>`;
+            <button class="mixer-chan-stop" title="stop (quantised to the bar)">■</button>
+            <button class="mixer-chan-midi" title="MIDI-learn: click, then move a hardware fader">m</button>`;
         row.querySelector('.mixer-chan-name').onclick = () => launchPlayer(name);
+        row.querySelector('.mixer-chan-midi').onclick = () => midiLearn(name);
         row.querySelector('.mixer-chan-fader').oninput = (e) => {
             setLevel(name, parseFloat(e.target.value));
             row.querySelector('.mixer-chan-lvl').textContent = parseFloat(e.target.value).toFixed(2);
@@ -200,6 +254,11 @@ function updateConsole() {
     if (key !== _lastTracks) { rebuildChannels(names); _lastTracks = key; }
     _hintEl.textContent = 'tap a name ▸ to launch · source: ' + (_source ?? 'the part playing (or first)');
     if (document.activeElement !== _masterFader) { const m = getMasterMix(); _masterFader.value = m; _masterLvl.textContent = m.toFixed(2); }
+    updateMidiBtn('__master__');
+    // Tracks the SELECTED source part (re)defines get highlighted — so you see which
+    // channels a launch from that part would actually fire.
+    const src = _source ?? _activeSection;
+    const defined = src ? playersInPart(src) : null;
     for (const row of _chansEl.children) {
         const name = row.dataset.name;
         const p = _clock && _clock._players.get(name);
@@ -210,7 +269,10 @@ function updateConsole() {
             row.querySelector('.mixer-chan-lvl').textContent = lv.toFixed(2);
         }
         row.classList.toggle('inactive', !p || !p._active);
+        row.classList.toggle('in-source', !!(defined && defined.has(name)));   // defined by the source part
+        row.classList.toggle('not-source', !!(defined && !defined.has(name))); // not in the source part
         row.querySelector('.mixer-chan-mute').classList.toggle('on', !!(p && p._amplify === 0));
+        updateMidiBtn(name);
     }
 }
 

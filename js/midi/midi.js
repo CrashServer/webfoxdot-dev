@@ -23,6 +23,8 @@ const _last     = new Map();   // cc → 0..1   last value seen (seeds new bindi
 const _monitor  = new Map();   // cc → { value, channel, t }  recent activity (discovery)
 const _bindings = new Set();   // live midi value objects — routing targets
 const _learnQ   = [];          // bindings armed for learn, awaiting the next CC
+const _controls   = new Set(); // control bindings — call onValue(0..1, cc) on each CC move
+const _learnCtrlQ = [];        // control bindings armed for learn
 let _onChange   = null;        // panel refresh hook
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
@@ -109,11 +111,28 @@ function _onMessage(ev) {
 
     // MIDI learn: any armed bindings latch onto this CC.
     if (_learnQ.length) for (const b of _learnQ.splice(0)) b.cc = cc;
+    if (_learnCtrlQ.length) for (const c of _learnCtrlQ.splice(0)) c.cc = cc;
 
     // Live-update every binding on this CC (one knob can be a macro).
     for (const b of _bindings) if (b.cc === cc) b._norm = value;
+    // Control bindings fire their callback with the raw 0..1 value (e.g. mixer faders).
+    for (const c of _controls) if (c.cc === cc) { try { c.onValue(value, cc); } catch (_) {} }
 
     _changed();
+}
+
+// A CONTROL binding — calls onValue(0..1, cc) each time its CC moves, for UI that
+// reacts live (the mixer faders). cc == null arms MIDI learn (the next control touched).
+export function midiControl(onValue, cc = null) {
+    const c = { onValue, cc: cc == null ? null : cc | 0, isControl: true };
+    _controls.add(c);
+    if (c.cc == null) _learnCtrlQ.push(c);
+    else if (_last.has(c.cc)) { try { onValue(_last.get(c.cc), c.cc); } catch (_) {} }
+    return c;
+}
+export function clearMidiControl(c) {
+    _controls.delete(c);
+    const i = _learnCtrlQ.indexOf(c); if (i >= 0) _learnCtrlQ.splice(i, 1);
 }
 
 // Response curves (4th arg to midi()/mlearn()): lin (default), exp (geometric,

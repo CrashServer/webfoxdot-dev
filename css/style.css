@@ -1648,12 +1648,26 @@ body.is-offline #btn-galaxy {
 .mixer-chan-mute.on { color: var(--red); border-color: var(--red); background: rgba(248, 81, 73, 0.12); }
 .mixer-chan-stop { color: var(--red); }
 .mixer-chan-mute:hover, .mixer-chan-stop:hover { background: var(--bg-3); }
+/* MIDI-learn button per channel: idle 'm' · armed '…' (yellow) · mapped 'cNN' (blue) */
+.mixer-chan-midi {
+    width: 24px; height: 16px; padding: 0;
+    background: none; border: 1px solid var(--border-1); color: var(--text-2);
+    font-size: 9px; font-weight: bold; cursor: pointer; line-height: 1;
+}
+.mixer-chan-midi:hover { background: var(--bg-3); }
+.mixer-chan-midi.armed  { color: var(--yellow); border-color: var(--yellow); animation: mixerBlink 0.8s steps(1) infinite; }
+.mixer-chan-midi.mapped { color: var(--blue); border-color: var(--blue); }
+@keyframes mixerBlink { 50% { opacity: 0.3; } }
+/* channels the SELECTED source part (re)defines glow; the rest read muted */
+.mixer-chan.in-source  .mixer-chan-name { color: var(--green); }
+.mixer-chan.not-source .mixer-chan-name { color: var(--text-2); }
+.mixer-chan.not-source { opacity: 0.72; }
 .mixer-hint { padding: 5px 8px; font-size: 9px; color: var(--text-2); border-top: 1px solid var(--border-1); }
 @media (pointer: coarse) {
     .mixer-part-chip { min-height: 30px; }
     .mixer-chan { width: 52px; }
     .mixer-chan-fader { width: 30px; height: 124px; }
-    .mixer-chan-mute, .mixer-chan-stop { width: 34px; height: 28px; }
+    .mixer-chan-mute, .mixer-chan-stop, .mixer-chan-midi { width: 34px; height: 26px; }
 }
 
 /* ── Mobile / touch (Tier 1) ──────────────────────────────────────────────────
