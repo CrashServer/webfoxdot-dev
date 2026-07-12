@@ -14,6 +14,7 @@
 
 import { setMasterMix, getMasterMix } from '../engine/player.js';
 import { midiControl, clearMidiControl, enableMidi, midiSupported } from '../midi/midi.js';
+import { toggleMute, toggleSolo, isMuted, isSoloed } from '../engine/gate.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
@@ -228,19 +229,20 @@ function rebuildChannels(names) {
             <span class="mixer-chan-name" title="tap to launch this track's selected-part version">${name}</span>
             <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
             <span class="mixer-chan-lvl">1.00</span>
-            <button class="mixer-chan-mute" title="mute">M</button>
+            <div class="mixer-chan-btns">
+                <button class="mixer-chan-solo" title="solo (shared with the panel)">S</button>
+                <button class="mixer-chan-mute" title="mute (shared with the panel)">M</button>
+            </div>
             <button class="mixer-chan-stop" title="stop (quantised to the bar)">■</button>
             <button class="mixer-chan-midi" title="MIDI-learn: click, then move a hardware fader">m</button>`;
         row.querySelector('.mixer-chan-name').onclick = () => launchPlayer(name);
         row.querySelector('.mixer-chan-midi').onclick = () => midiLearn(name);
+        row.querySelector('.mixer-chan-solo').onclick = () => { toggleSolo(name); updateConsole(); };
         row.querySelector('.mixer-chan-fader').oninput = (e) => {
             setLevel(name, parseFloat(e.target.value));
             row.querySelector('.mixer-chan-lvl').textContent = parseFloat(e.target.value).toFixed(2);
         };
-        row.querySelector('.mixer-chan-mute').onclick = () => {
-            const p = _clock && _clock._players.get(name);
-            if (p) { p._amplify = p._amplify === 0 ? 1 : 0; updateConsole(); }
-        };
+        row.querySelector('.mixer-chan-mute').onclick = () => { toggleMute(name); updateConsole(); };
         row.querySelector('.mixer-chan-stop').onclick = () => stopPlayer(name);
         _chansEl.appendChild(row);
     }
@@ -271,7 +273,8 @@ function updateConsole() {
         row.classList.toggle('inactive', !p || !p._active);
         row.classList.toggle('in-source', !!(defined && defined.has(name)));   // defined by the source part
         row.classList.toggle('not-source', !!(defined && !defined.has(name))); // not in the source part
-        row.querySelector('.mixer-chan-mute').classList.toggle('on', !!(p && p._amplify === 0));
+        row.querySelector('.mixer-chan-mute').classList.toggle('on', isMuted(name));
+        row.querySelector('.mixer-chan-solo').classList.toggle('on', isSoloed(name));
         updateMidiBtn(name);
     }
 }

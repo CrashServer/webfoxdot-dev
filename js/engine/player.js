@@ -80,6 +80,11 @@ let _masterMix = 1;
 export function setMasterMix(v) { _masterMix = Math.max(0, Number(v) || 0); }
 export function getMasterMix() { return _masterMix; }
 
+// Shared mute/solo owner (js/engine/gate.js), wired from index.html. drop()'s restore
+// and the eval .solo()/unsolo() route through it so the panel + mixer stay consistent.
+let _gate = null;
+export function setGate(g) { _gate = g; }
+
 // One-shot synth note for MIDI note-input — fires `synthName` at MIDI note `midi`
 // immediately to the main output (no per-player FX/bus; a simple keyboard voice).
 // sus is in seconds; amp 0..~1.5. Returns the node id.
@@ -190,6 +195,7 @@ function applyAliases(obj) {
 
 // Restore all players' amplitude (undo a solo)
 export function unsolo(clock) {
+    if (_gate) { _gate.clearSolo(); return; }
     clock._players.forEach(p => { p._amplify = 1; });
 }
 
@@ -234,7 +240,9 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
     // loop and at the end) so a drop can NEVER leave something silent — a single lost
     // "restore this subset" callback, a re-eval mid-drop, or an overlapping drop() used
     // to strand a player at _amplify=0 (which a plain re-eval doesn't clear).
-    const restoreAll = () => clock._players.forEach(p => { p._amplify = 1; });
+    // Restore = re-apply the current mute/solo (via the gate), NOT blanket unity — so a
+    // drop can't silently un-mute a muted track. Falls back to unity if no gate.
+    const restoreAll = () => { if (_gate) _gate.apply(); else clock._players.forEach(p => { p._amplify = 1; }); };
     const runLoop = (loop, base) => {
         clock._schedule(base, restoreAll);                     // clean slate at the loop start
         if (loop <= 0) return;
@@ -273,7 +281,7 @@ export function soloRnd(clock, time = 8, log = null) {
         clock._players.forEach((q) => { if (q !== pick) q._amplify = 0; });
         if (log) log(`soloRnd: ${pick.name} for ${time} beats`);
     });
-    clock._schedule(startBeat + time, () => clock._players.forEach(q => { q._amplify = 1; }));
+    clock._schedule(startBeat + time, () => { if (_gate) _gate.apply(); else clock._players.forEach(q => { q._amplify = 1; }); });
 }
 
 export class Player {
@@ -993,8 +1001,12 @@ export class Player {
     // solo() — mute all others indefinitely. solo(beats) — restore at the next
     // beat that's a multiple of `beats` (grid-aligned, like FoxDot).
     solo(beats) {
-        // Un-mute self, mute everyone else (self may already be muted from a
-        // previous solo/drop — without this, soloing it would silence everything).
+        if (_gate) {
+            _gate.soloOnly(this.name);   // shared owner → shows in the panel + mixer
+            if (beats) this._clock._schedule(nextMod(this._clock, beats), () => _gate.clearSolo());
+            return this;
+        }
+        // Fallback (no gate): un-mute self, mute everyone else.
         this._clock._players.forEach((p, k) => { p._amplify = (k === this.name) ? 1 : 0; });
         if (beats) {
             this._clock._schedule(nextMod(this._clock, beats),

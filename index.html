@@ -210,7 +210,8 @@
     import { SuperSonic }     from './lib/dist/supersonic.js';
     import { Clock }          from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, setTriggerListener as _setTriggerListener, PLAYER_GROUP, FX_GROUP,
-             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST, setRerollHandler } from './js/engine/player.js';
+             drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST, setRerollHandler, setGate } from './js/engine/player.js';
+    import * as gate from './js/engine/gate.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { FX_SYNTHDEFS }   from './js/fx/registry.js';
     import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
@@ -281,6 +282,7 @@
 
     // ── Clock + TimeVar ───────────────────────────────────────────────────────
     const clock = new Clock();
+    gate.initGate(clock); setGate(gate);   // shared mute/solo — panel + mixer + drop/.solo() agree
     initVisuals(clock);   // visual-language state resolves on this clock (works pre-boot too)
     let _tour = null;     // interactive guided tour (start_guided_tour()); created after the editor
     let _jamBot = null;   // generative jam bot (son/soff), created on first son()

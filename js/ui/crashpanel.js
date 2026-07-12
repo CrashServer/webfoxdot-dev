@@ -1,15 +1,12 @@
 // Crashpanel — collapsible right sidebar: clock state, scale, players.
 
 import { Scale, Root } from '../engine/scale.js';
+import { toggleMute, toggleSolo, isMuted, isSoloed, forget as gateForget } from '../engine/gate.js';
 
 let _clock = null;
 let _timer  = null;
 let _tapTimes = [];
 let _tapTimer = null;
-let _soloedName = null;   // which player the panel soloed (for the toggle + highlight)
-
-// Un-mute every player (undo a panel solo / any stray amplify=0).
-function _unsoloAll() { if (_clock?._players) _clock._players.forEach(p => { p._amplify = 1; }); }
 
 export function initCrashPanel(clock) {
     _clock = clock;
@@ -99,18 +96,11 @@ function _updatePlayers() {
                            title="mixer level — scales this track's volume (× amplify)">
                     <span class="cp-player-lvl">1.00</span>
                 </div>`;
-            // Tap the name → toggle a reversible mute (amplify 0 ↔ 1), no stop.
-            row.querySelector('.cp-player-name').onclick = () => {
-                p._amplify = p._amplify === 0 ? 1 : 0;
-                _update();
-            };
-            // Solo → mute everyone else; tapping the soloed player again restores all.
-            row.querySelector('.cp-player-solo').onclick = () => {
-                if (_soloedName === name) { _unsoloAll(); _soloedName = null; }
-                else { p.solo(); _soloedName = name; }
-                _update();
-            };
-            row.querySelector('.cp-player-stop').onclick = () => { if (_soloedName === name) _soloedName = null; p.stop(); };
+            // Tap the name → toggle a reversible mute (shared gate — agrees with the mixer).
+            row.querySelector('.cp-player-name').onclick = () => { toggleMute(name); _update(); };
+            // Solo → shared gate (multi-solo; agrees with the mixer + eval .solo()).
+            row.querySelector('.cp-player-solo').onclick = () => { toggleSolo(name); _update(); };
+            row.querySelector('.cp-player-stop').onclick = () => { gateForget(name); p.stop(); };
             // Mixer fader → persistent per-track level (_mixLevel), applied every note.
             const fader = row.querySelector('.cp-player-fader');
             const lvlEl = row.querySelector('.cp-player-lvl');
@@ -118,8 +108,8 @@ function _updatePlayers() {
             container.appendChild(row);
         }
         // Reflect mute (amplify 0 — from a tap, a solo elsewhere, or a drop) and solo live.
-        row.classList.toggle('muted', p._amplify === 0);
-        row.classList.toggle('soloed', _soloedName === name);
+        row.classList.toggle('muted', isMuted(name));
+        row.classList.toggle('soloed', isSoloed(name));
         // Keep the fader in sync if _mixLevel changed elsewhere (e.g. ~reset) — but not
         // while the user is dragging it.
         const fader = row.querySelector('.cp-player-fader');

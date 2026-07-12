@@ -1640,14 +1640,17 @@ body.is-offline #btn-galaxy {
 .mixer-chan-fader::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 9px; border-radius: 0; background: var(--green); cursor: pointer; }
 .mixer-chan-fader::-moz-range-thumb { width: 18px; height: 9px; border-radius: 0; background: var(--green); border: none; cursor: pointer; }
 .mixer-chan-lvl { font-size: 9px; color: var(--text-2); }
-.mixer-chan-mute, .mixer-chan-stop {
-    width: 24px; height: 18px; padding: 0;
+.mixer-chan-btns { display: flex; gap: 2px; }
+.mixer-chan-solo, .mixer-chan-mute, .mixer-chan-stop {
+    height: 18px; padding: 0;
     background: none; border: 1px solid var(--border-1); color: var(--text-2);
     font-size: 10px; font-weight: bold; cursor: pointer;
 }
+.mixer-chan-solo, .mixer-chan-mute { width: 19px; }
+.mixer-chan-stop { width: 24px; color: var(--red); }
 .mixer-chan-mute.on { color: var(--red); border-color: var(--red); background: rgba(248, 81, 73, 0.12); }
-.mixer-chan-stop { color: var(--red); }
-.mixer-chan-mute:hover, .mixer-chan-stop:hover { background: var(--bg-3); }
+.mixer-chan-solo.on { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+.mixer-chan-solo:hover, .mixer-chan-mute:hover, .mixer-chan-stop:hover { background: var(--bg-3); }
 /* MIDI-learn button per channel: idle 'm' · armed '…' (yellow) · mapped 'cNN' (blue) */
 .mixer-chan-midi {
     width: 24px; height: 16px; padding: 0;
@@ -1667,7 +1670,8 @@ body.is-offline #btn-galaxy {
     .mixer-part-chip { min-height: 30px; }
     .mixer-chan { width: 52px; }
     .mixer-chan-fader { width: 30px; height: 124px; }
-    .mixer-chan-mute, .mixer-chan-stop, .mixer-chan-midi { width: 34px; height: 26px; }
+    .mixer-chan-solo, .mixer-chan-mute { width: 24px; height: 26px; }
+    .mixer-chan-stop, .mixer-chan-midi { width: 34px; height: 26px; }
 }
 
 /* ── Mobile / touch (Tier 1) ──────────────────────────────────────────────────
