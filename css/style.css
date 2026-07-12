@@ -1637,7 +1637,24 @@ body.is-offline #btn-galaxy {
 .mixer-chan-fader::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--green); cursor: pointer; }
 .mixer-chan-fader::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--green); border: none; cursor: pointer; }
 .mixer-chan-lvl { font-size: 11px; color: var(--text-2); min-width: 34px; text-align: right; }
+/* the • that marks a track with a per-part override (hidden unless the row .has-ovr) */
+.mixer-chan-ovr { color: var(--yellow); font-size: 15px; width: 10px; visibility: hidden; }
+.mixer-chan.has-ovr .mixer-chan-ovr { visibility: visible; }
+/* part picker — chips for ★Global + each part; selected = editing, ● = playing */
+.mixer-parts { display: flex; gap: 5px; padding: 8px 12px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--border-1); scrollbar-width: none; }
+.mixer-parts::-webkit-scrollbar { display: none; }
+.mixer-part-chip {
+    flex: 0 0 auto;
+    background: var(--bg-3); color: var(--text-2);
+    border: 1px solid var(--border-1); border-radius: 5px;
+    padding: 3px 10px; font-family: monospace; font-size: 11px; cursor: pointer;
+}
+.mixer-part-chip.playing::before { content: '● '; color: var(--green); }
+.mixer-part-chip.selected { color: var(--text-1); border-color: var(--border-2); background: var(--bg-1); }
+.mixer-part-chip.selected:not([data-part="*"]) { color: var(--yellow); border-color: var(--yellow); }
+.mixer-hint { padding: 8px 12px; font-size: 10px; color: var(--text-2); border-top: 1px solid var(--border-1); }
 @media (pointer: coarse) {
+    .mixer-part-chip { min-height: 32px; }
     .mixer-chan-fader { height: 7px; }
     .mixer-chan-fader::-webkit-slider-thumb { width: 22px; height: 22px; }
     .mixer-chan-fader::-moz-range-thumb { width: 22px; height: 22px; }

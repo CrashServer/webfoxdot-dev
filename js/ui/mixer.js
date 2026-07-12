@@ -48,6 +48,19 @@ function tracks() {
     return [...set].sort();
 }
 
+// The composition's PARTS: named #@ sections in document order (not #@#@ tracks, not
+// the control nodes goto/end/clear). These become the part-picker chips.
+function parts() {
+    const out = [];
+    if (_editor && _editor.getValue) {
+        for (const m of _editor.getValue().matchAll(/^\s*#@([a-zA-Z_]\w*)\s*(?:\(|$)/gm)) {
+            const name = m[1];
+            if (!/^(goto|end|endfade|clear)$/i.test(name)) out.push(name);
+        }
+    }
+    return [...new Set(out)];
+}
+
 // Level for a track in the CURRENT edit scope (what the console fader shows).
 function levelForScope(player) {
     if (LEVELS[_scope] && LEVELS[_scope][player] != null) return LEVELS[_scope][player];
@@ -61,7 +74,8 @@ function setLevel(player, level) {
 }
 
 // ── Console UI ──────────────────────────────────────────────────────────────
-let _modal = null, _chansEl = null, _scopeBtn = null, _masterFader = null, _masterLvl = null;
+let _modal = null, _chansEl = null, _partsEl = null, _hintEl = null, _masterFader = null, _masterLvl = null;
+let _partsKey = '';
 
 function build() {
     _modal = document.createElement('div');
@@ -71,29 +85,51 @@ function build() {
         <div class="mixer-box">
             <div class="mixer-head">
                 <span class="mixer-title">🎚 mixer</span>
-                <button class="mixer-scope" title="which levels the faders edit — the whole set, or just the active part"></button>
                 <div style="flex:1"></div>
                 <button class="mixer-close" title="close">×</button>
             </div>
+            <div class="mixer-parts" title="pick which part's levels the faders edit · ● = the part playing now"></div>
             <div class="mixer-chan mixer-master">
                 <span class="mixer-chan-name">MASTER</span>
                 <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
                 <span class="mixer-chan-lvl">1.00</span>
             </div>
             <div class="mixer-chans"></div>
+            <div class="mixer-hint"></div>
         </div>`;
     document.body.appendChild(_modal);
-    _chansEl   = _modal.querySelector('.mixer-chans');
-    _scopeBtn  = _modal.querySelector('.mixer-scope');
+    _chansEl     = _modal.querySelector('.mixer-chans');
+    _partsEl     = _modal.querySelector('.mixer-parts');
+    _hintEl      = _modal.querySelector('.mixer-hint');
     _masterFader = _modal.querySelector('.mixer-master .mixer-chan-fader');
     _masterLvl   = _modal.querySelector('.mixer-master .mixer-chan-lvl');
     _modal.querySelector('.mixer-close').onclick = closeMixer;
     _modal.addEventListener('click', (e) => { if (e.target === _modal) closeMixer(); });   // backdrop
-    _scopeBtn.onclick = () => {
-        _scope = (_scope === '*' && _activeSection) ? _activeSection : '*';
-        updateConsole();
-    };
     _masterFader.oninput = () => { setMasterMix(parseFloat(_masterFader.value)); _masterLvl.textContent = parseFloat(_masterFader.value).toFixed(2); };
+}
+
+// The part-picker chips: ★Global + one per named part. Selected = editing; ● = playing.
+function renderParts() {
+    const ps = parts();
+    if (_scope !== '*' && !ps.includes(_scope)) _scope = '*';   // scope's part was removed
+    const key = ['*', ...ps].join(',');
+    if (key !== _partsKey) {
+        _partsEl.innerHTML = '';
+        for (const name of ['*', ...ps]) {
+            const chip = document.createElement('button');
+            chip.className = 'mixer-part-chip';
+            chip.dataset.part = name;
+            chip.textContent = name === '*' ? '★ Global' : name;
+            chip.onclick = () => { _scope = name; updateConsole(); };
+            _partsEl.appendChild(chip);
+        }
+        _partsKey = key;
+    }
+    for (const chip of _partsEl.children) {
+        const name = chip.dataset.part;
+        chip.classList.toggle('selected', _scope === name);
+        chip.classList.toggle('playing', name !== '*' && name === _activeSection);
+    }
 }
 
 function rebuildChannels(names) {
@@ -104,12 +140,14 @@ function rebuildChannels(names) {
         row.dataset.name = name;
         row.innerHTML = `
             <span class="mixer-chan-name">${name}</span>
+            <span class="mixer-chan-ovr" title="this part overrides the global level">•</span>
             <button class="mixer-chan-mute" title="mute">M</button>
             <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
             <span class="mixer-chan-lvl">1.00</span>`;
         row.querySelector('.mixer-chan-fader').oninput = (e) => {
             setLevel(name, parseFloat(e.target.value));
             row.querySelector('.mixer-chan-lvl').textContent = parseFloat(e.target.value).toFixed(2);
+            row.classList.add('has-ovr');   // moving a fader in a part-scope creates an override
         };
         row.querySelector('.mixer-chan-mute').onclick = () => {
             const p = _clock && _clock._players.get(name);
@@ -121,12 +159,14 @@ function rebuildChannels(names) {
 
 function updateConsole() {
     if (!_open) return;
+    renderParts();
     const names = tracks();
     const key = names.join(',');
     if (key !== _lastTracks) { rebuildChannels(names); _lastTracks = key; }
-    // scope label
-    _scopeBtn.textContent = _scope === '*' ? 'Global' : '▸ ' + _scope;
-    _scopeBtn.classList.toggle('per-part', _scope !== '*');
+    // hint: what the faders currently edit
+    _hintEl.textContent = _scope === '*'
+        ? 'editing: Global — the base level for every part'
+        : `editing: ${_scope}` + (_scope === _activeSection ? ' — the part playing now' : ' — not playing (authoring its level)');
     // master
     if (document.activeElement !== _masterFader) { const m = getMasterMix(); _masterFader.value = m; _masterLvl.textContent = m.toFixed(2); }
     // channels
@@ -141,6 +181,8 @@ function updateConsole() {
         }
         row.classList.toggle('inactive', !p || !p._active);     // dim tracks not currently playing
         row.querySelector('.mixer-chan-mute').classList.toggle('on', !!(p && p._amplify === 0));
+        // override dot: this track has a level set for the picked part (not Global)
+        row.classList.toggle('has-ovr', _scope !== '*' && LEVELS[_scope] && LEVELS[_scope][name] != null);
     }
 }
 
