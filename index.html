@@ -1194,6 +1194,46 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     _tour = initTour(editor);   // interactive guided tour, launched by start_guided_tour()
 
+    // ── Touch: drag a number to nudge it live (mobile port of Alt+Up/Down) ──────
+    // Touching a number turns it into a knob — drag up/down to change it and re-run
+    // the line as you go (no keyboard). Touching anything else is normal editing.
+    // Touch-only, so desktop mouse/selection is untouched.
+    (() => {
+        const wrap = editor.getWrapperElement();
+        let dragging = false, startY = 0, steps = 0;
+        const numberAt = (pos) => {
+            const line = editor.getLine(pos.line); if (line == null) return false;
+            let s = pos.ch, e = pos.ch;
+            while (s > 0 && /[\d.\-]/.test(line[s - 1])) s--;
+            while (e < line.length && /[\d.]/.test(line[e])) e++;
+            return /\d/.test(line.slice(s, e));
+        };
+        wrap.addEventListener('touchstart', (ev) => {
+            if (ev.touches.length !== 1) return;           // let pinch-zoom etc. pass
+            const t = ev.touches[0];
+            const pos = editor.coordsChar({ left: t.clientX, top: t.clientY }, 'window');
+            if (!numberAt(pos)) return;                    // not a number → normal CM (edit + keyboard)
+            ev.preventDefault(); ev.stopPropagation();     // it's a knob: no cursor-place, no keyboard
+            editor.setCursor(pos);
+            dragging = true; startY = t.clientY; steps = 0;
+            wrap.classList.add('cm-nudging');
+        }, { capture: true });
+        wrap.addEventListener('touchmove', (ev) => {
+            if (!dragging) return;
+            ev.preventDefault(); ev.stopPropagation();
+            const dy = startY - ev.touches[0].clientY;     // drag up = increase
+            const target = Math.trunc(dy / 12);            // ~12px per step
+            let delta = target - steps;
+            if (!delta) return;
+            delta = Math.max(-5, Math.min(5, delta));      // clamp a fast flick
+            incrementValue(editor, delta, runLineAtCursor);
+            steps += delta;
+        }, { capture: true });
+        const end = () => { if (dragging) { dragging = false; wrap.classList.remove('cm-nudging'); } };
+        wrap.addEventListener('touchend', end, { capture: true });
+        wrap.addEventListener('touchcancel', end, { capture: true });
+    })();
+
     // A share link (#c=…) loads its composition into the editor (async decode).
     // Only when not joining a live session (that has its own shared buffer).
     if (_shareTok && !_sessionSlug) {
@@ -1571,6 +1611,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 d.onclick = () => {
                     editor.setCursor({ line: s.line, ch: 0 });
                     editor.scrollIntoView({ line: s.line, ch: 0 }, 120);
+                    // Tap-to-JUMP: run the section so the arrangement jumps there and
+                    // auto-advances from it — a live control (a no-op before boot, so
+                    // pre-boot it just navigates the cursor). Fulfils "click to jump".
+                    runSection(s.line);
                     editor.focus();
                 };
             }

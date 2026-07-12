@@ -6,6 +6,10 @@ let _clock = null;
 let _timer  = null;
 let _tapTimes = [];
 let _tapTimer = null;
+let _soloedName = null;   // which player the panel soloed (for the toggle + highlight)
+
+// Un-mute every player (undo a panel solo / any stray amplify=0).
+function _unsoloAll() { if (_clock?._players) _clock._players.forEach(p => { p._amplify = 1; }); }
 
 export function initCrashPanel(clock) {
     _clock = clock;
@@ -83,13 +87,28 @@ function _updatePlayers() {
             row.className = 'cp-player-row active';
             row.dataset.name = name;
             row.innerHTML = `
-                <span class="cp-player-name">${name}</span>
+                <span class="cp-player-name" title="tap to mute / unmute">${name}</span>
                 <span class="cp-player-synth"></span>
                 <span class="cp-player-age"></span>
+                <button class="cp-player-solo" title="solo (mute the rest)">S</button>
                 <button class="cp-player-stop" title="stop">■</button>`;
-            row.querySelector('.cp-player-stop').onclick = () => p.stop();
+            // Tap the name → toggle a reversible mute (amplify 0 ↔ 1), no stop.
+            row.querySelector('.cp-player-name').onclick = () => {
+                p._amplify = p._amplify === 0 ? 1 : 0;
+                _update();
+            };
+            // Solo → mute everyone else; tapping the soloed player again restores all.
+            row.querySelector('.cp-player-solo').onclick = () => {
+                if (_soloedName === name) { _unsoloAll(); _soloedName = null; }
+                else { p.solo(); _soloedName = name; }
+                _update();
+            };
+            row.querySelector('.cp-player-stop').onclick = () => { if (_soloedName === name) _soloedName = null; p.stop(); };
             container.appendChild(row);
         }
+        // Reflect mute (amplify 0 — from a tap, a solo elsewhere, or a drop) and solo live.
+        row.classList.toggle('muted', p._amplify === 0);
+        row.classList.toggle('soloed', _soloedName === name);
         const synthEl = row.querySelector('.cp-player-synth');
         // Sample players (play()) have no synth name — label them "play".
         if (synthEl) synthEl.textContent = p._mode === 'loop' ? `loop:${p._loopName}`
