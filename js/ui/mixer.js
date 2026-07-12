@@ -19,14 +19,36 @@
 
 import { setMasterMix, getMasterMix } from '../engine/player.js';
 
-let _clock = null, _editor = null;
+let _clock = null, _editor = null, _runCode = null;
 const LEVELS = { '*': {} };     // scope → { player → level }.  '*' = global default.
 let _scope = '*';               // which scope the console faders currently edit
 let _activeSection = null;      // the section playing now (from onSectionActive)
 let _open = false;
 let _lastTracks = '';           // to rebuild channels only when the track set changes
 
-export function initMixer(clock, editor) { _clock = clock; _editor = editor; }
+export function initMixer(clock, editor, runCode) { _clock = clock; _editor = editor; _runCode = runCode; }
+
+// Launch a track from the mixer: evaluate its `name >>` line so it starts playing on
+// its own — no need to run the auto-advancing composition, so you can build a mix by
+// hand. Picks the line from the part selected in the picker (else the part playing now,
+// else the first occurrence), so you choose which version of the track to launch.
+// Volume is the shared per-name _mixLevel, so re-launching keeps the fader where it is.
+function launchPlayer(name) {
+    if (!_runCode || !_editor || !_editor.getValue) return;
+    const want = _scope !== '*' ? _scope : _activeSection;   // preferred part, if any
+    let part = null, pick = null, first = null;
+    for (const raw of _editor.getValue().split('\n')) {
+        const t = raw.trim();
+        const sec = t.match(/^#@([a-zA-Z_]\w*)/);
+        if (sec && !t.startsWith('#@#@')) { part = sec[1]; continue; }
+        const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);        // a real (uncommented) definition
+        if (pm && pm[1] === name) {
+            if (first == null) first = raw;
+            if (want == null || part === want) { pick = raw; break; }
+        }
+    }
+    if (pick ?? first) _runCode(pick ?? first);
+}
 
 const eff = (player, section) =>
     (LEVELS[section] && LEVELS[section][player] != null) ? LEVELS[section][player]
@@ -139,11 +161,13 @@ function rebuildChannels(names) {
         row.className = 'mixer-chan';
         row.dataset.name = name;
         row.innerHTML = `
-            <span class="mixer-chan-name">${name}</span>
+            <span class="mixer-chan-name" title="tap to (re)launch this track — evaluates its line, no autoplay needed">▸ ${name}</span>
             <span class="mixer-chan-ovr" title="this part overrides the global level">•</span>
             <button class="mixer-chan-mute" title="mute">M</button>
             <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
             <span class="mixer-chan-lvl">1.00</span>`;
+        // Tap the name → launch/evaluate this track (perform without the composition).
+        row.querySelector('.mixer-chan-name').onclick = () => launchPlayer(name);
         row.querySelector('.mixer-chan-fader').oninput = (e) => {
             setLevel(name, parseFloat(e.target.value));
             row.querySelector('.mixer-chan-lvl').textContent = parseFloat(e.target.value).toFixed(2);

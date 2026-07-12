@@ -1714,7 +1714,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         _progressRAF = requestAnimationFrame(progressLoop);
     }
     _progressRAF = requestAnimationFrame(progressLoop);
-    initMixer(clock, editor);
+    initMixer(clock, editor, runCode);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
         // Record the active section's player lines so the live highlight lands on
         // the section that's actually sounding.
