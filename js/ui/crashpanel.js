@@ -87,11 +87,18 @@ function _updatePlayers() {
             row.className = 'cp-player-row active';
             row.dataset.name = name;
             row.innerHTML = `
-                <span class="cp-player-name" title="tap to mute / unmute">${name}</span>
-                <span class="cp-player-synth"></span>
-                <span class="cp-player-age"></span>
-                <button class="cp-player-solo" title="solo (mute the rest)">S</button>
-                <button class="cp-player-stop" title="stop">■</button>`;
+                <div class="cp-player-top">
+                    <span class="cp-player-name" title="tap to mute / unmute">${name}</span>
+                    <span class="cp-player-synth"></span>
+                    <span class="cp-player-age"></span>
+                    <button class="cp-player-solo" title="solo (mute the rest)">S</button>
+                    <button class="cp-player-stop" title="stop">■</button>
+                </div>
+                <div class="cp-player-mix">
+                    <input type="range" class="cp-player-fader" min="0" max="1.5" step="0.01" value="1"
+                           title="mixer level — scales this track's volume (× amplify)">
+                    <span class="cp-player-lvl">1.00</span>
+                </div>`;
             // Tap the name → toggle a reversible mute (amplify 0 ↔ 1), no stop.
             row.querySelector('.cp-player-name').onclick = () => {
                 p._amplify = p._amplify === 0 ? 1 : 0;
@@ -104,11 +111,23 @@ function _updatePlayers() {
                 _update();
             };
             row.querySelector('.cp-player-stop').onclick = () => { if (_soloedName === name) _soloedName = null; p.stop(); };
+            // Mixer fader → persistent per-track level (_mixLevel), applied every note.
+            const fader = row.querySelector('.cp-player-fader');
+            const lvlEl = row.querySelector('.cp-player-lvl');
+            fader.oninput = () => { p._mixLevel = parseFloat(fader.value); lvlEl.textContent = p._mixLevel.toFixed(2); };
             container.appendChild(row);
         }
         // Reflect mute (amplify 0 — from a tap, a solo elsewhere, or a drop) and solo live.
         row.classList.toggle('muted', p._amplify === 0);
         row.classList.toggle('soloed', _soloedName === name);
+        // Keep the fader in sync if _mixLevel changed elsewhere (e.g. ~reset) — but not
+        // while the user is dragging it.
+        const fader = row.querySelector('.cp-player-fader');
+        if (fader && document.activeElement !== fader) {
+            const lv = p._mixLevel ?? 1;
+            fader.value = lv;
+            row.querySelector('.cp-player-lvl').textContent = lv.toFixed(2);
+        }
         const synthEl = row.querySelector('.cp-player-synth');
         // Sample players (play()) have no synth name — label them "play".
         if (synthEl) synthEl.textContent = p._mode === 'loop' ? `loop:${p._loopName}`

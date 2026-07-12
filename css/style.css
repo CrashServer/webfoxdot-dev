@@ -745,13 +745,30 @@ body.zen #docs-panel { display: none !important; }
 
 .cp-player-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 2px 4px;
+    flex-direction: column;
+    padding: 3px 4px;
     border-radius: 2px;
     border: 1px solid transparent;
     opacity: 0.4;
     transition: opacity 0.2s, border-color 0.2s;
+}
+.cp-player-top { display: flex; align-items: center; justify-content: space-between; }
+/* Mixer fader row — a themed slider bound to the player's _mixLevel. */
+.cp-player-mix { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.cp-player-lvl { font-size: 9px; color: var(--text-2); font-family: monospace; min-width: 26px; text-align: right; }
+.cp-player-fader {
+    flex: 1; height: 4px; margin: 0;
+    -webkit-appearance: none; appearance: none;
+    background: var(--bg-1); border-radius: 2px; cursor: pointer;
+}
+.cp-player-fader::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--green); border: none; cursor: pointer;
+}
+.cp-player-fader::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--green); border: none; cursor: pointer;
 }
 .cp-player-row.active {
     opacity: 1;
@@ -1631,6 +1648,9 @@ body.is-offline #btn-galaxy {
     .cp-player-row { min-height: 34px; }
     .cp-player-name { padding: 5px 0; }
     .cp-player-solo, .cp-player-stop { min-width: 32px; min-height: 30px; font-size: 13px; opacity: 0.85; }
+    .cp-player-fader { height: 6px; }
+    .cp-player-fader::-webkit-slider-thumb { width: 20px; height: 20px; }
+    .cp-player-fader::-moz-range-thumb { width: 20px; height: 20px; }
 }
 /* While dragging a number to nudge it (touch), show it's a knob, not text. */
 .cm-nudging, .cm-nudging .CodeMirror-lines { cursor: ns-resize !important; }

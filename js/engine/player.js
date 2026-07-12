@@ -284,7 +284,8 @@ export class Player {
         this._bus      = allocBus();
         this._fxChain  = null;
         this._every    = [];
-        this._amplify  = 1;
+        this._amplify  = 1;   // transient gain: mute / solo / drop write this
+        this._mixLevel = 1;   // persistent mixer fader (0..~1.5) — set from the mixer UI
         // sample-mode state
         this._mode     = 'synth';   // 'synth' | 'sample' | 'loop' | 'midiout'
         this._pattern  = null;      // parsed steps array
@@ -443,6 +444,7 @@ export class Player {
         this._drummerEvery = false;
         this._stopDrummer();
         this._amplify    = 1;
+        this._mixLevel   = 1;   // ~player resets the mixer fader too (a plain re-eval keeps it)
         this._degreeAdds = null;
         this._modifiers  = null;
         this._unison     = null;
@@ -561,7 +563,7 @@ export class Player {
                 if (midi === null || !Number.isFinite(midi) || midi < 0 || midi > 127) continue;
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
-                const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
+                const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel;
                 // Silent (amp≤0 — e.g. muted by a drop/solo, _amplify=0) → spawn NO
                 // server node. Firing amp-0 synths every step would pile up nodes on
                 // scsynth until it hits its node cap and stops sounding entirely (a
@@ -608,7 +610,7 @@ export class Player {
             return isEnv(out) ? envValue(out) : out;   // lpf=fb(...) etc. on samples
         };
         const baseDur  = Math.max(0.0625, opt(opts.dur, 1));
-        const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify;
+        const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel;
         const pan      = opt(opts.pan, 0);
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
@@ -726,7 +728,7 @@ export class Player {
             return isEnv(out) ? envValue(out) : out;
         };
         const baseDur    = Math.max(0.0625, opt(opts.dur, 1));
-        const amp        = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify;
+        const amp        = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel;
         const pan        = opt(opts.pan, 0);
         const rate       = opt(opts.rate, 1);
         const sampleIdx  = Math.round(opt(opts.sample, 0));
@@ -819,7 +821,7 @@ export class Player {
                     if (note === null) continue;
                     note += (va.pshift ?? 0);
                     if (!Number.isFinite(note) || note < 0 || note > 127) continue;
-                    const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify;
+                    const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel;
                     const vel = amp * 127;
                     const vch = Math.round(va.channel ?? chan);
                     this._midiChans.add(vch);
