@@ -36,6 +36,8 @@
       <div style="flex:1"></div>
       <!-- right cluster: galaxy · examples · docs · split · zen — kept together so they
            wrap as one group onto the second row on narrow windows -->
+      <!-- mobile-only: slide the side panel (Clock/Players/Composition/Settings) up as a drawer -->
+      <button id="cp-toggle" title="show / hide the panel">☰ panel</button>
       <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌 galaxy</button>
       <div id="examples-dd">
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
@@ -182,6 +184,9 @@
       <span id="load-meter">load —</span>
     </div>
   </div>
+
+  <!-- mobile-only scrim behind the panel drawer; tap to close (see @media in style.css) -->
+  <div id="cp-backdrop"></div>
 
   <!-- ── Scripts — load order matters ─────────────────────────────────── -->
   <script src="lib/codemirror/codemirror.min.js"></script>
@@ -893,6 +898,16 @@
                 log(`  matching audio device rate: ${hwSampleRate} Hz`, 'info');
             }
 
+            // Phone/low-RAM tier: shrink the sample buffer pool. The full 128MB pool
+            // (allocated once, never grown — see below) can OOM a mobile tab, especially
+            // on iOS. 64MB still holds a normal kit + the lazy built-ins; a very large
+            // pack may drop a few samples rather than crash the engine. Detected from a
+            // coarse pointer / small screen, or a low navigator.deviceMemory reading.
+            const _lowMem = (navigator.deviceMemory && navigator.deviceMemory <= 4)
+                || matchMedia('(pointer: coarse) and (max-width: 900px)').matches;
+            const _poolMB = _lowMem ? 64 : 128;
+            if (_lowMem) log(`  mobile/low-RAM device — sample pool capped at ${_poolMB}MB`, 'info');
+
             sc = new SuperSonic({
                 baseURL:         './lib/dist/',
                 synthdefBaseURL: './synthdefs/compiled/',
@@ -913,8 +928,8 @@
                 // Set the pool's initial size == maximum so it's allocated once at
                 // boot and never grows. 128MB holds a full pack + lazy built-ins.
                 memory: {
-                    bufferPoolSize:    128 * 1024 * 1024,
-                    maxBufferPoolSize: 128 * 1024 * 1024,
+                    bufferPoolSize:    _poolMB * 1024 * 1024,
+                    maxBufferPoolSize: _poolMB * 1024 * 1024,
                 },
             });
             // Watchdog: if the audio engine doesn't start (Firefox can hang opening
@@ -1231,6 +1246,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
+
+    // Mobile: the side panel is a slide-up drawer (styled in a @media block). The ☰
+    // button toggles it; tapping the scrim behind it closes it.
+    document.getElementById('cp-toggle').onclick   = () => document.body.classList.toggle('cp-open');
+    document.getElementById('cp-backdrop').onclick = () => document.body.classList.remove('cp-open');
 
     // Stop-all is a panic button — bind it GLOBALLY (Ctrl+; or Ctrl+,), not just in
     // the editor's keymap, so it fires even when focus is on a button/panel (the
@@ -2203,8 +2223,19 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
 
     // Re-anchor the clock when the tab regains focus, so it resumes at tempo
-    // instead of lurching after a background throttle.
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) clock.resync(); });
+    // instead of lurching after a background throttle — and resume the AudioContext,
+    // which mobile browsers (esp. iOS) suspend when the tab is backgrounded or the
+    // device is locked, otherwise the engine comes back silent.
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        clock.resync();
+        try { _scRef?.resume?.(); } catch (_) {}
+    });
+    // iOS only lets you resume audio from a user gesture, and visibilitychange isn't
+    // one — so also resume on the next tap/click if the context is suspended.
+    document.addEventListener('pointerdown', () => {
+        try { if (_scRef?.audioContext?.state === 'suspended') _scRef.resume(); } catch (_) {}
+    }, { capture: true });
 
     log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>

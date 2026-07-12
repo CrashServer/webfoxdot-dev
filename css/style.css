@@ -1571,3 +1571,53 @@ body.is-offline #btn-galaxy {
 }
 #btn-update { color: var(--green); border-color: var(--green); font-weight: bold; }
 #btn-install { color: var(--blue); border-color: var(--blue); }
+
+/* ── Mobile / touch (Tier 1) ──────────────────────────────────────────────────
+   Placed LAST so these overrides beat the base rules above (equal specificity →
+   later wins). Full-width editor + the side panel as a slide-up DRAWER: the panel
+   goes position:fixed, so #editor-container (flex:1) reclaims the whole width on
+   its own. Toggle with the ☰ panel button; tap the scrim to close. */
+#cp-toggle   { display: none; }        /* desktop: no drawer toggle, no scrim */
+#cp-backdrop { display: none; }
+
+@media (max-width: 720px) {
+    #cp-toggle { display: inline-flex; align-items: center; }
+
+    #crash-panel {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        width: auto;
+        max-height: 82dvh;
+        border-left: none;
+        border-top: 1px solid var(--border-2);
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.5);
+        transform: translateY(100%);        /* tucked below the screen by default */
+        transition: transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+        z-index: 60;
+        overflow-y: auto;
+        overscroll-behavior: contain;       /* don't scroll the page behind it */
+    }
+    #crash-panel > .cp-section:first-child { margin-top: 12px; }
+    #crash-panel::before {                  /* grab-handle affordance */
+        content: '';
+        position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+        width: 40px; height: 4px; border-radius: 2px;
+        background: var(--border-2); opacity: 0.6;
+    }
+    body.cp-open #crash-panel { transform: translateY(0); }
+    body.cp-open #cp-backdrop {
+        display: block;
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 55;
+    }
+    #cp-resize { display: none; }           /* no edge-resize on a bottom drawer */
+}
+
+/* Touch devices: fatter tap targets (thumbs, not a pointer) + a touch more editor. */
+@media (pointer: coarse) {
+    #toolbar button, #toolbar #examples-btn { min-height: 40px; padding: 6px 12px; font-size: 12px; }
+    .cp-btn, .cp-select, #bpm-input, #cp-tap { min-height: 36px; }
+    .CodeMirror { font-size: 15px; }
+}
