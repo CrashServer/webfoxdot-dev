@@ -20,20 +20,26 @@ You don't touch anything else to add/remove/edit lessons.
 Two things at the top of `tour.js`:
 
 ```js
-const TOTAL = 26;            // ← must equal the number of lessons
+const TOTAL = 35;            // ← must equal the number of lessons
 ...
-const LESSONS = [
-    lesson(1, 'Welcome — how this tour works', `…body…`),
+// One array per language (EN is the master; FR/DE/ES/JA mirror it by index and
+// fall back to EN per missing lesson). Only the # comment prose is translated —
+// the example CODE stays identical across languages. See translate.md.
+const EN = [
+    lesson(1, 'Welcome — how this tour works', `…body…`),        // 3-arg → English
     lesson(2, 'Your first player',             `…body…`),
     …
-    lesson(26, 'You’re ready ✨',              `…body…`),
+    lesson(35, 'You’re ready ✨',              `…body…`),
 ];
+const FR = [ lesson(1, '…', `…`, 'fr'), …, lesson(35, '…', `…`, 'fr') ];  // 4th arg = lang
+// …DE, ES, JA the same shape.
 ```
 
-Each entry is built by the `lesson(n, title, body)` helper:
+Each entry is built by the `lesson(n, title, body, lang='en')` helper:
 
-- **`n`** — the lesson number shown in the header (`🎓 TOUR · n / 26 · …`). Keep them
-  sequential, `1 … TOTAL`.
+- **`n`** — the lesson number shown in the header (`🎓 TOUR · n / 35 · …`). Keep them
+  sequential, `1 … TOTAL`, and **identical across every language array** (they map by
+  index). Adding/removing a lesson means updating all five arrays + `TOTAL`.
 - **`title`** — a short title (goes in the header).
 - **`body`** — a **template literal** (backticks) that becomes the editor content for
   that lesson. Write it as crashDot code: `#` comment lines to explain, and real

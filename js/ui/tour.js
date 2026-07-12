@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 34;
+const TOTAL = 35;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -484,7 +484,27 @@ b4 >> blip(dur=1/4).accompany("p1")`),
 #
 # (Nothing to run — press ⤴ share once you've made something you like.)`),
 
-    lesson(34, 'You’re ready ✨',
+    lesson(34, 'Tempo & the clock',
+`# Everything rides on one CLOCK. Set the tempo in beats-per-minute:
+Clock.bpm = 132
+# The Clock panel (right sidebar) shows the current BPM live — you can also type in
+# that field, or TAP the tap button in time and it reads the tempo from your taps.
+#
+# Tempo can MOVE too — Clock.bpm takes a TimeVar, so it ramps like any param:
+#   Clock.bpm = linvar([120, 140], [16])   # glide 120→140 over 16 beats
+#   linbpm(120, 140, 16)                    # same, as a helper · dropbpm(90, 8) from now
+#
+# ▶ Start a line, then ramp the tempo under it:
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+Clock.bpm = linvar([110, 150], [8])
+#
+# QUANTISE — why layers stay locked: a new player's first note lands on the next beat
+# that's a multiple of its dur. So dur=4 waits for the bar, dur=1/4 starts almost at
+# once — add players any time and they snap to the grid (Alt+X stop waits for the bar
+# too). Clock.meter is beats-per-bar; Clock.nextBar(fn) / Clock.mod(4, fn) run your own
+# one-shots on the grid.`),
+
+    lesson(35, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
@@ -931,7 +951,27 @@ b4 >> blip(dur=1/4).accompany("p1")`, 'fr'),
 #
 # (Rien à lancer — clique ⤴ share quand tu as fait quelque chose qui te plaît.)`, 'fr'),
 
-    lesson(34, 'Tu es prêt ✨',
+    lesson(34, 'Le tempo & l’horloge',
+`# Tout repose sur une seule HORLOGE. Règle le tempo en battements par minute :
+Clock.bpm = 132
+# Le panneau Clock (barre de droite) affiche le BPM en direct — tu peux aussi taper
+# dans ce champ, ou TAPER le bouton tap en rythme : il lit le tempo de tes frappes.
+#
+# Le tempo peut aussi BOUGER — Clock.bpm accepte une TimeVar, il glisse comme un param :
+#   Clock.bpm = linvar([120, 140], [16])   # glisse 120→140 sur 16 temps
+#   linbpm(120, 140, 16)                    # pareil, en raccourci · dropbpm(90, 8) depuis maintenant
+#
+# ▶ Lance une ligne, puis fais glisser le tempo dessous :
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+Clock.bpm = linvar([110, 150], [8])
+#
+# QUANTISATION — pourquoi les couches restent calées : la première note d'un nouveau
+# player tombe sur le prochain temps multiple de son dur. Donc dur=4 attend la mesure,
+# dur=1/4 démarre presque aussitôt — ajoute des players quand tu veux, ils se calent sur
+# la grille (Alt+X attend aussi la mesure). Clock.meter = temps par mesure ; Clock.nextBar(fn)
+# / Clock.mod(4, fn) lancent tes propres one-shots sur la grille.`, 'fr'),
+
+    lesson(35, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
@@ -1374,7 +1414,27 @@ b4 >> blip(dur=1/4).accompany("p1")`, 'de'),
 #
 # (Nichts auszuführen — klicke ⤴ share, wenn du etwas gemacht hast, das dir gefällt.)`, 'de'),
 
-    lesson(34, 'Du bist bereit ✨',
+    lesson(34, 'Tempo & die Clock',
+`# Alles hängt an einer CLOCK. Stelle das Tempo in Schlägen pro Minute (BPM):
+Clock.bpm = 132
+# Das Clock-Panel (rechte Leiste) zeigt das BPM live — du kannst auch ins Feld tippen,
+# oder den tap-Button im Takt TIPPEN: er liest das Tempo aus deinen Taps.
+#
+# Tempo kann sich auch BEWEGEN — Clock.bpm nimmt eine TimeVar, es rampt wie jeder Param:
+#   Clock.bpm = linvar([120, 140], [16])   # gleitet 120→140 über 16 Beats
+#   linbpm(120, 140, 16)                    # dasselbe als Helfer · dropbpm(90, 8) ab jetzt
+#
+# ▶ Starte eine Zeile, dann rampe das Tempo darunter:
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+Clock.bpm = linvar([110, 150], [8])
+#
+# QUANTISIERUNG — warum Schichten gekoppelt bleiben: die erste Note eines neuen Players
+# fällt auf den nächsten Beat, der ein Vielfaches ihres dur ist. dur=4 wartet also auf den
+# Takt, dur=1/4 startet fast sofort — füge Player jederzeit hinzu, sie rasten aufs Raster
+# ein (auch Alt+X wartet auf den Takt). Clock.meter = Beats pro Takt; Clock.nextBar(fn) /
+# Clock.mod(4, fn) starten eigene One-Shots auf dem Raster.`, 'de'),
+
+    lesson(35, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
@@ -1816,7 +1876,27 @@ b4 >> blip(dur=1/4).accompany("p1")`, 'es'),
 #
 # (Nada que ejecutar — haz clic en ⤴ share cuando hagas algo que te guste.)`, 'es'),
 
-    lesson(34, 'Estás listo ✨',
+    lesson(34, 'Tempo & el reloj',
+`# Todo se apoya en un RELOJ. Fija el tempo en pulsos por minuto (BPM):
+Clock.bpm = 132
+# El panel Clock (barra derecha) muestra el BPM en vivo — también puedes escribir en
+# ese campo, o TOCAR el botón tap a tiempo: lee el tempo de tus toques.
+#
+# El tempo también puede MOVERSE — Clock.bpm acepta una TimeVar, y rampa como un param:
+#   Clock.bpm = linvar([120, 140], [16])   # desliza 120→140 en 16 pulsos
+#   linbpm(120, 140, 16)                    # lo mismo, como ayuda · dropbpm(90, 8) desde ahora
+#
+# ▶ Lanza una línea, luego desliza el tempo por debajo:
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+Clock.bpm = linvar([110, 150], [8])
+#
+# QUANTIZACIÓN — por qué las capas quedan acopladas: la primera nota de un player nuevo
+# cae en el próximo pulso múltiplo de su dur. Así dur=4 espera al compás, dur=1/4 arranca
+# casi al instante — añade players cuando quieras y encajan en la rejilla (Alt+X también
+# espera al compás). Clock.meter = pulsos por compás; Clock.nextBar(fn) / Clock.mod(4, fn)
+# lanzan tus propios one-shots en la rejilla.`, 'es'),
+
+    lesson(35, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
@@ -2256,7 +2336,26 @@ b4 >> blip(dur=1/4).accompany("p1")`, 'ja'),
 #
 # （実行するものはない — 気に入ったものができたら ⤴ share をクリック。）`, 'ja'),
 
-    lesson(34, '準備完了 ✨',
+    lesson(34, 'テンポとクロック',
+`# すべては一つの「クロック」に乗っている。テンポを BPM（1分あたりの拍）で設定：
+Clock.bpm = 132
+# Clock パネル（右サイドバー）に現在の BPM がライブで出る — その欄に入力してもいいし、
+# tap ボタンをリズムに合わせて「タップ」すると、そのタップからテンポを読み取る。
+#
+# テンポは「動かす」こともできる — Clock.bpm は TimeVar を受け取り、他の param のように鳴る：
+#   Clock.bpm = linvar([120, 140], [16])   # 16拍かけて 120→140 に滑る
+#   linbpm(120, 140, 16)                    # 同じ、ヘルパー版 · dropbpm(90, 8) は今から
+#
+# ▶ 1行を鳴らし、その下でテンポを滑らせる：
+p1 >> pluck([0, 2, 4, 7], dur=1/2)
+Clock.bpm = linvar([110, 150], [8])
+#
+# 「クオンタイズ」— なぜ層が揃うのか：新しいプレイヤーの最初の音は、その dur の倍数に
+# あたる次の拍に着地する。だから dur=4 は小節を待ち、dur=1/4 はほぼ即座に始まる — いつ
+# プレイヤーを足してもグリッドに吸い付く（Alt+X の停止も小節を待つ）。Clock.meter は
+# 1小節の拍数、Clock.nextBar(fn) / Clock.mod(4, fn) で自分の単発処理をグリッドに乗せる。`, 'ja'),
+
+    lesson(35, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
