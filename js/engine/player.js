@@ -75,6 +75,11 @@ export function busStats() { return { used: _nextSlot - _freeBuses.length, peak:
 let _sc = null;
 export function setSuperSonic(sc) { _sc = sc; }
 
+// Master mix — a single gain the mixer console scales; multiplies into every note's amp.
+let _masterMix = 1;
+export function setMasterMix(v) { _masterMix = Math.max(0, Number(v) || 0); }
+export function getMasterMix() { return _masterMix; }
+
 // One-shot synth note for MIDI note-input — fires `synthName` at MIDI note `midi`
 // immediately to the main output (no per-player FX/bus; a simple keyboard voice).
 // sus is in seconds; amp 0..~1.5. Returns the node id.
@@ -563,7 +568,7 @@ export class Player {
                 if (midi === null || !Number.isFinite(midi) || midi < 0 || midi > 127) continue;
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
-                const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel;
+                const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel * _masterMix;
                 // Silent (amp≤0 — e.g. muted by a drop/solo, _amplify=0) → spawn NO
                 // server node. Firing amp-0 synths every step would pile up nodes on
                 // scsynth until it hits its node cap and stops sounding entirely (a
@@ -610,7 +615,7 @@ export class Player {
             return isEnv(out) ? envValue(out) : out;   // lpf=fb(...) etc. on samples
         };
         const baseDur  = Math.max(0.0625, opt(opts.dur, 1));
-        const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel;
+        const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel * _masterMix;
         const pan      = opt(opts.pan, 0);
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
@@ -728,7 +733,7 @@ export class Player {
             return isEnv(out) ? envValue(out) : out;
         };
         const baseDur    = Math.max(0.0625, opt(opts.dur, 1));
-        const amp        = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel;
+        const amp        = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel * _masterMix;
         const pan        = opt(opts.pan, 0);
         const rate       = opt(opts.rate, 1);
         const sampleIdx  = Math.round(opt(opts.sample, 0));
@@ -821,7 +826,7 @@ export class Player {
                     if (note === null) continue;
                     note += (va.pshift ?? 0);
                     if (!Number.isFinite(note) || note < 0 || note > 127) continue;
-                    const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel;
+                    const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel * _masterMix;
                     const vel = amp * 127;
                     const vch = Math.round(va.channel ?? chan);
                     this._midiChans.add(vch);

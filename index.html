@@ -30,6 +30,7 @@
       <button id="btn-run"  disabled title="run  (Ctrl+↵)">▶</button>
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
+      <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚 mix</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥 go live</button>
       <span id="synth-status"></span>
@@ -235,6 +236,7 @@
              soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
     import { autoRec }                   from './js/editor/autorec.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
+    import { initMixer, toggleMixer, onSectionActive } from './js/ui/mixer.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
@@ -1344,6 +1346,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
+    document.getElementById('btn-mixer').onclick  = () => toggleMixer();
 
     // Mobile: the side panel is a slide-up drawer (styled in a @media block). The ☰
     // button toggles it; tapping the scrim behind it closes it.
@@ -1711,6 +1714,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         _progressRAF = requestAnimationFrame(progressLoop);
     }
     _progressRAF = requestAnimationFrame(progressLoop);
+    initMixer(clock, editor);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
         // Record the active section's player lines so the live highlight lands on
         // the section that's actually sounding.
@@ -1721,6 +1725,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             }
             recordSourceLines(line + 1, end - 1);
         }
+        // Mixer: apply this part's per-section levels to the active players (any entry
+        // path — auto-advance, tap-to-jump, or manually evaluating the #@ line).
+        const secName = line >= 0 ? (editor.getLine(line).trim().match(/^#@\s*([a-zA-Z_]\w*)/)?.[1] ?? null) : null;
+        onSectionActive(secName);
         // Mirror the active section + autoplay state to peers (cosmetic; the
         // section code itself rides the eval broadcast).
         broadcastAction('section', { line, autoplay });
