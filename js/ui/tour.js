@@ -289,7 +289,7 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`),
 # beats and it writes the movement as a linvar for you — a hands-on way to automate.
 #
 # ▶ Prefer the keyboard? Switch skin from code (theme() alone lists them all):
-theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+theme("synthwave")   # · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
 # (The rec buttons need no code — try them whenever, then evaluate next().)`),
 
@@ -818,7 +818,7 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'fr'),
 # quelques temps et il écrit le mouvement en linvar pour toi.
 #
 # ▶ Tu préfères le clavier ? Change de skin en code (theme() seul les liste tous) :
-theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+theme("synthwave")   # · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
 # (Les boutons rec ne demandent aucun code — essaie-les quand tu veux, puis évalue next().)`, 'fr'),
 
@@ -1348,7 +1348,7 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'de'),
 # über ein paar Beats, und er schreibt die Bewegung als linvar für dich.
 #
 # ▶ Lieber per Tastatur? Wechsle den Skin im Code (theme() allein listet alle auf):
-theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+theme("synthwave")   # · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
 # (Die rec-Buttons brauchen keinen Code — probiere sie jederzeit, dann werte next() aus.)`, 'de'),
 
@@ -1876,7 +1876,7 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'es'),
 # durante unos beats y escribe el movimiento como un linvar por ti.
 #
 # ▶ ¿Prefieres el teclado? Cambia de skin desde código (theme() solo los lista todos):
-theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+theme("synthwave")   # · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
 # (Los botones rec no necesitan código — pruébalos cuando quieras, luego evalúa next().)`, 'es'),
 
@@ -2404,7 +2404,7 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'ja'),
 # その動きを linvar として書き出してくれる。
 #
 # ▶ キーボード派？ コードでスキンを切り替え（theme() だけで一覧）：
-theme("synthwave")   # · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
+theme("synthwave")   # · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
 # （rec ボタンはコード不要 — 好きなときに試して、next() を評価。）`, 'ja'),
 

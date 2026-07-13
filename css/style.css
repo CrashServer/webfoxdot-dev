@@ -235,6 +235,38 @@
 /* signature: a whisper of blossom pink under the wordmark — soft, never neon */
 :root.sakura .title { text-shadow: 0 0 6px rgba(224,90,140,0.25); }
 
+/* Fiesta — the beta 4 celebration skin. Deep aubergine night strung with confetti:
+   magenta ribbon, mint / cyan / gold / coral accents. Festive, high-contrast, and
+   unlike anything else in the set. */
+:root.fiesta {
+    --bg-1:        #170824;   /* aubergine night */
+    --bg-2:        #24103a;   /* raised plum     */
+    --bg-3:        #311650;   /* button plum     */
+    --border-1:    #4a2170;
+    --border-2:    #ff5fa2;   /* magenta ribbon  */
+    --text-1:      #fff2fb;
+    --text-2:      #c79fd8;
+    --green:       #4dffb0;   /* mint confetti   */
+    --green-dim:   rgba(77,255,176,0.16);
+    --glow:        rgba(255,95,162,0.45);
+    --blue:        #45d9ff;   /* cyan confetti   */
+    --yellow:      #ffd93d;   /* gold confetti   */
+    --red:         #ff5c7a;   /* coral           */
+    --purple:      #c774ff;
+    --orange:      #ff9f45;
+    --flash-col:   rgba(255,217,61,0.32);   /* gold flash */
+    --synth-col:   #4dffb0;
+    --pattern-col: #c774ff;
+    --timevar-col: #ffd93d;
+    --keyword-col: #45d9ff;
+    --cm-keyword:  #ff5fa2;   /* magenta */
+    --cm-number:   #45d9ff;   /* cyan    */
+    --cm-string:   #4dffb0;   /* mint    */
+    --cm-def:      #ffd93d;   /* gold    */
+}
+/* signature: a two-tone confetti glow — magenta over gold — under the wordmark */
+:root.fiesta .title { text-shadow: 0 0 8px rgba(255,95,162,0.5), 0 0 3px rgba(255,217,61,0.45); }
+
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
