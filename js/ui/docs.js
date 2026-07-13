@@ -206,10 +206,13 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'beta04';
+export const VERSION = 'beta05';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'beta05', title: 'In development', items: [
+        'beta 5 is under way — new features land here as they ship.',
+    ] },
     { v: 'beta04', title: 'The live mixer · shared solo · mixer tour lesson · mobile zoom fix', items: [
         'Live mixer (experimental, 🎚 mix) — a NON-MODAL floating console (drag it, code while it\'s open) that\'s a clip-launcher + volume desk: a vertical fader per track over a master, plus per-track mute and a bar-quantised STOP. VOLUME is shared per player name (one _mixLevel, read every note, kept separate from amplify so mute/solo/drop can\'t wipe your mix). LAUNCH: tap a track\'s name to evaluate its line and start it on its own — no auto-advance needed. A SOURCE part-picker (auto · a chip per #@ part, ● = the part playing) chooses which part\'s version a launch pulls from, so you can play v1 from part 1, v3 from part 2, v1 from part 4 — building a set by hand. Same fader per track drives the volume in the Players panel too. MIDI: each channel (+ master) has an m button — tap it, move a hardware fader, and that CC drives the channel volume. And the channels the SELECTED source part (re)defines are highlighted, so you see which tracks a launch from that part would fire. (Per-channel VU meters next.)',
         'The mixer gains SOLO — and mute/solo now COOPERATE across every desk. The mixer\'s new S button, the Players panel\'s solo, and eval .solo()/drop()/unsolo() all share ONE owner (a mute+solo gate), so the state is always the same everywhere: solo a track in the mixer and its row lights up in the Players panel; run .solo() in code and both desks follow; and a drop\'s restore re-applies the CURRENT mute/solo instead of blanket un-muting (so a drop can never silently un-mute a track you muted). Volume faders stay independent — they\'re a per-performer monitor mix, kept separate from amplify.',
