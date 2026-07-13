@@ -210,8 +210,8 @@ export const VERSION = 'beta05';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'beta05', title: 'In development', items: [
-        'beta 5 is under way — new features land here as they ship.',
+    { v: 'beta05', title: 'Tour — parameter envelopes (the _ sweeps)', items: [
+        'The guided tour gains two detailed lessons on PARAMETER ENVELOPES — the "_" suffix that makes any FX param sweep within each note (lpf_=fi(1, 400, 4000) opens the filter on every note). Covers the three shapes (fi fade-in · fo fade-out · fb bounce/wobble), how the note\'s sus gives the shape room, resonance (lpf_rq), the same trick on crush/reverb/chorus/echo/hpf/djf, and the per-note vs clock-synced distinction (lpf_ restarts per note; lpf=fb(...) is one global LFO). Lots of runnable examples.',
     ] },
     { v: 'beta04', title: 'The live mixer · shared solo · mixer tour lesson · mobile zoom fix', items: [
         'Live mixer (experimental, 🎚 mix) — a NON-MODAL floating console (drag it, code while it\'s open) that\'s a clip-launcher + volume desk: a vertical fader per track over a master, plus per-track mute and a bar-quantised STOP. VOLUME is shared per player name (one _mixLevel, read every note, kept separate from amplify so mute/solo/drop can\'t wipe your mix). LAUNCH: tap a track\'s name to evaluate its line and start it on its own — no auto-advance needed. A SOURCE part-picker (auto · a chip per #@ part, ● = the part playing) chooses which part\'s version a launch pulls from, so you can play v1 from part 1, v3 from part 2, v1 from part 4 — building a set by hand. Same fader per track drives the volume in the Players panel too. MIDI: each channel (+ master) has an m button — tap it, move a hardware fader, and that CC drives the channel volume. And the channels the SELECTED source part (re)defines are highlighted, so you see which tracks a launch from that part would fire. (Per-channel VU meters next.)',

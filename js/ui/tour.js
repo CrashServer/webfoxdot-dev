@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 37;
+const TOTAL = 39;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -568,7 +568,60 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
 p1.solo(8)`),
 
-    lesson(37, 'You’re ready ✨',
+    lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
+`# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
+# param within each note. The classic is a filter sweep: lpf_ glides the low-pass
+# cutoff every time a note fires.
+#
+# Three shapes, each written f(dur, a, b) — dur in BEATS, a & b the two endpoints:
+#   fi(dur, a, b)   fade IN   —  a → b, then holds at b
+#   fo(dur, a, b)   fade OUT  —  b → a, then holds at a   (fi's mirror)
+#   fb(dur, a, b)   BOUNCE    —  a ↔ b triangle, looping every dur (for the note's sus)
+#
+# ▶ Each pluck OPENS its filter, 400 → 4000 Hz over one beat:
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fi(1, 400, 4000))
+#
+# ▶ The mirror — each note CLOSES, 4000 → 400 (that quacky "pluck" shape):
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fo(1, 400, 4000))
+#
+# ▶ Bounce = a wobble. Hold ONE long note and the cutoff see-saws every half beat:
+b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
+#
+# The envelope plays over the note's SUS, so give it room — a short note only shows the
+# START of a slow sweep. Longer sus = the whole shape unfolds:
+p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
+#
+# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`),
+
+    lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
+`# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
+# chorus_, echo_, hpf_, djf_ … the same fi / fo / fb shapes sweep that effect per note.
+#
+# ▶ bit-depth cleaning up — starts gritty (4 levels) and smooths to 16:
+p1 >> pluck([0, 2, 4, 7], dur=1, crush=0.6, bits_=fi(1, 4, 16))
+#
+# ▶ reverb SWELLING in over two beats (dry → drenched):
+p1 >> pads([0, 4], dur=4, sus=4, reverb_=fi(2, 0, 0.9), room=0.9)
+#
+# ▶ a high-pass sweeping up = a riser / filter-out:
+d1 >> play("x-o-", dur=1/2, hpf_=fi(4, 100, 4000))
+#
+# TWO MODES — the "_" is the switch:
+#   lpf_=fb(1, 400, 4000)   PER-NOTE: the shape RESTARTS on every note (timed from when
+#                           that note fired) — each note gets its own fresh sweep.
+#   lpf =fb(8, 400, 4000)   NO "_": ONE clock-synced value shared by everything — a
+#                           global LFO on the timeline, so every player moves together.
+# ▶ Run both — same wobble, per-note vs global:
+p1 >> pluck([0, 2, 4, 7], dur=1/2, lpf_=fb(1, 400, 4000))
+b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
+#
+# GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
+# chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`),
+
+    lesson(39, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
@@ -1101,7 +1154,60 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
 p1.solo(8)`, 'fr'),
 
-    lesson(37, 'Tu es prêt ✨',
+    lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
+`# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
+# param within each note. The classic is a filter sweep: lpf_ glides the low-pass
+# cutoff every time a note fires.
+#
+# Three shapes, each written f(dur, a, b) — dur in BEATS, a & b the two endpoints:
+#   fi(dur, a, b)   fade IN   —  a → b, then holds at b
+#   fo(dur, a, b)   fade OUT  —  b → a, then holds at a   (fi's mirror)
+#   fb(dur, a, b)   BOUNCE    —  a ↔ b triangle, looping every dur (for the note's sus)
+#
+# ▶ Each pluck OPENS its filter, 400 → 4000 Hz over one beat:
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fi(1, 400, 4000))
+#
+# ▶ The mirror — each note CLOSES, 4000 → 400 (that quacky "pluck" shape):
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fo(1, 400, 4000))
+#
+# ▶ Bounce = a wobble. Hold ONE long note and the cutoff see-saws every half beat:
+b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
+#
+# The envelope plays over the note's SUS, so give it room — a short note only shows the
+# START of a slow sweep. Longer sus = the whole shape unfolds:
+p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
+#
+# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'fr'),
+
+    lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
+`# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
+# chorus_, echo_, hpf_, djf_ … the same fi / fo / fb shapes sweep that effect per note.
+#
+# ▶ bit-depth cleaning up — starts gritty (4 levels) and smooths to 16:
+p1 >> pluck([0, 2, 4, 7], dur=1, crush=0.6, bits_=fi(1, 4, 16))
+#
+# ▶ reverb SWELLING in over two beats (dry → drenched):
+p1 >> pads([0, 4], dur=4, sus=4, reverb_=fi(2, 0, 0.9), room=0.9)
+#
+# ▶ a high-pass sweeping up = a riser / filter-out:
+d1 >> play("x-o-", dur=1/2, hpf_=fi(4, 100, 4000))
+#
+# TWO MODES — the "_" is the switch:
+#   lpf_=fb(1, 400, 4000)   PER-NOTE: the shape RESTARTS on every note (timed from when
+#                           that note fired) — each note gets its own fresh sweep.
+#   lpf =fb(8, 400, 4000)   NO "_": ONE clock-synced value shared by everything — a
+#                           global LFO on the timeline, so every player moves together.
+# ▶ Run both — same wobble, per-note vs global:
+p1 >> pluck([0, 2, 4, 7], dur=1/2, lpf_=fb(1, 400, 4000))
+b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
+#
+# GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
+# chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'fr'),
+
+    lesson(39, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
@@ -1630,7 +1736,60 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
 p1.solo(8)`, 'de'),
 
-    lesson(37, 'Du bist bereit ✨',
+    lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
+`# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
+# param within each note. The classic is a filter sweep: lpf_ glides the low-pass
+# cutoff every time a note fires.
+#
+# Three shapes, each written f(dur, a, b) — dur in BEATS, a & b the two endpoints:
+#   fi(dur, a, b)   fade IN   —  a → b, then holds at b
+#   fo(dur, a, b)   fade OUT  —  b → a, then holds at a   (fi's mirror)
+#   fb(dur, a, b)   BOUNCE    —  a ↔ b triangle, looping every dur (for the note's sus)
+#
+# ▶ Each pluck OPENS its filter, 400 → 4000 Hz over one beat:
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fi(1, 400, 4000))
+#
+# ▶ The mirror — each note CLOSES, 4000 → 400 (that quacky "pluck" shape):
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fo(1, 400, 4000))
+#
+# ▶ Bounce = a wobble. Hold ONE long note and the cutoff see-saws every half beat:
+b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
+#
+# The envelope plays over the note's SUS, so give it room — a short note only shows the
+# START of a slow sweep. Longer sus = the whole shape unfolds:
+p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
+#
+# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'de'),
+
+    lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
+`# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
+# chorus_, echo_, hpf_, djf_ … the same fi / fo / fb shapes sweep that effect per note.
+#
+# ▶ bit-depth cleaning up — starts gritty (4 levels) and smooths to 16:
+p1 >> pluck([0, 2, 4, 7], dur=1, crush=0.6, bits_=fi(1, 4, 16))
+#
+# ▶ reverb SWELLING in over two beats (dry → drenched):
+p1 >> pads([0, 4], dur=4, sus=4, reverb_=fi(2, 0, 0.9), room=0.9)
+#
+# ▶ a high-pass sweeping up = a riser / filter-out:
+d1 >> play("x-o-", dur=1/2, hpf_=fi(4, 100, 4000))
+#
+# TWO MODES — the "_" is the switch:
+#   lpf_=fb(1, 400, 4000)   PER-NOTE: the shape RESTARTS on every note (timed from when
+#                           that note fired) — each note gets its own fresh sweep.
+#   lpf =fb(8, 400, 4000)   NO "_": ONE clock-synced value shared by everything — a
+#                           global LFO on the timeline, so every player moves together.
+# ▶ Run both — same wobble, per-note vs global:
+p1 >> pluck([0, 2, 4, 7], dur=1/2, lpf_=fb(1, 400, 4000))
+b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
+#
+# GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
+# chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'de'),
+
+    lesson(39, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
@@ -2158,7 +2317,60 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
 p1.solo(8)`, 'es'),
 
-    lesson(37, 'Estás listo ✨',
+    lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
+`# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
+# param within each note. The classic is a filter sweep: lpf_ glides the low-pass
+# cutoff every time a note fires.
+#
+# Three shapes, each written f(dur, a, b) — dur in BEATS, a & b the two endpoints:
+#   fi(dur, a, b)   fade IN   —  a → b, then holds at b
+#   fo(dur, a, b)   fade OUT  —  b → a, then holds at a   (fi's mirror)
+#   fb(dur, a, b)   BOUNCE    —  a ↔ b triangle, looping every dur (for the note's sus)
+#
+# ▶ Each pluck OPENS its filter, 400 → 4000 Hz over one beat:
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fi(1, 400, 4000))
+#
+# ▶ The mirror — each note CLOSES, 4000 → 400 (that quacky "pluck" shape):
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fo(1, 400, 4000))
+#
+# ▶ Bounce = a wobble. Hold ONE long note and the cutoff see-saws every half beat:
+b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
+#
+# The envelope plays over the note's SUS, so give it room — a short note only shows the
+# START of a slow sweep. Longer sus = the whole shape unfolds:
+p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
+#
+# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'es'),
+
+    lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
+`# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
+# chorus_, echo_, hpf_, djf_ … the same fi / fo / fb shapes sweep that effect per note.
+#
+# ▶ bit-depth cleaning up — starts gritty (4 levels) and smooths to 16:
+p1 >> pluck([0, 2, 4, 7], dur=1, crush=0.6, bits_=fi(1, 4, 16))
+#
+# ▶ reverb SWELLING in over two beats (dry → drenched):
+p1 >> pads([0, 4], dur=4, sus=4, reverb_=fi(2, 0, 0.9), room=0.9)
+#
+# ▶ a high-pass sweeping up = a riser / filter-out:
+d1 >> play("x-o-", dur=1/2, hpf_=fi(4, 100, 4000))
+#
+# TWO MODES — the "_" is the switch:
+#   lpf_=fb(1, 400, 4000)   PER-NOTE: the shape RESTARTS on every note (timed from when
+#                           that note fired) — each note gets its own fresh sweep.
+#   lpf =fb(8, 400, 4000)   NO "_": ONE clock-synced value shared by everything — a
+#                           global LFO on the timeline, so every player moves together.
+# ▶ Run both — same wobble, per-note vs global:
+p1 >> pluck([0, 2, 4, 7], dur=1/2, lpf_=fb(1, 400, 4000))
+b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
+#
+# GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
+# chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'es'),
+
+    lesson(39, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
@@ -2682,7 +2894,60 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
 p1.solo(8)`, 'ja'),
 
-    lesson(37, '準備完了 ✨',
+    lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
+`# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
+# param within each note. The classic is a filter sweep: lpf_ glides the low-pass
+# cutoff every time a note fires.
+#
+# Three shapes, each written f(dur, a, b) — dur in BEATS, a & b the two endpoints:
+#   fi(dur, a, b)   fade IN   —  a → b, then holds at b
+#   fo(dur, a, b)   fade OUT  —  b → a, then holds at a   (fi's mirror)
+#   fb(dur, a, b)   BOUNCE    —  a ↔ b triangle, looping every dur (for the note's sus)
+#
+# ▶ Each pluck OPENS its filter, 400 → 4000 Hz over one beat:
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fi(1, 400, 4000))
+#
+# ▶ The mirror — each note CLOSES, 4000 → 400 (that quacky "pluck" shape):
+p1 >> pluck([0, 2, 4, 7], dur=1, lpf_=fo(1, 400, 4000))
+#
+# ▶ Bounce = a wobble. Hold ONE long note and the cutoff see-saws every half beat:
+b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
+#
+# The envelope plays over the note's SUS, so give it room — a short note only shows the
+# START of a slow sweep. Longer sus = the whole shape unfolds:
+p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
+#
+# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'ja'),
+
+    lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
+`# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
+# chorus_, echo_, hpf_, djf_ … the same fi / fo / fb shapes sweep that effect per note.
+#
+# ▶ bit-depth cleaning up — starts gritty (4 levels) and smooths to 16:
+p1 >> pluck([0, 2, 4, 7], dur=1, crush=0.6, bits_=fi(1, 4, 16))
+#
+# ▶ reverb SWELLING in over two beats (dry → drenched):
+p1 >> pads([0, 4], dur=4, sus=4, reverb_=fi(2, 0, 0.9), room=0.9)
+#
+# ▶ a high-pass sweeping up = a riser / filter-out:
+d1 >> play("x-o-", dur=1/2, hpf_=fi(4, 100, 4000))
+#
+# TWO MODES — the "_" is the switch:
+#   lpf_=fb(1, 400, 4000)   PER-NOTE: the shape RESTARTS on every note (timed from when
+#                           that note fired) — each note gets its own fresh sweep.
+#   lpf =fb(8, 400, 4000)   NO "_": ONE clock-synced value shared by everything — a
+#                           global LFO on the timeline, so every player moves together.
+# ▶ Run both — same wobble, per-note vs global:
+p1 >> pluck([0, 2, 4, 7], dur=1/2, lpf_=fb(1, 400, 4000))
+b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
+#
+# GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
+# chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'ja'),
+
+    lesson(39, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
