@@ -119,6 +119,11 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 8000, rq: 0.8, rate: 0.5 },
         extraParams: ['cutoff', 'rq', 'rate'],
     },
+    varsaw: {
+        scName: 'fd_varsaw',
+        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.15, rate: 0.5 },
+        extraParams: ['rate'],   // rate = VarSaw width (0=thin/nasal … 1=full)
+    },
     sine: {
         scName: 'fd_sine',
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.05, cutoff: 2800, rq: 0.8, rate: 0.1 },
