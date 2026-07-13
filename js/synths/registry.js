@@ -111,8 +111,8 @@ export const SYNTH_DEFS = {
     // pumpbass — pumping filter bass (crashDot original; sidechain-style per-note duck)
     pumpbass: {
         scName: 'fd_pumpbass',
-        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 800, res: 0.4, sub: 0.3, body: 4, growl: 0.2, fuzz: 0, fuzzgain: 1.5, noiz: 0, noizr: 1, noizt: 0.5, hpr: 0, pump: 1 },
-        extraParams: ['cutoff', 'res', 'sub', 'body', 'growl', 'fuzz', 'fuzzgain', 'noiz', 'noizr', 'noizt', 'hpr', 'pump'],
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 800, res: 0.4, sub: 0.3, body: 4, growl: 0.2, fuzz: 0, fuzzgain: 1.5, noiz: 0, noizr: 1, noizt: 0.5, locut: 0, pump: 1 },
+        extraParams: ['cutoff', 'res', 'sub', 'body', 'growl', 'fuzz', 'fuzzgain', 'noiz', 'noizr', 'noizt', 'locut', 'pump'],
     },
     saw: {
         scName: 'fd_saw',

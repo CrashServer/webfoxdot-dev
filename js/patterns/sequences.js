@@ -1,7 +1,7 @@
 // Pattern helpers — all patterns expose a .get(step) method.
 // patGet resolves any value: plain scalar, array, or pattern object.
 
-import { isEnv, envValue, currentBeat } from './timevars.js';
+import { isEnv, envValue, currentBeat, _var } from './timevars.js';
 import { REST } from './rest.js';
 
 export function patGet(val, step, def) {
@@ -181,6 +181,19 @@ export function attachModifiers(cls) {
             a.delay = 0;
             a.amplify = 1;
         }
+        return this;
+    };
+    // .fill(on=1) — instant drum FILL: randomises dur to short values and gates amplify
+    // in on/off bursts so the player stutters in and out (port of FoxDot's Player.fill).
+    // Works on synths (.args) and play() (.opts).
+    //   1 (default) weighted-random dur + bursty amplify · 2 random dur, full amp
+    //   3 steady 1/2 dur + denser bursts                 · 0/other reset (1/2 dur, amp 1)
+    cls.prototype.fill = function (on = 1) {
+        const a = this.args ?? this.opts;
+        if (on === 2)      { a.dur = PRand([1/4, 1/2, 3/4]); a.amplify = 1; }
+        else if (on === 3) { a.dur = 1/2; a.amplify = _var([0, 1], [3, 3]); }
+        else if (on)       { a.dur = PwRand([1/4, 1/2, 3/4], [45, 45, 10]); a.amplify = _var([0, 1], [7, 2]); }
+        else               { a.dur = 1/2; a.amplify = 1; }
         return this;
     };
 }
