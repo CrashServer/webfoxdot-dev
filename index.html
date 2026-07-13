@@ -26,20 +26,20 @@
       <span id="version-tag" class="version-tag" title="changelog"></span>
       <button id="btn-tour" title="guided tour — learn live coding from scratch, right in the editor">tour</button>
       <button id="btn-boot">boot</button>
-      <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪ load kit</button>
+      <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪<span class="tb-label"> load kit</span></button>
       <button id="btn-run"  disabled title="run  (Ctrl+↵)">▶</button>
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
-      <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚 mix</button>
-      <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴ share</button>
-      <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥 go live</button>
+      <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
+      <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴<span class="tb-label"> share</span></button>
+      <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥<span class="tb-label"> go live</span></button>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
       <!-- right cluster: galaxy · examples · docs · split · zen — kept together so they
            wrap as one group onto the second row on narrow windows -->
       <!-- mobile-only: slide the side panel (Clock/Players/Composition/Settings) up as a drawer -->
-      <button id="cp-toggle" title="show / hide the panel">☰ panel</button>
-      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌 galaxy</button>
+      <button id="cp-toggle" title="show / hide the panel">☰<span class="tb-label"> panel</span></button>
+      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌<span class="tb-label"> galaxy</span></button>
       <div id="examples-dd">
         <button id="examples-btn" title="load an example into the editor">examples ▾</button>
         <div id="examples-pop" hidden></div>
@@ -1210,6 +1210,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     (() => {
         const wrap = editor.getWrapperElement();
         let dragging = false, startY = 0, steps = 0;
+        // Long-press (hold still ~480ms) opens the autocomplete menu — the touch
+        // equivalent of Ctrl+Space. Cancelled by any real movement (scroll/select) or
+        // an early lift, and never armed on a number (that's the drag-nudge knob).
+        let lpTimer = null, lpX = 0, lpY = 0;
+        const clearLP = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
         const numberAt = (pos) => {
             const line = editor.getLine(pos.line); if (line == null) return false;
             let s = pos.ch, e = pos.ch;
@@ -1218,16 +1223,31 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             return /\d/.test(line.slice(s, e));
         };
         wrap.addEventListener('touchstart', (ev) => {
+            clearLP();
             if (ev.touches.length !== 1) return;           // let pinch-zoom etc. pass
             const t = ev.touches[0];
             const pos = editor.coordsChar({ left: t.clientX, top: t.clientY }, 'window');
-            if (!numberAt(pos)) return;                    // not a number → normal CM (edit + keyboard)
+            if (!numberAt(pos)) {                           // not a number → normal CM, but arm long-press
+                lpX = t.clientX; lpY = t.clientY;
+                lpTimer = setTimeout(() => {
+                    lpTimer = null;
+                    editor.setCursor(pos);                  // place the caret where the finger is
+                    editor.focus();
+                    triggerAutocomplete(editor);            // same menu as Ctrl+Space / the ⌨ key
+                }, 480);
+                return;
+            }
             ev.preventDefault(); ev.stopPropagation();     // it's a knob: no cursor-place, no keyboard
             editor.setCursor(pos);
             dragging = true; startY = t.clientY; steps = 0;
             wrap.classList.add('cm-nudging');
         }, { capture: true });
         wrap.addEventListener('touchmove', (ev) => {
+            // Any real finger travel means scroll/select/nudge — not a long-press.
+            if (lpTimer) {
+                const t = ev.touches[0];
+                if (Math.abs(t.clientX - lpX) > 10 || Math.abs(t.clientY - lpY) > 10) clearLP();
+            }
             if (!dragging) return;
             ev.preventDefault(); ev.stopPropagation();
             const dy = startY - ev.touches[0].clientY;     // drag up = increase
@@ -1238,7 +1258,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             incrementValue(editor, delta, runLineAtCursor);
             steps += delta;
         }, { capture: true });
-        const end = () => { if (dragging) { dragging = false; wrap.classList.remove('cm-nudging'); } };
+        const end = () => { clearLP(); if (dragging) { dragging = false; wrap.classList.remove('cm-nudging'); } };
         wrap.addEventListener('touchend', end, { capture: true });
         wrap.addEventListener('touchcancel', end, { capture: true });
     })();

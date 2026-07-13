@@ -1768,3 +1768,19 @@ body.is-offline #btn-galaxy {
     .keybar-key:active { background: var(--green-dim); border-color: var(--green); }
     .keybar-key.keybar-act { color: var(--green); border-color: var(--green); }
 }
+
+/* Narrow phones: shrink the top bar to fit in one or two rows. The button LABELS are
+   what make it wrap over many rows, so drop them to glyph-only (the title stays in the
+   button's tooltip), hide the app title + synth status, and drop the rarely-needed
+   reload / split / zen buttons. Tap targets stay ~36px. Appended last so it wins. */
+@media (max-width: 640px) {
+    #toolbar .tb-label,
+    #toolbar .title,
+    #synth-status,
+    #btn-reload, #btn-split, #btn-zen { display: none; }
+    #toolbar { gap: 4px; row-gap: 4px; padding: 4px 6px; }
+    #toolbar button, #toolbar #examples-btn { min-height: 36px; padding: 5px 9px; font-size: 14px; }
+    /* glyph-only buttons: keep them square-ish and readable */
+    #btn-loadkit, #btn-mixer, #btn-share, #btn-multiplayer, #cp-toggle, #btn-galaxy,
+    #btn-run, #btn-stop, #docs-toggle-btn { font-size: 16px; padding: 5px 8px; }
+}
