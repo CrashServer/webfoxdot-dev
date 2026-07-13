@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 36;
+const TOTAL = 37;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -542,7 +542,33 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # Great on leads, pads and basses. Keep n small on busy parts — each voice is a real
 # extra note, so it costs CPU. Pair with reverb for a huge wall of sound.`),
 
-    lesson(36, 'You’re ready ✨',
+    lesson(36, 'The mixer — perform your tracks live',
+`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+# floats and is NON-MODAL — keep coding while it's open.
+#
+# ▶ First give it some tracks — run this little set:
+#@ groove(16)
+d1 >> play("x-o-", amp=0.9)
+b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
+#@end
+#
+# Now click  🎚 mix. Each track is a vertical strip:
+#   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
+#             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
+#   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
+#             so all three always agree.
+#   • ■       STOP, quantised to the next bar.
+#   • m       MIDI-learn — click it, move a hardware fader, and that CC drives the level.
+#
+# LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
+# needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
+# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+#
+# ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
+p1.solo(8)`),
+
+    lesson(37, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
@@ -1049,7 +1075,33 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # Parfait sur les leads, pads et basses. Garde n petit sur les parties chargées — chaque
 # voix est une vraie note en plus, donc ça coûte du CPU. Ajoute une réverb pour un mur de son.`, 'fr'),
 
-    lesson(36, 'Tu es prêt ✨',
+    lesson(36, 'The mixer — perform your tracks live',
+`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+# floats and is NON-MODAL — keep coding while it's open.
+#
+# ▶ First give it some tracks — run this little set:
+#@ groove(16)
+d1 >> play("x-o-", amp=0.9)
+b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
+#@end
+#
+# Now click  🎚 mix. Each track is a vertical strip:
+#   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
+#             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
+#   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
+#             so all three always agree.
+#   • ■       STOP, quantised to the next bar.
+#   • m       MIDI-learn — click it, move a hardware fader, and that CC drives the level.
+#
+# LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
+# needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
+# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+#
+# ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
+p1.solo(8)`, 'fr'),
+
+    lesson(37, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
@@ -1552,7 +1604,33 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # Top für Leads, Pads und Bässe. Halte n bei dichten Parts klein — jede Stimme ist eine
 # echte Extra-Note, kostet also CPU. Kombiniere es mit Hall für eine riesige Klangwand.`, 'de'),
 
-    lesson(36, 'Du bist bereit ✨',
+    lesson(36, 'The mixer — perform your tracks live',
+`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+# floats and is NON-MODAL — keep coding while it's open.
+#
+# ▶ First give it some tracks — run this little set:
+#@ groove(16)
+d1 >> play("x-o-", amp=0.9)
+b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
+#@end
+#
+# Now click  🎚 mix. Each track is a vertical strip:
+#   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
+#             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
+#   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
+#             so all three always agree.
+#   • ■       STOP, quantised to the next bar.
+#   • m       MIDI-learn — click it, move a hardware fader, and that CC drives the level.
+#
+# LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
+# needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
+# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+#
+# ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
+p1.solo(8)`, 'de'),
+
+    lesson(37, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
@@ -2054,7 +2132,33 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # Genial en leads, pads y bajos. Mantén n pequeño en partes cargadas — cada voz es una
 # nota real extra, así que cuesta CPU. Combínalo con reverb para un muro de sonido enorme.`, 'es'),
 
-    lesson(36, 'Estás listo ✨',
+    lesson(36, 'The mixer — perform your tracks live',
+`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+# floats and is NON-MODAL — keep coding while it's open.
+#
+# ▶ First give it some tracks — run this little set:
+#@ groove(16)
+d1 >> play("x-o-", amp=0.9)
+b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
+#@end
+#
+# Now click  🎚 mix. Each track is a vertical strip:
+#   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
+#             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
+#   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
+#             so all three always agree.
+#   • ■       STOP, quantised to the next bar.
+#   • m       MIDI-learn — click it, move a hardware fader, and that CC drives the level.
+#
+# LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
+# needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
+# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+#
+# ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
+p1.solo(8)`, 'es'),
+
+    lesson(37, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
@@ -2552,7 +2656,33 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # リード・パッド・ベースに最適。詰まったパートでは n を小さく — 各声は本物の追加音
 # なので CPU を食う。リバーブと組み合わせれば巨大な音の壁に。`, 'ja'),
 
-    lesson(36, '準備完了 ✨',
+    lesson(36, 'The mixer — perform your tracks live',
+`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+# floats and is NON-MODAL — keep coding while it's open.
+#
+# ▶ First give it some tracks — run this little set:
+#@ groove(16)
+d1 >> play("x-o-", amp=0.9)
+b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
+#@end
+#
+# Now click  🎚 mix. Each track is a vertical strip:
+#   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
+#             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
+#   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
+#             so all three always agree.
+#   • ■       STOP, quantised to the next bar.
+#   • m       MIDI-learn — click it, move a hardware fader, and that CC drives the level.
+#
+# LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
+# needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
+# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+#
+# ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
+p1.solo(8)`, 'ja'),
+
+    lesson(37, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
