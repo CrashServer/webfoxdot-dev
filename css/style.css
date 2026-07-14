@@ -1886,6 +1886,14 @@ body.is-offline #btn-galaxy {
     border-radius: 9px; font-size: 14px; cursor: pointer;
 }
 .perf-sec.on { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.perf-fx { flex: 0 0 auto; display: flex; gap: 8px; }
+.perf-fxbtn {
+    flex: 1; min-height: 44px; border-radius: 10px;
+    background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text-1);
+    font-size: 14px; font-weight: bold; letter-spacing: 1px; cursor: pointer;
+    user-select: none; touch-action: none;
+}
+.perf-fxbtn.on { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 0 16px var(--glow); }
 .perf-macros { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
 .perf-macro-master { display: flex; align-items: center; gap: 10px; font-size: 10px; letter-spacing: 1px; color: var(--text-2); }
 .perf-macro-master .perf-mac { flex: 1; }

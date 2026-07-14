@@ -70,6 +70,10 @@ function build() {
         </div>
         <div class="perf-tiles" title="tap a tile = launch/stop (quantised) · drag up/down = its volume"></div>
         <div class="perf-secs-wrap"><div class="perf-secs" title="jump the arrangement to a section"></div></div>
+        <div class="perf-fx" title="hold to fire, release to return">
+            <button class="perf-fxbtn" data-fx="drop">DROP</button>
+            <button class="perf-fxbtn" data-fx="stutter">STUTTER</button>
+        </div>
         <div class="perf-macros">
             <label class="perf-macro perf-macro-master">MASTER<input type="range" class="perf-mac perf-master" min="0" max="1.5" step="0.01" value="1"></label>
             <div class="perf-xy" title="X = filter (right = open) · Y = space / reverb (up = wetter)">
@@ -113,6 +117,28 @@ function build() {
     xy.addEventListener('pointercancel', xyEnd);
     // start dot at the neutral corner (filter open, no reverb)
     dot.style.left = '100%'; dot.style.top = '100%';
+
+    // Momentary FX — hold to engage, release to return. Set-while-held (no timers):
+    // DROP slams the filter shut on every player; STUTTER rolls every player (beat-
+    // repeat) by bumping _multiply. Cheap and self-restoring on release.
+    let stutSaved = null;
+    const fxEngage = (fx) => {
+        if (!_clock) return;
+        if (fx === 'drop') _clock._players.forEach((p) => { p.setAttr('lpf', 180); p.setAttr('lpf_rq', 0.2); });
+        else if (fx === 'stutter') { stutSaved = new Map(); _clock._players.forEach((p, n) => { stutSaved.set(n, p._multiply ?? 1); p._multiply = 4; }); }
+    };
+    const fxRelease = (fx) => {
+        if (!_clock) return;
+        if (fx === 'drop') _clock._players.forEach((p) => p.setAttr('lpf', 0));   // slam open
+        else if (fx === 'stutter') { _clock._players.forEach((p, n) => { p._multiply = (stutSaved && stutSaved.get(n)) || 1; }); stutSaved = null; }
+    };
+    _modal.querySelectorAll('.perf-fxbtn').forEach((btn) => {
+        const fx = btn.dataset.fx;
+        btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch (_) {} btn.classList.add('on'); fxEngage(fx); });
+        const rel = () => { if (!btn.classList.contains('on')) return; btn.classList.remove('on'); fxRelease(fx); };
+        btn.addEventListener('pointerup', rel);
+        btn.addEventListener('pointercancel', rel);
+    });
 }
 
 // Rebuild tiles / sections only when the set of names changes (cheap on the timer).
