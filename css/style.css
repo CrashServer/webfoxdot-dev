@@ -313,6 +313,7 @@ body {
     flex-wrap: wrap;          /* too narrow → flow onto a second row, nothing clipped */
 }
 #toolbar > * { flex-shrink: 0; }   /* nothing collapses/resizes as text changes */
+#btn-perform { display: none; }    /* Perform Mode is a touch feature — shown only on coarse pointers */
 /* On narrow screens, tighten spacing so more fits per row before wrapping. */
 @media (max-width: 760px) {
     #toolbar { gap: 5px; row-gap: 5px; padding: 6px 8px; }
@@ -1752,6 +1753,7 @@ body.is-offline #btn-galaxy {
 /* Touch devices: fatter tap targets (thumbs, not a pointer) + a touch more editor. */
 @media (pointer: coarse) {
     #toolbar button, #toolbar #examples-btn { min-height: 40px; padding: 6px 12px; font-size: 12px; }
+    #btn-perform { display: inline-flex; align-items: center; }   /* touch only */
     .cp-btn, .cp-select, #bpm-input, #cp-tap { min-height: 36px; }
     /* iOS auto-zooms when the FOCUSED element's font-size is < 16px — which fired on
        every tap in the editor and after picking an autocomplete item (focus returns to
