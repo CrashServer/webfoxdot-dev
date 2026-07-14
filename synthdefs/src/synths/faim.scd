@@ -3,13 +3,14 @@
 // final envelope doneAction 0→2 (so the node frees).
 // Params: out, note, amp, sus, pan, attack, release, decay, beef, rate, level, peak, fmod
 
-SynthDef(\fd_faim, {|out=0, note=60, amp=0.8, sus=1, pan=0, attack=0.001, release=0.01,
+SynthDef(\fd_faim, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.8, sus=1, pan=0, attack=0.001, release=0.01,
                       decay=0.01, level=0.8, peak=1, gate=1, fmod=0, beef=0, rate=0.01, blur=1|
     var sig, freq;
     var sig1, sig2, sig3, sig4, sig5, sig6;
     var env1, env2, env3, env4, env5, env6;
     sus  = sus * blur;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     freq = [freq, freq + fmod];
     freq = freq / 2;
     freq = freq * ((0..1) / 1 - 0.5 * 0.0007 + 1);

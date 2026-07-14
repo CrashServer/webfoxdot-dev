@@ -3,7 +3,7 @@
 // Declared the loop var `d` (was an implicit global in the original).
 // Params: out, note, amp, sus, pan, attack, release, decay, rate, level, peak, fmod
 
-SynthDef(\fd_lapin, {|out=0, note=60, amp=1, sus=1, pan=0, attack=0.001, release=0.01,
+SynthDef(\fd_lapin, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=1, sus=1, pan=0, attack=0.001, release=0.01,
                        decay=0.01, level=0.8, peak=1, fmod=0, rate=1, blur=1|
     var osc, freq, string, d;
     sus = sus * blur;
@@ -13,6 +13,7 @@ SynthDef(\fd_lapin, {|out=0, note=60, amp=1, sus=1, pan=0, attack=0.001, release
             Impulse.ar(0), delay, delay, 5 * rate, 0.5)
     };
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     freq = [freq, freq + fmod];
 
     osc = string.(freq) + string.(freq) + string.(freq * 0.5);

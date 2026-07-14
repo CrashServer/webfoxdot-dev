@@ -1,10 +1,11 @@
 // cbass — CrashServer "compressed bass": dual saw + pulse + sub sine, tanh drive,
 // frequency-tracking RLPF, and a compander glue. Adapted from FoxDot cbass.
 // Params: out, note, amp, sus, pan, attack, release, cutoff, rq, boost, detune, follow, vib
-SynthDef(\fd_cbass, {|out=0, note=48, amp=0.9, sus=1, pan=0, attack=0.01, release=0.1,
+SynthDef(\fd_cbass, {|out=0, note=48, slide=0, slidefrom=1, slidedelay=1, amp=0.9, sus=1, pan=0, attack=0.01, release=0.1,
                      cutoff=200, rq=0.9, boost=1.5, detune=0.01, follow=2, vib=0|
     var freq, osc1, osc2, subOsc, env, filt, mod, dist, oscSum, freqFollower, dynCut;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     osc1 = Saw.ar(freq * [1 - detune, 1 + detune]);
     osc2 = Pulse.ar(freq * [0.5 - detune, 0.5 + detune], 0.13);
     subOsc = SinOsc.ar(freq * 0.25);

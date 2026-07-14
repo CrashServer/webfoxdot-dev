@@ -196,6 +196,19 @@ export function attachModifiers(cls) {
         else               { a.dur = 1/2; a.amplify = 1; }
         return this;
     };
+    // .slider(start=0, on=1) — glissando between notes (port of FoxDot's Player.slider).
+    // Alternates a per-note pitch sweep so consecutive notes glide. The synth glides
+    // freq from freq*slidefrom to freq*(1+slide) over sus*slidedelay (fd_ glide preamble).
+    // Only synths with that preamble slide (melodic ones); others ignore it harmlessly.
+    cls.prototype.slider = function (start = 0, on = 1) {
+        const a = this.args ?? this.opts;
+        if (on) {
+            a.slide     = start ? [1, 0] : [0, 1];
+            a.slidefrom = start ? [0, 1] : [1, 0];
+            a.slidedelay = 0.75;
+        } else { a.slide = 0; a.slidefrom = 1; a.slidedelay = 1; }
+        return this;
+    };
 }
 
 // ── Basic sequences ──────────────────────────────────────────────────────────

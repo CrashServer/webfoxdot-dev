@@ -3,7 +3,7 @@
 //   bus→out, freq from note.midicps (was In.kr), ReplaceOut→Out.
 // Params: out, note, amp, sus, pan, attack, release, pick, rq, cutoff, decay
 
-SynthDef(\fd_ebass, {|out=0, note=60, amp=1, sus=1, pan=0, attack=0.001, release=0.01,
+SynthDef(\fd_ebass, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=1, sus=1, pan=0, attack=0.001, release=0.01,
                        pick=0.414, rq=0.5, cutoff=250, decay=0.01|
     var exciter, freqArray, ampArray, decArray, constant, mute, snd, freq;
     var openFreq, pickupPos, pickupWidth, decayCoef, dampCoef;
@@ -14,6 +14,7 @@ SynthDef(\fd_ebass, {|out=0, note=60, amp=1, sus=1, pan=0, attack=0.001, release
     dampCoef    = 0.0002;
 
     freq = note.midicps / 4;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
 
     constant = pickupWidth / 25.5;        // scale length 25.5"
     constant = constant * pi / 2;

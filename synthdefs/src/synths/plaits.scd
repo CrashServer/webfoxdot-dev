@@ -13,10 +13,11 @@
 //   6 string    Karplus-Strong pluck (harm = decay)
 //   7 modal     struck modal resonator (morph = decay)
 
-SynthDef(\fd_plaits, {|out=0, note=60, amp=0.6, sus=1, pan=0, attack=0.01, release=0.2,
+SynthDef(\fd_plaits, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.6, sus=1, pan=0, attack=0.01, release=0.2,
                        engine=0, timbre=0.5, harm=0.5, morph=0.5, cutoff=6000, rq=0.6|
     var freq, t, h, m, ratio, va, fm, fold, harmEng, wt, noiseEng, strEng, modalEng, e, sig, env;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     t = timbre.clip(0, 1);  h = harm.clip(0, 1);  m = morph.clip(0, 1);
 
     va       = (Saw.ar(freq) + Saw.ar(freq * 1.007) + Pulse.ar(freq * 0.5, t.linlin(0, 1, 0.1, 0.9))) * 0.3;

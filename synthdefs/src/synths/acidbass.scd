@@ -3,10 +3,11 @@
 // envelopes (hold = sus - attack - decay - release) that free the node.
 // Params: out, note, amp, sus, pan, attack, release, decay, rate, width, rq
 
-SynthDef(\fd_acidbass, {|out=0, note=60, amp=0.9, sus=1, pan=0, attack=0.001, release=0.3,
+SynthDef(\fd_acidbass, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.9, sus=1, pan=0, attack=0.001, release=0.3,
                           decay=0.4, rate=4, width=0.51, rq=0.4, fmod=0|
     var ampEnv, filterEnv, osc, freq, hold;
     freq = (note.midicps / 2) + fmod;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     hold = (sus - attack - decay - release).max(0.01);
     ampEnv = EnvGen.ar(Env.new([0, 1, 0.3, 0.3, 0], [attack, decay, hold, release], [0, -4, 0, -4]), doneAction: 2);
     filterEnv = EnvGen.kr(Env.new([1, 2.pow(rate.clip(0, 6)), 2, 2, 1], [attack, decay * 2, hold, release], [4, -4, 0, -4]));

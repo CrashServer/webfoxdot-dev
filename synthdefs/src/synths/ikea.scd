@@ -17,12 +17,13 @@
 //   bright (0.3–2)    — glitch/noise brightness
 //   hhat              — glitch decay time · harm (0–1) resonant melody
 //   fmod              — detune of the 2nd voice · vib — sub-sine vibrato depth
-SynthDef(\fd_ikea, {|out=0, note=60, amp=1, sus=1, pan=0, attack=0.02, release=0.1,
+SynthDef(\fd_ikea, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=1, sus=1, pan=0, attack=0.02, release=0.1,
                     fmod=0, vib=0, density=1, glitch=1, noise=1, bass=1, tone=1,
                     bright=1, hhat=0.1, snare=1, harm=0|
     var osc, env, osc1, osc2, osc3, osc4, osc5, osc6, trig, trigs, freq, trigMod, vibr, rpitch;
     trigMod = LFNoise0.ar(8).round;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     freq = [freq, freq + fmod] * Line.ar(Rand(0.5, 1.5), 1, 0.02);
     freq = freq / 4;
     vibr = SinOsc.kr(6, 0, vib * 0.03, 1);                       // 1 when vib=0

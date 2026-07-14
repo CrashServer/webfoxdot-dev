@@ -2,9 +2,10 @@
 // three formant band-passes (vox selects ah/eh/oh), gentle pitch vibrato, slow
 // linen envelope. `vox` 0-2 picks the vowel; `cutoff` tames the top.
 // (Named vox/cutoff — NOT vowel/lpf — to avoid clashing with the FX-chain keys.)
-SynthDef(\fd_choir, {|out=0, note=60, amp=0.6, sus=1, pan=0, attack=0.3, release=0.4, vox=0, cutoff=4000|
+SynthDef(\fd_choir, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.6, sus=1, pan=0, attack=0.3, release=0.4, vox=0, cutoff=4000|
     var freq, vib, src, f1, f2, f3, formants, sig, env;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     vib  = SinOsc.kr(5, Rand(0, 2pi)).range(0.996, 1.004);   // subtle pitch shimmer
     freq = freq * vib;
     src  = ((Saw.ar(freq) + Saw.ar(freq * 1.003) + Saw.ar(freq * 0.997)) * 0.2) + WhiteNoise.ar(0.015);

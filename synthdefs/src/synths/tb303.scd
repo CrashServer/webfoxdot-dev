@@ -1,10 +1,11 @@
 // tb303 — classic acid bass: saw/square through a resonant low-pass with a
 // per-note filter envelope (env = mod amount) and optional drive. The squelch
 // comes from high rq (resonance) + env sweeping the cutoff.
-SynthDef(\fd_tb303, {|out=0, note=60, amp=0.7, sus=1, pan=0, attack=0.01, release=0.08,
+SynthDef(\fd_tb303, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.7, sus=1, pan=0, attack=0.01, release=0.08,
                      cutoff=500, rq=0.3, env=2, wave=0, dist=0|
     var freq, osc, fenv, sig;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     osc  = SelectX.ar(wave.clip(0, 1), [Saw.ar(freq), Pulse.ar(freq, 0.5)]);
     fenv = EnvGen.kr(Env.perc(0.005, (sus * 0.7).max(0.05))) * cutoff * env;
     sig  = RLPF.ar(osc, (cutoff + fenv).clip(40, 18000), rq.clip(0.05, 1.0));

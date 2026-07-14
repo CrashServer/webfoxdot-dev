@@ -2,9 +2,9 @@
 // Params: out, note, amp, sus, pan, attack, release, cutoff, rq
 // Slow pulse-width modulation + a filter envelope for movement.
 
-SynthDef(\fd_prophet, {|out=0, note=60, amp=0.6, sus=1, pan=0, attack=0.02, release=0.2,
+SynthDef(\fd_prophet, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.6, sus=1, pan=0, attack=0.02, release=0.2,
                          cutoff=3000, rq=0.4|
-    var freq  = note.midicps;
+    var freq  = Line.kr((note.midicps) * slidefrom, (note.midicps) * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     var width = SinOsc.kr(0.3, [0, 0.5pi]).range(0.2, 0.8);   // slow PWM, stereo
     var osc   = Pulse.ar([freq, freq * 1.005], width) * 0.4;
     var dur   = (sus - attack - release).max(0.001);

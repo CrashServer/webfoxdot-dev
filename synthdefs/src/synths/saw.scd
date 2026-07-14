@@ -2,10 +2,11 @@
 // Params: out, note, amp, sus, pan, attack, release, cutoff, rq, rate
 // rate: phase offset / detune factor (0=thin, 1=wide stereo)
 
-SynthDef(\fd_saw, {|out=0, note=60, amp=0.7, sus=1, pan=0, attack=0.01, release=0.1,
+SynthDef(\fd_saw, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.7, sus=1, pan=0, attack=0.01, release=0.1,
                      cutoff=8000, rq=0.8, rate=0.5|
     var freq, osc, dur, env, sig, atk, rel;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     // Minimum edge times + a sine curve avoid clicks (sharp saw edges at low octaves)
     atk  = attack.max(0.005);
     rel  = release.max(0.02);

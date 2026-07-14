@@ -410,6 +410,11 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
             'release', relS,
         ];
     }
+    // .slider() glissando params — only sent when actually used (a synth that has the
+    // fd_ glide preamble reads them; others ignore the extra controls). Default no-op.
+    if (r.slide != null || r.slidefrom != null || r.slidedelay != null) {
+        base.push('slide', r.slide ?? 0, 'slidefrom', r.slidefrom ?? 1, 'slidedelay', r.slidedelay ?? 1);
+    }
     const extras = (def.extraParams ?? []).flatMap(p => [p, r[p] ?? def.defaults[p] ?? 0]);
     return { scName: def.scName, params: [...base, ...extras] };
 }

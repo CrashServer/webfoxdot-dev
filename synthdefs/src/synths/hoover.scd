@@ -2,10 +2,11 @@
 // Adapted I/O: bus→out, note.midicps, ReplaceOut→Out, free env doneAction 0→2.
 // Params: out, note, amp, sus, pan, attack, release, decay, level, peak, porta, portadur
 
-SynthDef(\fd_hoover, {|out=0, note=60, amp=0.9, sus=1, pan=0, attack=0.01, release=0.01,
+SynthDef(\fd_hoover, {|out=0, note=60, slide=0, slidefrom=1, slidedelay=1, amp=0.9, sus=1, pan=0, attack=0.01, release=0.01,
                        decay=0.2, level=0.8, peak=1, porta=1, portadur=0.125, fmod=0|
     var osc, midfreqs, vibamount, freq;
     freq = note.midicps;
+    freq = Line.kr(freq * slidefrom, freq * (1 + slide), (sus * slidedelay).max(0.001));   // .slider() glissando
     freq = Line.kr((freq * porta).clip(20, 22000), freq, sus * portadur);
     freq = [freq, freq + fmod];
     vibamount = EnvGen.kr(Env([0, 0, 1], [0.0, 0.4], loopNode: 1), HPZ1.kr(freq).abs);
