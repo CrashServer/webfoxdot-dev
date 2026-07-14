@@ -197,16 +197,24 @@ export function attachModifiers(cls) {
         return this;
     };
     // .slider(start=0, on=1) — glissando between notes (port of FoxDot's Player.slider).
-    // Alternates a per-note pitch sweep so consecutive notes glide. The synth glides
-    // freq from freq*slidefrom to freq*(1+slide) over sus*slidedelay (fd_ glide preamble).
-    // Only synths with that preamble slide (melodic ones); others ignore it harmlessly.
+    // Each glided note sweeps freq from freq*slidefrom to freq*(1+slide) over
+    // sus*slidedelay (the fd_ glide preamble). Only synths with that preamble slide;
+    // others ignore it harmlessly.
+    //   start = 0 / 1        scalar: FoxDot's alternating glissando (0/1 = which phase)
+    //   start = [0, 0, 1]    PATTERN: per note, 1 = glide this note · 0 = steady
+    //   start = var([0,1],…) a var works too — the direction can breathe over time
     cls.prototype.slider = function (start = 0, on = 1) {
         const a = this.args ?? this.opts;
-        if (on) {
-            a.slide     = start ? [1, 0] : [0, 1];
+        if (!on) { a.slide = 0; a.slidefrom = 1; a.slidedelay = 1; return this; }
+        if (Array.isArray(start) || (start && typeof start.get === 'function')) {
+            // per-note control: read `start` each step — 1 = sweep this note up, 0 = steady
+            a.slide     = { get: (step) => patGet(start, step) ? 1 : 0 };
+            a.slidefrom = { get: (step) => patGet(start, step) ? 0 : 1 };
+        } else {
+            a.slide     = start ? [1, 0] : [0, 1];   // scalar: alternating, phase-seeded
             a.slidefrom = start ? [0, 1] : [1, 0];
-            a.slidedelay = 0.75;
-        } else { a.slide = 0; a.slidefrom = 1; a.slidedelay = 1; }
+        }
+        a.slidedelay = 0.75;
         return this;
     };
 }

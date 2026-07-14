@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 39;
+const TOTAL = 40;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -621,7 +621,27 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
 # var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`),
 
-    lesson(39, 'You’re ready ✨',
+    lesson(39, 'Glissando — .slider()',
+`# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
+# Chain it onto any melodic synth (basses, saws, leads, keys, plucks).
+#
+# ▶ The default alternates a steady note and a swept one:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider()
+#
+# ▶ .slider(1) flips the phase — the OTHER notes sweep:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider(1)
+#
+# PER-NOTE control — pass a PATTERN of 0/1: 1 = glide THIS note · 0 = steady.
+# ▶ every 3rd note glides:
+p1 >> pluck([0, 2, 4, 7], dur=1/2).slider([0, 0, 1])
+#
+# ▶ a var lets the glide breathe over time (mostly steady, then bursts of glide):
+d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
+#
+# Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
+# it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`),
+
+    lesson(40, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
@@ -1207,7 +1227,27 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
 # var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'fr'),
 
-    lesson(39, 'Tu es prêt ✨',
+    lesson(39, 'Glissando — .slider()',
+`# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
+# Chain it onto any melodic synth (basses, saws, leads, keys, plucks).
+#
+# ▶ The default alternates a steady note and a swept one:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider()
+#
+# ▶ .slider(1) flips the phase — the OTHER notes sweep:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider(1)
+#
+# PER-NOTE control — pass a PATTERN of 0/1: 1 = glide THIS note · 0 = steady.
+# ▶ every 3rd note glides:
+p1 >> pluck([0, 2, 4, 7], dur=1/2).slider([0, 0, 1])
+#
+# ▶ a var lets the glide breathe over time (mostly steady, then bursts of glide):
+d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
+#
+# Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
+# it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'fr'),
+
+    lesson(40, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
@@ -1789,7 +1829,27 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
 # var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'de'),
 
-    lesson(39, 'Du bist bereit ✨',
+    lesson(39, 'Glissando — .slider()',
+`# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
+# Chain it onto any melodic synth (basses, saws, leads, keys, plucks).
+#
+# ▶ The default alternates a steady note and a swept one:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider()
+#
+# ▶ .slider(1) flips the phase — the OTHER notes sweep:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider(1)
+#
+# PER-NOTE control — pass a PATTERN of 0/1: 1 = glide THIS note · 0 = steady.
+# ▶ every 3rd note glides:
+p1 >> pluck([0, 2, 4, 7], dur=1/2).slider([0, 0, 1])
+#
+# ▶ a var lets the glide breathe over time (mostly steady, then bursts of glide):
+d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
+#
+# Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
+# it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'de'),
+
+    lesson(40, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
@@ -2370,7 +2430,27 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
 # var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'es'),
 
-    lesson(39, 'Estás listo ✨',
+    lesson(39, 'Glissando — .slider()',
+`# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
+# Chain it onto any melodic synth (basses, saws, leads, keys, plucks).
+#
+# ▶ The default alternates a steady note and a swept one:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider()
+#
+# ▶ .slider(1) flips the phase — the OTHER notes sweep:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider(1)
+#
+# PER-NOTE control — pass a PATTERN of 0/1: 1 = glide THIS note · 0 = steady.
+# ▶ every 3rd note glides:
+p1 >> pluck([0, 2, 4, 7], dur=1/2).slider([0, 0, 1])
+#
+# ▶ a var lets the glide breathe over time (mostly steady, then bursts of glide):
+d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
+#
+# Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
+# it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'es'),
+
+    lesson(40, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
@@ -2947,7 +3027,27 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
 # var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'ja'),
 
-    lesson(39, '準備完了 ✨',
+    lesson(39, 'Glissando — .slider()',
+`# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
+# Chain it onto any melodic synth (basses, saws, leads, keys, plucks).
+#
+# ▶ The default alternates a steady note and a swept one:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider()
+#
+# ▶ .slider(1) flips the phase — the OTHER notes sweep:
+b1 >> bass([0, 3, 5, 7], dur=1/2).slider(1)
+#
+# PER-NOTE control — pass a PATTERN of 0/1: 1 = glide THIS note · 0 = steady.
+# ▶ every 3rd note glides:
+p1 >> pluck([0, 2, 4, 7], dur=1/2).slider([0, 0, 1])
+#
+# ▶ a var lets the glide breathe over time (mostly steady, then bursts of glide):
+d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
+#
+# Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
+# it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'ja'),
+
+    lesson(40, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
