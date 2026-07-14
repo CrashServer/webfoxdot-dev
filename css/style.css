@@ -1886,9 +1886,20 @@ body.is-offline #btn-galaxy {
     border-radius: 9px; font-size: 14px; cursor: pointer;
 }
 .perf-sec.on { border-color: var(--green); color: var(--green); background: var(--green-dim); }
-.perf-macros { flex: 0 0 auto; display: flex; gap: 12px; padding-top: 2px; }
-.perf-macro {
-    flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;
-    font-size: 10px; letter-spacing: 1px; color: var(--text-2);
+.perf-macros { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+.perf-macro-master { display: flex; align-items: center; gap: 10px; font-size: 10px; letter-spacing: 1px; color: var(--text-2); }
+.perf-macro-master .perf-mac { flex: 1; }
+.perf-mac { height: 30px; accent-color: var(--green); touch-action: none; }
+/* XY pad — X = filter, Y = space. One two-axis control replaces two flat sliders. */
+.perf-xy {
+    position: relative; height: 150px; border: 1px solid var(--border-1); border-radius: 10px;
+    background: radial-gradient(circle at bottom right, var(--green-dim), transparent 70%), var(--bg-2);
+    touch-action: none; overflow: hidden;
 }
-.perf-mac { width: 100%; height: 30px; accent-color: var(--green); touch-action: none; }
+.perf-xy-lx { position: absolute; right: 8px; bottom: 6px; font-size: 9px; letter-spacing: 1px; color: var(--text-2); pointer-events: none; }
+.perf-xy-ly { position: absolute; left: 6px; top: 6px; font-size: 9px; letter-spacing: 1px; color: var(--text-2); pointer-events: none; }
+.perf-xy-dot {
+    position: absolute; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 12px var(--glow);
+    transform: translate(-50%, -50%); pointer-events: none;
+}

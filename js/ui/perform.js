@@ -71,26 +71,48 @@ function build() {
         <div class="perf-tiles" title="tap a tile = launch/stop (quantised) · drag up/down = its volume"></div>
         <div class="perf-secs-wrap"><div class="perf-secs" title="jump the arrangement to a section"></div></div>
         <div class="perf-macros">
-            <label class="perf-macro">MASTER<input type="range" class="perf-mac perf-master" min="0" max="1.5" step="0.01" value="1"></label>
-            <label class="perf-macro">FILTER<input type="range" class="perf-mac perf-filter" min="0" max="1" step="0.01" value="1"></label>
-            <label class="perf-macro">SPACE<input type="range" class="perf-mac perf-space" min="0" max="1" step="0.01" value="0"></label>
+            <label class="perf-macro perf-macro-master">MASTER<input type="range" class="perf-mac perf-master" min="0" max="1.5" step="0.01" value="1"></label>
+            <div class="perf-xy" title="X = filter (right = open) · Y = space / reverb (up = wetter)">
+                <span class="perf-xy-lx">FILTER →</span>
+                <span class="perf-xy-ly">SPACE ↑</span>
+                <span class="perf-xy-dot"></span>
+            </div>
         </div>`;
     document.body.appendChild(_modal);
     _tilesEl = _modal.querySelector('.perf-tiles');
     _secsEl  = _modal.querySelector('.perf-secs');
     _modal.querySelector('.perf-close').onclick = () => closePerform();
 
-    // MASTER → module master gain. FILTER/SPACE → live lpf / reverb on every player.
+    // MASTER → module master gain.
     _modal.querySelector('.perf-master').oninput = (e) => setMasterMix(parseFloat(e.target.value));
-    _modal.querySelector('.perf-filter').oninput = (e) => {
-        const v = parseFloat(e.target.value);                 // 1 = open (off), lower = closing
-        const lpf = v >= 0.995 ? 0 : Math.round(200 + v * 8000);
-        if (_clock) _clock._players.forEach((p) => p.setAttr('lpf', lpf));
+
+    // XY pad: X = filter cutoff (right = open), Y = space / reverb (up = wetter). One
+    // two-axis control replaces the old FILTER + SPACE sliders. Cheap: it applies on
+    // pointer move (input rate) via the same setAttr the sliders used — no timers.
+    const xy = _modal.querySelector('.perf-xy');
+    const dot = xy.querySelector('.perf-xy-dot');
+    let xyOn = false;
+    const applyXY = (e) => {
+        const r = xy.getBoundingClientRect();
+        const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));   // 0 left … 1 right
+        const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));   // 0 top … 1 bottom
+        dot.style.left = (x * 100) + '%';
+        dot.style.top  = (y * 100) + '%';
+        const lpf   = x >= 0.98 ? 0 : Math.round(200 + x * 8000);             // right edge = filter off (open)
+        const space = 1 - y;                                                  // up = more reverb
+        if (_clock) _clock._players.forEach((p) => {
+            p.setAttr('lpf', lpf);
+            p.setAttr('reverb', space);
+            if (space > 0.001) p.setAttr('room', 0.85);
+        });
     };
-    _modal.querySelector('.perf-space').oninput = (e) => {
-        const v = parseFloat(e.target.value);
-        if (_clock) _clock._players.forEach((p) => { p.setAttr('reverb', v); p.setAttr('room', 0.85); });
-    };
+    xy.addEventListener('pointerdown', (e) => { xyOn = true; try { xy.setPointerCapture(e.pointerId); } catch (_) {} applyXY(e); });
+    xy.addEventListener('pointermove', (e) => { if (xyOn) applyXY(e); });
+    const xyEnd = () => { xyOn = false; };
+    xy.addEventListener('pointerup', xyEnd);
+    xy.addEventListener('pointercancel', xyEnd);
+    // start dot at the neutral corner (filter open, no reverb)
+    dot.style.left = '100%'; dot.style.top = '100%';
 }
 
 // Rebuild tiles / sections only when the set of names changes (cheap on the timer).
