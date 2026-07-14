@@ -15,6 +15,7 @@
 import { setMasterMix, getMasterMix } from '../engine/player.js';
 import { midiControl, clearMidiControl, enableMidi, midiSupported } from '../midi/midi.js';
 import { toggleMute, toggleSolo, isMuted, isSoloed } from '../engine/gate.js';
+import { getSections, runSection } from '../engine/sections.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
@@ -52,7 +53,7 @@ function playersInPart(part) {
     let cur = null;
     for (const raw of _editor.getValue().split('\n')) {
         const t = raw.trim();
-        const sec = t.match(/^#@([a-zA-Z_]\w*)/);
+        const sec = t.match(/^#@\s*([a-zA-Z_]\w*)/);
         if (sec && !t.startsWith('#@#@')) { cur = sec[1]; continue; }
         const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);
         if (pm && cur === part) set.add(pm[1]);
@@ -93,6 +94,68 @@ function updateMidiBtn(name) {
     btn.classList.toggle('mapped', !!(e && !e.armed));
 }
 
+// ── MIDI: assign hardware controls to ACTIONS (launch/solo/mute/stop, prev/next part).
+// A "press" = a CC value crossing above the midpoint (works with pads in CC mode and
+// with a momentary button or fader). Learn-mode (header ⇄MIDI button): click a control
+// to arm it, then move a hardware control to bind. Coexists with the fader bindings.
+const _act = {};        // id ('solo:p1' | 'launch:p1' | 'next' | …) → { ctrl, cc, armed, fn, last }
+let _learnMode = false; // when on, clicking a control arms it instead of firing
+let _armed = null;      // id currently waiting for a MIDI control
+
+// Jump the arrangement to the next/prev named part (dir = +1 / −1).
+function nextPart(dir) {
+    const secs = getSections().filter(s => s.type !== 'track' && !/^(goto|end|endfade|clear)$/i.test(s.name));
+    if (!secs.length) return;
+    const i = secs.findIndex(s => s.active);
+    const j = i < 0 ? (dir > 0 ? 0 : secs.length - 1) : (i + dir + secs.length) % secs.length;
+    runSection(secs[j].line);
+}
+
+// Perform the action now, or — in learn mode — arm it for MIDI binding.
+function actOrArm(id, fn) { if (_learnMode) armAction(id, fn); else fn(); }
+
+function armAction(id, fn) {
+    if (_armed === id) { if (_act[id]) { clearMidiControl(_act[id].ctrl); delete _act[id]; } _armed = null; updateConsole(); return; } // click armed again = clear
+    if (_armed && _act[_armed] && _act[_armed].armed) { clearMidiControl(_act[_armed].ctrl); delete _act[_armed]; }  // only one armed at a time
+    if (_act[id]) { clearMidiControl(_act[id].ctrl); delete _act[id]; }   // already bound → rebind
+    if (!midiSupported()) return;
+    enableMidi().then(() => {
+        const b = { cc: null, armed: true, fn, last: 0 };
+        b.ctrl = midiControl((v, cc) => {
+            if (b.armed) { b.cc = cc; b.armed = false; b.last = v; if (_armed === id) _armed = null; updateConsole(); return; }
+            if (b.last < 0.5 && v >= 0.5) { try { b.fn(); } catch (_) {} }   // rising-edge = press
+            b.last = v;
+        });
+        _act[id] = b; _armed = id;
+        updateConsole();
+    }).catch(() => {});
+}
+
+// The DOM control a binding id points at (for the armed/mapped markers).
+function elForId(id) {
+    if (!_modal) return null;
+    if (id === 'next') return _modal.querySelector('.mixer-next');
+    if (id === 'prev') return _modal.querySelector('.mixer-prev');
+    const [kind, name] = id.split(':');
+    const row = _chansEl && _chansEl.querySelector(`.mixer-chan[data-name="${name}"]`);
+    if (!row) return null;
+    return row.querySelector(kind === 'launch' ? '.mixer-chan-name'
+                           : kind === 'solo'   ? '.mixer-chan-solo'
+                           : kind === 'mute'   ? '.mixer-chan-mute'
+                           : kind === 'stop'   ? '.mixer-chan-stop' : ':scope > .none');
+}
+
+// Paint armed (waiting) / mapped (bound + CC#) markers on the action controls.
+function applyMidiMarks() {
+    if (!_modal) return;
+    _modal.querySelectorAll('.midi-armed, .midi-mapped').forEach(el => el.classList.remove('midi-armed', 'midi-mapped'));
+    for (const [id, b] of Object.entries(_act)) {
+        const el = elForId(id); if (!el) continue;
+        if (b.armed) el.classList.add('midi-armed');
+        else { el.classList.add('midi-mapped'); el.title = el.title.split(' · CC')[0] + ' · CC' + b.cc; }
+    }
+}
+
 // The composition's tracks: players in #@ lines (incl. `# p1 >>` stops) ∪ active players.
 export function tracks() {
     const set = new Set(_clock ? _clock._players.keys() : []);
@@ -106,7 +169,7 @@ export function tracks() {
 export function parts() {
     const out = [];
     if (_editor && _editor.getValue) {
-        for (const m of _editor.getValue().matchAll(/^\s*#@([a-zA-Z_]\w*)\s*(?:\(|$)/gm)) {
+        for (const m of _editor.getValue().matchAll(/^\s*#@\s*([a-zA-Z_]\w*)\s*(?:\(|$)/gm)) {
             if (!/^(goto|end|endfade|clear)$/i.test(m[1])) out.push(m[1]);
         }
     }
@@ -121,7 +184,7 @@ export function launchPlayer(name) {
     let part = null, pick = null, first = null;
     for (const raw of _editor.getValue().split('\n')) {
         const t = raw.trim();
-        const sec = t.match(/^#@([a-zA-Z_]\w*)/);
+        const sec = t.match(/^#@\s*([a-zA-Z_]\w*)/);
         if (sec && !t.startsWith('#@#@')) { part = sec[1]; continue; }
         const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);        // a real (uncommented) definition
         if (pm && pm[1] === name) { if (first == null) first = raw; if (want == null || part === want) { pick = raw; break; } }
@@ -150,6 +213,9 @@ function build() {
     _modal.innerHTML = `
         <div class="mixer-head">
             <span class="mixer-title">🎚 mixer</span>
+            <button class="mixer-prev" title="previous part">◄</button>
+            <button class="mixer-next" title="next part">►</button>
+            <button class="mixer-learn" title="MIDI-learn mode — click a launch / solo / mute / stop / part button, then move a hardware control to bind it">⇄MIDI</button>
             <div class="mixer-drag"></div>
             <button class="mixer-close" title="close">×</button>
         </div>
@@ -173,6 +239,14 @@ function build() {
     _modal.querySelector('.mixer-close').onclick = closeMixer;
     _masterFader.oninput = () => { setMasterMix(parseFloat(_masterFader.value)); _masterLvl.textContent = parseFloat(_masterFader.value).toFixed(2); };
     _modal.querySelector('.mixer-master .mixer-chan-midi').onclick = () => midiLearn('__master__');
+    _modal.querySelector('.mixer-learn').onclick = () => {
+        _learnMode = !_learnMode; _armed = null;
+        _modal.classList.toggle('learn', _learnMode);
+        _modal.querySelector('.mixer-learn').classList.toggle('on', _learnMode);
+        updateConsole();
+    };
+    _modal.querySelector('.mixer-prev').onclick = () => actOrArm('prev', () => nextPart(-1));
+    _modal.querySelector('.mixer-next').onclick = () => actOrArm('next', () => nextPart(1));
     initDrag(_modal.querySelector('.mixer-head'));
 }
 
@@ -180,7 +254,7 @@ function build() {
 function initDrag(handle) {
     let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
     handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('.mixer-close')) return;
+        if (e.target.closest('button')) return;   // let head buttons (close/prev/next/learn) click
         on = true; const r = _modal.getBoundingClientRect();
         ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
         _modal.style.left = ox + 'px'; _modal.style.top = oy + 'px';
@@ -235,15 +309,15 @@ function rebuildChannels(names) {
             </div>
             <button class="mixer-chan-stop" title="stop (quantised to the bar)">■</button>
             <button class="mixer-chan-midi" title="MIDI-learn: click, then move a hardware fader">m</button>`;
-        row.querySelector('.mixer-chan-name').onclick = () => launchPlayer(name);
+        row.querySelector('.mixer-chan-name').onclick = () => actOrArm('launch:' + name, () => launchPlayer(name));
         row.querySelector('.mixer-chan-midi').onclick = () => midiLearn(name);
-        row.querySelector('.mixer-chan-solo').onclick = () => { toggleSolo(name); updateConsole(); };
+        row.querySelector('.mixer-chan-solo').onclick = () => actOrArm('solo:' + name, () => { toggleSolo(name); updateConsole(); });
         row.querySelector('.mixer-chan-fader').oninput = (e) => {
             setLevel(name, parseFloat(e.target.value));
             row.querySelector('.mixer-chan-lvl').textContent = parseFloat(e.target.value).toFixed(2);
         };
-        row.querySelector('.mixer-chan-mute').onclick = () => { toggleMute(name); updateConsole(); };
-        row.querySelector('.mixer-chan-stop').onclick = () => stopPlayer(name);
+        row.querySelector('.mixer-chan-mute').onclick = () => actOrArm('mute:' + name, () => { toggleMute(name); updateConsole(); });
+        row.querySelector('.mixer-chan-stop').onclick = () => actOrArm('stop:' + name, () => stopPlayer(name));
         _chansEl.appendChild(row);
     }
 }
@@ -277,6 +351,7 @@ function updateConsole() {
         row.querySelector('.mixer-chan-solo').classList.toggle('on', isSoloed(name));
         updateMidiBtn(name);
     }
+    applyMidiMarks();   // armed (waiting) / mapped (CC#) markers on the action controls
 }
 
 export function openMixer() {

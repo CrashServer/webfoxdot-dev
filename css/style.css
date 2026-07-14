@@ -1644,6 +1644,22 @@ body.is-offline #btn-galaxy {
 .mixer-drag { flex: 1; align-self: stretch; }
 .mixer-close { background: none; border: none; color: var(--text-2); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 3px; }
 .mixer-close:hover { color: var(--red); }
+/* header transport + MIDI-learn toggle */
+.mixer-prev, .mixer-next, .mixer-learn {
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-2);
+    font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1.4;
+}
+.mixer-prev:hover, .mixer-next:hover, .mixer-learn:hover { background: var(--bg-2); color: var(--text-1); }
+.mixer-learn.on { color: var(--yellow); border-color: var(--yellow); animation: mixerBlink 0.9s steps(1) infinite; }
+/* learn mode: armable controls get a dashed hint · the armed one blinks · bound = blue */
+#mixer-modal.learn .mixer-chan-name, #mixer-modal.learn .mixer-chan-solo,
+#mixer-modal.learn .mixer-chan-mute, #mixer-modal.learn .mixer-chan-stop,
+#mixer-modal.learn .mixer-prev, #mixer-modal.learn .mixer-next {
+    outline: 1px dashed var(--border-2); outline-offset: -1px;
+}
+.midi-armed { color: var(--yellow) !important; border-color: var(--yellow) !important; animation: mixerBlink 0.8s steps(1) infinite; }
+.midi-mapped { position: relative; box-shadow: inset 0 0 0 1px var(--blue); }
+.midi-mapped::after { content: '●'; position: absolute; top: -4px; right: -3px; font-size: 7px; color: var(--blue); pointer-events: none; }
 /* source-part picker */
 .mixer-parts { display: flex; gap: 4px; padding: 5px 8px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--border-1); max-width: 100%; scrollbar-width: none; }
 .mixer-parts::-webkit-scrollbar { display: none; }
