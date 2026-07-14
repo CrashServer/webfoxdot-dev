@@ -1813,6 +1813,64 @@ body.is-offline #btn-galaxy {
     #toolbar { gap: 4px; row-gap: 4px; padding: 4px 6px; }
     #toolbar button, #toolbar #examples-btn { min-height: 36px; padding: 5px 9px; font-size: 14px; }
     /* glyph-only buttons: keep them square-ish and readable */
-    #btn-loadkit, #btn-mixer, #btn-share, #btn-multiplayer, #cp-toggle, #btn-galaxy,
+    #btn-loadkit, #btn-mixer, #btn-perform, #btn-share, #btn-multiplayer, #cp-toggle, #btn-galaxy,
     #btn-run, #btn-stop, #docs-toggle-btn { font-size: 16px; padding: 5px 8px; }
 }
+
+/* ── Perform Mode — full-screen, keyboard-free touch performance surface ──────── */
+#perform-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+    background: var(--bg-1); color: var(--text-1);
+    overscroll-behavior: contain; touch-action: none;
+}
+#perform-overlay.hidden { display: none; }
+.perf-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.perf-title { font-weight: bold; letter-spacing: 1px; color: var(--green); }
+.perf-close {
+    margin-left: auto; min-width: 40px; min-height: 40px;
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-1);
+    border-radius: 8px; font-size: 20px; line-height: 1; cursor: pointer;
+}
+.perf-close:active { background: var(--bg-2); }
+.perf-tiles {
+    flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px;
+    align-content: start;
+}
+.perf-tile {
+    position: relative; overflow: hidden;
+    min-height: 84px; border-radius: 12px;
+    border: 2px solid var(--border-1); background: var(--bg-2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none; touch-action: none;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+.perf-tile-fill {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 66%;
+    background: linear-gradient(to top, var(--green-dim), transparent);
+    pointer-events: none;
+}
+.perf-tile-name {
+    position: relative; z-index: 1;
+    font-family: monospace; font-size: 15px; font-weight: bold; color: var(--text-2);
+}
+.perf-tile.on { border-color: var(--green); box-shadow: 0 0 12px var(--glow); }
+.perf-tile.on .perf-tile-name { color: var(--green); }
+.perf-secs-wrap { flex: 0 0 auto; }
+.perf-secs { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.perf-secs::-webkit-scrollbar { display: none; }
+.perf-nosecs { font-size: 11px; color: var(--text-2); }
+.perf-sec {
+    flex: 0 0 auto; min-height: 40px; padding: 8px 16px;
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-1);
+    border-radius: 9px; font-size: 14px; cursor: pointer;
+}
+.perf-sec.on { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.perf-macros { flex: 0 0 auto; display: flex; gap: 12px; padding-top: 2px; }
+.perf-macro {
+    flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center;
+    font-size: 10px; letter-spacing: 1px; color: var(--text-2);
+}
+.perf-mac { width: 100%; height: 30px; accent-color: var(--green); touch-action: none; }

@@ -33,12 +33,12 @@ export function onSectionActive(sectionName) {
     if (_open) updateConsole();
 }
 
-function levelOf(name) {
+export function levelOf(name) {
     if (_levels[name] != null) return _levels[name];
     const p = _clock && _clock._players.get(name);
     return p ? (p._mixLevel ?? 1) : 1;
 }
-function setLevel(name, v) {
+export function setLevel(name, v) {
     _levels[name] = v;
     const p = _clock && _clock._players.get(name);
     if (p) p._mixLevel = v;
@@ -94,7 +94,7 @@ function updateMidiBtn(name) {
 }
 
 // The composition's tracks: players in #@ lines (incl. `# p1 >>` stops) ∪ active players.
-function tracks() {
+export function tracks() {
     const set = new Set(_clock ? _clock._players.keys() : []);
     if (_editor && _editor.getValue) {
         for (const m of _editor.getValue().matchAll(/^\s*#?\s*([a-zA-Z_]\w*)\s*>>/gm)) set.add(m[1]);
@@ -103,7 +103,7 @@ function tracks() {
 }
 
 // The composition's named parts (not #@#@ tracks, not goto/end/clear).
-function parts() {
+export function parts() {
     const out = [];
     if (_editor && _editor.getValue) {
         for (const m of _editor.getValue().matchAll(/^\s*#@([a-zA-Z_]\w*)\s*(?:\(|$)/gm)) {
@@ -115,7 +115,7 @@ function parts() {
 
 // Launch a track: evaluate its `name >>` line from the SOURCE part (else the part
 // playing, else the first occurrence). Volume is the shared per-name level, re-applied.
-function launchPlayer(name) {
+export function launchPlayer(name) {
     if (!_runCode || !_editor || !_editor.getValue) return;
     const want = _source ?? _activeSection;
     let part = null, pick = null, first = null;
@@ -135,7 +135,7 @@ function launchPlayer(name) {
 }
 
 // Stop a track, quantised to the next bar.
-function stopPlayer(name) {
+export function stopPlayer(name) {
     const p = _clock && _clock._players.get(name);
     if (p && p._active) p.stop((_clock && _clock.meter) || 4);
 }
