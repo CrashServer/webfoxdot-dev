@@ -135,6 +135,13 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.05, rate: 16 },
         extraParams: ['rate'],   // rate = bit depth (16 clean … lower = grittier)
     },
+    svdk: {
+        scName: 'fd_svdk',
+        defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.01, release: 0.1,
+                    grit: 0.6, noise: 0.2, cutoff: 1200, res: 0.4, track: 1, fenv: 0.3,
+                    slide: 0.05, body: 0.6, harm: 0.5, drift: 0.2 },
+        extraParams: ['grit', 'noise', 'cutoff', 'res', 'track', 'fenv', 'slide', 'body', 'harm', 'drift'],
+    },
     sine: {
         scName: 'fd_sine',
         defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.05, cutoff: 2800, rq: 0.8, rate: 0.1 },
