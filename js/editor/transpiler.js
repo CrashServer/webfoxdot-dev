@@ -132,10 +132,11 @@ export function applyRenames(js) {
         .replace(/\bexpvar\(/g, '_expvar(');
 }
 
-// FoxDot alternation: <a b c> / <a, b, c> → _alt(a, b, c). Only run on a player's
-// RHS (and attr-assignment value), where <...> unambiguously means alternation —
-// never on whole lines (would clash with comparison / the >> operator). Skips
-// quoted strings so play("x.<o->") is left alone. Flat only (no nested <…<…>…>).
+// SUBDIVISION: <a b c> / <a, b, c> → _sub(a, b, c) — cram the items into one step
+// (a ratchet/flam). Only on a player's RHS (and attr-assignment value), where <...>
+// unambiguously means a bracket group — never on whole lines (would clash with
+// comparison / the >> operator). Skips quoted strings so play("x.<o->") is left to the
+// sampler. Flat only for now (no nested <…<…>…>). Alternation is now nested [ ].
 function convertAlt(s) {
     let out = '', i = 0;
     while (i < s.length) {
@@ -151,7 +152,7 @@ function convertAlt(s) {
             const close = s.indexOf('>', i + 1);
             const inner = close === -1 ? null : s.slice(i + 1, close);
             if (inner !== null && !inner.includes('<') && inner.trim() !== '') {
-                out += '_alt(' + splitAltItems(inner).join(', ') + ')';
+                out += '_sub(' + splitAltItems(inner).join(', ') + ')';
                 i = close + 1;
                 continue;
             }
@@ -358,7 +359,7 @@ function findCommentChar(line) {
 // +/- below */). Pure-scalar arithmetic (1/4, 2400/600) is left as native JS.
 // P[A-Za-z] (not just P[A-Z]) so lowercase-second-letter patterns like Pacc are
 // recognised — otherwise Pacc("offbeat")*1.3 stays raw JS ({get}*num = NaN).
-const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb|getAttr)\s*\(/;
+const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_sub|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb|getAttr)\s*\(/;
 
 function patMath(s) {
     return PATTERN_TOKEN.test(s) ? compilePatternMath(s) : s;

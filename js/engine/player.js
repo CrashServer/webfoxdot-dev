@@ -551,11 +551,6 @@ export class Player {
             this._startEnvelopes(envs, susBeats);
         }
 
-        // Group/chord expansion — voices = longest group among synth params.
-        // Each voice picks its element from any grouped param (zipped/cycled).
-        let voices = 1;
-        for (const v of Object.values(sArgs)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
-
         // stutter/multiply: fire this step `reps` times within its duration (roll).
         // stutter is one-shot; multiply is persistent (.multiply(n)).
         const reps    = Math.max(1, this._stutterN || 1, this._multiply || 1);
@@ -563,10 +558,15 @@ export class Player {
         const repDur  = dur / reps;
         // strum: spread a chord's voices over `_strum` beats (arpeggiated onset).
         const strumSec = (this._strum || 0) * secPerBeat;
-        const fireVoices = (whenNTP) => {
+
+        // Fire a chord/voices for a resolved args-object at a time, with a note length.
+        // voices = longest group among the params; each voice picks its zipped element.
+        const fireVoices = (sA, whenNTP, noteDur) => {
+            let voices = 1;
+            for (const v of Object.values(sA)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
             for (let vi = 0; vi < voices; vi++) {
                 const va = {};
-                for (const [k, v] of Object.entries(sArgs)) {
+                for (const [k, v] of Object.entries(sA)) {
                     va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
                 }
                 if (va.degree === REST) continue;   // `_` / rest → silence (no note)
@@ -583,8 +583,18 @@ export class Player {
                 // "stuck engine" only a reboot clears). The step/reschedule below still
                 // run, so the player resumes the instant amp comes back.
                 if (!(amp > 0)) continue;
-                this._trigger(midi, { ...synthA, dur: repDur, amp }, whenNTP + vi * strumSec, outBus, secPerBeat);
+                this._trigger(midi, { ...synthA, dur: noteDur, amp }, whenNTP + vi * strumSec, outBus, secPerBeat);
             }
+        };
+        // SUBDIVISION: a `<a b c>` degree (_sub) crams its items into the slot — schedule
+        // each at 1/N of the slot with its own sub-degree. Recurses for nested <…<…>…>.
+        const fireDeg = (deg, whenNTP, noteDur) => {
+            if (deg != null && Array.isArray(deg.__sub) && deg.__sub.length) {
+                const subs = deg.__sub, subDur = noteDur / subs.length;
+                subs.forEach((s, j) => fireDeg(patGet(s, step), whenNTP + j * subDur * secPerBeat, subDur));
+                return;
+            }
+            fireVoices({ ...sArgs, degree: deg }, whenNTP, noteDur);
         };
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
         // bundle, not a setTimeout, carries the precise sub-beat timing to scsynth.
@@ -593,7 +603,7 @@ export class Player {
         const onsetNTP = this._clock.beatToNTP(this._nextBeat);
         if (!degraded) {
             for (let i = 0; i < reps; i++) {
-                fireVoices(onsetNTP + (delayBeats + i * repDur) * secPerBeat);
+                fireDeg(r.degree, onsetNTP + (delayBeats + i * repDur) * secPerBeat, repDur);
             }
             emitStep(this.name, step);   // editor degree highlight
         }

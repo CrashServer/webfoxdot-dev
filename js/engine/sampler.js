@@ -155,15 +155,16 @@ export async function loadPackFromURL(url, onProgress) {
 //   { char: 'x' }                     — a single sample char
 //   { type, children, _idx }          — a bracket group; children are tokens too
 //
-// Bracket types:  (sim) together · [sub] subdivide · {rand} random · <alt> cycle
-// Brackets nest:  "<x.><[--]>"  →  alt( seq, sub('-','-') )
+// Bracket types:  (sim) together · [alt] cycle · {rand} random · <sub> subdivide
+// Unified with synth degrees: { } random · ( ) chords · [ ] array/alternate · < > subdivision.
+// Brackets nest:  "[x.]<-->"  →  alt( seq, sub('-','-') )
 import { attachModifiers, unisonSpread } from '../patterns/sequences.js';
 
 const OPENERS = {
     '(': { type: 'sim',  close: ')' },
-    '[': { type: 'sub',  close: ']' },
+    '[': { type: 'alt',  close: ']' },
     '{': { type: 'rand', close: '}' },
-    '<': { type: 'alt',  close: '>' },
+    '<': { type: 'sub',  close: '>' },
 };
 
 function parseTokens(str, st, closeChar) {
