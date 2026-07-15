@@ -12,6 +12,7 @@
 import { tracks, parts, launchPlayer, stopPlayer, levelOf, setLevel } from './mixer.js';
 import { getSections, runSection } from '../engine/sections.js';
 import { setMasterMix } from '../engine/player.js';
+import { toggleSolo, isSoloed } from '../engine/gate.js';
 
 let _clock = null, _modal = null, _open = false, _timer = null, _beatRAF = null;
 let _tilesEl = null, _secsEl = null;
@@ -31,6 +32,7 @@ function sectionList() {
 function fillTile(el, name) {
     const lvl = levelOf(name);
     el.classList.toggle('on', isPlaying(name));
+    el.classList.toggle('soloed', isSoloed(name));
     const fill = el.querySelector('.perf-tile-fill');
     if (fill) fill.style.width = Math.min(100, (lvl / 1.5) * 100) + '%';   // left→right volume fill
 }
@@ -41,30 +43,36 @@ function makeTile(name) {
     const el = document.createElement('div');
     el.className = 'perf-tile';
     el.dataset.name = name;
-    el.innerHTML = `<span class="perf-tile-fill"></span><span class="perf-tile-name">${name}</span>`;
+    el.innerHTML = `<span class="perf-tile-fill"></span><span class="perf-tile-solo">S</span><span class="perf-tile-name">${name}</span>`;
     // Gesture split so the tile grid can still SCROLL:
-    //   tap            → launch / stop (quantised)
+    //   tap             → launch / stop (quantised)
+    //   long-press      → solo / unsolo (shared with the mixer + Players panel)
     //   horizontal drag → volume (this tile)
     //   vertical drag   → yields to the native pan-y scroll of the grid
     // We don't capture the pointer until the move is confirmed horizontal, and a
     // pointercancel (the browser taking the gesture for scrolling) is NOT a tap.
-    let sx = 0, sy = 0, startLvl = 1, mode = null;   // mode: null | 'vol' | 'scroll'
-    el.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; startLvl = levelOf(name); mode = null; });
+    let sx = 0, sy = 0, startLvl = 1, mode = null, held = false, lpT = null;   // mode: null | 'vol' | 'scroll'
+    el.addEventListener('pointerdown', (e) => {
+        sx = e.clientX; sy = e.clientY; startLvl = levelOf(name); mode = null; held = false;
+        lpT = setTimeout(() => { if (mode === null) { held = true; toggleSolo(name); buzz(28); refresh(); } }, 450);
+    });
     el.addEventListener('pointermove', (e) => {
         if (mode === 'scroll') return;
         const dx = e.clientX - sx, dy = e.clientY - sy;
         if (mode === null) {
             if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+            clearTimeout(lpT);   // moved → not a long-press
             if (Math.abs(dx) > Math.abs(dy)) { mode = 'vol'; try { el.setPointerCapture(e.pointerId); } catch (_) {} }
             else { mode = 'scroll'; return; }   // let the grid scroll
         }
         if (mode === 'vol') { setLevel(name, Math.max(0, Math.min(1.5, startLvl + dx / 130))); fillTile(el, name); }
     });
     el.addEventListener('pointerup', () => {
-        if (mode === null) { isPlaying(name) ? stopPlayer(name) : launchPlayer(name); buzz(); refresh(); }   // TAP
+        clearTimeout(lpT);
+        if (mode === null && !held) { isPlaying(name) ? stopPlayer(name) : launchPlayer(name); buzz(); refresh(); }   // TAP
         mode = null;
     });
-    el.addEventListener('pointercancel', () => { mode = null; });   // scroll takeover — not a tap
+    el.addEventListener('pointercancel', () => { clearTimeout(lpT); mode = null; });   // scroll takeover — not a tap
     return el;
 }
 
@@ -78,7 +86,8 @@ function build() {
             <span class="perf-title">▶ PERFORM</span>
             <button class="perf-close" title="exit perform mode">×</button>
         </div>
-        <div class="perf-tiles" title="tap = launch / stop (quantised) · drag ◄ ► = volume · swipe ↕ to scroll"></div>
+        <div class="perf-tiles" title="tap = launch / stop · hold = solo · drag ◄ ► = volume · swipe ↕ to scroll"></div>
+        <div class="perf-rail">
         <div class="perf-secs-wrap"><div class="perf-secs" title="jump the arrangement to a section"></div></div>
         <div class="perf-fx" title="hold to fire, release to return">
             <button class="perf-fxbtn" data-fx="drop">DROP</button>
@@ -93,6 +102,7 @@ function build() {
                 <span class="perf-xy-ly">SPACE ↑</span>
                 <span class="perf-xy-dot"></span>
             </div>
+        </div>
         </div>`;
     document.body.appendChild(_modal);
     _tilesEl = _modal.querySelector('.perf-tiles');

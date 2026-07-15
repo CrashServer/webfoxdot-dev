@@ -1949,3 +1949,31 @@ body.is-offline #btn-galaxy {
     background: var(--green); box-shadow: 0 0 12px var(--glow);
     transform: translate(-50%, -50%); pointer-events: none;
 }
+
+/* ── Perform: per-tile solo (long-press) + landscape rail ─────────────────── */
+.perf-tile-solo { position: absolute; top: 4px; right: 6px; z-index: 1; font-family: monospace; font-size: 11px; font-weight: bold; color: var(--yellow); opacity: 0; transition: opacity .12s; }
+.perf-tile.soloed { border-color: var(--yellow); box-shadow: 0 0 12px rgba(210, 153, 34, .5); }
+.perf-tile.soloed .perf-tile-solo { opacity: 1; }
+.perf-tile.soloed .perf-tile-name { color: var(--yellow); }
+
+/* controls rail — a column in portrait, a side rail in landscape */
+.perf-rail { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; min-height: 0; }
+
+/* Landscape phone (short + wide): tiles fill the left, controls move to a right rail
+   so the grid gets the whole height instead of being squeezed by the stacked controls. */
+@media (orientation: landscape) and (max-height: 600px) {
+    #perform-overlay {
+        display: grid;
+        grid-template-columns: 1fr minmax(190px, 30vw);
+        grid-template-rows: auto 1fr;
+        grid-template-areas: "head head" "tiles rail";
+        gap: 10px;
+    }
+    .perf-head   { grid-area: head; }
+    .perf-tiles  { grid-area: tiles; }
+    .perf-rail   { grid-area: rail; overflow-y: auto; }
+    .perf-macros { flex: 1 1 auto; }
+    .perf-xy     { flex: 1 1 auto; height: auto; min-height: 90px; }
+    .perf-fx     { flex-wrap: wrap; }
+    .perf-fxbtn  { flex: 1 1 42%; }
+}
