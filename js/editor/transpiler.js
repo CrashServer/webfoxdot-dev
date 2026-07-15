@@ -16,7 +16,7 @@ const RE_WORD_REST       = /(?<=[,\[(]\s*)rest(?=\s*[,\]\)])/g;
 const RE_RSHIFT   = /^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/;
 const RE_ATTR     = /^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/;
 const RE_RESERVED = /^(Clock|Scale|Root|Master|Server)$/;
-const RE_METHOD   = /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop)\s*\(/g;
+const RE_METHOD   = /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop|only|reroll|degrade|jump|once|penta|mirror|rotate|offbeat|accompany|follow)\s*\(/g;
 
 // Rewrite the FoxDot P object with a depth-aware scanner (regex `[^\]]*` couldn't
 // handle nesting, so P[0,[4,2]] produced a mismatched-paren syntax error):

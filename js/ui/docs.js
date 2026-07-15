@@ -1810,7 +1810,7 @@ d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
             `<b>kick / snare / hat / perc</b> are per-bar GATES: 1 = on, 0 = off, a genre name to borrow that layer, or a pattern (PBin(4) / {1,0} / &lt;1 0&gt;) to toggle the layer bar by bar.`,
         ], `b1 >> play(pbuild("techno"), dur=0.25)                        # the simplest form
 b1 >> play(pbuild("dnb", evolve=16, fill=4, density=0.8), dur=0.25)  # evolves, fills, a bit sparser
-b1 >> play(pbuild("house", snare=[1 0], hat="dnb"), dur=0.25)   # snare every other bar, borrow dnb hats`),
+b1 >> play(pbuild("house", snare=[1, 0], hat="dnb"), dur=0.25)   # snare every other bar, borrow dnb hats`),
         deep('d_drummer', '.drummer — evolving drums', [
             `<b>.drummer(durloop, durPlayer)</b> turns a play() player into a self-evolving rock drummer. It picks a random groove + fill, swaps the fill in for the tail of each loop, and re-randomises the groove every durloop beats.`,
             `<b>durloop</b>: beats before it re-rolls the groove (default 16). &nbsp; <b>durPlayer</b>: the step duration (default 0.5). Chain it onto any play() seed.`,
