@@ -246,7 +246,9 @@ function findSlice(s) {
         if (j >= s.length) continue;          // unmatched — give up on this one
         const sl = parseSliceInner(s.slice(i + 1, j));
         if (sl) return { openIdx: i, closeIdx: j, start: sl.start, stop: sl.stop };
-        i = j;                                 // not a slice — skip its interior
+        // Not a slice (an array/ternary) — DON'T skip its interior: a real slice may
+        // be nested inside, e.g. Pvar([a, melody()[:8]], 16). Fall through and keep
+        // scanning from the next char so the inner […:…] still gets found.
     }
     return null;
 }
