@@ -256,9 +256,10 @@ p1 >> pads(PProg("pop"), oct=(6, 7), dur=4, sus=4, reverb=0.6, room=0.9, lpf=160
 #
 #   chaos()   PASTES a fresh block of random players into the editor — review it,
 #             tweak it, then Ctrl+Alt+Enter to run the block (it won't auto-play).
-#   son()     starts a "jam bot" that evolves players on its own · soff() stops it.
+#   son()     starts a "jam bot" that evolves players on its own. It KEEPS RUNNING
+#             until you STOP it — soff() ends the bot (the ■ stop button / Ctrl+; too).
 #
-# ▶ Hand the reins to the bot (soff() or Ctrl+; to stop):
+# ▶ Hand the reins to the bot — then STOP it with  soff()  when you've had enough:
 son()
 #
 # ▶ …or generate a block to inspect (it appears below — run it with Ctrl+Alt+Enter):
@@ -334,12 +335,17 @@ p1 >> pluck(P[0, 2, 4, 7, 9].palindrome().rotate(1), dur=1/2)`),
 # "-.-.-." each hit+rest pair fills a whole beat and the swing cancels out — so use a
 # SOLID hit ("-" loops one hat every step) to actually hear it:
 #
-#   PGroove("swing")   swung feel · "swing16" (faster) · "shuffle" · "gallop" · "triplet"
+#   PGroove("swing")   a named feel · "swing16" · "shuffle" · "gallop" · "triplet" · …
+#   PGroove(3)         pick a groove by NUMBER · PGroove([0, 2, 5]) cycles grooves
+#   PGroove(var([0,3],8))   the feel MORPHS over time — a var/pattern picks the groove
 #   PDur(3, 8)         euclidean durations — 3 hits spread across 8
 #
 # ▶ A swung 16th hat (every step a hit, so the swing is audible) over a galloping bass:
 h1 >> play("-", dur=PGroove("swing16"), hpf=6000, amp=0.5)
-b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)`),
+b1 >> pluck([0, 0, 5, 3], oct=3, dur=PGroove("gallop"), amp=0.5)
+#
+# ▶ Same hat, but the feel drifts — the var swaps the groove every 8 steps:
+h1 >> play("-", dur=PGroove(var([0, 3, 8], 8)), hpf=6000, amp=0.5)`),
 
     lesson(23, 'Bring your own sounds',
 `# Load ANY audio by URL — samples, loops, or a whole kit:
@@ -367,19 +373,19 @@ b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(chorus, 0.5)     # 50%: jump to the chorus — else fall to the bridge
 #@bridge(8)
-p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+p1 >> pluck([7, 9, 11, 7], oct=4, dur=1/4, echo=0.3, amp=0.4)
 b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(verse, 0.6)      # 60%: back to the verse — else on to the chorus
 #@chorus(16)
-p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+p1 >> pluck([0, 4, 7, 4], oct=4, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
 d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%: into the drop …
 #@goto(verse, 1)        # … the other 60%: back to the verse (chained gotos = multi-way)
 #@drop(8)
-p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+p1 >> pluck([0, 0, 0, 0], oct=4, dur=1/4, amp=0.3).unison(3)
 b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
 d1 >> play("X", dur=1/4, amp=0.9)
 #@goto(verse, 1)        # the drop always resolves back to the verse
@@ -493,8 +499,8 @@ h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`),
 # ▶ A pad, a bass on its root, a unison double, and a harmony — all locked to p1:
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
 b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
-b3 >> blip(dur=1/2).follow("p1")
-b4 >> blip(dur=1/4).accompany("p1")`),
+b3 >> blip(dur=1/2, oct=4, mverb=0.1, spin=0.5, pan=[-1, 1]).follow("p1")
+b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`),
 
     lesson(33, 'Save, share & recall',
 `# Your work is safe and shareable:
@@ -973,19 +979,19 @@ b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(chorus, 0.5)     # 50% : saute au refrain — sinon tombe sur le pont
 #@bridge(8)
-p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+p1 >> pluck([7, 9, 11, 7], oct=4, dur=1/4, echo=0.3, amp=0.4)
 b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(verse, 0.6)      # 60% : retour au couplet — sinon vers le refrain
 #@chorus(16)
-p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+p1 >> pluck([0, 4, 7, 4], oct=4, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
 d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40% : dans le drop …
 #@goto(verse, 1)        # … les 60% restants : retour au couplet (gotos chaînés = multi-voies)
 #@drop(8)
-p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+p1 >> pluck([0, 0, 0, 0], oct=4, dur=1/4, amp=0.3).unison(3)
 b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
 d1 >> play("X", dur=1/4, amp=0.9)
 #@goto(verse, 1)        # le drop revient toujours au couplet
@@ -1100,8 +1106,8 @@ h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'fr'),
 # ▶ Un pad, une basse sur sa fondamentale, un doublage à l'unisson et une harmonie — tout calé sur p1 :
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
 b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
-b3 >> blip(dur=1/2).follow("p1")
-b4 >> blip(dur=1/4).accompany("p1")`, 'fr'),
+b3 >> blip(dur=1/2, oct=4, mverb=0.1, spin=0.5, pan=[-1, 1]).follow("p1")
+b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'fr'),
 
     lesson(33, 'Sauvegarder, partager & retrouver',
 `# Ton travail est en sécurité et partageable :
@@ -1577,19 +1583,19 @@ b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(chorus, 0.5)     # 50%: zum Refrain springen — sonst zur Bridge fallen
 #@bridge(8)
-p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+p1 >> pluck([7, 9, 11, 7], oct=4, dur=1/4, echo=0.3, amp=0.4)
 b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(verse, 0.6)      # 60%: zurück zur Strophe — sonst weiter zum Refrain
 #@chorus(16)
-p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+p1 >> pluck([0, 4, 7, 4], oct=4, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
 d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%: in den Drop …
 #@goto(verse, 1)        # … die anderen 60%: zurück zur Strophe (verkettete gotos = Mehrweg)
 #@drop(8)
-p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+p1 >> pluck([0, 0, 0, 0], oct=4, dur=1/4, amp=0.3).unison(3)
 b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
 d1 >> play("X", dur=1/4, amp=0.9)
 #@goto(verse, 1)        # der Drop kehrt immer zur Strophe zurück
@@ -1704,8 +1710,8 @@ h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'de'),
 # ▶ Ein Pad, ein Bass auf dem Grundton, eine Unisono-Verdopplung und eine Harmonie — alle an p1 gekoppelt:
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
 b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
-b3 >> blip(dur=1/2).follow("p1")
-b4 >> blip(dur=1/4).accompany("p1")`, 'de'),
+b3 >> blip(dur=1/2, oct=4, mverb=0.1, spin=0.5, pan=[-1, 1]).follow("p1")
+b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'de'),
 
     lesson(33, 'Speichern, teilen & wiederfinden',
 `# Deine Arbeit ist sicher und teilbar:
@@ -2180,19 +2186,19 @@ b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(chorus, 0.5)     # 50%: salta al estribillo — si no, cae al puente
 #@bridge(8)
-p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+p1 >> pluck([7, 9, 11, 7], oct=4, dur=1/4, echo=0.3, amp=0.4)
 b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(verse, 0.6)      # 60%: de vuelta al verso — si no, hacia el estribillo
 #@chorus(16)
-p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+p1 >> pluck([0, 4, 7, 4], oct=4, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
 d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%: al drop …
 #@goto(verse, 1)        # … el otro 60%: de vuelta al verso (gotos encadenados = varias vías)
 #@drop(8)
-p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+p1 >> pluck([0, 0, 0, 0], oct=4, dur=1/4, amp=0.3).unison(3)
 b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
 d1 >> play("X", dur=1/4, amp=0.9)
 #@goto(verse, 1)        # el drop siempre vuelve al verso
@@ -2307,8 +2313,8 @@ h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'es'),
 # ▶ Un pad, un bajo en su fundamental, un doblaje al unísono y una armonía — todos atados a p1:
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
 b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
-b3 >> blip(dur=1/2).follow("p1")
-b4 >> blip(dur=1/4).accompany("p1")`, 'es'),
+b3 >> blip(dur=1/2, oct=4, mverb=0.1, spin=0.5, pan=[-1, 1]).follow("p1")
+b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'es'),
 
     lesson(33, 'Guardar, compartir y recuperar',
 `# Tu trabajo está a salvo y se puede compartir:
@@ -2782,19 +2788,19 @@ b1 >> bass([0, 0, 5, 3], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(chorus, 0.5)     # 50%：サビへ飛ぶ — 外れれば bridge へ落ちる
 #@bridge(8)
-p1 >> pluck([7, 9, 11, 7], oct=5, dur=1/4, echo=0.3, amp=0.4)
+p1 >> pluck([7, 9, 11, 7], oct=4, dur=1/4, echo=0.3, amp=0.4)
 b1 >> bass([5, 5, 3, 0], oct=3, dur=1/2, amp=0.5)
 d1 >> play("x-o-", dur=1/2)
 #@goto(verse, 0.6)      # 60%：verse に戻る — 外れれば chorus へ
 #@chorus(16)
-p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
+p1 >> pluck([0, 4, 7, 4], oct=4, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
 d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%：drop へ …
 #@goto(verse, 1)        # … 残り60%：verse に戻る（goto を連ねる = 多方向）
 #@drop(8)
-p1 >> pluck([0, 0, 0, 0], oct=6, dur=1/4, amp=0.3).unison(3)
+p1 >> pluck([0, 0, 0, 0], oct=4, dur=1/4, amp=0.3).unison(3)
 b1 >> bass([0], oct=2, dur=1/4, drive=3, amp=0.6)
 d1 >> play("X", dur=1/4, amp=0.9)
 #@goto(verse, 1)        # drop は必ず verse に戻る
@@ -2908,8 +2914,8 @@ h1 >> play("-", amplify=Pacc("offbeat"), hpf=6000, dur=1/4)`, 'ja'),
 # ▶ パッド、その根音のベース、ユニゾンの重ね、ハーモニー — すべて p1 に連動：
 p1 >> pads([0, 3, 5, 4], oct=5, dur=2, amp=0.4, reverb=0.5)
 b1 >> bass(p1.degree, oct=4, dur=2, amp=0.5)
-b3 >> blip(dur=1/2).follow("p1")
-b4 >> blip(dur=1/4).accompany("p1")`, 'ja'),
+b3 >> blip(dur=1/2, oct=4, mverb=0.1, spin=0.5, pan=[-1, 1]).follow("p1")
+b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'ja'),
 
     lesson(33, '保存・共有・呼び戻し',
 `# 作業は安全に、共有もできる：
