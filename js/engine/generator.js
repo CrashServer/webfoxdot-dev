@@ -35,6 +35,13 @@ const restList  = (n, lo, hi) => '[' + Array.from({ length: n }, (_, i) => (i > 
 // A list where some slots are themselves a [sub, list] (per-bar alternation) — nesting.
 const nestList  = (n, lo, hi) => '[' + Array.from({ length: n }, (_, i) =>
     (i > 0 && chance(0.28)) ? `[${rint(lo, hi)}, ${rint(lo, hi)}]` : rint(lo, hi)).join(', ') + ']';
+// A shuffled ZERO-SUM delta list for PDelta — sums to 0 over the cycle so the
+// running total wanders but always returns, instead of ramping off to silence.
+const zeroDeltas = () => {
+    const a = rint(1, 2), b = rint(1, 2), d = [a, b, -a, -b];
+    for (let k = d.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [d[k], d[j]] = [d[j], d[k]]; }
+    return '[' + d.join(', ') + ']';
+};
 
 // ── value builders — turn a numeric range into a scalar, a list, a NESTED list, a
 // pattern, a TimeVar (var/linvar/sinvar/Pvar) or a frozen [:n] slice, so ANY param
@@ -87,7 +94,7 @@ function degLead() {
                  `PShuf(${CHORDLIST()})`, `PStutter(${randList(rint(3, 4), 0, 7)}, 2)`, `PAlt(${randList(2, 0, 4)}, ${randList(2, 4, 9)})`,
                  `PSine(0, ${rint(5, 9)})`, `PTri(0, ${rint(5, 9)})`, `PLorenz(0, ${rint(5, 9)})`, `PHenon(0, ${rint(5, 9)})`,
                  `PLogistic(3.9, ${flt(0.3, 0.7)}, 0, ${rint(5, 9)})`,
-                 `PPing(${randList(rint(3, 5), 0, 7)})`, `PDelta([${Array.from({ length: rint(3, 4) }, () => pick([-2, -1, 1, 2])).join(', ')}], ${rint(0, 3)})`,
+                 `PPing(${randList(rint(3, 5), 0, 7)})`, `PDelta(${zeroDeltas()}, ${rint(0, 3)})`,
                  nestList(rint(3, 5), 0, 7),
                  `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9)]);
 }
