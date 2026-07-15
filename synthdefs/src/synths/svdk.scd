@@ -3,12 +3,12 @@
 // Metal-Zone-style multi-stage distortion, EQ shaping and slow stereo drift.
 // Adapted from FoxDot svdk (In.kr/bus/ReplaceOut -> note/out; self-freeing env).
 // Params: out, note, amp, sus, pan, attack, release,
-//         grit, noise, cutoff, res, track, fenv, slide, body, harm, drift
+//         dist, noise, cutoff, rq, track, fenv, slide, body, harm, drift
 SynthDef(\fd_svdk, {|out=0, note=48, amp=0.8, sus=1, pan=0, attack=0.01, release=0.1,
-                    grit=0.6, noise=0.2, cutoff=1200, res=0.4, track=1, fenv=0.3,
+                    dist=0.6, noise=0.2, cutoff=1200, rq=0.4, track=1, fenv=0.3,
                     slide=0.05, body=0.6, harm=0.5, drift=0.2|
     var freq, freqSlide, osc, harmonics, subDeep, subSine, sub, nz, midPath;
-    var fltEnv, fltFreq, rq, filtered, bassPath, sig, env, dur, atk, rel;
+    var fltEnv, fltFreq, q, filtered, bassPath, sig, env, dur, atk, rel;
     var driftL, driftR, sigL, sigR;
     freq = note.midicps;
     atk  = attack.max(0.005);
@@ -40,30 +40,30 @@ SynthDef(\fd_svdk, {|out=0, note=48, amp=0.8, sus=1, pan=0, attack=0.01, release
     // Filter envelope + keyboard tracking
     fltEnv  = EnvGen.kr(Env.perc(0.001, (sus * 0.4).max(0.02), 1, -6), levelScale: fenv);
     fltFreq = (cutoff + (freq * track * 0.25) + (fltEnv * cutoff * 2)).clip(60, 6000);
-    rq      = (1 - res).linexp(0, 1, 0.05, 1);
-    filtered = RLPF.ar(midPath, fltFreq, rq);
-    filtered = filtered + (BPF.ar(midPath, fltFreq, 0.1) * res * 0.4);
+    q      = (1 - rq).linexp(0, 1, 0.05, 1);
+    filtered = RLPF.ar(midPath, fltFreq, q);
+    filtered = filtered + (BPF.ar(midPath, fltFreq, 0.1) * rq * 0.4);
 
     // Bass path bypasses the harsh filter, stays fat
     bassPath = subDeep + subSine + sub;
     bassPath = LPF.ar(bassPath, 300);
-    bassPath = (bassPath * (1 + (grit * 0.6))).tanh;
+    bassPath = (bassPath * (1 + (dist * 0.6))).tanh;
 
     sig = filtered + bassPath;
 
     // Metal-Zone-style multi-stage distortion
-    sig = sig * (1 + (grit * 3));
+    sig = sig * (1 + (dist * 3));
     sig = (sig * 1.5).tanh;
-    sig = (sig * (1 + (grit * 2))).clip(-0.75, 0.75);
-    sig = sig + ((sig * grit * 2).fold(-0.5, 0.5) * grit * 0.4);
-    sig = (sig * (1 + grit)).tanh;
+    sig = (sig * (1 + (dist * 2))).clip(-0.75, 0.75);
+    sig = sig + ((sig * dist * 2).fold(-0.5, 0.5) * dist * 0.4);
+    sig = (sig * (1 + dist)).tanh;
 
     // EQ shaping
     sig = BLowShelf.ar(sig, 80, 1, body * 5);
     sig = BLowShelf.ar(sig, 150, 1, body * 3);
-    sig = BPeakEQ.ar(sig, 500, 1.5, grit * -3);
-    sig = BPeakEQ.ar(sig, 2000, 0.8, grit * 3);
-    sig = BHiShelf.ar(sig, 3500, 1, grit * res * 3);
+    sig = BPeakEQ.ar(sig, 500, 1.5, dist * -3);
+    sig = BPeakEQ.ar(sig, 2000, 0.8, dist * 3);
+    sig = BHiShelf.ar(sig, 3500, 1, dist * rq * 3);
 
     // Clean up
     sig = HPF.ar(sig, 25);

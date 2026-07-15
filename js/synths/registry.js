@@ -19,26 +19,26 @@ export const SYNTH_DEFS = {
     // a_gesa — aggressive Gesaffelstein-style distorted sub-bass (CrashServer port)
     a_gesa: {
         scName: 'fd_a_gesa',
-        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, distortion: 8, cutoff: 800, resonance: 0.7 },
-        extraParams: ['distortion', 'cutoff', 'resonance'],
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, dist: 8, cutoff: 800, rq: 0.7 },
+        extraParams: ['dist', 'cutoff', 'rq'],
     },
     // a_daft — Daft Punk-style punchy filter bass (CrashServer port)
     a_daft: {
         scName: 'fd_a_daft',
-        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.05, cutoff: 300, resonance: 0.8, punch: 1.2 },
-        extraParams: ['cutoff', 'resonance', 'punch'],
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.05, cutoff: 300, rq: 0.8, punch: 1.2 },
+        extraParams: ['cutoff', 'rq', 'punch'],
     },
     // a_hhat — French-electro metallic hi-hat (CrashServer port, pitchless)
     a_hhat: {
         scName: 'fd_a_hhat',
-        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, tone: 8000, decay: 0.1, metallic: 1, distortion: 2, open: 0 },
-        extraParams: ['tone', 'decay', 'metallic', 'distortion', 'open'],
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, tone: 8000, decay: 0.1, metallic: 1, dist: 2, open: 0 },
+        extraParams: ['tone', 'decay', 'metallic', 'dist', 'open'],
     },
     // a_bd — electro bass-drum / kick (CrashServer port). Percussive; play it low.
     a_bd: {
         scName: 'fd_a_bd',
-        defaults: { oct: 3, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, click: 1, punch: 1, sub: 1, distortion: 3 },
-        extraParams: ['click', 'punch', 'sub', 'distortion'],
+        defaults: { oct: 3, amp: 1, dur: 1, pan: 0, attack: 0.001, release: 0.05, click: 1, punch: 1, sub: 1, dist: 3 },
+        extraParams: ['click', 'punch', 'sub', 'dist'],
     },
     // rhodes — Rhodes-style electric piano (CrashServer port)
     rhodes: {
@@ -61,15 +61,15 @@ export const SYNTH_DEFS = {
     // darkpad — dark detuned six-saw pad + sub, soft-clipped dark filter (CrashServer port)
     darkpad: {
         scName: 'fd_darkpad',
-        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.3, release: 1, cutoff: 1200, res: 0.25, drive: 1.2, detune: 0.008, dark: 0.5, sub: 0.4 },
-        extraParams: ['cutoff', 'res', 'drive', 'detune', 'dark', 'sub'],
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.3, release: 1, cutoff: 1200, rq: 0.25, dist: 1.2, detune: 0.008, dark: 0.5, sub: 0.4 },
+        extraParams: ['cutoff', 'rq', 'dist', 'detune', 'dark', 'sub'],
     },
     // synthbass — 80s / synthwave / Daft-Punk bass: detuned saws + sub, Moog ladder
     // filter w/ env + drive. Clear controls (sus=note length, detune=%, glide=porta).
     synthbass: {
         scName: 'fd_synthbass',
-        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, detune: 0.3, cutoff: 900, res: 0.35, fenv: 3, sub: 0.7, drive: 1.5, glide: 0 },
-        extraParams: ['detune', 'cutoff', 'res', 'fenv', 'sub', 'drive', 'glide'],
+        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, detune: 0.3, cutoff: 900, rq: 0.35, fenv: 3, sub: 0.7, dist: 1.5, glide: 0 },
+        extraParams: ['detune', 'cutoff', 'rq', 'fenv', 'sub', 'dist', 'glide'],
     },
     // ── French-electro / Justice / Daft-Punk pack (CrashServer ports) ──────────
     // dafbass — Daft-Punk distorted harmonic bass (play it low)
@@ -81,14 +81,14 @@ export const SYNTH_DEFS = {
     // a_daftlead — Justice/Daft detuned saw lead with a filter sweep
     a_daftlead: {
         scName: 'fd_a_daftlead',
-        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 2000, resonance: 0.6, filterEnv: 0.8, drive: 2, rate: 1 },
-        extraParams: ['cutoff', 'resonance', 'filterEnv', 'drive', 'rate'],
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 2000, rq: 0.6, filterEnv: 0.8, dist: 2, rate: 1 },
+        extraParams: ['cutoff', 'rq', 'filterEnv', 'dist', 'rate'],
     },
     // a_stab — aggressive detuned major-chord stab
     a_stab: {
         scName: 'fd_a_stab',
-        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.005, release: 0.05, filterFreq: 1000, resonance: 0.7, distortion: 5 },
-        extraParams: ['filterFreq', 'resonance', 'distortion'],
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.005, release: 0.05, cutoff: 1000, rq: 0.7, dist: 5 },
+        extraParams: ['cutoff', 'rq', 'dist'],
     },
     // a_vlead — complex glitchy chopped lead
     a_vlead: {
@@ -111,8 +111,8 @@ export const SYNTH_DEFS = {
     // pumpbass — pumping filter bass (crashDot original; sidechain-style per-note duck)
     pumpbass: {
         scName: 'fd_pumpbass',
-        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 800, res: 0.4, sub: 0.3, body: 4, growl: 0.2, fuzz: 0, fuzzgain: 1.5, noiz: 0, noizr: 1, noizt: 0.5, locut: 0, pump: 1 },
-        extraParams: ['cutoff', 'res', 'sub', 'body', 'growl', 'fuzz', 'fuzzgain', 'noiz', 'noizr', 'noizt', 'locut', 'pump'],
+        defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 800, rq: 0.4, sub: 0.3, body: 4, dist: 0.2, fuzz: 0, fuzzgain: 1.5, noiz: 0, noizr: 1, noizt: 0.5, locut: 0, pump: 1 },
+        extraParams: ['cutoff', 'rq', 'sub', 'body', 'dist', 'fuzz', 'fuzzgain', 'noiz', 'noizr', 'noizt', 'locut', 'pump'],
     },
     saw: {
         scName: 'fd_saw',
@@ -127,8 +127,8 @@ export const SYNTH_DEFS = {
     cbass: {
         scName: 'fd_cbass',
         defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.1,
-                    cutoff: 200, rq: 0.9, boost: 1.5, detune: 0.01, follow: 2, vib: 0 },
-        extraParams: ['cutoff', 'rq', 'boost', 'detune', 'follow', 'vib'],
+                    cutoff: 200, rq: 0.9, dist: 1.5, detune: 0.01, follow: 2, vib: 0 },
+        extraParams: ['cutoff', 'rq', 'dist', 'detune', 'follow', 'vib'],
     },
     klank: {
         scName: 'fd_klank',
@@ -138,9 +138,9 @@ export const SYNTH_DEFS = {
     svdk: {
         scName: 'fd_svdk',
         defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.01, release: 0.1,
-                    grit: 0.6, noise: 0.2, cutoff: 1200, res: 0.4, track: 1, fenv: 0.3,
+                    dist: 0.6, noise: 0.2, cutoff: 1200, rq: 0.4, track: 1, fenv: 0.3,
                     slide: 0.05, body: 0.6, harm: 0.5, drift: 0.2 },
-        extraParams: ['grit', 'noise', 'cutoff', 'res', 'track', 'fenv', 'slide', 'body', 'harm', 'drift'],
+        extraParams: ['dist', 'noise', 'cutoff', 'rq', 'track', 'fenv', 'slide', 'body', 'harm', 'drift'],
     },
     sine: {
         scName: 'fd_sine',
@@ -260,8 +260,8 @@ export const SYNTH_DEFS = {
     guit: {
         scName: 'fd_guit',
         defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.0001, release: 0.01,
-                    decay: 0.01, detune: 0.01, tone: 0.7, beef: 0.7, fdecay: 1, mod: 0.2, level: 0.8, peak: 1 },
-        extraParams: ['decay', 'detune', 'tone', 'beef', 'fdecay', 'mod', 'level', 'peak'],
+                    decay: 0.01, detune: 0.01, tone: 0.7, dist: 0.7, fdecay: 1, mod: 0.2, level: 0.8, peak: 1 },
+        extraParams: ['decay', 'detune', 'tone', 'dist', 'fdecay', 'mod', 'level', 'peak'],
     },
     // Karplus/Pluck "rabbit" guitar (ported from FoxDot lapin)
     lapin: {
@@ -296,16 +296,16 @@ export const SYNTH_DEFS = {
     moogpluck: {
         scName: 'fd_moogpluck',
         defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.1,
-                    pluck_filter: 4, pluck_mix: 0.8, rate: 1 },
-        extraParams: ['pluck_filter', 'pluck_mix', 'rate', 'fmod'],
+                    cutoff: 4, pluck_mix: 0.8, rate: 1 },
+        extraParams: ['cutoff', 'pluck_mix', 'rate', 'fmod'],
     },
     // Industrial compressed kick (ported from CrashServer compkick). oct=3 ≈ 65Hz
     // punchy kick; drop to oct=2 for a deep sub kick.
     compkick: {
         scName: 'fd_compkick',
         defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.001, release: 0.35,
-                    punch: 0.7, comp: 8, click: 0.4, crunch: 1.5, sub: 1, body: 0.6, tone: 0.3 },
-        extraParams: ['punch', 'comp', 'click', 'crunch', 'sub', 'body', 'tone', 'fmod'],
+                    punch: 0.7, squash: 8, click: 0.4, dist: 1.5, sub: 1, body: 0.6, tone: 0.3 },
+        extraParams: ['punch', 'squash', 'click', 'dist', 'sub', 'body', 'tone', 'fmod'],
     },
     // ikea — CrashServer's generative glitch-percussion machine (ported + extended).
     // One note spawns a self-generating texture; play it long (dur/sus = 8).

@@ -1,14 +1,14 @@
 // synthbass — an 80s / synthwave / Daft-Punk bass. Detuned saws + a sub sine
-// through a Moog ladder filter with a snappy filter envelope and tanh drive.
+// through a Moog ladder filter with a snappy filter envelope and tanh dist.
 // Built from scratch with clear, predictable controls:
 //   sus     — TOTAL note length in seconds (amp env spans exactly sus)
 //   note    — MIDI note (octave is exact: freq = note.midicps); sub is one 8ve down
 //   detune  — saw spread in % (0 = single pitch, ~0.3 fat, ~1 very wide)
-//   cutoff  — base filter cutoff Hz;  fenv — how far the env opens it;  res — resonance
-//   sub     — sub-oscillator level;   drive — saturation/warmth;  glide — portamento s
+//   cutoff  — base filter cutoff Hz;  fenv — how far the env opens it;  rq — resonance
+//   sub     — sub-oscillator level;   dist — saturation/warmth;  glide — portamento s
 // Edit then: scripts/build.sh synthbass
 SynthDef(\fd_synthbass, {|out=0, note=36, amp=0.8, sus=1, pan=0, attack=0.008, release=0.08,
-                         detune=0.3, cutoff=900, res=0.35, fenv=3, sub=0.7, drive=1.5, glide=0|
+                         detune=0.3, cutoff=900, rq=0.35, fenv=3, sub=0.7, dist=1.5, glide=0|
     var freq, saws, subosc, sig, ampEnv, filtEnv, fc, hold;
     // Pitch — glide slews the frequency for portamento (glide=0 → instant).
     freq = Lag.kr(note.midicps, glide);
@@ -25,9 +25,9 @@ SynthDef(\fd_synthbass, {|out=0, note=36, amp=0.8, sus=1, pan=0, attack=0.008, r
     sig     = saws + subosc;
     // Moog ladder low-pass, cutoff pushed up by the filter envelope (fenv = amount).
     fc      = (cutoff * (1 + (filtEnv * fenv))).clip(30, 16000);
-    sig     = MoogFF.ar(sig, fc, (res * 3.8).clip(0, 3.6));
-    // Gentle tanh drive for the analog/Daft warmth + DC block.
-    sig     = LeakDC.ar((sig * drive).tanh);
+    sig     = MoogFF.ar(sig, fc, (rq * 3.8).clip(0, 3.6));
+    // Gentle tanh dist for the analog/Daft warmth + DC block.
+    sig     = LeakDC.ar((sig * dist).tanh);
     Out.ar(out, Pan2.ar(sig * ampEnv, pan) * amp * 0.5);
 }).writeDefFile(~outDir);
 "fd_synthbass done".postln;

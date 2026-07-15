@@ -210,6 +210,11 @@ export const VERSION = 'beta09';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'beta09', title: 'Parameter cleanup — one word per idea', items: [
+        'Synth controls are now uniform. Every voice\'s distortion knob is dist — it was spelled distortion / drive / grit / growl / crunch / boost / beef across different synths (8 names for one idea); now it\'s just dist everywhere. Every resonance is rq (was rq / res / resonance), and two stray filter names (filterFreq, pluck_filter) are now cutoff like the rest.',
+        'Two silent bugs fixed in the process. A synth param named drive used to shadow the tanh saturation FX (unreachable on darkpad / synthbass / a_daftlead), and compkick\'s comp shadowed the compressor FX — both effects are now reachable on every voice. compkick\'s own internal compression moved to squash.',
+        'The vocabulary now reads as pairs — cutoff is a synth\'s built-in voice filter, lpf is the post-FX filter; dist is the voice distortion, dist2 is the FX distortion; rq is voice resonance, lpf_rq the FX resonance. No aliases: the old names are gone (clean break), and every example, lesson and doc is swept to the new spelling.',
+    ] },
     { v: 'beta08', title: 'Generative & mixer overhaul — guit audible · chaos evolves every param · live mixer', items: [
         'New theme — Solar Opposites (Settings ▸ Theme, or theme("solar")): complementary contrast — warm solar accents (orange · gold · coral) burning against a cold deep-space teal. The two opposite ends of the colour wheel: high-contrast, punchy, and unlike anything else in the set.',
         'New Live set — The Lake is Green (svdk): a deep evolving #@ set — a stacked-FM faim lead over klank / basic chords, a chaotic cbass (PLorenz) low end, euclidean percussion and layered plaits / organ / synthbass voices, all breathing on Pvar phrase-swaps and TimeVars. In the examples dropdown, the Examples page and the galaxy.',
@@ -297,8 +302,8 @@ const CHANGELOG = [
         'Fix: a nested generator inside arp — e.g. arp([5, 6, PRand([4, 5, (6, 7)]), 6]) — now resolves each step (a random / <alternating> / var element) instead of silently dropping that step. Groups (chords) and plain numbers are unchanged.',
         'Fix: <a b> alternation is now stable under .unison() — it caches per step, so the several reads unison does per step no longer scramble which item is playing. And the play-position highlight lights the ACTIVE <…> item (a brighter amber box) even when it is nested inside a chord — e.g. dbass([…, ([4, 8], 2), …]) shows whether 4 or 8 is sounding.',
         { t: 'Synthesis tutorials — three new worked examples under Examples › Sound design that build a synth from scratch with defsynth(): additive (stack sine harmonics), subtractive (a rich saw through a filter-envelope sweep), and FM (carrier + modulator, ratio & index). Each explains the technique and has runnable code you can tweak.', ex: 'syn-additive' },
-        'New synth: synthbass — an 80s / synthwave / Daft-Punk bass. Detuned saws + a sub sine through a Moog ladder filter with a snappy filter envelope and tanh drive. Clear controls: sus=note length, detune=saw spread %, cutoff/res/fenv=filter + its envelope, sub=weight, drive=warmth, glide=portamento. e.g. b1 >> synthbass([0,0,7,0], oct=2, dur=1/4, sus=0.2, detune=0.45, fenv=4, drive=1.7). Showcased in the "Neon Drive" set (example10.txt).',
-        'French-electro pack — 5 more CrashServer synths ported: dafbass (Daft-Punk distorted harmonic bass), a_daftlead (Justice/Daft detuned saw lead w/ filter sweep), a_stab (aggressive major-chord stab), a_vlead (glitchy chopped lead), a_vpad (evolving granular pad). e.g. b1 >> dafbass([0,0,3,5], oct=2, dur=1/4) · p1 >> a_stab([0,3,5], oct=5, dur=1/2, distortion=6).',
+        'New synth: synthbass — an 80s / synthwave / Daft-Punk bass. Detuned saws + a sub sine through a Moog ladder filter with a snappy filter envelope and tanh drive. Clear controls: sus=note length, detune=saw spread %, cutoff/res/fenv=filter + its envelope, sub=weight, dist=warmth, glide=portamento. e.g. b1 >> synthbass([0,0,7,0], oct=2, dur=1/4, sus=0.2, detune=0.45, fenv=4, dist=1.7). Showcased in the "Neon Drive" set (example10.txt).',
+        'French-electro pack — 5 more CrashServer synths ported: dafbass (Daft-Punk distorted harmonic bass), a_daftlead (Justice/Daft detuned saw lead w/ filter sweep), a_stab (aggressive major-chord stab), a_vlead (glitchy chopped lead), a_vpad (evolving granular pad). e.g. b1 >> dafbass([0,0,3,5], oct=2, dur=1/4) · p1 >> a_stab([0,3,5], oct=5, dur=1/2, dist=6).',
         'Scale.default / Root.default now accept a var, so the KEY can move over time — Root.default = var([0, 2, 4]) or Root.default = var(["E", "F"]) · Scale.default = var(["minor", "major"]). And the Scale / Root dropdowns now reflect changes made from code (Scale.default = "major") and follow a var as it advances.',
     ]},
     { v: 'alpha29', title: '10 new FX · 34 scales · pattern methods · 2 synths · Paper theme · About card', items: [
@@ -352,11 +357,11 @@ const CHANGELOG = [
         'Reworked the piano — a proper acoustic model (6 inharmonic partials with per-partial decay, two detuned strings for beating, a hammer-noise click, velocity-tracked brightness) instead of the old 2-oscillator FM. New params: tone, hammer. (FoxDot uses MdaPiano, an sc3-plugin not in the WASM build, so this is a core-UGen build.)',
     ]},
     { v: 'alpha26', title: 'New synth + FX ports', items: [
-        'New synth a_gesa — aggressive Gesaffelstein-style distorted sub-bass (saw + pulse + sub, tanh distortion, resonant env-swept LPF, softclip). Params: distortion, cutoff, resonance.',
+        'New synth a_gesa — aggressive Gesaffelstein-style distorted sub-bass (saw + pulse + sub, tanh distortion, resonant env-swept LPF, softclip). Params: dist, cutoff, rq.',
         'New FX djf — a DJ isolator filter (one knob): djf=0.5 is flat, <0.5 sweeps a lowpass down, >0.5 sweeps a highpass up. djfq sets resonance. Great for live builds.',
-        'New synth a_daft — Daft Punk-style punchy filter bass (saw stack into an env-driven resonant LPF). Params: cutoff, resonance, punch.',
-        'New synth a_hhat — French-electro metallic hi-hat (pitchless noise + ring-mod tones). Params: tone, decay, metallic, distortion, open.',
-        'New synth pumpbass — pumping filter bass with a per-note sidechain-style duck. Params: cutoff, res, sub, body, growl, fuzz, fuzzgain, noiz, hpr, pump.',
+        'New synth a_daft — Daft Punk-style punchy filter bass (saw stack into an env-driven resonant LPF). Params: cutoff, rq, punch.',
+        'New synth a_hhat — French-electro metallic hi-hat (pitchless noise + ring-mod tones). Params: tone, decay, metallic, dist, open.',
+        'New synth pumpbass — pumping filter bass with a per-note sidechain-style duck. Params: cutoff, rq, sub, body, dist, fuzz, fuzzgain, noiz, hpr, pump.',
         'Fix: arithmetic on Pacc (and Pslice) now works — e.g. amp=Pacc("offbeat")*1.3. The pattern-math detector only recognised P + UPPERCASE names, so Pacc*n stayed raw JS ({get}*number = NaN) and killed the voice. Now any P-name is wrapped in Pmath.',
         'New player method .chroma() — put a player on the chromatic scale (degrees become semitones), like .penta() but chromatic. Chainable on a call too: faim([...]).chroma().',
     ]},
@@ -1124,7 +1129,7 @@ p4 >> ebass([0, 0, 7, 0], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([
 p1 >> pads([0, 3, (0,3,7), 5], oct=6, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=0.5)
 
 # 5 — the drop: compkick + industrial drums (snare/hat gated out)
-~p2 >> compkick([0], oct=3, punch=4, comp=80, click=40, crunch=120, sub=4, body=0.6, tone=4)
+~p2 >> compkick([0], oct=3, punch=4, squash=80, click=40, dist=120, sub=4, body=0.6, tone=4)
 v1 >> play(pbuild("indus", evolve=8, fill=4, density=1, kick=1, snare=0, hat=0, perc=1), dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 v2 >> play("X ", amp=1)
 p4 >> ebass([0, 0, 7, 4], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
@@ -1242,7 +1247,7 @@ o9 >> prophet(PRoman("i VI iv v"), oct=5, dur=4, sus=3, mverb=0.7, lpf=linvar([8
 m0 >> bass(var([0, 3, 5, 2], [16]), oct=2, dur=4, lpf=sinvar([200, 1200], [8]), tanh=0.3, dist2=0.3, amp=0.6).unison(2)
 h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=6, dur=0.25, cutoff=linvar([600, 6000, 600], [4, 4]), spin=0.6, drive=4, tanh=0.5, chop=8, amp=0.34).every(4, "rotate")
 e2.rgaterate = 16
-n1 >> a_hhat([0], oct=6, dur=16, tone=linvar([200, 8000], [16]), open=1, distortion=2, amp=linvar([0, 0.5], [16]))
+n1 >> a_hhat([0], oct=6, dur=16, tone=linvar([200, 8000], [16]), open=1, dist=2, amp=linvar([0, 0.5], [16]))
 o9 >> prophet((0,3,7), oct=5, dur=8, sus=7, mverb=0.9, mverbfreeze=1, lpf=linvar([5000, 400], [16]), amp=0.35)
 e2 >> acidbass([0], oct=3, dur=0.5, lpf=linvar([4000, 400], [16]), lpf_rq=0.15, amp=0.4)
 Clock.bpm = 124
@@ -1290,7 +1295,7 @@ ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],
 
 ~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
 
-ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=6, dur=0.5, distortion=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
+ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=6, dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
 
 sn.stop()
 cl.stop()
@@ -1298,13 +1303,13 @@ br >> brass([0, -5, -7, -5, 0, ., 0, .], oct=6, dur=0.5, sus=0.2, room=0.3, reve
 
 ba.stop()
 
-ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, distortion=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
+ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
 wr.oct=3
 br.stop()
 
 ag.oct=3
 dk.rate=4
-~ag >> a_gesa([2, 1, 0, [7, 4], ., 5, 4, .], oct=(6, 5, 7), dur=0.5, distortion=4, cutoff=sinvar([800, 6000], [4]), spin=0.0, fbdelay=0.25, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35).unison(3)
+~ag >> a_gesa([2, 1, 0, [7, 4], ., 5, 4, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.0, fbdelay=0.25, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35).unison(3)
 
 ~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
 
@@ -1352,25 +1357,25 @@ g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), du
 Root.default = 0
 Clock.bpm = 126
 
-k1 >> compkick(punch=1, comp=1, release=0.4, oct=4, click=120, drive=0, sub=40, body=10, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.01, tone=var([2, 4, 6, 8, 16], 2), dur=1)
+k1 >> compkick(punch=1, squash=1, release=0.4, oct=4, click=120, drive=0, sub=40, body=10, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.01, tone=var([2, 4, 6, 8, 16], 2), dur=1)
 h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.04, hpf=9000)
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), rq=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), rq=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
 t2 >> pumpbass([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.3, oct=6, amp=1.0, cutoff=linvar([400,3000],4), dist2=1, dist2shape=1, fuzz=0.0, noiz=1, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.9, hpf=1080, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
 h1 >> a_hhat(0, dur=1/2, amp=Pacc("offbeat"), beat_dur=0.5, decay=0.4, hpf=9000)
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=6, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=4, dur=1/2, sus=1/2, oct=6, amp=1.1, cutoff=linvar([600,3600],4), rq=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
 v2 >> play("X ", amp=2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 t1.lpf=1200
 t2.stop()
 t1.oct=7
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=4, sus=4, oct=5, amp=1.1, cutoff=linvar([600,3600],4), rq=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 1, rest(0), 0], dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), rq=0.95, punch=2.5, dist2=0.5, dist2shape=0.6, hpf=200).unison(2)
 t2 >> blip([0, 5, 0, 3, 0, 4, 0, 3], dur=1/2, sus=0.2, oct=5, amp=1.0, cutoff=linvar([400,3000],4), dist2=0, dist2shape=1, fuzz=0.0, noiz=0, noizr=0, noizt=0.9, fuzzgain=0.0, hpr=0.8, hpf=180, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, beat_dur=1, rgate=0.5, rgaterate=4, rgatewave=0).unison(3)
 v3 >> play("Xx")
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=1/2, oct=6, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.15, punch=12, dist2=0.0, dist2shape=0.6, hpf=20).unison(2)
-k1 >> compkick(punch=1, comp=1, release=0.6, oct=3, click=1200, drive=4, sub=40, body=100, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=1, tone=var([20, 4, 6, 8, 16], 2), dur=1)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=1/2, oct=6, amp=1.1, cutoff=linvar([600,3600],4), rq=0.15, punch=12, dist2=0.0, dist2shape=0.6, hpf=20).unison(2)
+k1 >> compkick(punch=1, squash=1, release=0.6, oct=3, click=1200, drive=4, sub=40, body=100, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=1, tone=var([20, 4, 6, 8, 16], 2), dur=1)
 v5 >> play("X", amp=4, sample=1)
-t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), resonance=0.15, punch=12, dist2=0.0, dist2shape=0.6, hpf=20).unison(3)
+t1 >> a_daft([0, rest(0), 1, 0, rest(0), 3, rest(0), 4], echo=0.5, dur=1/2, sus=1/2, oct=5, amp=1.1, cutoff=linvar([600,3600],4), rq=0.15, punch=12, dist2=0.0, dist2shape=0.6, hpf=20).unison(3)
 t2 >> dbass(dist2=1)`)}
     `, 'scorched');
 
@@ -1852,7 +1857,7 @@ p1 >> saw([0,4,7], oct=4, dur=1, amp=0.3).unison(6, 0.5, 100)  # wide, detuned s
 v1 >> ebass([0], pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
 
 #@build(8)
-v2 >> a_hhat([0], tone=8000, decay=0.1, metallic=1, distortion=2, open=PBin(8), echo=0.5, mverb=0.5)
+v2 >> a_hhat([0], tone=8000, decay=0.1, metallic=1, dist=2, open=PBin(8), echo=0.5, mverb=0.5)
 
 #@peak(12)
 v3 >> brass([PRoman("I V vi IV")], cutoff=2000, rq=0.4, bright=0.5, dur=8, amp=0.5, lpf=200)
@@ -1879,7 +1884,7 @@ v1.dur=4
 v3.stop()
 g12.stop()
 g5 >> darkpad(PProg("andalusian"), oct=5, dur=4, amp=0.39, shape=0.0, tremolo=0.69, trem_rate=8).penta().human(27, 4)
-v4 >> a_bd([0], click=1, punch=PRhythm([1, (3, 8)]), oct=3, sub=1, distortion=1, sus=1/2, dur=PDur(5, 8))
+v4 >> a_bd([0], click=1, punch=PRhythm([1, (3, 8)]), oct=3, sub=1, dist=1, sus=1/2, dur=PDur(5, 8))
 g22.stop()
 
 #@part9(4)
@@ -1906,7 +1911,7 @@ v5 >> play("k")
 
 # music in your browser!
 #@part13(12)
-v2 >> a_hhat([0], tone=8000, decay=0.1, metallic=1, distortion=2, open=PBin(8), echo=0.5, mverb=0.5)
+v2 >> a_hhat([0], tone=8000, decay=0.1, metallic=1, dist=2, open=PBin(8), echo=0.5, mverb=0.5)
 v4.stop()
 
 #@part14(8)
@@ -2059,23 +2064,23 @@ Clock.bpm = 120
 
 #@intro(20)
 Root.default = "F"
-ld >> synthbass(arp([0, 3, [3, 7], 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=2, drive=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
+ld >> synthbass(arp([0, 3, [3, 7], 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), rq=0.35, fenv=2, dist=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
 
 #@synth(32)
-b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), res=0.42, fenv=4, drive=1.7, pumper=0.7).unison(5)
+b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), rq=0.42, fenv=4, dist=1.7, pumper=0.7).unison(5)
 
 #@rootchange(24)
 Root.default = "C"
-ld >> synthbass(arp([0, 3, 7, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=4, drive=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
+ld >> synthbass(arp([0, 3, 7, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), rq=0.35, fenv=4, dist=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
 
 
 
 #@varyingroot(16)
 Root.default = var(["E", "G", "E#", "A"])
-b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), res=0.4, fenv=3, drive=0.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), rq=0.4, fenv=3, dist=0.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
 
 #@tweakb4(8)
-b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), res=0.42, fenv=8, drive=1.7, pumper=0.7).unison(5)
+b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), rq=0.42, fenv=8, dist=1.7, pumper=0.7).unison(5)
 
 #@masteroctave(16)
 b4.oct=3
@@ -2083,18 +2088,18 @@ ld.oct=3
 b1.oct=4
 
 #@follow(24)
-b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), res=0.4, fenv=3, drive=1.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
+b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), rq=0.4, fenv=3, dist=1.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
 
 #@padding(16)
 Scale.default = "minor"
 Root.default = "C"
-pad >> darkpad(PProg("andalusian"), oct=4, dur=4, sus=4, attack=1.6, amp=0.4, cutoff=sinvar([500, 2200], [16]), res=0.3, reverb=0.6, room=0.9, chorus=0.5)
+pad >> darkpad(PProg("andalusian"), oct=4, dur=4, sus=4, attack=1.6, amp=0.4, cutoff=sinvar([500, 2200], [16]), rq=0.3, reverb=0.6, room=0.9, chorus=0.5)
 ld.stop()
-key >> cs80(PRoman("i9 VII VI7 V"), oct=6, dur=4, sus=3.5, amp=0.2, attack=1.2, lpf=3200, res=0.2, reverb=0.5, chorus=0.4)
+key >> cs80(PRoman("i9 VII VI7 V"), oct=6, dur=4, sus=3.5, amp=0.2, attack=1.2, lpf=3200, rq=0.2, reverb=0.5, chorus=0.4)
 top >> pluck(PContour("wave", 8, 7), oct=5, dur=1/2, sus=0.3, amp=0.24, echo=0.3, echo_time=0.375, lpf=sinvar([1800, 6000], [8]), pan=[-0.3, 0.3])
 
 #@part10(8)
-bs >> synthbass([0, 6, 5, 4], oct=5, dur=4, sus=2, detune=0.3, cutoff=linvar([400, 1300], [16]), res=0.4, fenv=3, drive=1.5, amp=0.5).unison(3)
+bs >> synthbass([0, 6, 5, 4], oct=5, dur=4, sus=2, detune=0.3, cutoff=linvar([400, 1300], [16]), rq=0.4, fenv=3, dist=1.5, amp=0.5).unison(3)
 
 #@part11(4)
 b4.oct=3

@@ -15,24 +15,24 @@ SynthDef(\fd_dafbass, {|out=0, note=36, amp=0.9, sus=1, pan=0, attack=0.001, rel
 }).writeDefFile(~outDir);
 
 // ── a_daftlead — Justice / Daft detuned saw lead with filter sweep ──────────
-SynthDef(\fd_a_daftlead, {|out=0, note=60, amp=0.9, sus=1, pan=0, attack=0.01, release=0.1, cutoff=2000, resonance=0.6, filterEnv=0.8, drive=2, rate=1|
+SynthDef(\fd_a_daftlead, {|out=0, note=60, amp=0.9, sus=1, pan=0, attack=0.01, release=0.1, cutoff=2000, rq=0.6, filterEnv=0.8, dist=2, rate=1|
     var freq = note.midicps, osc, env, fc;
     freq = [freq, freq * 1.007] * Line.kr(Rand(0.99, 1.01), 1, 0.01);
     osc  = Mix([ VarSaw.ar(freq, 0, 0.0, 0.6), VarSaw.ar(freq * 1.005, 0, 0.1, 0.4), Pulse.ar(freq * 0.5, 0.5, 0.2) ]);
     env  = EnvGen.ar(Env([0, 1, 0.7, 0], [attack, (sus * 0.35).max(0.02), (sus * 0.6).max(0.05)], curve: -2), doneAction: 2);
     fc   = (cutoff * (1 + (filterEnv * env.pow(2))) * (1 + (LFTri.ar(rate * 0.3) * 0.4))).clip(50, 9000);
-    osc  = RLPF.ar((osc * drive).tanh, fc, resonance.clip(0.05, 1.0));
+    osc  = RLPF.ar((osc * dist).tanh, fc, rq.clip(0.05, 1.0));
     Out.ar(out, Pan2.ar(osc * env * 0.4, pan) * amp);
 }).writeDefFile(~outDir);
 
 // ── a_stab — aggressive detuned major-chord stab ────────────────────────────
-SynthDef(\fd_a_stab, {|out=0, note=60, amp=0.9, sus=0.3, pan=0, attack=0.005, release=0.05, filterFreq=1000, resonance=0.7, distortion=5|
+SynthDef(\fd_a_stab, {|out=0, note=60, amp=0.9, sus=0.3, pan=0, attack=0.005, release=0.05, cutoff=1000, rq=0.7, dist=5|
     var freq = note.midicps, osc, env, fenv, chord;
     chord = [freq, freq * 1.25, freq * 1.5, freq * 2];
     osc   = Mix(chord.collect({|f| Mix([ Saw.ar([f, f * 1.003], 0.15), Pulse.ar(f * 0.5, 0.2, 0.1) ]) }));
     env   = EnvGen.ar(Env([0, 1, 0.3, 0], [attack, 0.08, (sus - attack - 0.08).max(0.05)], curve: -4), doneAction: 2);
     fenv  = EnvGen.ar(Env([0.5, 1, 0.2], [0.01, (sus * 0.9).max(0.05)]));
-    osc   = RLPF.ar((osc * distortion).tanh, (filterFreq * fenv).clip(50, 12000), resonance.clip(0.05, 1.0));
+    osc   = RLPF.ar((osc * dist).tanh, (cutoff * fenv).clip(50, 12000), rq.clip(0.05, 1.0));
     Out.ar(out, Pan2.ar(osc * env * 0.3, pan) * amp);
 }).writeDefFile(~outDir);
 

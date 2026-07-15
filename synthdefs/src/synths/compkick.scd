@@ -2,11 +2,12 @@
 // sub + body + click, internal Compander/Limiter and 4-band EQ. Adapted to
 // WebFoxDot I/O: bus→out, freq from note.midicps (+fmod), ReplaceOut→Out, the
 // perc amp-env carries doneAction:2 to free the node. attack/release map onto it.
-// Params: out, note, amp, pan, attack, release, punch, comp, click, crunch, sub, body, tone, fmod
-// (internal saturation is `crunch`, not `drive`, to avoid clashing with the FX key)
+// Params: out, note, amp, pan, attack, release, punch, squash, click, dist, sub, body, tone, fmod
+// (internal saturation is `dist`, the shared distortion knob; `squash` = internal comp,
+//  renamed off `comp` so the compressor FX is reachable)
 
 SynthDef(\fd_compkick, {|out=0, note=60, amp=0.9, pan=0, attack=0.001, release=0.35,
-                          punch=0.7, comp=8, click=0.4, crunch=1.5, sub=1, body=0.6, tone=0.3, fmod=0|
+                          punch=0.7, squash=8, click=0.4, dist=1.5, sub=1, body=0.6, tone=0.3, fmod=0|
     var sig, subOsc, bodyOsc, clickSig, final, freq;
     var pitchEnv, env, clickEnv, subEnv;
 
@@ -38,13 +39,13 @@ SynthDef(\fd_compkick, {|out=0, note=60, amp=0.9, pan=0, attack=0.001, release=0
     sig = (subOsc * 0.55) + (bodyOsc * 0.35) + clickSig;
 
     // === SUBTLE SATURATION ===
-    sig = (sig * crunch).softclip;
+    sig = (sig * dist).softclip;
     sig = LPF.ar(sig, 8000);
 
     // === TIGHT COMPRESSION ===
     sig = Compander.ar(sig, sig,
-        thresh: 0.1, slopeBelow: 1, slopeAbove: 1 / comp,
-        clampTime: 0.0008, relaxTime: 0.035, mul: comp.sqrt);
+        thresh: 0.1, slopeBelow: 1, slopeAbove: 1 / squash,
+        clampTime: 0.0008, relaxTime: 0.035, mul: squash.sqrt);
 
     // === EQ - clean and deep ===
     final = BLowShelf.ar(sig, 50, 0.7, 4);              // deep sub
