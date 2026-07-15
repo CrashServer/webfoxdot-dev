@@ -25,7 +25,7 @@ let _open = false;
 let _lastTracks = '';
 let _partsKey = '';
 
-export function initMixer(clock, editor, runCode) { _clock = clock; _editor = editor; _runCode = runCode; }
+export function initMixer(clock, editor, runCode) { _clock = clock; _editor = editor; _runCode = runCode; restoreMidi(); }
 
 // The part playing now — only drives the ● marker. Volumes are shared per name, so a
 // section change never touches them.
@@ -79,10 +79,10 @@ function midiApply(name, v) {
     }
 }
 async function midiLearn(name) {
-    if (_midi[name]) { clearMidiControl(_midi[name].ctrl); delete _midi[name]; updateConsole(); return; }  // toggle off
+    if (_midi[name]) { clearMidiControl(_midi[name].ctrl); delete _midi[name]; saveMidi(); updateConsole(); return; }  // toggle off
     if (!midiSupported()) return;
     try { await enableMidi(); } catch (_) { return; }
-    const ctrl = midiControl((v, cc) => { const e = _midi[name]; if (!e) return; e.cc = cc; e.armed = false; midiApply(name, v); updateMidiBtn(name); });
+    const ctrl = midiControl((v, cc) => { const e = _midi[name]; if (!e) return; const fresh = e.cc == null; e.cc = cc; e.armed = false; midiApply(name, v); updateMidiBtn(name); if (fresh) saveMidi(); });
     _midi[name] = { ctrl, cc: null, armed: true };
     updateConsole();
 }
@@ -118,14 +118,14 @@ function nextPart(dir) {
 function actOrArm(id, fn) { if (_learnMode) armAction(id, fn); else fn(); }
 
 function armAction(id, fn) {
-    if (_armed === id) { if (_act[id]) { clearMidiControl(_act[id].ctrl); delete _act[id]; } _armed = null; updateConsole(); return; } // click armed again = clear
+    if (_armed === id) { if (_act[id]) { clearMidiControl(_act[id].ctrl); delete _act[id]; } _armed = null; saveMidi(); updateConsole(); return; } // click armed again = clear
     if (_armed && _act[_armed] && _act[_armed].armed) { clearMidiControl(_act[_armed].ctrl); delete _act[_armed]; }  // only one armed at a time
     if (_act[id]) { clearMidiControl(_act[id].ctrl); delete _act[id]; }   // already bound → rebind
     if (!midiSupported()) return;
     enableMidi().then(() => {
         const b = { cc: null, armed: true, fn, last: 0 };
         b.ctrl = midiControl((v, cc) => {
-            if (b.armed) { b.cc = cc; b.armed = false; b.last = v; if (_armed === id) _armed = null; updateConsole(); return; }
+            if (b.armed) { b.cc = cc; b.armed = false; b.last = v; if (_armed === id) _armed = null; saveMidi(); updateConsole(); return; }
             if (b.last < 0.5 && v >= 0.5) { try { b.fn(); } catch (_) {} }   // rising-edge = press
             b.last = v;
         });
@@ -157,6 +157,59 @@ function applyMidiMarks() {
         if (b.armed) el.classList.add('midi-armed');
         else { el.classList.add('midi-mapped'); el.title = el.title.split(' · CC')[0] + ' · CC' + b.cc; }
     }
+}
+
+// ── MIDI persistence — remember the mixer's fader + action mappings across refreshes.
+// We save only { name/id → cc } to localStorage; on load we re-enable MIDI (the browser
+// remembers the permission grant) and rebind, so your controller keeps working. ─────
+const MIDI_KEY = 'wfd-midi';
+function saveMidi() {
+    try {
+        const faders = {}, actions = {};
+        for (const n in _midi) if (_midi[n] && _midi[n].cc != null) faders[n] = _midi[n].cc;
+        for (const id in _act) if (_act[id] && _act[id].cc != null) actions[id] = _act[id].cc;
+        localStorage.setItem(MIDI_KEY, JSON.stringify({ faders, actions }));
+    } catch (_) {}
+}
+// Rebuild the action a saved id fires — ids: launch:NAME · solo:NAME · mute:NAME ·
+// stop:NAME · next · prev — so a restored binding does exactly what it did before.
+function actionFn(id) {
+    if (id === 'next') return () => nextPart(1);
+    if (id === 'prev') return () => nextPart(-1);
+    const [kind, name] = id.split(':');
+    if (kind === 'launch') return () => launchPlayer(name);
+    if (kind === 'solo')   return () => { toggleSolo(name); updateConsole(); };
+    if (kind === 'mute')   return () => { toggleMute(name); updateConsole(); };
+    if (kind === 'stop')   return () => stopPlayer(name);
+    return null;
+}
+// Re-establish a fader binding on a KNOWN cc (no learn step). Works before the mixer
+// UI is built (updateMidiBtn is null-guarded), so the controller drives volume even
+// with the mixer closed.
+function restoreFader(name, cc) {
+    const ctrl = midiControl((v, cc2) => { const e = _midi[name]; if (!e) return; e.cc = cc2; e.armed = false; midiApply(name, v); updateMidiBtn(name); }, cc);
+    _midi[name] = { ctrl, cc, armed: false };
+    updateMidiBtn(name);
+}
+// Re-establish an action binding on a KNOWN cc (rising-edge = press).
+function restoreAction(id, cc) {
+    const fn = actionFn(id); if (!fn) return;
+    const b = { cc, armed: false, fn, last: 0 };
+    b.ctrl = midiControl((v) => { if (b.last < 0.5 && v >= 0.5) { try { b.fn(); } catch (_) {} } b.last = v; }, cc);
+    _act[id] = b;
+}
+// On load: if there are saved mappings, silently re-enable MIDI and rebind them.
+// No-op if MIDI is unavailable or the permission was revoked (the .catch swallows it).
+function restoreMidi() {
+    let saved; try { saved = JSON.parse(localStorage.getItem(MIDI_KEY) || 'null'); } catch (_) { saved = null; }
+    const faders = (saved && saved.faders) || {}, actions = (saved && saved.actions) || {};
+    if (!Object.keys(faders).length && !Object.keys(actions).length) return;
+    if (!midiSupported()) return;
+    enableMidi().then(() => {
+        for (const [name, cc] of Object.entries(faders))  restoreFader(name, +cc);
+        for (const [id, cc]   of Object.entries(actions)) restoreAction(id, +cc);
+        if (_open) updateConsole();
+    }).catch(() => {});
 }
 
 // The composition's tracks, in the order they appear in the CODE (top-to-bottom, so

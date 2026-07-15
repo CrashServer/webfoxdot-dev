@@ -1020,6 +1020,11 @@
             document.getElementById('btn-loadkit').disabled = false;
             log('Ready. Clock running.', 'ok');
             _booting = false;
+            // Remember we booted, so a future refresh can auto-boot on the first gesture.
+            try { localStorage.setItem('wfd-autostart', '1'); } catch (_) {}
+            // If the sample kit was loaded before, restore it now (cached → fast/offline)
+            // so the user doesn't have to click "load kit" again after every refresh.
+            try { if (localStorage.getItem('wfd-kit')) loadKit(true); } catch (_) {}
         } catch (e) {
             log(`Boot failed: ${e.message}`, 'error');
             console.error(e);
@@ -1372,6 +1377,23 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── UI wiring ─────────────────────────────────────────────────────────────
     document.getElementById('btn-boot').onclick  = bootAudio;
+
+    // Auto-boot after a refresh: the browser forbids starting audio without a user
+    // gesture, so we can't boot silently — but if audio was running last time, we
+    // boot on the very FIRST click / keypress, so you don't have to hunt for the
+    // boot button (and the kit then auto-restores in bootAudio). One-shot.
+    try {
+        if (localStorage.getItem('wfd-autostart') && !_scRef) {
+            const _autoBoot = () => {
+                window.removeEventListener('pointerdown', _autoBoot, true);
+                window.removeEventListener('keydown', _autoBoot, true);
+                if (!_scRef && !_booting) bootAudio();
+            };
+            window.addEventListener('pointerdown', _autoBoot, true);
+            window.addEventListener('keydown', _autoBoot, true);
+            log('audio will resume on your first click or keypress', 'info');
+        }
+    } catch (_) {}
     document.getElementById('btn-run').onclick   = runSelected;
     document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
@@ -1451,26 +1473,32 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     };
 
     // ── Load the default sample pack (webfoxdot-kit) from GitHub, one click ──────
+    // `auto` = a silent restore after a refresh (we remembered the kit was loaded);
+    // it skips the "boot first" nag and narrates as "restoring".
     const DEFAULT_KIT_URL = 'https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json';
-    document.getElementById('btn-loadkit').onclick = () => {
-        if (document.getElementById('status-dot')?.className !== 'ready')
-            return log('load kit: boot audio first (top-left)', 'info');
+    function loadKit(auto = false) {
+        if (document.getElementById('status-dot')?.className !== 'ready') {
+            if (!auto) log('load kit: boot audio first (top-left)', 'info');
+            return Promise.resolve(0);
+        }
         const kbtn = document.getElementById('btn-loadkit');
-        if (kbtn.dataset.loading) return;
+        if (kbtn.dataset.loading) return Promise.resolve(0);
         kbtn.dataset.loading = '1'; kbtn.disabled = true;
-        const update = logLive('load kit: fetching webfoxdot-kit…');
-        loadPackFromURL(DEFAULT_KIT_URL, (done, total) => {
+        const update = logLive(auto ? 'restoring sample kit…' : 'load kit: fetching webfoxdot-kit…');
+        return loadPackFromURL(DEFAULT_KIT_URL, (done, total) => {
             update(`load kit: ${done}/${total} samples…`);
             kbtn.textContent = `kit ${done}/${total}`;
         })
         .then(n => {
             update(n ? `load kit: ${n} chars loaded ✓` : 'load kit: 0 loaded (all failed)', n ? 'ok' : 'error');
             kbtn.textContent = n ? '✓ kit' : 'retry kit';
-            if (n) kbtn.classList.add('booted');
+            if (n) { kbtn.classList.add('booted'); try { localStorage.setItem('wfd-kit', '1'); } catch (_) {} }
+            return n;
         })
-        .catch(e => { update(`load kit: ${e.message}`, 'error'); kbtn.textContent = 'retry kit'; })
+        .catch(e => { update(`load kit: ${e.message}`, 'error'); kbtn.textContent = 'retry kit'; return 0; })
         .finally(() => { kbtn.disabled = false; delete kbtn.dataset.loading; });
-    };
+    }
+    document.getElementById('btn-loadkit').onclick = () => loadKit(false);
 
     document.getElementById('bpm-input').oninput = (e) => { clock.bpm = Number(e.target.value); };
 
