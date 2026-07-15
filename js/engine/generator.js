@@ -37,7 +37,7 @@ const restList  = (n, lo, hi) => '[' + Array.from({ length: n }, (_, i) => (i > 
 function degBass() {
     return pick([`[0]`, `[0, 0, ${rint(3, 7)}, 0]`, `[0, ${rint(-3, 0)}, ${rint(3, 7)}, 0]`,
                  `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`, restList(4, 0, 5),
-                 `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, <0 5>, ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`]);
+                 `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, [0, 5], ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`]);
 }
 function degLead() {
     return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown', 'downup'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
@@ -62,14 +62,14 @@ const degForRole = (role) => role === 'bass' ? degBass()
     : role === 'pluck' ? (chance(0.5) ? degLead() : pick([`PCircle(8)`, `arp(${CHORDLIST()}, "up")`, `PGrowArp(${CHORDLIST()})`, randList(rint(3, 6), 0, 9)]))
     : degLead();
 
-const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)', 'PDur(<3,5>,8)'])
-    : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1', '<2 4>'])
-    : role === 'perc' ? pick(['1/4', '1/4', '1/2', '1', 'PDur(3,8)', 'PDur(5,8)', 'PBeat("x xx x")', '<1/4 1/2>'])
-    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur(<3,5>,8)`, 'PGroove("swing")', 'PGroove("gallop")', `PGroove(${rint(0, 9)})`, 'PBeat("x xx x")', '<1/4 1/2>']);
+const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)', 'PDur([3,5],8)'])
+    : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1', '[2, 4]'])
+    : role === 'perc' ? pick(['1/4', '1/4', '1/2', '1', 'PDur(3,8)', 'PDur(5,8)', 'PBeat("x xx x")', '[1/4, 1/2]'])
+    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur([3,5],8)`, 'PGroove("swing")', 'PGroove("gallop")', `PGroove(${rint(0, 9)})`, 'PBeat("x xx x")', '[1/4, 1/2]']);
 // oct — usually a number, sometimes an alternation for movement.
 const octForRole = (role) => {
     const base = role === 'bass' ? [3, 3, 4] : role === 'perc' ? [3, 4, 5] : role === 'pluck' ? [5, 6] : (role === 'pad' || role === 'keys') ? [4, 5] : [5, 5, 6];
-    if (chance(0.18)) { const a = pick(base); return `<${a} ${a + 1}>`; }
+    if (chance(0.18)) { const a = pick(base); return `[${a}, ${a + 1}]`; }
     return String(pick(base));
 };
 // amp — usually a float, sometimes a random/accent pattern for dynamics.
@@ -82,9 +82,9 @@ const ampForRole = (role) => {
 };
 // Occasional extra param that is itself a pattern/timevar — pan movement, a transpose.
 const panExtra = () => !chance(0.3) ? '' : ', ' + pick([
-    `pan=PGauss(0, ${flt(0.3, 0.6)})`, `pan=sinvar([-1, 1], [${pick([8, 16])}])`, `pan=PWhite(-0.7, 0.7)`, `pan=<-0.5 0.5>`,
+    `pan=PGauss(0, ${flt(0.3, 0.6)})`, `pan=sinvar([-1, 1], [${pick([8, 16])}])`, `pan=PWhite(-0.7, 0.7)`, `pan=[-0.5, 0.5]`,
 ]);
-const transposeExtra = () => !chance(0.22) ? '' : ' + ' + pick([`${rint(2, 7)}`, `(0,4,7)`, `(0,3,7)`, `<0 ${rint(2, 5)}>`]);
+const transposeExtra = () => !chance(0.22) ? '' : ' + ' + pick([`${rint(2, 7)}`, `(0,4,7)`, `(0,3,7)`, `[0, ${rint(2, 5)}]`]);
 
 // FX ideas — a broad palette; many use a TimeVar sweep so the sound moves. Each
 // is a distinct thunk (pickN never picks the same one twice, so no doubled keys).

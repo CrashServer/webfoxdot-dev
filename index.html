@@ -378,10 +378,14 @@
     }
 
     // Stop all: cancel the autoplay sequence FIRST (so a pending scheduled section
-    // advance can't restart playback) then stop every player.
+    // advance can't restart playback), stop every player, stop the generative jam bot
+    // (else its loop respawns players), and FREEZE the tempo (a Clock.bpm linvar/ramp
+    // would otherwise keep evolving after everything's silent).
     function stopAll() {
         cancelSection();
         clock.clear();
+        if (_jamBot) _jamBot.stop(true);        // stop son()/chaos jam-bot loop + its g* players
+        clock.bpm = clock.bpm;                  // sampling a TimeVar → freeze at the current value
     }
 
     // Soft reload — recover from a stuck engine without a page refresh.

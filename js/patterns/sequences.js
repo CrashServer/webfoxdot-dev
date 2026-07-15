@@ -1199,12 +1199,17 @@ const _GROOVES = {
     dotted: [0.75, 0.25], gallop: [0.5, 0.25, 0.25], revgallop: [0.25, 0.25, 0.5],
     tresillo: [0.75, 0.75, 0.5], habanera: [0.75, 0.25, 0.5, 0.5], clave: [0.75, 0.75, 0.5],
 };
-// PGroove(name) — a dur pattern for a named feel. e.g. dur=PGroove("swing").
+// PGroove(name) — a dur pattern for a feel. The selector can be a NAME ("swing"), an
+// INTEGER (indexes the groove list), a VAR (feel changes over time), or a LIST/pattern
+// ([0, 1, 2] cycles through grooves). e.g. dur=PGroove("swing") · PGroove(3) ·
+// PGroove(var([0,1],8)) · PGroove([0, 2, 5]).
 export function PGroove(name = 'swing') {
     const keys = Object.keys(_GROOVES);
-    if (name && typeof name.get === 'function') {          // var → groove varies over time
+    // A var / array / nested pattern → resolve the selector each step (patGet handles
+    // .get(), arrays and scalars uniformly), then look up that step's groove.
+    if (name && (typeof name.get === 'function' || Array.isArray(name))) {
         return { get: (step) => {
-            const g = _GROOVES[optName(name, keys, step)] || _GROOVES['straight'];
+            const g = _GROOVES[optName(patGet(name, step), keys, step)] || _GROOVES['straight'];
             return g[(((step | 0) % g.length) + g.length) % g.length];
         } };
     }
