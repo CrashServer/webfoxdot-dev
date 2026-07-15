@@ -1889,33 +1889,31 @@ body.is-offline #btn-galaxy {
 }
 .perf-close:active { background: var(--bg-2); }
 .perf-tiles {
-    flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
-    touch-action: pan-y;   /* vertical drag scrolls the grid; tiles claim horizontal for volume */
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px;
-    align-content: start;
+    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    display: grid; gap: 8px;   /* columns + rows are set by fitGrid() so ALL tiles fit on screen */
 }
 .perf-tile {
     position: relative; overflow: hidden;
-    min-height: 84px; border-radius: 12px;
+    min-height: 0; min-width: 0; border-radius: 12px;   /* shrinks so the whole set fits */
     border: 2px solid var(--border-1); background: var(--bg-2);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; user-select: none; touch-action: none;
     transition: border-color 0.12s, box-shadow 0.12s;
 }
 .perf-tile-fill {
-    position: absolute; left: 0; top: 0; bottom: 0; width: 66%;
-    background: linear-gradient(to right, var(--green-dim), transparent);
+    position: absolute; left: 0; right: 0; bottom: 0; height: 66%;
+    background: linear-gradient(to top, var(--green-dim), transparent);
     pointer-events: none;
 }
 .perf-tile-name {
-    position: relative; z-index: 1;
-    font-family: monospace; font-size: 15px; font-weight: bold; color: var(--text-2);
+    position: relative; z-index: 1; padding: 0 4px;
+    font-family: monospace; font-size: var(--perf-tile-font, 15px); font-weight: bold; color: var(--text-2);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .perf-tile.on { border-color: var(--green); box-shadow: 0 0 12px var(--glow); }
 .perf-tile.on .perf-tile-name { color: var(--green); }
 .perf-secs-wrap { flex: 0 0 auto; }
-.perf-secs { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
-.perf-secs::-webkit-scrollbar { display: none; }
+.perf-secs { display: flex; flex-wrap: wrap; gap: 6px; }
 .perf-nosecs { font-size: 11px; color: var(--text-2); }
 .perf-sec {
     flex: 0 0 auto; min-height: 40px; padding: 8px 16px;
@@ -1932,7 +1930,19 @@ body.is-offline #btn-galaxy {
     user-select: none; touch-action: none;
 }
 .perf-fxbtn.on { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 0 16px var(--glow); }
-.perf-macros { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+/* tabbed control drawer — one panel at a time (SECTIONS / FX / MACRO) so the XY pad
+   only takes space when you're actually using it. */
+.perf-ctrl { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; }
+.perf-tabs { display: flex; gap: 4px; }
+.perf-tab {
+    flex: 1; min-height: 32px; border-radius: 8px;
+    background: var(--bg-2); border: 1px solid var(--border-1);
+    color: var(--text-2); font-size: 11px; font-weight: bold; letter-spacing: 1px;
+    cursor: pointer; user-select: none; touch-action: none;
+}
+.perf-tab.on { background: var(--bg-3); color: var(--green); border-color: var(--green); }
+.perf-panel { display: none; flex-direction: column; gap: 8px; }
+.perf-panel.on { display: flex; }
 .perf-macro-master { display: flex; align-items: center; gap: 10px; font-size: 10px; letter-spacing: 1px; color: var(--text-2); }
 .perf-macro-master .perf-mac { flex: 1; }
 .perf-mac { height: 30px; accent-color: var(--green); touch-action: none; }
@@ -1950,30 +1960,8 @@ body.is-offline #btn-galaxy {
     transform: translate(-50%, -50%); pointer-events: none;
 }
 
-/* ── Perform: per-tile solo (long-press) + landscape rail ─────────────────── */
+/* ── Perform: per-tile solo (long-press) ──────────────────────────────────── */
 .perf-tile-solo { position: absolute; top: 4px; right: 6px; z-index: 1; font-family: monospace; font-size: 11px; font-weight: bold; color: var(--yellow); opacity: 0; transition: opacity .12s; }
 .perf-tile.soloed { border-color: var(--yellow); box-shadow: 0 0 12px rgba(210, 153, 34, .5); }
 .perf-tile.soloed .perf-tile-solo { opacity: 1; }
 .perf-tile.soloed .perf-tile-name { color: var(--yellow); }
-
-/* controls rail — a column in portrait, a side rail in landscape */
-.perf-rail { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; min-height: 0; }
-
-/* Landscape phone (short + wide): tiles fill the left, controls move to a right rail
-   so the grid gets the whole height instead of being squeezed by the stacked controls. */
-@media (orientation: landscape) and (max-height: 600px) {
-    #perform-overlay {
-        display: grid;
-        grid-template-columns: 1fr minmax(190px, 30vw);
-        grid-template-rows: auto 1fr;
-        grid-template-areas: "head head" "tiles rail";
-        gap: 10px;
-    }
-    .perf-head   { grid-area: head; }
-    .perf-tiles  { grid-area: tiles; }
-    .perf-rail   { grid-area: rail; overflow-y: auto; }
-    .perf-macros { flex: 1 1 auto; }
-    .perf-xy     { flex: 1 1 auto; height: auto; min-height: 90px; }
-    .perf-fx     { flex-wrap: wrap; }
-    .perf-fxbtn  { flex: 1 1 42%; }
-}

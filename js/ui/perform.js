@@ -34,7 +34,7 @@ function fillTile(el, name) {
     el.classList.toggle('on', isPlaying(name));
     el.classList.toggle('soloed', isSoloed(name));
     const fill = el.querySelector('.perf-tile-fill');
-    if (fill) fill.style.width = Math.min(100, (lvl / 1.5) * 100) + '%';   // left→right volume fill
+    if (fill) fill.style.height = Math.min(100, (lvl / 1.5) * 100) + '%';   // bottom→top volume fill
 }
 // short haptic tick on a launch/stop tap (phones only; no-op elsewhere)
 function buzz(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } catch (_) {} }
@@ -44,35 +44,27 @@ function makeTile(name) {
     el.className = 'perf-tile';
     el.dataset.name = name;
     el.innerHTML = `<span class="perf-tile-fill"></span><span class="perf-tile-solo">S</span><span class="perf-tile-name">${name}</span>`;
-    // Gesture split so the tile grid can still SCROLL:
-    //   tap             → launch / stop (quantised)
-    //   long-press      → solo / unsolo (shared with the mixer + Players panel)
-    //   horizontal drag → volume (this tile)
-    //   vertical drag   → yields to the native pan-y scroll of the grid
-    // We don't capture the pointer until the move is confirmed horizontal, and a
-    // pointercancel (the browser taking the gesture for scrolling) is NOT a tap.
-    let sx = 0, sy = 0, startLvl = 1, mode = null, held = false, lpT = null;   // mode: null | 'vol' | 'scroll'
+    // The grid FITS on screen (no scrolling — see fitGrid), so gestures are simple:
+    //   tap            → launch / stop (quantised)
+    //   long-press     → solo / unsolo (shared with the mixer + Players panel)
+    //   drag up/down   → volume (this tile)
+    let sy = 0, startLvl = 1, moved = false, held = false, lpT = null;
     el.addEventListener('pointerdown', (e) => {
-        sx = e.clientX; sy = e.clientY; startLvl = levelOf(name); mode = null; held = false;
-        lpT = setTimeout(() => { if (mode === null) { held = true; toggleSolo(name); buzz(28); refresh(); } }, 450);
+        sy = e.clientY; startLvl = levelOf(name); moved = false; held = false;
+        try { el.setPointerCapture(e.pointerId); } catch (_) {}
+        lpT = setTimeout(() => { if (!moved) { held = true; toggleSolo(name); buzz(28); refresh(); } }, 450);   // hold = solo
     });
     el.addEventListener('pointermove', (e) => {
-        if (mode === 'scroll') return;
-        const dx = e.clientX - sx, dy = e.clientY - sy;
-        if (mode === null) {
-            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-            clearTimeout(lpT);   // moved → not a long-press
-            if (Math.abs(dx) > Math.abs(dy)) { mode = 'vol'; try { el.setPointerCapture(e.pointerId); } catch (_) {} }
-            else { mode = 'scroll'; return; }   // let the grid scroll
-        }
-        if (mode === 'vol') { setLevel(name, Math.max(0, Math.min(1.5, startLvl + dx / 130))); fillTile(el, name); }
+        const dy = sy - e.clientY;
+        if (!moved && Math.abs(dy) < 6) return;
+        moved = true; clearTimeout(lpT);
+        setLevel(name, Math.max(0, Math.min(1.5, startLvl + dy / 140))); fillTile(el, name);   // vertical = volume
     });
     el.addEventListener('pointerup', () => {
         clearTimeout(lpT);
-        if (mode === null && !held) { isPlaying(name) ? stopPlayer(name) : launchPlayer(name); buzz(); refresh(); }   // TAP
-        mode = null;
+        if (!moved && !held) { isPlaying(name) ? stopPlayer(name) : launchPlayer(name); buzz(); refresh(); }   // TAP
     });
-    el.addEventListener('pointercancel', () => { clearTimeout(lpT); mode = null; });   // scroll takeover — not a tap
+    el.addEventListener('pointercancel', () => { clearTimeout(lpT); });
     return el;
 }
 
@@ -86,23 +78,30 @@ function build() {
             <span class="perf-title">▶ PERFORM</span>
             <button class="perf-close" title="exit perform mode">×</button>
         </div>
-        <div class="perf-tiles" title="tap = launch / stop · hold = solo · drag ◄ ► = volume · swipe ↕ to scroll"></div>
-        <div class="perf-rail">
-        <div class="perf-secs-wrap"><div class="perf-secs" title="jump the arrangement to a section"></div></div>
-        <div class="perf-fx" title="hold to fire, release to return">
-            <button class="perf-fxbtn" data-fx="drop">DROP</button>
-            <button class="perf-fxbtn" data-fx="stutter">STUTTER</button>
-            <button class="perf-fxbtn" data-fx="gate">GATE</button>
-            <button class="perf-fxbtn" data-fx="echo">ECHO</button>
-        </div>
-        <div class="perf-macros">
-            <label class="perf-macro perf-macro-master">MASTER<input type="range" class="perf-mac perf-master" min="0" max="1.5" step="0.01" value="1"></label>
-            <div class="perf-xy" title="X = filter (right = open) · Y = space / reverb (up = wetter)">
-                <span class="perf-xy-lx">FILTER →</span>
-                <span class="perf-xy-ly">SPACE ↑</span>
-                <span class="perf-xy-dot"></span>
+        <div class="perf-tiles" title="tap = launch / stop · hold = solo · drag ↕ = volume"></div>
+        <div class="perf-ctrl">
+            <div class="perf-tabs">
+                <button class="perf-tab on" data-tab="secs">SECTIONS</button>
+                <button class="perf-tab" data-tab="fx">FX</button>
+                <button class="perf-tab" data-tab="macro">MACRO</button>
             </div>
-        </div>
+            <div class="perf-panel on" data-tab="secs"><div class="perf-secs" title="jump the arrangement to a section"></div></div>
+            <div class="perf-panel" data-tab="fx">
+                <div class="perf-fx" title="hold to fire, release to return">
+                    <button class="perf-fxbtn" data-fx="drop">DROP</button>
+                    <button class="perf-fxbtn" data-fx="stutter">STUTTER</button>
+                    <button class="perf-fxbtn" data-fx="gate">GATE</button>
+                    <button class="perf-fxbtn" data-fx="echo">ECHO</button>
+                </div>
+            </div>
+            <div class="perf-panel" data-tab="macro">
+                <label class="perf-macro-master">MASTER<input type="range" class="perf-mac perf-master" min="0" max="1.5" step="0.01" value="1"></label>
+                <div class="perf-xy" title="X = filter (right = open) · Y = space / reverb (up = wetter)">
+                    <span class="perf-xy-lx">FILTER →</span>
+                    <span class="perf-xy-ly">SPACE ↑</span>
+                    <span class="perf-xy-dot"></span>
+                </div>
+            </div>
         </div>`;
     document.body.appendChild(_modal);
     _tilesEl = _modal.querySelector('.perf-tiles');
@@ -166,6 +165,40 @@ function build() {
         btn.addEventListener('pointerup', rel);
         btn.addEventListener('pointercancel', rel);
     });
+
+    // Tabs — show ONE control panel at a time so the XY pad stops eating the screen.
+    _modal.querySelectorAll('.perf-tab').forEach((tab) => {
+        tab.onclick = () => {
+            const w = tab.dataset.tab;
+            _modal.querySelectorAll('.perf-tab').forEach((t) => t.classList.toggle('on', t === tab));
+            _modal.querySelectorAll('.perf-panel').forEach((p) => p.classList.toggle('on', p.dataset.tab === w));
+            buzz(8); fitGrid();   // panel height changed → re-fit the tiles
+        };
+    });
+    // Re-fit the tile grid on rotate / resize.
+    window.addEventListener('resize', () => { if (_open) fitGrid(); });
+}
+
+// Size the tile grid so EVERY tile fits on screen (no scrolling) — pick the column
+// count that makes the tiles as large as possible for the current box + tile count,
+// and scale the label to match. Fills whatever height the controls leave.
+function fitGrid() {
+    if (!_tilesEl) return;
+    const n = _tilesEl.children.length;
+    if (!n) return;
+    const gap = 8, W = _tilesEl.clientWidth, H = _tilesEl.clientHeight;
+    if (W < 20 || H < 20) return;
+    let best = { cols: 1, rows: n, size: 0 };
+    for (let cols = 1; cols <= n; cols++) {
+        const rows = Math.ceil(n / cols);
+        const cw = (W - gap * (cols - 1)) / cols;
+        const ch = (H - gap * (rows - 1)) / rows;
+        const size = Math.min(cw, ch);          // largest square-ish tile for this split
+        if (size > best.size) best = { cols, rows, size };
+    }
+    _tilesEl.style.gridTemplateColumns = `repeat(${best.cols}, 1fr)`;
+    _tilesEl.style.gridTemplateRows    = `repeat(${best.rows}, 1fr)`;
+    _tilesEl.style.setProperty('--perf-tile-font', Math.max(9, Math.min(17, best.size * 0.19)).toFixed(1) + 'px');
 }
 
 // Rebuild tiles / sections only when the set of names changes (cheap on the timer).
@@ -176,6 +209,7 @@ function rebuild() {
         _lastTiles = key;
         _tilesEl.innerHTML = '';
         names.forEach((n) => _tilesEl.appendChild(makeTile(n)));
+        fitGrid();
     }
     const secs = sectionList();
     const skey = secs.map((s) => s.name + s.line).join(',');
@@ -225,6 +259,7 @@ export function openPerform() {
     _modal.classList.remove('hidden');
     document.body.classList.add('performing');
     refresh();
+    requestAnimationFrame(fitGrid);   // fit once the overlay has real dimensions
     if (!_timer) _timer = setInterval(refresh, 400);
     if (!_beatRAF) _beatRAF = requestAnimationFrame(beatLoop);
 }
