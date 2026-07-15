@@ -19,8 +19,8 @@ import { getSections, runSection } from '../engine/sections.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
-let _source = null;            // which part a launch pulls from (null = the part playing, else first)
-let _activeSection = null;     // the part playing now (for the ● marker)
+let _source = null;            // LINE of the part a launch pulls from (null = the part playing, else first)
+let _activeSection = null;     // LINE of the part playing now (for the ● marker)
 let _open = false;
 let _lastTracks = '';
 let _partsKey = '';
@@ -29,8 +29,8 @@ export function initMixer(clock, editor, runCode) { _clock = clock; _editor = ed
 
 // The part playing now — only drives the ● marker. Volumes are shared per name, so a
 // section change never touches them.
-export function onSectionActive(sectionName) {
-    _activeSection = sectionName || null;
+export function onSectionActive(sectionName, sectionLine) {
+    _activeSection = (sectionLine != null && sectionLine >= 0) ? sectionLine : null;
     if (_open) updateConsole();
 }
 
@@ -45,18 +45,21 @@ export function setLevel(name, v) {
     if (p) p._mixLevel = v;
 }
 
-// Players a part (re)defines — the names on its uncommented `name >>` lines. Used to
-// colour the channels a launch from the selected part would actually (re)start.
-function playersInPart(part) {
+// Players a part (re)defines — the names on the uncommented `[~]name >>` lines of the
+// section that STARTS at `secLine`. Used to colour the channels a launch from the
+// selected part would (re)start. Keyed by LINE so duplicate part names stay distinct,
+// and it allows a leading ~ (reset-player prefix).
+function playersInPart(secLine) {
     const set = new Set();
-    if (!part || !_editor || !_editor.getValue) return set;
-    let cur = null;
+    if (secLine == null || !_editor || !_editor.getValue) return set;
+    let cur = -1, i = -1;
     for (const raw of _editor.getValue().split('\n')) {
+        i++;
         const t = raw.trim();
         const sec = t.match(/^#@\s*([a-zA-Z_]\w*)/);
-        if (sec && !t.startsWith('#@#@')) { cur = sec[1]; continue; }
-        const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);
-        if (pm && cur === part) set.add(pm[1]);
+        if (sec && !t.startsWith('#@#@')) { cur = i; continue; }
+        const pm = t.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
+        if (pm && cur === secLine) set.add(pm[1]);
     }
     return set;
 }
@@ -156,16 +159,32 @@ function applyMidiMarks() {
     }
 }
 
-// The composition's tracks: players in #@ lines (incl. `# p1 >>` stops) ∪ active players.
+// The composition's tracks: players in #@ lines (incl. `# p1 >>` stops and `~p1 >>`
+// reset-players) ∪ active players.
 export function tracks() {
     const set = new Set(_clock ? _clock._players.keys() : []);
     if (_editor && _editor.getValue) {
-        for (const m of _editor.getValue().matchAll(/^\s*#?\s*([a-zA-Z_]\w*)\s*>>/gm)) set.add(m[1]);
+        for (const m of _editor.getValue().matchAll(/^\s*#?\s*~?\s*([a-zA-Z_]\w*)\s*>>/gm)) set.add(m[1]);
     }
     return [...set].sort();
 }
 
-// The composition's named parts (not #@#@ tracks, not goto/end/clear).
+// The composition's named parts WITH their line, in document order — duplicates kept
+// (two #@intro parts are distinct rows, keyed by line). Excludes #@#@ + control parts.
+function partList() {
+    const out = [];
+    if (_editor && _editor.getValue) {
+        const ls = _editor.getValue().split('\n');
+        for (let i = 0; i < ls.length; i++) {
+            if (ls[i].trim().startsWith('#@#@')) continue;
+            const m = ls[i].match(/^\s*#@\s*([a-zA-Z_]\w*)\s*(?:\(|$)/);
+            if (m && !/^(goto|end|endfade|clear)$/i.test(m[1])) out.push({ name: m[1], line: i });
+        }
+    }
+    return out;
+}
+
+// The composition's named part NAMES (deduped) — kept for external consumers (perform).
 export function parts() {
     const out = [];
     if (_editor && _editor.getValue) {
@@ -176,18 +195,20 @@ export function parts() {
     return [...new Set(out)];
 }
 
-// Launch a track: evaluate its `name >>` line from the SOURCE part (else the part
-// playing, else the first occurrence). Volume is the shared per-name level, re-applied.
+// Launch a track: evaluate its `[~]name >>` line from the SOURCE part (a section start
+// LINE — else the part playing, else the first occurrence). Duplicate part names stay
+// distinct because the source is a line, not a name. Volume is re-applied per name.
 export function launchPlayer(name) {
     if (!_runCode || !_editor || !_editor.getValue) return;
-    const want = _source ?? _activeSection;
-    let part = null, pick = null, first = null;
+    const wantLine = _source ?? _activeSection;   // a section start line, or null
+    let curSec = -1, pick = null, first = null, i = -1;
     for (const raw of _editor.getValue().split('\n')) {
+        i++;
         const t = raw.trim();
         const sec = t.match(/^#@\s*([a-zA-Z_]\w*)/);
-        if (sec && !t.startsWith('#@#@')) { part = sec[1]; continue; }
-        const pm = t.match(/^\s*([a-zA-Z_]\w*)\s*>>/);        // a real (uncommented) definition
-        if (pm && pm[1] === name) { if (first == null) first = raw; if (want == null || part === want) { pick = raw; break; } }
+        if (sec && !t.startsWith('#@#@')) { curSec = i; continue; }
+        const pm = t.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);   // a real (uncommented) definition, ~ allowed
+        if (pm && pm[1] === name) { if (first == null) first = raw; if (wantLine == null || curSec === wantLine) { pick = raw; break; } }
     }
     const code = pick ?? first;
     if (!code) return;
@@ -269,27 +290,33 @@ function initDrag(handle) {
     window.addEventListener('pointerup', () => { on = false; });
 }
 
-// Source-part picker: 'auto' + one chip per part. Selected = launch source; ● = playing.
+// Source-part picker: 'auto' + one chip per part OCCURRENCE (keyed by line, so two
+// #@intro parts each get their own chip). Selected = launch source; ● = playing now.
 function renderParts() {
-    const ps = parts();
-    if (_source != null && !ps.includes(_source)) _source = null;
-    const key = ['auto', ...ps].join(',');
+    const ps = partList();
+    if (_source != null && !ps.some(p => p.line === _source)) _source = null;   // source part was deleted
+    const key = 'auto|' + ps.map(p => p.line + ':' + p.name).join(',');
     if (key !== _partsKey) {
         _partsEl.innerHTML = '';
-        for (const name of ['auto', ...ps]) {
+        const auto = document.createElement('button');
+        auto.className = 'mixer-part-chip'; auto.dataset.line = ''; auto.textContent = 'auto';
+        auto.title = 'launch from the part playing now (or the first if none)';
+        auto.onclick = () => { _source = null; updateConsole(); };
+        _partsEl.appendChild(auto);
+        for (const p of ps) {
             const chip = document.createElement('button');
             chip.className = 'mixer-part-chip';
-            chip.dataset.part = name;
-            chip.textContent = name;
-            chip.onclick = () => { _source = name === 'auto' ? null : name; updateConsole(); };
+            chip.dataset.line = p.line;
+            chip.textContent = p.name;
+            chip.onclick = () => { _source = p.line; updateConsole(); };
             _partsEl.appendChild(chip);
         }
         _partsKey = key;
     }
     for (const chip of _partsEl.children) {
-        const name = chip.dataset.part;
-        chip.classList.toggle('selected', (name === 'auto' && _source == null) || name === _source);
-        chip.classList.toggle('playing', name !== 'auto' && name === _activeSection);
+        const ln = chip.dataset.line === '' ? null : +chip.dataset.line;
+        chip.classList.toggle('selected', ln === _source);                       // auto: null === null
+        chip.classList.toggle('playing', ln != null && ln === _activeSection);
     }
 }
 
@@ -333,8 +360,8 @@ function updateConsole() {
     updateMidiBtn('__master__');
     // Tracks the SELECTED source part (re)defines get highlighted — so you see which
     // channels a launch from that part would actually fire.
-    const src = _source ?? _activeSection;
-    const defined = src ? playersInPart(src) : null;
+    const src = _source ?? _activeSection;      // a section start line (0 is valid), or null
+    const defined = src != null ? playersInPart(src) : null;
     for (const row of _chansEl.children) {
         const name = row.dataset.name;
         const p = _clock && _clock._players.get(name);

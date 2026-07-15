@@ -1759,7 +1759,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Mixer: apply this part's per-section levels to the active players (any entry
         // path — auto-advance, tap-to-jump, or manually evaluating the #@ line).
         const secName = line >= 0 ? (editor.getLine(line).trim().match(/^#@\s*([a-zA-Z_]\w*)/)?.[1] ?? null) : null;
-        onSectionActive(secName);
+        onSectionActive(secName, line);
         // Mirror the active section + autoplay state to peers (cosmetic; the
         // section code itself rides the eval broadcast).
         broadcastAction('section', { line, autoplay });
