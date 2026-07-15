@@ -1,5 +1,5 @@
 // Generative players — chaos() (one-shot burst) and the building blocks a future
-// son()/soff() bot will reuse (see docs/generator-spec.md). Pure: it only BUILDS code
+// son()/soff() bot will reuse. Pure: it only BUILDS code
 // lines; the caller runs them through runCode (so they also broadcast to peers).
 
 import { SYNTH_DEFS } from '../synths/registry.js';
@@ -212,7 +212,7 @@ export function chaosLines(n = 4, type = null, { sampleChars = [], taken = new S
 // A self-rescheduling bot that adds / stops / mutates its own `g*` players over
 // time (kept apart from the user's players so it never fights manual code). Every
 // line runs through `run` (= runCode) so in a session the bot's output broadcasts
-// to peers automatically. See docs/generator-spec.md. Dependencies are injected so this
+// to peers automatically. Dependencies are injected so this
 // module stays pure/testable: { clock, run, sampleChars }.
 // FX trigger params only (each activates its own effect node); single-value so
 // they work as a live `gN.<param> = <value>` mutation line.
