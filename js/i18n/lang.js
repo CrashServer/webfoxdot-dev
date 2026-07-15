@@ -1,4 +1,4 @@
-// Minimal shared language state — the seed of the i18n system (see translate.md).
+// Minimal shared language state — the seed of the i18n system (see docs/translate.md).
 // For now it drives the guided tour (EN / FR); the full UI catalog builds on this.
 
 export const LANGS = ['en', 'fr', 'de', 'es', 'ja'];

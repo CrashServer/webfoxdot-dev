@@ -15,7 +15,7 @@
 // The lessons are DATA (EN[] · FR[] · DE[] · ES[] · JA[]); the engine is shared.
 // Language follows the app's lang setting, per-lesson falling back to English. To
 // translate a language, edit its content array — no code changes. Example CODE stays
-// English (the tool's language); only the # prose is translated. (See translate.md.)
+// English (the tool's language); only the # prose is translated. (See docs/translate.md.)
 
 import { getLang } from '../i18n/lang.js';
 
@@ -664,7 +664,7 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 // ── FRANÇAIS ─────────────────────────────────────────────────────────────────
 // Traduction des leçons. Le CODE des exemples reste en anglais (c'est le langage de
 // l'outil) ; seuls les commentaires # sont traduits. Pour corriger une traduction,
-// édite ce tableau — aucune modification de code. (Voir translate.md.)
+// édite ce tableau — aucune modification de code. (Voir docs/translate.md.)
 const FR = [
     lesson(1, 'Bienvenue — comment fonctionne cette visite',
 `# Le live coding = tu écris du code, tu l'ÉVALUES, et tu entends le son
@@ -1272,7 +1272,7 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 // ── DEUTSCH ──────────────────────────────────────────────────────────────────
 // Übersetzung der Lektionen. Der CODE der Beispiele bleibt Englisch (die Sprache des
 // Werkzeugs); nur die #-Kommentare werden übersetzt. Zum Korrigieren: dieses Array
-// bearbeiten — keine Code-Änderung. (Siehe translate.md.)
+// bearbeiten — keine Code-Änderung. (Siehe docs/translate.md.)
 const DE = [
     lesson(1, 'Willkommen — wie diese Tour funktioniert',
 `# Live Coding = du schreibst Code, WERTEST ihn aus und hörst sofort Klang — dann

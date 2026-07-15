@@ -1,9 +1,0 @@
-chaos(256)
-
-Clock.bpm = 120;
-g53 >> cs80(PGrowArp([0,4,7,10]), oct=5, dur=PGroove("swing"), amp=PWhite(0.33, 0.40), pan=PWhite(-0.7, 0.7), pong=0.38, pongtime=0.375).penta().human(35, 7)
-g56 >> ssaw(PStutter([5, 1, 1, 2], 2), oct=6, dur=PDur(3,8), amp=0.34, pan=<-0.5 0.5>, lofi=0.41, multicrush=0.48).unison(3)
-g86 >> karp(PCircle(8, 0, "7"), oct=4, dur=<2 4>, amp=0.36, pan=PWhite(-0.7, 0.7), fbdelay=0.57, fbtime=0.25, fbfeed=0.57, fbcutoff=3000, lpf=sinvar([893, 4020], [4]), lpf_rq=0.53).sometimes("mirror", 4) + (0,4,7)
-
-g54 >> organ(PChord(0, "7"), oct=4, dur=2, amp=0.32, bpf=1904, bpf_rq=0.12, chop=8)
-g55 >> sine(PRange(0, 11), oct=6, dur=1/2, amp=PWhite(0.28, 0.39))
