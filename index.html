@@ -2027,8 +2027,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const picks = [];           // [s, e] of each array's current element
         const altPicks = [];        // [s, e] of the ACTIVE <…> item inside an element
         let sig = line + ':';
+        // Reorder transforms (.reverse/.rotate/.shuffle/.mirror) permute the played
+        // DEGREE sequence but not the written list — follow them via the player's
+        // source-position map so the highlight lands on the note actually sounding.
+        const _p = clock._players && clock._players.get(name);
+        const _perm = _p && _p._srcPerm;
+        let _arrIdx = -1;
         for (const spans of arrays) {
+            _arrIdx++;
             let idx = ((step % spans.length) + spans.length) % spans.length;
+            if (_arrIdx === 0 && _perm && _perm.length === spans.length) idx = _perm[idx];   // degree follows the transform
             if (spans.arp) {                                   // step through arp's play order
                 const ai = arpIndex(spans.length, step, spans.arp.mode, spans.arp.oct);
                 if (ai < 0) { sig += 'x,'; continue; }          // random → can't pin, skip

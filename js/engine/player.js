@@ -464,6 +464,7 @@ export class Player {
         this._stutterN   = 0;
         this._strum      = 0;
         this._multiply   = 1;
+        this._srcPerm    = null;   // reorder-transform → source-position map (highlight)
         // Free the FX chain entirely (not just bypass): a reset player with no FX
         // routes straight to output again; _fire rebuilds the chain if FX reappear.
         if (this._fxChain && _sc) { this._fxChain.free(_sc); this._fxChain = null; }
@@ -1094,12 +1095,18 @@ export class Player {
         return len * (typeof dur === 'number' ? dur : 1) * (60000 / this._clock.bpm);
     }
 
+    // _srcPerm maps runtime position → SOURCE-TEXT position, so the editor highlight
+    // can follow reorder transforms (reverse/rotate/shuffle/mirror permute the played
+    // sequence but not the written list). null = identity (untouched).
+    _curPerm(len) { return (this._srcPerm && this._srcPerm.length === len) ? this._srcPerm : [...Array(len).keys()]; }
+
     reverse() {
         const seq = this._seq();
         if (seq) {
-            const orig = [...seq];
+            const orig = [...seq], perm = this._curPerm(orig.length);
             this._setSeq([...orig].reverse());
-            setTimeout(() => { if (this._active) this._setSeq(orig); }, this._seqDurMs(orig.length) + 50);
+            this._srcPerm = [...perm].reverse();
+            setTimeout(() => { if (this._active) { this._setSeq(orig); this._srcPerm = perm; } }, this._seqDurMs(orig.length) + 50);
         }
         return this;
     }
@@ -1108,9 +1115,11 @@ export class Player {
     shuffle() {
         const seq = this._seq();
         if (seq) {
-            const orig = [...seq];
-            this._setSeq([...orig].sort(() => Math.random() - 0.5));
-            setTimeout(() => { if (this._active) this._setSeq(orig); }, this._seqDurMs(orig.length) + 50);
+            const orig = [...seq], perm = this._curPerm(orig.length);
+            const order = [...Array(orig.length).keys()].sort(() => Math.random() - 0.5);
+            this._setSeq(order.map(i => orig[i]));
+            this._srcPerm = order.map(i => perm[i]);
+            setTimeout(() => { if (this._active) { this._setSeq(orig); this._srcPerm = perm; } }, this._seqDurMs(orig.length) + 50);
         }
         return this;
     }
@@ -1124,7 +1133,9 @@ export class Player {
         const d = this._seq();
         if (d) {
             const k = ((Math.round(n) % d.length) + d.length) % d.length;
+            const perm = this._curPerm(d.length);
             this._setSeq([...d.slice(k), ...d.slice(0, k)]);
+            this._srcPerm = [...perm.slice(k), ...perm.slice(0, k)];
         }
         return this;
     }
@@ -1134,7 +1145,7 @@ export class Player {
     // (Unlike .reverse(), which flips for one cycle only.)
     mirror() {
         const d = this._seq();
-        if (d) this._setSeq([...d].reverse());
+        if (d) { const perm = this._curPerm(d.length); this._setSeq([...d].reverse()); this._srcPerm = [...perm].reverse(); }
         return this;
     }
 
