@@ -554,12 +554,24 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 `# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
-# ▶ First give it some tracks — run this little set:
-#@ groove(16)
-d1 >> play("x-o-", amp=0.9)
-b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
-#@end
+# ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
+#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#@ intro(16)
+bass  >> dbass(dur=4, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ main(16)
+bass  >> dbass(dur=1/2, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ var(16)
+bass  >> dbass(dur=1/2, mverb=0.5, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ outro(16)
+bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
 # Now click  🎚 mix. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
@@ -571,10 +583,11 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 #
 # LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
 # needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
-# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+# launch pulls from, so you can fire  bass  DRY from 'intro', then relaunch it WET from
+# 'var' (its mverb + chop) while  bass2  climbs an octave — a whole set built by hand.
 #
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
-p1.solo(8)`),
+bass.solo(8)`),
 
     lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
 `# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
@@ -1162,12 +1175,24 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 `# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
-# ▶ First give it some tracks — run this little set:
-#@ groove(16)
-d1 >> play("x-o-", amp=0.9)
-b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
-#@end
+# ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
+#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#@ intro(16)
+bass  >> dbass(dur=4, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ main(16)
+bass  >> dbass(dur=1/2, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ var(16)
+bass  >> dbass(dur=1/2, mverb=0.5, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ outro(16)
+bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
 # Now click  🎚 mix. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
@@ -1179,10 +1204,11 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 #
 # LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
 # needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
-# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+# launch pulls from, so you can fire  bass  DRY from 'intro', then relaunch it WET from
+# 'var' (its mverb + chop) while  bass2  climbs an octave — a whole set built by hand.
 #
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
-p1.solo(8)`, 'fr'),
+bass.solo(8)`, 'fr'),
 
     lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
 `# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
@@ -1766,12 +1792,24 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 `# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
-# ▶ First give it some tracks — run this little set:
-#@ groove(16)
-d1 >> play("x-o-", amp=0.9)
-b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
-#@end
+# ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
+#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#@ intro(16)
+bass  >> dbass(dur=4, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ main(16)
+bass  >> dbass(dur=1/2, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ var(16)
+bass  >> dbass(dur=1/2, mverb=0.5, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ outro(16)
+bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
 # Now click  🎚 mix. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
@@ -1783,10 +1821,11 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 #
 # LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
 # needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
-# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+# launch pulls from, so you can fire  bass  DRY from 'intro', then relaunch it WET from
+# 'var' (its mverb + chop) while  bass2  climbs an octave — a whole set built by hand.
 #
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
-p1.solo(8)`, 'de'),
+bass.solo(8)`, 'de'),
 
     lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
 `# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
@@ -2369,12 +2408,24 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 `# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
-# ▶ First give it some tracks — run this little set:
-#@ groove(16)
-d1 >> play("x-o-", amp=0.9)
-b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
-#@end
+# ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
+#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#@ intro(16)
+bass  >> dbass(dur=4, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ main(16)
+bass  >> dbass(dur=1/2, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ var(16)
+bass  >> dbass(dur=1/2, mverb=0.5, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ outro(16)
+bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
 # Now click  🎚 mix. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
@@ -2386,10 +2437,11 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 #
 # LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
 # needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
-# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+# launch pulls from, so you can fire  bass  DRY from 'intro', then relaunch it WET from
+# 'var' (its mverb + chop) while  bass2  climbs an octave — a whole set built by hand.
 #
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
-p1.solo(8)`, 'es'),
+bass.solo(8)`, 'es'),
 
     lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
 `# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that
@@ -2968,12 +3020,24 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 `# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
-# ▶ First give it some tracks — run this little set:
-#@ groove(16)
-d1 >> play("x-o-", amp=0.9)
-b1 >> dbass([0, 0, 3, 5], oct=4, dur=1, amp=0.6)
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
-#@end
+# ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
+#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#@ intro(16)
+bass  >> dbass(dur=4, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ main(16)
+bass  >> dbass(dur=1/2, mverb=0, chop=0)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=4, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ var(16)
+bass  >> dbass(dur=1/2, mverb=0.5, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1, amp=0.5, tremolo=0.48, trem_rate=4).every(16, "rotate")
+#@ outro(16)
+bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
+drum  >> a_bd(dur=1, oct=3)
+bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
 # Now click  🎚 mix. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
@@ -2985,10 +3049,11 @@ p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5)
 #
 # LAUNCH: tap a track's NAME to evaluate its line and start it on its own — no autoplay
 # needed. The SOURCE picker (auto · a chip per #@ part) chooses which part's version a
-# launch pulls from, so you can play p1 from one part and b1 from another — a set by hand.
+# launch pulls from, so you can fire  bass  DRY from 'intro', then relaunch it WET from
+# 'var' (its mverb + chop) while  bass2  climbs an octave — a whole set built by hand.
 #
 # ▶ Run .solo() here and watch the S light up in BOTH the mixer and the Players panel:
-p1.solo(8)`, 'ja'),
+bass.solo(8)`, 'ja'),
 
     lesson(37, 'Parameter envelopes — lpf_ and the _ sweeps',
 `# Add "_" to an FX parameter and it becomes an ENVELOPE — a shape that MOVES that

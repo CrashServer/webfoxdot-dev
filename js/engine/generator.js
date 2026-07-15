@@ -18,10 +18,10 @@ const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx|
 // Rough role → so we pick musically-appropriate patterns/octaves per synth. Every
 // synth is classified so none falls through to a generic 'lead' by accident.
 const ROLES = {
-    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass'],
-    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab'],
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk'],
+    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab', 'varsaw'],
     pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad', 'a_vpad'],
-    keys:  ['bell', 'basic', 'karp', 'rhodes', 'piano', 'sine', 'rsin'],
+    keys:  ['bell', 'basic', 'karp', 'rhodes', 'piano', 'sine', 'rsin', 'klank'],
     pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin', 'arpy'],
     perc:  ['a_bd', 'a_hhat', 'compkick'],
 };
@@ -37,7 +37,8 @@ const restList  = (n, lo, hi) => '[' + Array.from({ length: n }, (_, i) => (i > 
 function degBass() {
     return pick([`[0]`, `[0, 0, ${rint(3, 7)}, 0]`, `[0, ${rint(-3, 0)}, ${rint(3, 7)}, 0]`,
                  `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`, restList(4, 0, 5),
-                 `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, [0, 5], ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`]);
+                 `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, [0, 5], ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`,
+                 `PSaw(0, ${rint(3, 5)})`, `PLorenz(0, ${rint(3, 5)})`]);
 }
 function degLead() {
     return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown', 'downup'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
@@ -48,6 +49,8 @@ function degLead() {
                  `PRange(0, ${rint(5, 12)})`, `PCircle(8)`, `PWalk(${rint(5, 9)}, 1)`, `PxRand(0, ${rint(6, 10)})`, restList(rint(4, 6), 0, 7),
                  `PBrown(0, ${rint(5, 9)}, ${rint(1, 2)})`, `PBrown(-${rint(3, 5)}, ${rint(4, 7)}, 1)`, `P${randList(rint(3, 5), 0, 7)}.mirror()`,
                  `PShuf(${CHORDLIST()})`, `PStutter(${randList(rint(3, 4), 0, 7)}, 2)`, `PAlt(${randList(2, 0, 4)}, ${randList(2, 4, 9)})`,
+                 `PSine(0, ${rint(5, 9)})`, `PTri(0, ${rint(5, 9)})`, `PLorenz(0, ${rint(5, 9)})`, `PHenon(0, ${rint(5, 9)})`,
+                 `PLogistic(3.9, ${flt(0.3, 0.7)}, 0, ${rint(5, 9)})`,
                  `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9)]);
 }
 function degPad() {
@@ -126,7 +129,6 @@ const FX = [
     () => `resonz=${flt(0.5, 0.8)}, rfreq=${rint(400, 2200)}`,                        // resonant band
     () => `fshift=${rint(20, 300)}, fmix=${flt(0.3, 0.6)}`,                           // frequency shift (metallic)
     () => `shimmer=${flt(0.4, 0.7)}, shimpitch=${flt(0.4, 1)}`,                       // octave-shimmer reverb
-    () => `clouds=${flt(0.4, 0.7)}, ctex=${flt(0.3, 0.7)}, csize=${flt(0.2, 0.5)}`,   // MiClouds granular
     () => `room2=${flt(0.5, 0.9)}, mix2=${flt(0.2, 0.4)}`,                            // stereo reverb
     () => `combres=${flt(0.4, 0.7)}, combfreq=${rint(120, 400)}`,                     // comb resonator
     () => `subenh=${flt(0.4, 0.7)}`,                                                  // sub-bass enhancer
@@ -141,6 +143,8 @@ const FX = [
     () => `sbrk=${flt(0.4, 0.7)}`,                                                    // beat-repeat stutter
     () => `feed=${flt(0.4, 0.7)}, feedfreq=${rint(200, 2000)}`,                       // feedback tone
     () => `comp=${flt(0.5, 0.8)}, compthresh=${flt(0.3, 0.6)}`,                       // compressor
+    () => `drcomp=${flt(0.4, 0.8)}`,                                                  // dynamics / drum compressor
+    () => `lpf=PLorenz(${rint(300, 700)}, ${rint(3000, 6000)})`,                      // chaotic filter movement
 ];
 // Live transforms + fatteners chained onto the player.
 const METHODS = [
@@ -253,6 +257,7 @@ const FX_MUTATE = [
     () => ['pumper', flt(0.6, 0.9)],
     () => ['chop', pick([2, 4, 8])],
     () => ['rgate', flt(0.5, 0.9)],
+    () => ['drcomp', flt(0.4, 0.8)],
 ];
 
 export class JamBot {
