@@ -81,8 +81,8 @@ export const SYNTH_DEFS = {
     // a_daftlead — Justice/Daft detuned saw lead with a filter sweep
     a_daftlead: {
         scName: 'fd_a_daftlead',
-        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 2000, rq: 0.6, filterEnv: 0.8, dist: 2, rate: 1 },
-        extraParams: ['cutoff', 'rq', 'filterEnv', 'dist', 'rate'],
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 2000, rq: 0.6, fenv: 0.8, dist: 2, rate: 1 },
+        extraParams: ['cutoff', 'rq', 'fenv', 'dist', 'rate'],
     },
     // a_stab — aggressive detuned major-chord stab
     a_stab: {
@@ -289,8 +289,8 @@ export const SYNTH_DEFS = {
         scName: 'fd_cs80',
         defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.3, release: 1.0,
                     fatk: 0.75, fdec: 0.5, fsus: 0.8, frel: 1.0, cutoff: 2200, detune: 0.002,
-                    vibspeed: 4, vibdepth: 0.015 },
-        extraParams: ['fatk', 'fdec', 'fsus', 'frel', 'cutoff', 'detune', 'vibspeed', 'vibdepth', 'fmod'],
+                    vibrate: 4, vib: 0.015 },
+        extraParams: ['fatk', 'fdec', 'fsus', 'frel', 'cutoff', 'detune', 'vibrate', 'vib', 'fmod'],
     },
     // Karplus pluck → Moog ladder (ported from FoxDot moogpluck)
     moogpluck: {

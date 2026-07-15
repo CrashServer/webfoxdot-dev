@@ -211,7 +211,7 @@ export const VERSION = 'beta09';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'beta09', title: 'Parameter cleanup — one word per idea', items: [
-        'Synth controls are now uniform. Every voice\'s distortion knob is dist — it was spelled distortion / drive / grit / growl / crunch / boost / beef across different synths (8 names for one idea); now it\'s just dist everywhere. Every resonance is rq (was rq / res / resonance), and two stray filter names (filterFreq, pluck_filter) are now cutoff like the rest.',
+        'Synth controls are now uniform. Every voice\'s distortion knob is dist — it was spelled distortion / drive / grit / growl / crunch / boost / beef across different synths (8 names for one idea); now it\'s just dist everywhere. Every resonance is rq (was rq / res / resonance), and two stray filter names (filterFreq, pluck_filter) are now cutoff like the rest. Filter-envelope depth is fenv everywhere (was filterEnv), and built-in vibrato is vib (depth) + vibrate (rate) — folding cs80\'s vibdepth / vibspeed in.',
         'Two silent bugs fixed in the process. A synth param named drive used to shadow the tanh saturation FX (unreachable on darkpad / synthbass / a_daftlead), and compkick\'s comp shadowed the compressor FX — both effects are now reachable on every voice. compkick\'s own internal compression moved to squash.',
         'The vocabulary now reads as pairs — cutoff is a synth\'s built-in voice filter, lpf is the post-FX filter; dist is the voice distortion, dist2 is the FX distortion; rq is voice resonance, lpf_rq the FX resonance. No aliases: the old names are gone (clean break), and every example, lesson and doc is swept to the new spelling.',
     ] },
@@ -1267,7 +1267,7 @@ Root.default = "C"
 oj >> basic([0,6,5,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
 pt >> basic([0,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
 hp >> basic([0,3,5,7,5,3, 6,1,3,6,3,1, 5,0,3,5,3,0, 4,6,1,4,1,6], oct=6, dur=0.5, sus=PRand([0.4,0.6,0.8],6), amp=0.28, cheapverb=0.5, cvdecay=2, pan=sinvar([-0.4,0.4],6))
-cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0)
+cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibrate=3.5, vib=0.012, room=0.9, reverb=0)
 ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=6, dur=4, sus=5.5, amp=sinvar([0.3,0.55],16), room=0.99, reverb=0.95, lpf=linvar([800,3000],32))
 v1 >> play("<--->.<-->.x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 

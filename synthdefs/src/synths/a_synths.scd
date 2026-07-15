@@ -15,12 +15,12 @@ SynthDef(\fd_dafbass, {|out=0, note=36, amp=0.9, sus=1, pan=0, attack=0.001, rel
 }).writeDefFile(~outDir);
 
 // ── a_daftlead — Justice / Daft detuned saw lead with filter sweep ──────────
-SynthDef(\fd_a_daftlead, {|out=0, note=60, amp=0.9, sus=1, pan=0, attack=0.01, release=0.1, cutoff=2000, rq=0.6, filterEnv=0.8, dist=2, rate=1|
+SynthDef(\fd_a_daftlead, {|out=0, note=60, amp=0.9, sus=1, pan=0, attack=0.01, release=0.1, cutoff=2000, rq=0.6, fenv=0.8, dist=2, rate=1|
     var freq = note.midicps, osc, env, fc;
     freq = [freq, freq * 1.007] * Line.kr(Rand(0.99, 1.01), 1, 0.01);
     osc  = Mix([ VarSaw.ar(freq, 0, 0.0, 0.6), VarSaw.ar(freq * 1.005, 0, 0.1, 0.4), Pulse.ar(freq * 0.5, 0.5, 0.2) ]);
     env  = EnvGen.ar(Env([0, 1, 0.7, 0], [attack, (sus * 0.35).max(0.02), (sus * 0.6).max(0.05)], curve: -2), doneAction: 2);
-    fc   = (cutoff * (1 + (filterEnv * env.pow(2))) * (1 + (LFTri.ar(rate * 0.3) * 0.4))).clip(50, 9000);
+    fc   = (cutoff * (1 + (fenv * env.pow(2))) * (1 + (LFTri.ar(rate * 0.3) * 0.4))).clip(50, 9000);
     osc  = RLPF.ar((osc * dist).tanh, fc, rq.clip(0.05, 1.0));
     Out.ar(out, Pan2.ar(osc * env * 0.4, pan) * amp);
 }).writeDefFile(~outDir);
