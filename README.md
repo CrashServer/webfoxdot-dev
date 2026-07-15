@@ -440,3 +440,27 @@ Cross-Origin-Embedder-Policy: require-corp
 ```
 
 Without these, `SharedArrayBuffer` is disabled by the browser and scsynth will refuse to start. All the server configs above include them.
+
+---
+
+## License
+
+crashDot is **free software** under the **GNU General Public License v3.0 or later**
+([`LICENSE`](LICENSE)).
+
+It is GPL-licensed because it bundles and distributes **scsynth** — the SuperCollider
+audio server — compiled to WebAssembly, which is itself GPL-3.0-or-later. Serving the
+app distributes that binary, so the GPL applies to the whole work.
+
+- **Corresponding source** for the bundled `scsynth-nrt.wasm` lives in the SuperCollider
+  and SuperSonic repositories:
+  <https://github.com/supercollider/supercollider> ·
+  <https://github.com/samaaron/supersonic>
+- crashDot drives scsynth over **OSC**, SuperCollider's standard control protocol —
+  the same arm's-length interface FoxDot, Sonic Pi and TidalCycles use.
+
+Full component-by-component licensing (CodeMirror, Yjs, Sonic Pi synthdefs, FoxDot,
+samples) is in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+
+Copyright (C) 2026 CrashServer and contributors. This program comes with ABSOLUTELY
+NO WARRANTY; see the license for details.
