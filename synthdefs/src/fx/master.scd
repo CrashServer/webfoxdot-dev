@@ -5,16 +5,16 @@
 // from JS via Server.addFx(...) / Server.clearFx() / Master().attr = value
 // (n_set on this node). All FX default to 0 = bypass.
 SynthDef(\fd_master, {|gain=1, ceiling=0.95,
-                       lpf=0, lpf_rq=0.7, hpf=0, hpf_rq=0.7,
+                       lpf=0, lpr=0.7, hpf=0, hpr=0.7,
                        mverb=0, echo=0, echo_time=0.25, echo_dec=0.5,
                        tanh=0, tanh_drive=2, lofi=0|
     var sig, wet;
     sig = In.ar(0, 2) * gain.clip(0, 4);
 
-    wet = RLPF.ar(sig, (lpf > 0).if(lpf.clip(20, 20000), 20000), lpf_rq.clip(0.01, 1.0));
+    wet = RLPF.ar(sig, (lpf > 0).if(lpf.clip(20, 20000), 20000), lpr.clip(0.01, 1.0));
     sig = XFade2.ar(sig, wet, (lpf > 0) * 2 - 1);
 
-    wet = RHPF.ar(sig, (hpf > 0).if(hpf.clip(20, 20000), 20), hpf_rq.clip(0.01, 1.0));
+    wet = RHPF.ar(sig, (hpf > 0).if(hpf.clip(20, 20000), 20), hpr.clip(0.01, 1.0));
     sig = XFade2.ar(sig, wet, (hpf > 0) * 2 - 1);
 
     wet = (sig * tanh_drive.clip(0.001, 100)).tanh;

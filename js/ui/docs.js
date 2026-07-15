@@ -213,7 +213,7 @@ const CHANGELOG = [
     { v: 'beta09', title: 'Parameter cleanup — one word per idea', items: [
         'Synth controls are now uniform. Every voice\'s distortion knob is dist — it was spelled distortion / drive / grit / growl / crunch / boost / beef across different synths (8 names for one idea); now it\'s just dist everywhere. Every resonance is rq (was rq / res / resonance), and two stray filter names (filterFreq, pluck_filter) are now cutoff like the rest. Filter-envelope depth is fenv everywhere (was filterEnv), and built-in vibrato is vib (depth) + vibrate (rate) — folding cs80\'s vibdepth / vibspeed in.',
         'Two silent bugs fixed in the process. A synth param named drive used to shadow the tanh saturation FX (unreachable on darkpad / synthbass / a_daftlead), and compkick\'s comp shadowed the compressor FX — both effects are now reachable on every voice. compkick\'s own internal compression moved to squash.',
-        'The vocabulary now reads as pairs — cutoff is a synth\'s built-in voice filter, lpf is the post-FX filter; dist is the voice distortion, dist2 is the FX distortion; rq is voice resonance, lpf_rq the FX resonance. No aliases: the old names are gone (clean break), and every example, lesson and doc is swept to the new spelling.',
+        'The vocabulary now reads as pairs — cutoff is a synth\'s built-in voice filter, lpf is the post-FX filter; dist is the voice distortion, dist2 is the FX distortion; rq is voice resonance, lpr the FX filter resonance. The FX filter resonances are consistent now — lpr / hpr / bpr (matching mpr, which already used the short form) instead of the old lpf_rq / hpf_rq / bpf_rq. No aliases: the old names are gone (clean break), and every example, lesson and doc is swept to the new spelling.',
     ] },
     { v: 'beta08', title: 'Generative & mixer overhaul — guit audible · chaos evolves every param · live mixer', items: [
         'New theme — Solar Opposites (Settings ▸ Theme, or theme("solar")): complementary contrast — warm solar accents (orange · gold · coral) burning against a cold deep-space teal. The two opposite ends of the colour wheel: high-contrast, punchy, and unlike anything else in the set.',
@@ -236,9 +236,9 @@ const CHANGELOG = [
         'PERFORM MODE (⊞ perform) — a full-screen, keyboard-free touch surface that turns a phone into a live instrument for a set you authored on desktop (or loaded from a share link / example). TAP a player tile to launch/stop it (bar-quantised), DRAG a tile up/down for its volume, tap a SECTION button to jump the arrangement, and work an XY PAD (X = filter · Y = space/reverb) + a master over everything at once. It drives the same engine as the mixer + the sections sequencer, so it always agrees with your code and the desk. (The idea: stop fighting to type code on a phone — perform the code instead.)',
         'New synths from the CrashServer set (codeBank parity): varsaw (variable-width saw), cbass (compressed dual-osc bass with tanh drive + freq-tracking filter), klank (resonant metallic ring), and svdk (the signature dirty bass/lead — triple saws + harmonics + fat sub + Metal-Zone distortion + stereo drift). All ported from the original SynthDefs.',
         'Mixer — MIDI-learn now covers the BUTTONS, not just the faders. New ⇄MIDI learn-mode + a ◄ / ► part transport in the header: turn learn mode on, click any launch (a track name) / solo / mute / stop / prev-part / next-part control to arm it, then move a hardware control (a pad or button in CC mode) to bind — a "press" is a CC crossing its midpoint. Bound controls show a blue ● + the CC number. So you can trigger patterns, solo/stop tracks, and jump the arrangement entirely from a controller. (Also fixes the source-picker missing "#@ name" parts written with a space.)',
-        '.fill() — an instant drum fill on any player: randomises dur to short values and gates amplify in on/off bursts so it stutters in and out. d1 >> play("x-o-").fill() · variants .fill(2)/.fill(3)/.fill(0). And lpr / hpr are now shorthands for lpf_rq / hpf_rq (filter resonance), matching the FoxDot naming.',
+        '.fill() — an instant drum fill on any player: randomises dur to short values and gates amplify in on/off bursts so it stutters in and out. d1 >> play("x-o-").fill() · variants .fill(2)/.fill(3)/.fill(0). And lpr / hpr are now shorthands for lpr / hpr (filter resonance), matching the FoxDot naming.',
         '.slider() — glissando between notes (FoxDot Player.slider port): p1 >> bass([0,3,5]).slider() makes each note pitch-glide. .slider(1) flips the phase, and start also takes a PATTERN or var for per-note control — .slider([0,0,1]) glides every 3rd note, .slider(var([0,1],[6,2])) lets the glide breathe over time. Works on 27 melodic synths (basses, saws, leads, keys, plucks — bass/dbass/cbass/saw/varsaw/ssaw/supersaw/pluck/prophet/organ/tb303/… ) via a control-rate freq-glide baked into their SynthDefs; harmless no-op on synths without it. Zero effect when not used.',
-        'The guided tour gains two detailed lessons on PARAMETER ENVELOPES — the "_" suffix that makes any FX param sweep within each note (lpf_=fi(1, 400, 4000) opens the filter on every note). Covers the three shapes (fi fade-in · fo fade-out · fb bounce/wobble), how the note\'s sus gives the shape room, resonance (lpf_rq), the same trick on crush/reverb/chorus/echo/hpf/djf, and the per-note vs clock-synced distinction (lpf_ restarts per note; lpf=fb(...) is one global LFO). Lots of runnable examples.',
+        'The guided tour gains two detailed lessons on PARAMETER ENVELOPES — the "_" suffix that makes any FX param sweep within each note (lpf_=fi(1, 400, 4000) opens the filter on every note). Covers the three shapes (fi fade-in · fo fade-out · fb bounce/wobble), how the note\'s sus gives the shape room, resonance (lpr), the same trick on crush/reverb/chorus/echo/hpf/djf, and the per-note vs clock-synced distinction (lpf_ restarts per note; lpf=fb(...) is one global LFO). Lots of runnable examples.',
     ] },
     { v: 'beta04', title: 'The live mixer · shared solo · mixer tour lesson · mobile zoom fix', items: [
         'Live mixer (experimental, 🎚 mix) — a NON-MODAL floating console (drag it, code while it\'s open) that\'s a clip-launcher + volume desk: a vertical fader per track over a master, plus per-track mute and a bar-quantised STOP. VOLUME is shared per player name (one _mixLevel, read every note, kept separate from amplify so mute/solo/drop can\'t wipe your mix). LAUNCH: tap a track\'s name to evaluate its line and start it on its own — no auto-advance needed. A SOURCE part-picker (auto · a chip per #@ part, ● = the part playing) chooses which part\'s version a launch pulls from, so you can play v1 from part 1, v3 from part 2, v1 from part 4 — building a set by hand. Same fader per track drives the volume in the Players panel too. MIDI: each channel (+ master) has an m button — tap it, move a hardware fader, and that CC drives the channel volume. And the channels the SELECTED source part (re)defines are highlighted, so you see which tracks a launch from that part would fire. (Per-channel VU meters next.)',
@@ -334,7 +334,7 @@ const CHANGELOG = [
 { t: 'New son() / soff() — a generative jam bot. Over time it adds, stops, and mutates its own g* players (kept apart from your p1/b1 so it never fights your code), holding between min and max voices; in a session its lines broadcast to peers. son({min:2, max:5, drum:0.5, every:[4,8]}) tunes it; soff() stops the loop, soff(true) also stops its players. Boot audio first.', ex: 'syncgen' },
 'Tempo automation: Clock.bpm now accepts a TimeVar, so the tempo can ramp — Clock.bpm = linvar([120,140],[32]), or the helpers linbpm(120,140,32) / dropbpm(90,8). Plus new scheduling: Clock.future(dur, fn), Clock.schedule(beat, fn), Clock.mod(n, fn), Clock.nextBar(fn), and Clock.meter (beats/bar).',
 { t: 'Patterns are now chainable (FoxDot metaPattern methods): P[…] and list generators (PDur/PBeat/PCircle/PProg/PGrowArp/PTree/PPairs/PSum/PJoin…) return a Pattern you can transform — .rotate(n) .reverse() .mirror() .palindrome() .accum() .stretch(n) .trim/.ltrim .loop(n) .stutter(n) .shuffle() .sort() .add(v) .offadd(v)/.offmul(v) .zip(other) .amen(n). e.g. d1 >> pluck(P[0,2,4,7].rotate(1).palindrome()). Also new Pvar([patterns], durs): a pattern-valued timevar that swaps whole phrases over clock time while the player keeps stepping.', ex: 'patterns' },
-'New FX (FoxDot/CrashServer ports): bpf — resonant band-pass sweep (bpf=center Hz, bpf_rq=bandwidth, small=narrow/resonant); and eq3 — a 3-band EQ (eq3=mix, eqlow/eqmid/eqhigh in dB ±24, with eqlowf/eqmidf/eqmidq/eqhighf to place the bands). Both live in the fx › filters submenu. e.g. p1 >> saw([0,4,7], bpf=1200, bpf_rq=0.2) · b1 >> play(x.o., eq3=1, eqlow=4, eqhigh=-3).',
+'New FX (FoxDot/CrashServer ports): bpf — resonant band-pass sweep (bpf=center Hz, bpr=bandwidth, small=narrow/resonant); and eq3 — a 3-band EQ (eq3=mix, eqlow/eqmid/eqhigh in dB ±24, with eqlowf/eqmidf/eqmidq/eqhighf to place the bands). Both live in the fx › filters submenu. e.g. p1 >> saw([0,4,7], bpf=1200, bpr=0.2) · b1 >> play(x.o., eq3=1, eqlow=4, eqhigh=-3).',
 'Autocomplete is now a nested flyout menu: category headers (synths · patterns · params · fx …) are rows you unfold to the RIGHT — hover or press → to open, ← to go back, ↑/↓ to move, ↵/Tab to pick, Esc to close. The fx category unfolds a second level by family (filters · reverbs · delays · distortion · modulation · rhythmic). Param/FX names show clean (no trailing = or …) but still insert the full amp= / lpf=2000, … form. Typing filters as a flat list.',
         { t: 'Curve shapes + composition helpers. Curves (per-step LFOs, good on dur/sus too): PExp (exponential), PPulse (square/pulse with a width/duty knob), PSlide (smoothstep swell). Note generators like melody(): motif(n) (a frozen repeating motif), arp([0,4,7],"updown") (directional arpeggiator), PContour("arch",8,7) (a melody following a shape). Duration feels: PGroove("swing"/"gallop"/"triplet"…). Composition: PCircle(8) walks the diatonic circle of fifths (I IV vii iii vi ii V…) staying coherent with the current Root/Scale — pass a chord type for a turnaround of chords; PProg also learned cadences ("perfect"/"plagal"/"half"/"deceptive").', ex: 'patterns' },
         { t: 'Four new pattern families. Harmony: PChord(0,"7") builds a diatonic chord group (quality follows the Scale), PRoman("I V vi IV") a numeral progression, PProg("50s"/"251"/"blues"…) a named one. Rhythm: PClave("son"/"rumba"/"bossa"…) 16-step clave strings, PRhythm([1,(3,8)]) expands tuples to PDur durations, PPoly(3,4) a cross-rhythm. Chaos: PLogistic, PBrown, PHenon, PLorenz — dynamical-system value streams for organic drift. Number sequences: PPrime, PThue (Thue-Morse), PGrowArp (growing arpeggio), PTree (self-similar L-system melody).', ex: 'patterns' },
@@ -949,7 +949,7 @@ p1 >> myfm([0, 4, 7], oct=5, ratio=2, index=6, dur=1)`)}
 
     const fx = section('FX — append to any player', `
         ${note('FX run on a persistent per-player chain. Combine freely — on synths AND on play() drums. Available: lpf hpf crush reverb mverb cheapverb resonbank rgate chorus tremolo tanh echo fbdelay shape dist2 chop multicrush vibrato ringmod flanger phaser formant. (And <code>leg</code> scales note length: leg&gt;1 overlaps, leg&lt;1 staccato.)')}
-        ${code(`p1 >> saw([0,4,7], lpf=2000, lpf_rq=0.3)        # low-pass
+        ${code(`p1 >> saw([0,4,7], lpf=2000, lpr=0.3)        # low-pass
 p1 >> saw([0,4,7], hpf=300, reverb=0.4, room=0.8)  # high-pass + reverb
 p1 >> saw([0,4,7], echo=0.4, echo_time=0.375)      # delay
 p1 >> dbass([0,-3], crush=0.6, bits=4, srate=6000) # bitcrush
@@ -1232,8 +1232,8 @@ d6 >> play("x..<x.>x.", dur=0.5, shape=0.4, drcomp=0.4, amp=0.7)
 q2 >> play("x", dur=1, amp=0.9)
 s1 >> play("-.-.-.-.", hpf=8000, amp=Pacc("offbeat"))
 s2 >> play("....o...", dur=0.5, room=0.4, amp=0.7).sometimes("stutter", 2)
-h4 >> supersaw([0, 3, 5, 0, 3, 5, 7, 0], oct=5, dur=0.5, cutoff=linvar([800, 4500], [8]), amp=0.32, resonbank=0.3, rbfreq=60, rbdecay=0.5, rbspread=1, lpf=1200, lpf_rq=0.1, bpf=1200).every(8, "reverse")
-e2 >> acidbass(var([0, 5, 6], [8, 4, 4]), oct=4, dur=0.5, lpf=PFr(1400, 4000, 512), lpf_rq=0.2, chorus=0.4, amp=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000).unison(3)
+h4 >> supersaw([0, 3, 5, 0, 3, 5, 7, 0], oct=5, dur=0.5, cutoff=linvar([800, 4500], [8]), amp=0.32, resonbank=0.3, rbfreq=60, rbdecay=0.5, rbspread=1, lpf=1200, lpr=0.1, bpf=1200).every(8, "reverse")
+e2 >> acidbass(var([0, 5, 6], [8, 4, 4]), oct=4, dur=0.5, lpf=PFr(1400, 4000, 512), lpr=0.2, chorus=0.4, amp=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000).unison(3)
 h4.stop()
 p3 >> rhodes([0, 4, 7, 5], oct=5, dur=2, cutoff=2200, echo=0.4, echo_time=0.375, comp=0.4, amp=0.28, mverb=0.5)
 q2 >> play("x", dur=1/2, amp=0.9, sample=2)
@@ -1249,7 +1249,7 @@ h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=6, dur=0.25, cutoff=linvar([600, 60
 e2.rgaterate = 16
 n1 >> a_hhat([0], oct=6, dur=16, tone=linvar([200, 8000], [16]), open=1, dist=2, amp=linvar([0, 0.5], [16]))
 o9 >> prophet((0,3,7), oct=5, dur=8, sus=7, mverb=0.9, mverbfreeze=1, lpf=linvar([5000, 400], [16]), amp=0.35)
-e2 >> acidbass([0], oct=3, dur=0.5, lpf=linvar([4000, 400], [16]), lpf_rq=0.15, amp=0.4)
+e2 >> acidbass([0], oct=3, dur=0.5, lpf=linvar([4000, 400], [16]), lpr=0.15, amp=0.4)
 Clock.bpm = 124
 m0 >> bass([0], oct=2, dur=8, lpf=linvar([1200, 200], [16]), amp=linvar([0.6, 0], [16]))
 h4 >> supersaw([0, 3, 7], oct=5, dur=1, lpf=linvar([5000, 300], [16]), amp=linvar([0.3, 0], [16]))
@@ -1496,7 +1496,7 @@ g233 >> rhodes(arp([0,4,7,11], "downup"), oct=4, dur=[1/4, 1/2], amp=0.36, pan=P
 v3 >> play("K", hpf=100, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, dist2=0.1, dist2shape=1)
 
 #@part26(8)
-g136 >> a_bd([2, 9, 0, 2, 9], oct=4, dur=1/4, amp=1, pan=PGauss(0, 0.35), lpf=sinvar([541, 2599], [4]), lpf_rq=0.35, multicrush=0.52).human(33, 5)
+g136 >> a_bd([2, 9, 0, 2, 9], oct=4, dur=1/4, amp=1, pan=PGauss(0, 0.35), lpf=sinvar([541, 2599], [4]), lpr=0.35, multicrush=0.52).human(33, 5)
 
 #@part27(16)
 g8 >> rsin(PRange(0, 5), oct=arp([5, 6, PRand([4, 5, (6, 7)]), 6, (4, 5, 6)]), dur=1/2, amp=0.41, reverb=0.4, room=0.6, damp=0.1)
@@ -1593,7 +1593,7 @@ d2 >> pluck([0], oct=5, dur=1/2).accompany("b1", [0,2,4])`)}
 son({min:2, max:5})                     # start the jam bot (g* players)
 soff()                                  # stop it`)}
         ${note('<b>New FX</b> — bpf (band-pass), eq3 (3-band EQ), spin (auto-pan), pong (ping-pong delay).')}
-        ${code(`p1 >> saw([0,4,7], oct=5, dur=1/4, bpf=1200, bpf_rq=0.2, spin=0.6)
+        ${code(`p1 >> saw([0,4,7], oct=5, dur=1/4, bpf=1200, bpr=0.2, spin=0.6)
 b1 >> play("x.o.", eq3=1, eqlow=4, eqhigh=-3, pong=0.5, pongtime=0.375)`)}
         ${note('<b>Live control + player methods</b>.')}
         ${code(`darker()                                # scale one mode darker
@@ -1790,7 +1790,7 @@ d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
         ]],
         ['Tut · FX', [
             tut('u_lpf',    'lpf / hpf','lpf / hpf = cutoff Hz — low/high-pass filter. Sweep it with a TimeVar.', `p1 >> saw([0,4,7], oct=5, dur=0.25, lpf=linvar([400,4000],[8]), amp=0.35)`),
-            tut('u_bpf',    'bpf',     'bpf = center Hz — a resonant band-pass. bpf_rq sets the width (small = narrow).', `p1 >> saw([0,4,7], oct=5, dur=0.25, bpf=1200, bpf_rq=0.2, amp=0.35)`),
+            tut('u_bpf',    'bpf',     'bpf = center Hz — a resonant band-pass. bpr sets the width (small = narrow).', `p1 >> saw([0,4,7], oct=5, dur=0.25, bpf=1200, bpr=0.2, amp=0.35)`),
             tut('u_eq3',    'eq3',     'eq3 = mix — a 3-band EQ. eqlow/eqmid/eqhigh in dB.', `b1 >> play(x.o., eq3=1, eqlow=4, eqhigh=-3, amp=0.8)`),
             tut('u_reverb', 'reverb',  'reverb = mix — room reverb. room sets size, damp the tone.', `p1 >> pads([0,4,7], oct=5, dur=4, reverb=0.5, room=0.9, amp=0.4)`),
             tut('u_echo',   'echo',    'echo = mix — a delay. echo_time in beats.', `p1 >> blip([0,4,7], oct=6, dur=0.5, echo=0.4, echo_time=0.375, amp=0.3)`),

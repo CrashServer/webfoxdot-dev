@@ -103,9 +103,9 @@ const COMMON_PARAMS = ['degree','oct','amp','dur','sus','pan','attack','release'
 // FX grouped by effect — picking one inserts ALL its params (mix at `on`,
 // the rest at their registry defaults).
 const FX_GROUPS = [
-    { name: 'lpf',       on: 2000, params: ['lpf', 'lpf_rq'] },
-    { name: 'hpf',       on: 400,  params: ['hpf', 'hpf_rq'] },
-    { name: 'bpf',       on: 1200, params: ['bpf', 'bpf_rq'] },
+    { name: 'lpf',       on: 2000, params: ['lpf', 'lpr'] },
+    { name: 'hpf',       on: 400,  params: ['hpf', 'hpr'] },
+    { name: 'bpf',       on: 1200, params: ['bpf', 'bpr'] },
     { name: 'eq3',       on: 1,    params: ['eq3', 'eqlow', 'eqmid', 'eqhigh'] },
     { name: 'crush',     on: 0.6,  params: ['crush', 'bits', 'srate'] },
     { name: 'resonbank', on: 0.3,  params: ['resonbank', 'rbfreq', 'rbdecay', 'rbspread'] },

@@ -124,7 +124,7 @@ function build() {
     let stutSaved = null;
     const fxEngage = (fx) => {
         if (!_clock) return;
-        if (fx === 'drop') _clock._players.forEach((p) => { p.setAttr('lpf', 180); p.setAttr('lpf_rq', 0.2); });
+        if (fx === 'drop') _clock._players.forEach((p) => { p.setAttr('lpf', 180); p.setAttr('lpr', 0.2); });
         else if (fx === 'stutter') { stutSaved = new Map(); _clock._players.forEach((p, n) => { stutSaved.set(n, p._multiply ?? 1); p._multiply = 4; }); }
     };
     const fxRelease = (fx) => {

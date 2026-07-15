@@ -12,15 +12,15 @@
 export const FX_REGISTRY = {
     // Low-pass filter — lpf = cutoff Hz (0 = off)
     lpf:       { scParam: 'lpf',     default: 0,   desc: 'LPF cutoff Hz (0=off, e.g. 2000)' },
-    lpf_rq:    { scParam: 'lpf_rq',  default: 0.7, desc: 'LPF resonance (0.01=sharp, 1=flat)' },
+    lpr:    { scParam: 'lpr',  default: 0.7, desc: 'LPF resonance (0.01=sharp, 1=flat)' },
 
     // High-pass filter — hpf = cutoff Hz (0 = off)
     hpf:       { scParam: 'hpf',     default: 0,   desc: 'HPF cutoff Hz (0=off, e.g. 400)' },
-    hpf_rq:    { scParam: 'hpf_rq',  default: 0.7, desc: 'HPF resonance' },
+    hpr:    { scParam: 'hpr',  default: 0.7, desc: 'HPF resonance' },
 
     // Band-pass filter — bpf = center Hz (0 = off)
     bpf:       { scParam: 'bpf',     default: 0,   desc: 'BPF center Hz (0=off, e.g. 1200)' },
-    bpf_rq:    { scParam: 'bpf_rq',  default: 0.5, desc: 'BPF bandwidth (0.05=narrow/resonant, 1=wide)' },
+    bpr:    { scParam: 'bpr',  default: 0.5, desc: 'BPF bandwidth (0.05=narrow/resonant, 1=wide)' },
 
     // 3-band EQ — eq3 = dry→wet mix (0 = off); low/mid/high gains in dB (±24)
     eq3:       { scParam: 'eq3',     default: 0,    desc: '3-band EQ mix (0=off)' },
@@ -279,9 +279,9 @@ export const FX_KEYS = new Set(Object.keys(FX_REGISTRY));
 // param(s) whose presence activates the effect (its node is created). Absent
 // effects = no node = zero CPU. Plus a permanent fd_fx_out tail (bus → main).
 export const FX_EFFECTS = [
-    { scName: 'fd_fx_lpf',        keys: ['lpf', 'lpf_rq'], trig: ['lpf'] },
-    { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpf_rq'], trig: ['hpf'] },
-    { scName: 'fd_fx_bpf',        keys: ['bpf', 'bpf_rq'], trig: ['bpf'] },
+    { scName: 'fd_fx_lpf',        keys: ['lpf', 'lpr'], trig: ['lpf'] },
+    { scName: 'fd_fx_hpf',        keys: ['hpf', 'hpr'], trig: ['hpf'] },
+    { scName: 'fd_fx_bpf',        keys: ['bpf', 'bpr'], trig: ['bpf'] },
     { scName: 'fd_fx_mpf',        keys: ['mpf', 'mpr'], trig: ['mpf'] },
     { scName: 'fd_fx_resonz',     keys: ['resonz', 'rfreq', 'rbw'], trig: ['resonz'] },
     { scName: 'fd_fx_combres',    keys: ['combres', 'combfreq', 'combdecay', 'combspread'], trig: ['combres'] },

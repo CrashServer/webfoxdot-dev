@@ -612,9 +612,9 @@ b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
 # START of a slow sweep. Longer sus = the whole shape unfolds:
 p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
 #
-# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
-# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
-b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`),
+# RESONANCE makes a sweep SING. lpr is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpr is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpr=0.15)`),
 
     lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
 `# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
@@ -640,7 +640,7 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 #
 # GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
-# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`),
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpr  (resonance).`),
 
     lesson(39, 'Glissando — .slider()',
 `# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
@@ -1233,9 +1233,9 @@ b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
 # START of a slow sweep. Longer sus = the whole shape unfolds:
 p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
 #
-# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
-# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
-b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'fr'),
+# RESONANCE makes a sweep SING. lpr is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpr is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpr=0.15)`, 'fr'),
 
     lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
 `# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
@@ -1261,7 +1261,7 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 #
 # GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
-# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'fr'),
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpr  (resonance).`, 'fr'),
 
     lesson(39, 'Glissando — .slider()',
 `# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
@@ -1850,9 +1850,9 @@ b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
 # START of a slow sweep. Longer sus = the whole shape unfolds:
 p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
 #
-# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
-# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
-b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'de'),
+# RESONANCE makes a sweep SING. lpr is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpr is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpr=0.15)`, 'de'),
 
     lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
 `# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
@@ -1878,7 +1878,7 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 #
 # GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
-# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'de'),
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpr  (resonance).`, 'de'),
 
     lesson(39, 'Glissando — .slider()',
 `# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
@@ -2466,9 +2466,9 @@ b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
 # START of a slow sweep. Longer sus = the whole shape unfolds:
 p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
 #
-# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
-# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
-b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'es'),
+# RESONANCE makes a sweep SING. lpr is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpr is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpr=0.15)`, 'es'),
 
     lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
 `# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
@@ -2494,7 +2494,7 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 #
 # GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
-# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'es'),
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpr  (resonance).`, 'es'),
 
     lesson(39, 'Glissando — .slider()',
 `# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.
@@ -3078,9 +3078,9 @@ b1 >> bass([0], dur=8, sus=8, lpf_=fb(1/2, 300, 4000))
 # START of a slow sweep. Longer sus = the whole shape unfolds:
 p1 >> pads([0, 4, 7], dur=4, sus=4, lpf_=fi(4, 300, 6000))
 #
-# RESONANCE makes a sweep SING. lpf_rq is the low-pass resonance (LOWER = sharper peak;
-# 0.7 default, ~0.15 = squelchy). Note lpf_rq is a SEPARATE param from lpf_ :
-b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpf_rq=0.15)`, 'ja'),
+# RESONANCE makes a sweep SING. lpr is the low-pass resonance (LOWER = sharper peak;
+# 0.7 default, ~0.15 = squelchy). Note lpr is a SEPARATE param from lpf_ :
+b1 >> bass([0, 0, 3, 5], oct=4, dur=1/2, lpf_=fi(1/2, 200, 3500), lpr=0.15)`, 'ja'),
 
     lesson(38, 'Envelopes everywhere — any FX param + clock-sync',
 `# It's not only the filter — EVERY effect param takes a "_" envelope: crush_, reverb_,
@@ -3106,7 +3106,7 @@ b1 >> bass([0], dur=8, sus=8, lpf=fb(8, 400, 4000))
 #
 # GOTCHAS: "_" envelopes work only on EFFECT params (filters, reverb, crush, echo,
 # chorus, djf …) — NOT the note params amp / oct / dur / pan. To move those, use a
-# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpf_rq  (resonance).`, 'ja'),
+# var() (lesson 9). And don't confuse  lpf_  (the envelope) with  lpr  (resonance).`, 'ja'),
 
     lesson(39, 'Glissando — .slider()',
 `# .slider() makes a player GLIDE in pitch between notes — a portamento sweep.

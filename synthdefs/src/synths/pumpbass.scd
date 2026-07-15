@@ -2,7 +2,7 @@
 // Saw+pulse+sub through a dist-driven resonant LPF, optional noise + fuzz + highpass,
 // and a per-note sidechain-style amp duck ("pump"). Params: out, note, amp, sus, pan,
 // attack, release, cutoff, rq, sub, body, dist, fuzz, fuzzgain, noiz, noizr, noizt,
-// locut, pump.  (locut = high-pass roll-off, renamed from hpr so hpr can alias hpf_rq)
+// locut, pump.  (locut = high-pass roll-off, named to avoid the hpr FX-resonance key)
 SynthDef(\fd_pumpbass, {|out=0, note=60, amp=1, sus=1, pan=0, attack=0.005, release=0.06,
                          cutoff=800, rq=0.4, sub=0.3, body=4, dist=0.2,
                          fuzz=0, fuzzgain=1.5, noiz=0, noizr=1, noizt=0.5, locut=0, pump=1|

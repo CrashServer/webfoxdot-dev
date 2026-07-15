@@ -20,16 +20,16 @@ SynthDef(\fd_fx_out, {|out=0, in_bus=64|
 }).writeDefFile(~outDir);
 
 // ── lpf — low-pass (cutoff Hz, 0 = bypass) ──────────────────────────────────
-SynthDef(\fd_fx_lpf, {|in_bus=64, lpf=0, lpf_rq=0.7|
+SynthDef(\fd_fx_lpf, {|in_bus=64, lpf=0, lpr=0.7|
     var sig = In.ar(in_bus, 2), wet;
-    wet = RLPF.ar(sig, (lpf > 0).if(lpf.clip(20, 20000), 20000), lpf_rq.clip(0.01, 1.0));
+    wet = RLPF.ar(sig, (lpf > 0).if(lpf.clip(20, 20000), 20000), lpr.clip(0.01, 1.0));
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (lpf > 0) * 2 - 1));
 }).writeDefFile(~outDir);
 
 // ── hpf — high-pass ─────────────────────────────────────────────────────────
-SynthDef(\fd_fx_hpf, {|in_bus=64, hpf=0, hpf_rq=0.7|
+SynthDef(\fd_fx_hpf, {|in_bus=64, hpf=0, hpr=0.7|
     var sig = In.ar(in_bus, 2), wet;
-    wet = RHPF.ar(sig, (hpf > 0).if(hpf.clip(20, 20000), 20), hpf_rq.clip(0.01, 1.0));
+    wet = RHPF.ar(sig, (hpf > 0).if(hpf.clip(20, 20000), 20), hpr.clip(0.01, 1.0));
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (hpf > 0) * 2 - 1));
 }).writeDefFile(~outDir);
 
@@ -339,10 +339,10 @@ SynthDef(\fd_fx_sbrk, {|in_bus=64, sbrk=0, sbrkdur=0.5|
 }).writeDefFile(~outDir);
 
 // ── bpf — resonant band-pass (center Hz, 0 = bypass) ────────────────────────
-// bpf_rq = bandwidth ratio (small = narrow/resonant). A mild makeup gain keeps
+// bpr = bandwidth ratio (small = narrow/resonant). A mild makeup gain keeps
 // narrow bands from disappearing.
-SynthDef(\fd_fx_bpf, {|in_bus=64, bpf=0, bpf_rq=0.5|
-    var sig = In.ar(in_bus, 2), wet, rq = bpf_rq.clip(0.01, 2.0);
+SynthDef(\fd_fx_bpf, {|in_bus=64, bpf=0, bpr=0.5|
+    var sig = In.ar(in_bus, 2), wet, rq = bpr.clip(0.01, 2.0);
     wet = BPF.ar(sig, (bpf > 0).if(bpf.clip(20, 18000), 1000), rq) * rq.reciprocal.sqrt.clip(1, 3);
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (bpf > 0) * 2 - 1));
 }).writeDefFile(~outDir);

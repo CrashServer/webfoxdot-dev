@@ -137,9 +137,9 @@ const transposeExtra = () => !chance(0.22) ? '' : ' + ' + pick([`${rint(2, 7)}`,
 // FX ideas — a broad palette; many use a TimeVar sweep so the sound moves. Each
 // is a distinct thunk (pickN never picks the same one twice, so no doubled keys).
 const FX = [
-    () => `lpf=${freqVal(300, 6000)}${chance(0.4) ? `, lpf_rq=${floatVal(0.2, 0.6)}` : ''}`,
+    () => `lpf=${freqVal(300, 6000)}${chance(0.4) ? `, lpr=${floatVal(0.2, 0.6)}` : ''}`,
     () => `hpf=${freqVal(200, 1200)}`,
-    () => `bpf=${freqVal(600, 3000)}, bpf_rq=${flt(0.1, 0.5)}`,
+    () => `bpf=${freqVal(600, 3000)}, bpr=${flt(0.1, 0.5)}`,
     () => `djf=${pick([flt(0.15, 0.4), flt(0.6, 0.85)])}`,
     () => `mverb=${floatVal(0.3, 0.7)}, mverbmix=0.6`,
     () => `room=${flt(0.5, 0.9)}, reverb=${floatVal(0.3, 0.6)}`,

@@ -185,7 +185,7 @@ function alignedStart(clock, durVal) {
 }
 
 // FoxDot param shorthands → canonical names
-const PARAM_ALIASES = { atk: 'attack', rel: 'release', dec: 'decay', lpr: 'lpf_rq', hpr: 'hpf_rq' };
+const PARAM_ALIASES = { atk: 'attack', rel: 'release', dec: 'decay' };
 function applyAliases(obj) {
     for (const [a, canon] of Object.entries(PARAM_ALIASES)) {
         if (a in obj && !(canon in obj)) { obj[canon] = obj[a]; delete obj[a]; }
