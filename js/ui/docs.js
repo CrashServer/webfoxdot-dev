@@ -211,7 +211,8 @@ export const VERSION = 'beta08';
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
     { v: 'beta08', title: 'Generative & mixer overhaul — guit audible · chaos evolves every param · live mixer', items: [
-'pbuild — the genre can now be an ARRAY or index-pattern, not just a fixed name or index. pbuild(["techno", "house"]) or pbuild([0, 3]) switches genre every bar as the pattern evolves (resolved per bar; the kit rebuilds only when it changes — a static genre is byte-for-byte unchanged). Before, any non-string/number genre silently fell back to techno. Note pbuild bakes a FIXED phrase when the line runs: evolve=N gives an N-bar drifting phrase that then LOOPS — for endless change, re-evaluate or raise evolve. A clock var (var([...])) as genre is sampled once at eval (re-run to advance it), so use an ARRAY for per-bar switching. Reminders: dur is a PLAYER param — play(pbuild("techno", evolve=8), dur=1/16), not dur inside pbuild(...); and layer gates default to ON, so kick=0 mutes and kick=PBin(4) / kick=<1,0> gate (kick=1 is a no-op).',
+'New Live set — The Lake is Green (svdk): a deep evolving #@ set — a stacked-FM faim lead over klank / basic chords, a chaotic cbass (PLorenz) low end, euclidean percussion and layered plaits / organ / synthbass voices, all breathing on Pvar phrase-swaps and TimeVars. In the examples dropdown, the Examples page and the galaxy.',
+        'pbuild — the genre can now be an ARRAY or index-pattern, not just a fixed name or index. pbuild(["techno", "house"]) or pbuild([0, 3]) switches genre every bar as the pattern evolves (resolved per bar; the kit rebuilds only when it changes — a static genre is byte-for-byte unchanged). Before, any non-string/number genre silently fell back to techno. Note pbuild bakes a FIXED phrase when the line runs: evolve=N gives an N-bar drifting phrase that then LOOPS — for endless change, re-evaluate or raise evolve. A clock var (var([...])) as genre is sampled once at eval (re-run to advance it), so use an ARRAY for per-bar switching. Reminders: dur is a PLAYER param — play(pbuild("techno", evolve=8), dur=1/16), not dur inside pbuild(...); and layer gates default to ON, so kick=0 mutes and kick=PBin(4) / kick=<1,0> gate (kick=1 is a no-op).',
         'MIDI-learn + audio boot now survive a refresh. Mixer MIDI mappings (faders + action buttons) are remembered and silently rebound on reload. And if audio was running last session, it auto-boots on your first click / keypress and re-loads the sample kit (if you had it), so you don\'t have to hunt for "boot" and "load kit" every time.',
         'guit is audible again — the guitar voice had been ported on top of MiPlaits (a Mutable-Instruments UGen our WASM scsynth doesn\'t ship), so it loaded but produced pure silence. Rebuilt entirely on stock UGens as a Karplus-Strong pluck: two lightly-detuned strings, with tone = string brightness, beef = body drive, mod = vibrato, and decay / fdecay = how long the string rings — a real electric-guitar pluck keeping the exact same parameters.',
         'chaos() and the son() jam bot draw from EVERYTHING again. The four newest synths (varsaw · cbass · klank · svdk) were silently falling through to a generic "lead" role — so cbass, a bass, was generating lead lines up high; they\'re now properly classified (cbass / svdk → bass, varsaw → lead, klank → keys). Degrees gained the pattern families a chaos generator should obviously use: the strange attractors PLorenz / PHenon / PLogistic, the smooth sweeps PSine / PTri / PSaw, and PPing / PDelta contours. The FX palette gained drcomp (the one effect it was missing) plus a chaotic PLorenz filter sweep, and the dead clouds effect was dropped.',
@@ -2001,6 +2002,54 @@ k1 >> rhodes(PChord(0, "add9"), oct=5, dur=16, sus=16, cutoff=520, echo=0.7, ech
 #@end(16)`)}
     `, 'dubplate');
 
+    const thelakeisgreen = section('The Lake is Green — svdk', `
+        ${note('A deep evolving <code>#@</code> set by <b>svdk</b> — a stacked-FM <code>faim</code> lead over <code>klank</code> / <code>basic</code> chords, a chaotic <code>cbass</code> (<code>PLorenz</code>) low end, euclidean percussion, and layered <code>plaits</code> / <code>organ</code> / <code>synthbass</code> voices, all breathing on <code>Pvar</code> phrase-swaps and TimeVars. Boot audio, put the cursor on <code>#@intro</code> and Ctrl+Enter — no <code>#@end</code>, so it runs on.')}
+        ${code(`#@#@ thelakeisgreen
+
+#@intro(8)
+Clock.bpm = 124
+Scale.default = "minor"
+faim >> faim(Pvar([PPing([0, 5, 1, 0]), P[5, 1, 6, 6].mirror()], 16), oct=5, dur=PGroove(0), amp=PWhite(0.29, 1), pan=var([-0.5, 0.5], 8), drop=0.60, dropof=0.39, mverb=PWhite(0.37, 0.68), mverbmix=0.6).reroll(16).sometimes("reverse", 2) + (0,4,7)
+
+#@temp(8)
+tempo >> basic(PChord(0, "add9"), oct=4, dur=Pvar([2, 4], 16), amp=0.43, pan=sinvar([-1, 1], [16]), spin=0.58).every(8, "mirror")
+klank >> klank(PChord(0, "sus4"), oct=4, dur=2, amp=var([0.38, 0.44, 0.37], 8), pan=var([-0.5, 0.5], 4), room2=0.63, mix2=0.21, ebmix=0.64, ebfeed=0.59).penta().reroll(4) + [0, 3]
+basic >> basic((0,4,7,11), oct=Pvar([4, 6], 8), dur=4, amp=sinvar([0.33, 0.42], [8]), pan=PWhite(-0.7, 0.7), rgate=0.51, rgaterate=8, tanh=0.5).penta().every(16, "rotate")
+
+#@temp2(8)
+heavy >> cbass(PLorenz(0, 5), oct=4, dur=2, amp=sinvar([0.57, 0.73], [8]), flanger=0.1, flanger_rate=0.55, room=0.75, reverb=0.34).penta()
+
+#@intro3(8)
+heavy >> cbass([0, -1, 7, 0], oct=4, dur=1, amp=PWhite(0.73, 0.63)[:4], ringmod=0.2, echo=var([0, 1], 4), leg=[0, 0, 0.2, 1, 2, 2, 4], ringmod_freq=790).sometimes("mirror") + (0,4,7)
+air  >> blip(Pvar([[7], [7, 11]], 8), oct=6, dur=[4, 2, 2], fbdelay=0.5, lpf=1800, lpr=0.1, amp=0.13, mverb=0.85, echo=0.4, echo_time=0.5, pan=PWhite(-0.6, 0.6))
+basic >> basic(PRoman("i iv VII"), oct=4, dur=[4, [2, 2]], amp=linvar([0.32, 0.33], [16]), pan=sinvar([-1, 1], [16]), pong=0.40, pongtime=0.25).penta()
+
+#@intro4(8)
+perc >> play(PEuclid2(5, 8, ".", "R"), dur=1/4, amp=0.76, octclean=0.53, ocsub=0.68, ocup=0.41, leg=12).sometimes("stutter", 3)
+lead >> plaits(Pvar([PShuf([0,3,5,7]), arp([0,4,7,11], var([0, 1, 2], 8))], 8), oct=5, dur=1/2, amp=Pacc("offbeat"), pan=sinvar([-1, 1], [8]), tanh=0.5, mverb=0.8, pong=0.5, pongtime=0.25, pongfeed=0.5).reroll(4)
+bell >> bell((0,4,7,11), oct=5, dur=Pvar([2, 4], 16), amp=PWhite(0.33, 0.35)[:4], pan=PWhite(-0.7, 0.7), feed=0.54, feedfreq=1548).every(16, "rotate")
+organ >> organ(P[0,4,7,11].layer("add", 4), oct=[4, 6, 4], dur=[4, [2, 2]], amp=Pacc("offbeat"), pan=PWhite(-0.7, 0.7), formant=0.71, formant_vowel=4, spin=0.43)
+
+#@intro5(8)
+organ >> organ(P[0,4,7,11].layer("add", 4), oct=[4, 6, 4], dur=[4, [2, 2]], amp=Pacc("offbeat"), pan=PWhite(-0.7, 0.7), formant=0.71, formant_vowel=4, spin=0.43)
+pad  >> pads((0, 4, 7), oct=4, dur=8, amp=0.26, mverb=0.7, lpf=linvar([400, 2200], [16]))
+lead  >> pluck(arp([0, 4, 7], "up"), oct=5, dur=1/2, amp=0.4, leg=0.6, lpf=sinvar([1200, 5000], [8]), echo=0.3, echo_time=0.375).penta().every(8, "reverse")
+bassline >> acidbass([0, {0, 3, 5}], oct=var([3, 5], 4), dur=var([1, 1/2], 8), amp=Pacc("offbeat"), room2=0.61, mix2=0.5).penta().unison(3)
+plaits >> plaits(Pvar([PShuf([0,3,5,7]), arp([0,4,7,11], var([0, 1, 2], 8))], 8), oct=4, dur=1/2, amp=Pacc("offbeat"), pan=sinvar([-1, 1], [8]), tanh=0.4, mverb=0.5).reroll(4)
+
+#@intro6(8)
+ssaw >> ssaw([2, 0, 6, 7, 7, 2], oct=PRand([5, 5, 7]), dur=var([1/4, 1/2], 8), amp=sinvar([0.31, 0.39], [8]), pan=PGauss(0, 0.50), lofi=0.53, drcomp=0.67).sometimes("mirror", 3)
+perc >> play(PEuclid2(5, 8, ".", "R"), dur=1/4, amp=0.76, octclean=0.53, ocsub=0.68, ocup=0.41, leg=12).sometimes("stutter", 3)
+pad >> choir(Pvar([(0, 4, 7), (2, 5, 9)], 8), oct=4, dur=8, amp=0.3, mverb=0.7)
+lead >> synthbass(Pvar([PShuf([0,3,5,7]), arp([0,4,7,11], var([2, 4, 2], 8))], 8), oct=(4, 5), dur=1/2, amp=Pacc("offbeat"), pan=sinvar([-1, 1], [8]), tanh=0.5, mverb=0.8, pong=0.5, pongtime=0.1, pongfeed=4, attack=0.1).reroll(4)
+
+#@intro7(8)
+stab  >> prophet([0, _, 3, _, 5, _, 7, _], oct=5, dur=1/2, sus=0.2, leg=0.4, amp=0.26, pan=sinvar([-0.6, 0.6], [8])) + (0, 4, 7)
+accompany >> basic((0,4,7,11), oct=Pvar([4, 6], 8), dur=4, amp=sinvar([0.33, 0.42], [8]), pan=PWhite(-0.7, 0.7), rgate=0.51, rgaterate=8, tanh=0.5).penta().every(16, "rotate")
+lead  >> pluck(Pvar([arp([0, 4, 7], "up"), melody()[:8]], 8), oct=[5, 6], dur=1/2, amp=0.42, lpf=sinvar([1500, 6000], [8])).penta()
+perc >> play(PEuclid2(5, 8, ".", "X"), dur=1/4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, leg=4, octclean=4, rate=0.5, ocsub=40, ocup=0.3, amp=0.26, octclean=0.53, ocsub=0.68, ocup=0.41, leg=12).sometimes("stutter", 3)`)}
+    `, 'thelakeisgreen');
+
     const flickering = section('Flickering Streets at Dawn — svdk', `
         ${note('A long dark <code>#@</code> set by <b>svdk</b> — detuned <code>synthbass</code> arps drifting through root &amp; scale changes, then an andalusian <code>darkpad</code> with rich <code>cs80</code> chords (<code>PRoman</code> / <code>PProg</code>) and a slow unwind to a lone <code>cs80</code>. Boot audio, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through the whole arrangement.')}
         ${code(`#flickering streets at dawn
@@ -2110,7 +2159,7 @@ v9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
