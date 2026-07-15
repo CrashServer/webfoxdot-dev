@@ -118,7 +118,7 @@ export const PATTERNS = [
     { name: 'PPulse(lo, hi, len, w)',   desc: 'Square/pulse wave; w=duty cycle (fraction at hi). w=0.1 → short stabs. Good on dur/sus' },
     { name: 'PSlide(lo, hi, len)',      desc: 'Smoothstep-eased ramp lo→hi (soft S-curve). Good for swells' },
     { name: 'motif(n, range, maxStep, reroll)', desc: 'A frozen n-note random-walk motif that repeats. 4th arg reroll>0 refreshes the motif itself every that many beats — self-contained, no reroll() call. e.g. motif(8, 7, 2, 4)' },
-    { name: 'arp(degrees, mode, octaves)', desc: 'Reorder degrees and cycle one per step. mode: a NAME (up/down/updown/downup/random), an INTEGER index, or a var (mode changes over time). octaves>1 spans the pattern across octaves (+7 degrees each; a 4th arg perOct tunes that for non-7-note scales), e.g. arp([0,4,7], 2, 2). A degree can itself be a generator (PRand/<alt>/var), resolved each step. Tip: for a CRISP arp use sus ≤ dur — a long sus overlaps the notes into a held chord.' },
+    { name: 'arp(degrees, mode, octaves)', desc: 'Reorder degrees and cycle one per step. mode: a NAME (up/down/updown/downup/random), an INTEGER index, or a var (mode changes over time). octaves>1 spans the pattern across octaves (+7 degrees each; a 4th arg perOct tunes that for non-7-note scales), e.g. arp([0,4,7], 2, 2). A degree can itself be a generator (PRand/nested [..]/var), resolved each step. Tip: for a CRISP arp use sus ≤ dur — a long sus overlaps the notes into a held chord.' },
     { name: 'PContour(shape, n, range)', desc: 'Melodic contour — n scale degrees in [0,range] following shape. shape: a NAME (up/down/arch/valley/wave), a NUMBER index, a var, or an ARRAY of control points to draw your own contour, e.g. PContour([0,7,2,5], 8)' },
     { name: 'PGroove(name)',            desc: 'Named dur feel: straight/eighths/sixteenths/swing/swing16/shuffle/triplet/dotted/gallop/tresillo/habanera — by name, an integer index, or a var (groove changes over time). swing16 is a faster (16th-note) swing. Groove only swings CONSECUTIVE hits — use a solid pattern like play("-"), not "-.-.-". e.g. dur=PGroove("swing") · PGroove(3)' },
     { name: 'PCircle(n, start, type)',  desc: 'Diatonic circle of fifths as scale degrees (I IV vii iii vi ii V…) — stays coherent with Root/Scale. Pass a chord type for chord groups' },
@@ -142,12 +142,12 @@ export const TIMEVARS = [
 ];
 
 export const FUNCTIONS = [
-    { name: 'play(pattern, opts)',      desc: 'Drum/sample pattern. Chars map to samples. space=rest, (Xo)=fire both at once, [XoX]=subdivide into sub-steps, {Xo}=random pick, &lt;Xo&gt;=alternate on successive hits. Quotes optional if pattern has spaces. opts: amp, dur (default 1), pan, rate, sample' },
+    { name: 'play(pattern, opts)',      desc: 'Drum/sample pattern. Chars map to samples. space=rest, (Xo)=fire both at once, [XoX]=alternate on successive hits, {Xo}=random pick, &lt;Xo&gt;=subdivide into sub-steps. Quotes optional if pattern has spaces. opts: amp, dur (default 1), pan, rate, sample' },
     { name: 'loop(name, dur, opts)',    desc: 'Beat-synced audio-loop player. Plays a named loop buffer, time-stretched to fit dur beats (so it locks to the tempo). Register loops first with loadloop. opts: amp, pan, rate, sample (variant index), pos (start, sec), stretch (1=warp to dur, 0=natural), looping. e.g. b1 >> loop("break", dur=8)' },
     { name: 'loadloop(name, url)',      desc: 'Load a WAV from a URL (or [urls] for variants) and register it as a named loop for loop(). Same buffer store as samples. e.g. loadloop("break", "https://…/amen.wav")' },
     { name: 'loadsample(char, url)',    desc: 'Load a WAV from a URL (or [urls]) and assign it to a play() char. GitHub raw / release URLs work. e.g. loadsample("K", "https://raw.githubusercontent.com/u/r/main/kick.wav")' },
     { name: 'loadpack(url)',            desc: 'Load a pack: JSON manifest {char: url | [urls]}. Relative URLs resolve against the pack location' },
-    { name: 'pbuild(genre, opts)',      desc: 'Genre drum-pattern generator → a play() string. e.g. play(pbuild("techno"), dur=0.25). genre: a name (techno|ebm|dnb|house|breaks|halftime|industrial|reggae|afro) OR an index number (pbuild(0)). opts: evolve (bars before it loops, each a mutation; default 8), fill (a fill every N bars), density (0–1, thins hits), mute, seed. Layer params kick/snare/hat/perc take a literal pattern (kick="X  x "), a genre name (hat="dnb"), or a per-bar GATE: snare=0 (off), snare=1 (on), snare=PBin(4)/{1,0}/<1,0> (toggle per bar). fill/density may be pattern-valued too (sampled per bar). Second arg can be a number = evolve' },
+    { name: 'pbuild(genre, opts)',      desc: 'Genre drum-pattern generator → a play() string. e.g. play(pbuild("techno"), dur=0.25). genre: a name (techno|ebm|dnb|house|breaks|halftime|industrial|reggae|afro) OR an index number (pbuild(0)). opts: evolve (bars before it loops, each a mutation; default 8), fill (a fill every N bars), density (0–1, thins hits), mute, seed. Layer params kick/snare/hat/perc take a literal pattern (kick="X  x "), a genre name (hat="dnb"), or a per-bar GATE: snare=0 (off), snare=1 (on), snare=PBin(4)/{1,0}/[1, 0] (toggle per bar). fill/density may be pattern-valued too (sampled per bar). Second arg can be a number = evolve' },
     { name: 'pkit(genre, opts)',        desc: 'Like pbuild but returns a kit for per-layer access: kit = pkit("house"); b1 >> play(kit.kick, dur=0.25); h1 >> play(kit.hat, dur=0.25). Layers: kick, snare, hat, perc' },
     { name: 'genres()',                 desc: 'List the available pbuild/pkit drum genres' },
     { name: 'chaos(n, type)',           desc: 'Generate n random players (synth/drum mix) into g1,g2,… and PASTE them into the editor as a block — does NOT run them; review/edit then evaluate. Draws widely: all synths (incl. arpy/darkpad/supersaw…), the full FX palette (mpf/shimmer/clouds/pumper…), pattern methods (.layer/.invert), motif/arp reroll, rests, and sometimes a Scale.default + reroll() line. type "synth"|"drum" forces one kind. Default n=4' },
@@ -206,10 +206,13 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'beta05';
+export const VERSION = 'beta07';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
+    { v: 'beta07', title: 'One bracket vocabulary — { }random ( )chord [ ]array/alt < >subdivide', items: [
+        'Brackets now mean the SAME thing in synth patterns AND play() strings: { } random · ( ) chords · [ ] array / alternate · < > subdivision. The change: play() swaps [ ] and < > (so [xo] alternates, <xo> subdivides), and on synths < > becomes SUBDIVISION — a ratchet/flam that crams its notes into one step: p1 >> pluck([0, 2, <4 4 7>, 7]) triplets the third slot; it nests (<0 <4 7>>) and stacks with .stutter. Alternation moves to nested [ ] (which already cycles per bar: [0, [4, 7]] → 0,4,0,7), so nothing is lost. All the examples, the tour and the docs are swept to the new syntax.',
+    ] },
     { v: 'beta05', title: 'Perform Mode · new synths · parameter-envelope lessons', items: [
         'PERFORM MODE (⊞ perform) — a full-screen, keyboard-free touch surface that turns a phone into a live instrument for a set you authored on desktop (or loaded from a share link / example). TAP a player tile to launch/stop it (bar-quantised), DRAG a tile up/down for its volume, tap a SECTION button to jump the arrangement, and work an XY PAD (X = filter · Y = space/reverb) + a master over everything at once. It drives the same engine as the mixer + the sections sequencer, so it always agrees with your code and the desk. (The idea: stop fighting to type code on a phone — perform the code instead.)',
         'New synths from the CrashServer set (codeBank parity): varsaw (variable-width saw), cbass (compressed dual-osc bass with tanh drive + freq-tracking filter), klank (resonant metallic ring), and svdk (the signature dirty bass/lead — triple saws + harmonics + fat sub + Metal-Zone distortion + stereo drift). All ported from the original SynthDefs.',
@@ -278,7 +281,7 @@ const CHANGELOG = [
         { t: 'Named-option args now also accept an integer index or a var — arp([0,4,7], 2) == arp([0,4,7], "updown"), and arp(deg, var([0,1], 4)) sweeps the mode over time. Same for PGroove, PContour, PClave, PProg (arp/PGroove vary per-step with a var). arp also gained an octaves arg — arp([0,4,7], "up", 2) spans two octaves (a 4th perOct arg tunes the per-octave step for non-7-note scales).', ex: 'optargs' },
         'Autocomplete: typing `.` after a player now auto-opens the method menu (every/sometimes/penta/chroma/solo/only/stop/degrade/…); the pattern-generator list is grouped into families (rhythm/melody/harmony/random/chaos/sequence); and the first arg of a synth call (the degree) suggests pattern generators.',
         'Fix: a nested generator inside arp — e.g. arp([5, 6, PRand([4, 5, (6, 7)]), 6]) — now resolves each step (a random / <alternating> / var element) instead of silently dropping that step. Groups (chords) and plain numbers are unchanged.',
-        'Fix: <a b> alternation is now stable under .unison() — it caches per step, so the several reads unison does per step no longer scramble which item is playing. And the play-position highlight lights the ACTIVE <…> item (a brighter amber box) even when it is nested inside a chord — e.g. dbass([…, (<4, 8>, 2), …]) shows whether 4 or 8 is sounding.',
+        'Fix: <a b> alternation is now stable under .unison() — it caches per step, so the several reads unison does per step no longer scramble which item is playing. And the play-position highlight lights the ACTIVE <…> item (a brighter amber box) even when it is nested inside a chord — e.g. dbass([…, ([4, 8], 2), …]) shows whether 4 or 8 is sounding.',
         { t: 'Synthesis tutorials — three new worked examples under Examples › Sound design that build a synth from scratch with defsynth(): additive (stack sine harmonics), subtractive (a rich saw through a filter-envelope sweep), and FM (carrier + modulator, ratio & index). Each explains the technique and has runnable code you can tweak.', ex: 'syn-additive' },
         'New synth: synthbass — an 80s / synthwave / Daft-Punk bass. Detuned saws + a sub sine through a Moog ladder filter with a snappy filter envelope and tanh drive. Clear controls: sus=note length, detune=saw spread %, cutoff/res/fenv=filter + its envelope, sub=weight, drive=warmth, glide=portamento. e.g. b1 >> synthbass([0,0,7,0], oct=2, dur=1/4, sus=0.2, detune=0.45, fenv=4, drive=1.7). Showcased in the "Neon Drive" set (example10.txt).',
         'French-electro pack — 5 more CrashServer synths ported: dafbass (Daft-Punk distorted harmonic bass), a_daftlead (Justice/Daft detuned saw lead w/ filter sweep), a_stab (aggressive major-chord stab), a_vlead (glitchy chopped lead), a_vpad (evolving granular pad). e.g. b1 >> dafbass([0,0,3,5], oct=2, dur=1/4) · p1 >> a_stab([0,3,5], oct=5, dur=1/2, distortion=6).',
@@ -297,7 +300,7 @@ const CHANGELOG = [
         { t: 'Pattern autocomplete now inserts a full, closed call with coherent defaults (0 when unsure) so a pick runs immediately — PDur → PDur(3, 8), PBin → PBin(16), PWalk → PWalk(8, 1, 1), PwRand → PwRand([0,4,7],[8,2,1]), PIndex → PIndex(). PDur/PDelay gained a rotate arg (cyclically shifts the duration list).', ex: 'patterns' },
 'The examples dropdown is now a fully custom, themed menu (a native select popup cannot be styled) — categorised, scrollable, with hover highlighting. Added a Deep dives section: param-heavy features (pbuild, .drummer, .human, .every/.sometimes kwargs, son, TimeVars, Euclidean rhythms, .unison) explained line by line with how they work and several use cases.',
 'New synths (CrashServer ports): a_bd (electro bass-drum / kick, French-electro distortion), rhodes (electric piano), supersaw (fat detuned saw stack), wobble (dubstep Moog-swept bass). In the synth autocomplete families (perc/keys/lead/bass).',
-'chaos() and the son() jam bot now generate far more varied players: role-aware degrees (arp/PArp/PGrowArp, PChord/PRoman/PProg/PCircle, melody()[:n], motif, PContour, PWalk/PShuf/PStutter/PAlt/PxRand/PStep, P*[…] picks), musical durations (PDur, PDur(<3,5>,8), PGroove, PBeat, <1/4 1/2>), PLAYER patterns too — oct=<a b>, amp=PWhite/Pacc, pan=PGauss/sinvar, and + transpose (a number, chord or <alt>). Plus a 30-strong FX palette (filters/reverbs/delays/modulation/distortion, many TimeVar-swept) and chained live transforms (.every/.sometimes/.unison/.penta/.human). PContour now also takes a number or a custom array of control points.',
+'chaos() and the son() jam bot now generate far more varied players: role-aware degrees (arp/PArp/PGrowArp, PChord/PRoman/PProg/PCircle, melody()[:n], motif, PContour, PWalk/PShuf/PStutter/PAlt/PxRand/PStep, P*[…] picks), musical durations (PDur, PDur([3, 5],8), PGroove, PBeat, [1/4, 1/2]), PLAYER patterns too — oct=<a b>, amp=PWhite/Pacc, pan=PGauss/sinvar, and + transpose (a number, chord or <alt>). Plus a 30-strong FX palette (filters/reverbs/delays/modulation/distortion, many TimeVar-swept) and chained live transforms (.every/.sometimes/.unison/.penta/.human). PContour now also takes a number or a custom array of control points.',
 { t: 'New reference tutorials — ~70 bite-size, one-per-feature examples grouped in the dropdown under Tut · Rhythm / Notes / Harmony / Random & chaos / Time / Player methods / Functions & live / FX. Each is a tiny runnable snippet with a one-line explanation of how it works (PDur, PEuclid2, PChord, PLorenz, var, .every, .drummer, drop, son, pong, chop…). Load one from the ▾ dropdown to learn a feature at a time.', ex: 'u_pdur' },
 'Play-position highlight upgrades: a chord group as a direct arg now lights up — dbass((0,4,7)) highlights the whole chord; <a b c> alternation now MOVES the highlight through its items instead of lighting the whole group. And a player line briefly flashes yellow when a .sometimes/.every modifier actually fires, so you can see the transform happen. The Examples dropdown is restyled (wider, coloured optgroups).',
 { t: 'The Examples menu has 6 new technique showcases — Chords & progressions · Arpeggios · Euclidean rhythms · Cross-player modulation · Live transforms · Generative & chaos — each a short runnable set. Pick one from the ▾ dropdown or the Examples tab to load it into the editor.', ex: 't_chords' },
@@ -347,10 +350,10 @@ const CHANGELOG = [
         { t: 'Inline random choice with braces now works in degree/param patterns for synths AND play: {a, b, c} picks one each step (like P*[a,b,c]). e.g. v1 >> dbass([0, 2, (4, 2), {2, 4}]) or saw([0,4,7], oct={4,5,6}). Patterns nested inside a list (PRand, {…}, etc.) now resolve each step instead of producing a dead note. Dicts (PChain({0:[1]})) and defsynth bodies are left untouched.', ex: 'patterns' },
         'The live play-position highlight now recognises a {…} random group: it lights the whole group when it is the active step (the pick is random, so it cannot point at one element) instead of mis-tracking a value inside it.',
         'Fix: PStep(n, v, default) now matches its documented FoxDot form — v every n steps, default otherwise (PStep(4,7,6) = [7,6,6,6]). It was reading args as a {step:value} map, so PStep(4,7,6) returned 0 forever.',
-        'Nested brackets now work in synth lists too: [0,[4,2]] alternates like <4 2> → 0,4,0,2 (deeper nesting too), so old FoxDot bracket patterns keep working. play() still subdivides. <…> alternation also resolves inside a synth list now.',
+        'Nested brackets now work in synth lists too: [0,[4,2]] alternates like [4, 2] → 0,4,0,2 (deeper nesting too), so old FoxDot bracket patterns keep working. play() still subdivides. <…> alternation also resolves inside a synth list now.',
         'All synths now share defaults amp=1, pan=0, oct=5; the common params (amp/dur/pan/attack/release) are hidden from autocomplete inserts and the Alt+I signature, leaving just each synth\'s own controls.',
         'Fix: the rgate FX now matches FoxDot/CrashServer chop — rgaterate is slices per beat (tempo-locked to the clock, not a fixed Hz), with 5 wave shapes (pulse/tri/saw/sine/parabola) and a soft floor. chop and fbdelay are tempo-locked automatically now too.',
-        { t: 'pbuild gains live, FoxDot-style params: genre can be an index number (pbuild(0)) or a prefix ("indus" → industrial); the layer params kick/snare/hat/perc take a per-bar GATE — snare=0 cuts snares, snare=PBin(4)/{1,0}/<1,0> toggle them per bar; fill/density can be pattern-valued too. Autocomplete now offers pbuild(…) (full call, every knob exposed) inside play().', ex: 'drums' },
+        { t: 'pbuild gains live, FoxDot-style params: genre can be an index number (pbuild(0)) or a prefix ("indus" → industrial); the layer params kick/snare/hat/perc take a per-bar GATE — snare=0 cuts snares, snare=PBin(4)/{1,0}/[1, 0] toggle them per bar; fill/density can be pattern-valued too. Autocomplete now offers pbuild(…) (full call, every knob exposed) inside play().', ex: 'drums' },
         { t: 'Examples are now grouped into categories (Live sets · Basics · Patterns & time · Sound design · Perform & MIDI) — the dropdown (optgroups) and the Examples page show the same sets in the same order. New live set: Rise (a build into industrial techno).', ex: 'rise' },
     ]},
     { v: 'alpha24', title: 'Slices · .gtr() · quantised Alt+X', items: [
@@ -405,7 +408,7 @@ const CHANGELOG = [
         'Result: a brief main-thread stall (GC, heavy re-eval, the live highlighter) no longer drops or lags notes — timing holds steady under load',
         'Sub-beat timing (strum, stutter rolls, play() subdivisions) rides the timetag too, instead of nested setTimeouts',
         'Stop / panic now flushes the scheduled-note queue, so it cuts instantly',
-        { t: 'Fixed: <a b c> alternation now works on synths & params too (saw(<0 4 7>), dur=<1 2>), not just play() strings — cycles each time it\'s reached', ex: 'axis1' },
+        { t: 'Fixed: <a b c> alternation now works on synths & params too (saw([0, 4, 7]), dur=[1, 2]), not just play() strings — cycles each time it\'s reached', ex: 'axis1' },
         'Global stop-all key: Ctrl/Cmd + . (works from anywhere, not just the editor)',
         'Editor: readable colour for built-in tokens (was an unreadable dark purple on dark themes)',
     ]},
@@ -675,8 +678,8 @@ b1 >> play(X.x.X.x., amp=0.9)
 
 #@dropB(16)
 p3 >> blip([0,4,7,5,7,4], oct=6, dur=0.25, echo=0.4, echo_time=0.375, amp=0.25).sometimes("stutter", 4)
-b1 >> play(X.[xx]X.x., amplify=PFDur((3,8),(5,8)), amp=0.9)
-h1 >> play(<-.><-o>, hpf=6000, amp=Pacc("offbeat"))
+b1 >> play(X.<xx>X.x., amplify=PFDur((3,8),(5,8)), amp=0.9)
+h1 >> play([-.][-o], hpf=6000, amp=Pacc("offbeat"))
 
 #@goto(dropA, 0.5)   # 50% loop the drop, else go on
 
@@ -708,19 +711,19 @@ Root.default = 0`)}
     `, 'start');
 
     const drums = section('Drums — play()', `
-        ${note('Chars map to samples. <code>.</code> or space = rest. Brackets: <code>(Xo)</code> together · <code>[Xo]</code> subdivide · <code>{Xo}</code> random · <code>&lt;Xo&gt;</code> alternate.')}
+        ${note('Chars map to samples. <code>.</code> or space = rest. Brackets: <code>(Xo)</code> together · <code>[Xo]</code> alternate · <code>{Xo}</code> random · <code>&lt;Xo&gt;</code> subdivide.')}
         ${code(`b1 >> play(x.o., amp=0.9)              # kick / snare
 b2 >> play(x-o-, amp=0.9)                  # - = closed hihat
-b3 >> play(x.[oo]x.<o->, amp=0.8)          # subdivide + alternate
+b3 >> play(x.<oo>x.[o-], amp=0.8)          # subdivide + alternate
 b4 >> play((x*)..{o-}.., amp=0.8)          # together + random
-b5 >> play(<x.><[--]><x.>, amp=0.8)        # brackets nest
+b5 >> play([x.][<-->][x.], amp=0.8)        # brackets nest
 b6 >> play(x-o-, lpf=1500, reverb=0.3)     # FX work on drums
 b7 >> play(x-o-).sometimes("stutter", 2)   # probabilistic`)}
         ${note('<b>pbuild(genre)</b> generates a genre drum pattern as a play() string. Genres: techno · ebm · dnb · house · breaks · halftime · industrial · reggae · afro. <code>evolve</code> = bars before it loops (each a mutation, so the groove drifts) · <code>fill</code> every N bars · <code>density</code> 0–1 thins hits · <code>mute</code> a layer · per-layer access via <code>pkit()</code>.')}
         ${code(`b1 >> play(pbuild("techno"), dur=0.25)
 b1 >> play(pbuild("house", evolve=8, fill=4, density=0.8), dur=0.25)
 b1 >> play(pbuild(0, 16), dur=0.25)                  # genre by index + evolve=16
-b1 >> play(pbuild("dnb", snare=PBin(4), hat=<1,0>), dur=0.25)   # gate layers per bar
+b1 >> play(pbuild("dnb", snare=PBin(4), hat=[1,0]), dur=0.25)   # gate layers per bar
 b1 >> play(pbuild("house", snare=0, fill={4,2}), dur=0.25)      # cut snare; random fills
 kit = pkit("breaks")                                 # per-layer access
 b1 >> play(kit.kick, dur=0.25)
@@ -748,7 +751,7 @@ b3 >> play(PEuclid2(3, 8, ".", "x"))       # euclid rhythm as play chars → "..
     const rhythms = section('Rhythm generators (PDur · PBeat · PEuclid · PStep)', `
         ${note('Generate DURATIONS and hit-patterns instead of typing them out. <b>PDur(k, n)</b> spreads k onsets as evenly as possible over n steps and returns their DURATIONS — the classic Euclidean rhythm as a dur pattern (PDur(3,8) = the tresillo). <b>PBeat("x.x.")</b> turns a hit-string into durations (the gaps between the x’s). <b>PEuclid(k,n)</b> returns a 1/0 on/off pattern — great on <code>amplify</code> as a gate; <b>PEuclid2(k,n,off,on)</b> fills two symbols instead (use it as a play() string). <b>PStep(n, a, b)</b> = value a every n-th step, b otherwise (accents / stairs). All accept an alternation <code>&lt;3 5&gt;</code> or a pattern where a number goes, so the rhythm itself can evolve.')}
         ${code(`p1 >> pluck([0,2,4,7], oct=5, dur=PDur(3, 8))          # tresillo dur pattern (3-in-8)
-p1 >> pluck([0,2,4,7], oct=5, dur=PDur(<3 5>, 8))     # alternate 3-in-8 and 5-in-8
+p1 >> pluck([0,2,4,7], oct=5, dur=PDur([3, 5], 8))     # alternate 3-in-8 and 5-in-8
 b1 >> play("x", dur=PBeat("x.x.xx.."))                # durations straight from a hit-string
 b1 >> play(PEuclid2(5, 8, ".", "x"), dur=0.25)        # 5-in-8 as a play() pattern
 h1 >> play("-", dur=0.25, amplify=PEuclid(5, 8))      # 5-in-8 as an on/off gate on amp
@@ -799,7 +802,7 @@ Server.clearFx()`)}
 p1 >> dbass((0,4,7), oct=4)                  # a held chord
 p1 >> saw([0,4,7], pan=(-1,1), amp=(0.6,0.3)) # grouped params zip into voices
 p1 >> sine([0, ., 4, .], oct=5)              # . = rest
-p1 >> saw(<0 4 7>, dur=<1 2>)                # <..> alternates each time it's reached`)}
+p1 >> saw([0, 4, 7], dur=[1, 2])                # [..] alternates each time it's reached`)}
     `, 'axis1');
 
     const sometimes = section('Probability modifiers', `
@@ -959,7 +962,7 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 # loadpack("https://raw.githubusercontent.com/CrashServer/webfoxdot-kit/v1/pack.json")
 
 b1 >> play(x-o-, amp=0.9)
-b2 >> play(<X.><o.> [--], amp=0.7)`)}
+b2 >> play([X.][o.] <-->, amp=0.7)`)}
         ${note('Or load a single WAV from any public URL and bind it to a play() char (use <code>[urls]</code> for sample-index slots):')}
         ${code(`loadsample("K", "https://raw.githubusercontent.com/USER/REPO/main/kick.wav")
 b3 >> play(K.K.K.K.)`)}
@@ -1079,7 +1082,7 @@ p2 >> pads([0,3,5], oct=4, dur=4, reverb=0.4)
 # b1 >>
 
 #@fill(4)
-b1 >> play(<x.ox.> [xox] x.x., crush=0.5, bits=4)
+b1 >> play([x.ox.] <xox> x.x., crush=0.5, bits=4)
 
 #@goto(verse, 0.6)   # 60% back to verse, else resolve
 
@@ -1139,8 +1142,8 @@ b1 >> play(X.x.X.x., amp=0.9)
 #@dropB(16)
 # drop layer 2: add a high blip lead + euclid-accented kick
 p3 >> blip(PRange(0, 7), oct=6, dur=0.25, echo=0.4, echo_time=0.375, amp=0.25).sometimes("stutter", 4)
-b1 >> play(X.[xx]X.x., amplify=PFDur((3,8),(5,8)), amp=0.9)
-h1 >> play(<-.><-o>, hpf=6000, amp=Pacc("offbeat"))
+b1 >> play(X.<xx>X.x., amplify=PFDur((3,8),(5,8)), amp=0.9)
+h1 >> play([-.][-o], hpf=6000, amp=Pacc("offbeat"))
 
 #@goto(dropA, 0.5)   # 50% loop back to dropA (re-vary the drop), else go on
 
@@ -1189,7 +1192,7 @@ g24 >> pumpbass([5, 7, 4, (0,3,6), 7], oct=6, dur=1, amp=1)
 g21 >> brass([4, (0,4,7), 5, (2,5,9)], oct=4, a=0.5, dur=4, amp=1, hpf=1200, room=0, reverb=0, pong=0.44)
 
 g39 >> a_hhat([(0,2,5), 7, 2, 2], oct=5, dur=1/2, amp=0.50, drive=2.6, tanh=0.41).unison(2)
-v1 >> play([--------], amp=Pacc("offbeat"))
+v1 >> play(<-------->, amp=Pacc("offbeat"))
 v2 >> play("X ", echo=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
 p2 >> ebass([0, 0, 7, 0], oct=5, dur=0.25, dist2=0.5, dist2shape=1, lpf=sinvar([400, 3500], [8]), rgate=0.7, rgaterate=4, amp=0.4)
@@ -1206,7 +1209,7 @@ Scale.default = "minor"
 m0 >> bass(var([0, -2, -4], [32]), oct=3, dur=8, lpf=sinvar([180, 500], [16]), tanh=0.15, amp=0.6).unison(2)
 o9 >> prophet([6, 3, PRand([4, 2, 5])], oct=5, dur=PRand([2, 4, 8]), sus=3, mverb=0.8, lpf=PRand([1200, 3000]), hpf=300, amp=0.4).unison(2) + (-7, 0)
 t0 >> play("d", dur=0.5, rate=PWhite(1, 3), pan=PWhite(-1, 1), mverb=0.2, amp=Pacc("ghost")).often("stutter", PRand([2, 4, 8]))
-d6 >> play("x..[x.]x.", dur=0.5, shape=0.4, drcomp=0.4, amp=0.7)
+d6 >> play("x..<x.>x.", dur=0.5, shape=0.4, drcomp=0.4, amp=0.7)
 q2 >> play("x", dur=1, amp=0.9)
 s1 >> play("-.-.-.-.", hpf=8000, amp=Pacc("offbeat"))
 s2 >> play("....o...", dur=0.5, room=0.4, amp=0.7).sometimes("stutter", 2)
@@ -1215,8 +1218,8 @@ e2 >> acidbass(var([0, 5, 6], [8, 4, 4]), oct=4, dur=0.5, lpf=PFr(1400, 4000, 51
 h4.stop()
 p3 >> rhodes([0, 4, 7, 5], oct=5, dur=2, cutoff=2200, echo=0.4, echo_time=0.375, comp=0.4, amp=0.28, mverb=0.5)
 q2 >> play("x", dur=1/2, amp=0.9, sample=2)
-g17 >> a_gesa([0, <0 5>, 4, 0], oct=6, dur=1/2, amp=0.79, pan=<-0.5 0.5>, pong=0.35, pongtime=0.375, fbdelay=0.46, fbtime=0.25, fbfeed=0.44, fbcutoff=3000)
-v2 >> play("X[--]", sample=4, amp=1, dur=1/2)
+g17 >> a_gesa([0, [0, 5], 4, 0], oct=6, dur=1/2, amp=0.79, pan=[-0.5, 0.5], pong=0.35, pongtime=0.375, fbdelay=0.46, fbtime=0.25, fbfeed=0.44, fbcutoff=3000)
+v2 >> play("X<-->", sample=4, amp=1, dur=1/2)
 q2 >> play("x", dur=1, amp=1, drive=2, tanh=0.3)
 s2 >> play("....o.......o.o.", dur=0.25, room=0.3, amp=0.6).sometimes("stutter", 2)
 h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=5, dur=0.25, cutoff=sinvar([600, 5000], [4]), spin=0.5, drive=3, tanh=0.4, amp=0.32).every(8, "rotate")
@@ -1247,7 +1250,7 @@ pt >> basic([0,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1
 hp >> basic([0,3,5,7,5,3, 6,1,3,6,3,1, 5,0,3,5,3,0, 4,6,1,4,1,6], oct=6, dur=0.5, sus=PRand([0.4,0.6,0.8],6), amp=0.28, cheapverb=0.5, cvdecay=2, pan=sinvar([-0.4,0.4],6))
 cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibspeed=3.5, vibdepth=0.012, room=0.9, reverb=0)
 ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=6, dur=4, sus=5.5, amp=sinvar([0.3,0.55],16), room=0.99, reverb=0.95, lpf=linvar([800,3000],32))
-v1 >> play("[---].[--].x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+v1 >> play("<--->.<-->.x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
 oj >> choir([4,6,12,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
 pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))`)}
@@ -1261,7 +1264,7 @@ Root.default = "D"
 
 ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=4, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, hpf=120, lpf=sinvar([400,2000],16), multicrush=0.8, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
 ag >> blip([7,5,0,7,5,7,0,5], oct=PStep(4, 5, 6), dur=0.5, sus=PRand([0.2,0.4,0.6],4), amp=sinvar([0.2,0.6],8), cutoff=sinvar([800,12000],4), rq=0.4, fbdelay=0.5, attack=0.01, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
-dk >> play("X...X.X.-...[----]...", dur=0.25, amp=var([1,0.9,1,0.88],4), fbdelay=0.4, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.1)
+dk >> play("X...X.X.-...<---->...", dur=0.25, amp=var([1,0.9,1,0.88],4), fbdelay=0.4, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.1)
 
 sn >> play("....o.......o...", dur=0.25, amp=0.85, sample=2, hpf=200)
 cl >> play("..o.", dur=0.5, sample=5, amp=0.7, amplify=PEuclid(5,8), hpf=3500, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
@@ -1291,7 +1294,7 @@ dk.rate=4
 
 ~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
 
-v4 >> play("X[--]X{o[--]}", dist2=0.5, dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+v4 >> play("X<-->X{o<-->}", dist2=0.5, dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
 wr >> hoover([0,0,-5,-5,-7,-7,0,0], oct=6, dur=0.5, sus=0.1, amp=0.2, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 
@@ -1313,7 +1316,7 @@ b1 >> dbass([0,0,0,4,0,0,-3,0], dur=PWhite(6,16), sus=PWhite(8,24), oct=4, amp=1
     `, 'paddingbells');
 
     const tenebrae = section('Tenebrae', `
-        ${note('Slow evolving chord clusters (60, C minor) — cs80 / bass / a_gesa / a_daft with grouped per-voice octaves and <1 1/2> alternating durations.')}
+        ${note('Slow evolving chord clusters (60, C minor) — cs80 / bass / a_gesa / a_daft with grouped per-voice octaves and [1, 1/2] alternating durations.')}
         ${code(`Clock.bpm = 60
 Scale.default = "minor"
 Root.default = "C"
@@ -1321,12 +1324,12 @@ Root.default = "C"
 g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=6, dur=1, amp=0.44, room=0.60, reverb=0.65).unison(2)
 g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=(7, 6), dur=1, amp=0.44, room=0.60, reverb=0.65).unison(2)
 g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=(7, 6, 5), dur=1, amp=0.44, room=0.60, reverb=0.65).unison(0)
-g0 >> bass([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(0)
+g0 >> bass([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=[1, 1/2], amp=1, room=0.60, reverb=0.65, attack=0.2).unison(0)
 g3 >> cs80([4, 4, ., 1, 2, 3, (0,3,4), 4], oct=5, dur=4, amp=1, room=0.60, reverb=0.65).unison(0)
 g3 >> a_gesa([4, 0, ., 1, (2,0,4), 0, (0,3,4), 4], oct=(4, 6, 7), dur=4, amp=0.44, room=0.2, reverb=0.2).unison(2)
-g0 >> a_gesa([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, lpf=1200, room=0.60, reverb=0.65, attack=0.2).unison(2)
-g0 >> bass([4, 2, ., 4, 2, 3, (0,3,4), 4], oct=(7, PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=0.44, room=0.60, reverb=0.65).unison(2)
-g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=<1, 1/2>, amp=1, room=0.60, reverb=0.65, attack=0.2).unison(2)`)}
+g0 >> a_gesa([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=[1, 1/2], amp=1, lpf=1200, room=0.60, reverb=0.65, attack=0.2).unison(2)
+g0 >> bass([4, 2, ., 4, 2, 3, (0,3,4), 4], oct=(7, PStep(4, 5, 6), 5), dur=[1, 1/2], amp=0.44, room=0.60, reverb=0.65).unison(2)
+g0 >> a_daft([4, 1, ., 4, 2, 3, (0,3,4), 4], oct=((3, 5), PStep(4, 5, 6), 5), dur=[1, 1/2], amp=1, room=0.60, reverb=0.65, attack=0.2).unison(2)`)}
     `, 'tenebrae');
 
     const scorched = section('Scorched', `
@@ -1370,7 +1373,7 @@ g59 >> bass([0, {0, 3, 5}], oct=6, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.
 # environnement
 
 #@build(16)
-g89 >> bass([0], oct=<4 5>, dur=2, amp=0.55)
+g89 >> bass([0], oct=[4, 5], dur=2, amp=0.55)
 # 100% web
 # based on FoxDot
 
@@ -1411,9 +1414,9 @@ g72 >> cs80(arp([0,2,4,7], "down"), oct=5, dur=1/2, amp=0.29, tremolo=0.68, trem
 
 #@part12(20)
 g73 >> karp(PChord(0, "sus4"), oct=4, dur=4, amp=PWhite(0.36, 0.44), fold=0.36, symetry=3, multicrush=0.61)
-g203 >> pluck(PGrowArp([0,3,7]), oct=<6 7>, dur=PBeat("x xx x"), amp=PWhite(0.36, 0.41), cheapverb=0.70, rgate=0.75, rgaterate=8).penta() + <0 3>
+g203 >> pluck(PGrowArp([0,3,7]), oct=[6, 7], dur=PBeat("x xx x"), amp=PWhite(0.36, 0.41), cheapverb=0.70, rgate=0.75, rgaterate=8).penta() + [0, 3]
 g59 >> bass([0, {0, 3, 5}], oct=6, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.6).human(26, 4)
-g89 >> bass([0], oct=<4 5>, dur=2, amp=0.55)
+g89 >> bass([0], oct=[4, 5], dur=2, amp=0.55)
 
 #@part13(16)
 g72 >> cs80(arp([0,2,4,7], "up"), oct=(4, 5), dur=1/2, amp=0.6, tremolo=0.68, trem_rate=4).every(8, "reverse")
@@ -1428,12 +1431,12 @@ Root.default = "E#"
 
 #@part15(12)
 g74 >> sine(motif(3), oct=5, dur=PGroove("gallop"), amp=PWhite(0.32, 0.42), mverb=0.55, mverbmix=0.6)
-g88 >> donk(arp([0,4,7,11], "up"), oct=<5 6>, dur=1/4, amp=0.40, pan=PWhite(-0.7, 0.7), ringmod=0.44, ringmod_freq=147)
-g95 >> pads(PCircle(8, 0, "7"), oct=4, dur=<2 4>, amp=0.45, pan=<-0.5 0.5>, flanger=0.68, flanger_rate=0.30)
+g88 >> donk(arp([0,4,7,11], "up"), oct=[5, 6], dur=1/4, amp=0.40, pan=PWhite(-0.7, 0.7), ringmod=0.44, ringmod_freq=147)
+g95 >> pads(PCircle(8, 0, "7"), oct=4, dur=[2, 4], amp=0.45, pan=[-0.5, 0.5], flanger=0.68, flanger_rate=0.30)
 
 #@part16(12)
-g239 >> acidbass(PRange(0, 4), oct=<4 5>, dur=1, amp=1, chop=4, echo=0.21, echo_time=0.375)
-g233 >> rhodes(arp([0,4,7,11], "downup"), oct=5, dur=<1/4 1/2>, amp=0.36, pan=PWhite(-0.7, 0.7), lofi=0.49) + (0,3,7)
+g239 >> acidbass(PRange(0, 4), oct=[4, 5], dur=1, amp=1, chop=4, echo=0.21, echo_time=0.375)
+g233 >> rhodes(arp([0,4,7,11], "downup"), oct=5, dur=[1/4, 1/2], amp=0.36, pan=PWhite(-0.7, 0.7), lofi=0.49) + (0,3,7)
 
 #@part17(8)
 g73 >> karp(PChord(0, "sus4"), oct=6, dur=1/2, amp=PWhite(0.36, 0.44), fold=0.36, symetry=3, multicrush=0.61, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
@@ -1447,7 +1450,7 @@ g71 >> cs80(PCircle(1), oct=6, dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])).huma
 g72 >> cs80(arp([0,2,4,7], "down"), oct=5, dur=1/2, amp=0.29, tremolo=0.68, trem_rate=4).every(8, "reverse")
 
 #@part19(4)
-v1 >> play("[-X]", hpf=4200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+v1 >> play("<-X>", hpf=4200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 g98 >> play(PEuclid2(3, 8, ".", "B"), dur=1/2, amp=0.76, dist2=0.6, dist2shape=1).sometimes("stutter", 3)
 
 #@part20(12)
@@ -1458,17 +1461,17 @@ g74.stop()
 g95.stop()
 g88.stop()
 g239.stop()
-v1 >> play("[-X]", hpf=4200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+v1 >> play("<-X>", hpf=4200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 g98 >> play(PEuclid2(3, 8, ".", "B"), dur=1/2, amp=0.76, dist2=0.6, dist2shape=1).sometimes("stutter", 3)
 
 #@part23(8)
-v1 >> play("[[--][Xx]]", hpf=4200, fbdelay=1, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.14)
+v1 >> play("<<--><Xx>>", hpf=4200, fbdelay=1, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.14)
 v2 >> play("b ", hpf=1200, fbdelay=1, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.14)
 g59 >> bass([0, {0, 3, 5}], oct=4, dur=1/2, amp=Pacc(4), mverb=0.63, mverbmix=0.6).human(26, 4)
 
 #@part24(8)
-g239 >> acidbass(PRange(0, 4), oct=<4 5>, dur=1, amp=1, chop=4, echo=0.21, echo_time=0.375)
-g233 >> rhodes(arp([0,4,7,11], "downup"), oct=4, dur=<1/4 1/2>, amp=0.36, pan=PWhite(-0.7, 0.7), lofi=0.49) + (0,3,7)
+g239 >> acidbass(PRange(0, 4), oct=[4, 5], dur=1, amp=1, chop=4, echo=0.21, echo_time=0.375)
+g233 >> rhodes(arp([0,4,7,11], "downup"), oct=4, dur=[1/4, 1/2], amp=0.36, pan=PWhite(-0.7, 0.7), lofi=0.49) + (0,3,7)
 
 #@part25(8)
 v3 >> play("K", hpf=100, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, dist2=0.1, dist2shape=1)
@@ -1788,7 +1791,7 @@ d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
             `<b>kick / snare / hat / perc</b> are per-bar GATES: 1 = on, 0 = off, a genre name to borrow that layer, or a pattern (PBin(4) / {1,0} / &lt;1 0&gt;) to toggle the layer bar by bar.`,
         ], `b1 >> play(pbuild("techno"), dur=0.25)                        # the simplest form
 b1 >> play(pbuild("dnb", evolve=16, fill=4, density=0.8), dur=0.25)  # evolves, fills, a bit sparser
-b1 >> play(pbuild("house", snare=<1 0>, hat="dnb"), dur=0.25)   # snare every other bar, borrow dnb hats`),
+b1 >> play(pbuild("house", snare=[1 0], hat="dnb"), dur=0.25)   # snare every other bar, borrow dnb hats`),
         deep('d_drummer', '.drummer — evolving drums', [
             `<b>.drummer(durloop, durPlayer)</b> turns a play() player into a self-evolving rock drummer. It picks a random groove + fill, swaps the fill in for the tail of each loop, and re-randomises the groove every durloop beats.`,
             `<b>durloop</b>: beats before it re-rolls the groove (default 16). &nbsp; <b>durPlayer</b>: the step duration (default 0.5). Chain it onto any play() seed.`,
@@ -1849,11 +1852,11 @@ g12 >> dafbass([6, 0, 9, 7, 9, 7], sus=1/2, oct=PStep(4, 3, 4), dur=PGroove("gal
 
 # galaxy map — to see active jam sessions
 #@outro(8)
-g22 >> a_vpad(PContour([4, 2, 1], 8, 7), oct=<5 6>, dur=PDur(3,8), amp=PWhite(0.32, 0.40), fshift=292, fmix=0.39).sometimes("reverse", 4).after(4, "stop") + 7
+g22 >> a_vpad(PContour([4, 2, 1], 8, 7), oct=[5, 6], dur=PDur(3,8), amp=PWhite(0.32, 0.40), fshift=292, fmix=0.39).sometimes("reverse", 4).after(4, "stop") + 7
 
 #@part7(12)
-g16 >> a_bd(arp([0,4,7,11], var([0, 1, 2], 4)), oct=<5 6>, dur=<1/4 1/2>, amp=0.41).every(4, "mirror")
-g61 >> a_hhat(arp([0,4,7], "updown"), oct=6, dur=PGroove(8), amp=PWhite(0.31, 0.39)) + <0 3>
+g16 >> a_bd(arp([0,4,7,11], var([0, 1, 2], 4)), oct=[5, 6], dur=[1/4, 1/2], amp=0.41).every(4, "mirror")
+g61 >> a_hhat(arp([0,4,7], "updown"), oct=6, dur=PGroove(8), amp=PWhite(0.31, 0.39)) + [0, 3]
 g22.oct=4
 
 # bug fixes
@@ -1879,11 +1882,11 @@ g16.stop()
 g5.oct=4
 g1.oct=4
 g126.oct=4
-g6 >> cs80(motif(4), oct=5, dur=PDur(<3,5>,8), amp=0.32, vowel=0.60, pong=0.39, pongtime=0.25)
+g6 >> cs80(motif(4), oct=5, dur=PDur([3, 5],8), amp=0.32, vowel=0.60, pong=0.39, pongtime=0.25)
 v1 >> ebass(PCircle(2), pick=0.414, rq=0.5, cutoff=250, decay=0.01, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
 
 #@part12(12)
-g22 >> a_vpad(PContour([4, 2, 1], 8, 7), oct=<5 6>, dur=PDur(3,8), amp=PWhite(0.32, 0.40), fshift=292, fmix=0.39).sometimes("reverse", 4).after(4, "stop") + 7
+g22 >> a_vpad(PContour([4, 2, 1], 8, 7), oct=[5, 6], dur=PDur(3,8), amp=PWhite(0.32, 0.40), fshift=292, fmix=0.39).sometimes("reverse", 4).after(4, "stop") + 7
 v4 >> play("..C.", fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 v5 >> play("k")
 
@@ -1900,7 +1903,7 @@ v6 >> play(pbuild("techno", evolve=8, fill=4, density=1, kick=1, snare=1, hat=1,
 
 #@part16(24)
 v3 >> brass([PRoman("I V vi IV")], cutoff=2000, rq=0.4, bright=0.5, dur=8, amp=0.5, lpf=200)
-g16 >> a_bd(arp([0,4,7,11], var([0, 1, 2], 4)), oct=<5 6>, dur=<1/4 1/2>, amp=0.41).every(4, "mirror")
+g16 >> a_bd(arp([0,4,7,11], var([0, 1, 2], 4)), oct=[5, 6], dur=[1/4, 1/2], amp=0.41).every(4, "mirror")
 
 # try alpha now!
 #@part20(16)
@@ -1946,7 +1949,7 @@ k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=4, dur=2, sus=0.5, cutoff=1800, e
 
 #@part10(8)
 d1 >> play("x", dur=1, amp=0.8, sample=2)
-h1 >> play("[--]", dur=0.5, hpf=7000, amp=0.4)
+h1 >> play("<-->", dur=0.5, hpf=7000, amp=0.4)
 d2 >> play("...c", dur=1, squiz=0.6, squizpitch=3, room=0.5, amp=0.4).sometimes("stutter", 3)
 
 #@part11(4)
@@ -1974,7 +1977,7 @@ v1.stop()
 
 #@part16(8)
 d1.stop()
-k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=<5 6>, dur=2, sus=1, cutoff=linvar([1800, 700], [16]), echo=0.6, echo_time=0.375, echo_dec=0.85, mverb=0.7, comp=0.6, compthresh=0.2, amp=0.32).offbeat()
+k1 >> rhodes(PChord(0, var([3, 7, 6], 8)), oct=[5, 6], dur=2, sus=1, cutoff=linvar([1800, 700], [16]), echo=0.6, echo_time=0.375, echo_dec=0.85, mverb=0.7, comp=0.6, compthresh=0.2, amp=0.32).offbeat()
 b1 >> dbass([0, 5], oct=4, dur=4, lpf=linvar([1600, 250], [16]), tanh=0.2, amp=linvar([0.6, 0.15], [16])).unison(3)
 h1 >> play("-", dur=2, hpf=9000, amp=0.2)
 
@@ -1994,14 +1997,14 @@ Clock.bpm = 120
 
 #@intro(20)
 Root.default = "F"
-ld >> synthbass(arp([0, 3, <3, 7>, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=2, drive=1.3, echo=0.3, echo_time=0.375, pan=<-0.4 0.4>, amp=0.45).every(8, "shuffle").unison(3)
+ld >> synthbass(arp([0, 3, [3, 7], 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=2, drive=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
 
 #@synth(32)
 b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), res=0.42, fenv=4, drive=1.7, pumper=0.7).unison(5)
 
 #@rootchange(24)
 Root.default = "C"
-ld >> synthbass(arp([0, 3, 7, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=4, drive=1.3, echo=0.3, echo_time=0.375, pan=<-0.4 0.4>, amp=0.45).every(8, "shuffle").unison(3)
+ld >> synthbass(arp([0, 3, 7, 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), res=0.35, fenv=4, drive=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
 
 
 
@@ -2026,7 +2029,7 @@ Root.default = "C"
 pad >> darkpad(PProg("andalusian"), oct=4, dur=4, sus=4, attack=1.6, amp=0.4, cutoff=sinvar([500, 2200], [16]), res=0.3, reverb=0.6, room=0.9, chorus=0.5)
 ld.stop()
 key >> cs80(PRoman("i9 VII VI7 V"), oct=6, dur=4, sus=3.5, amp=0.2, attack=1.2, lpf=3200, res=0.2, reverb=0.5, chorus=0.4)
-top >> pluck(PContour("wave", 8, 7), oct=5, dur=1/2, sus=0.3, amp=0.24, echo=0.3, echo_time=0.375, lpf=sinvar([1800, 6000], [8]), pan=<-0.3 0.3>)
+top >> pluck(PContour("wave", 8, 7), oct=5, dur=1/2, sus=0.3, amp=0.24, echo=0.3, echo_time=0.375, lpf=sinvar([1800, 6000], [8]), pan=[-0.3, 0.3])
 
 #@part10(8)
 bs >> synthbass([0, 6, 5, 4], oct=5, dur=4, sus=2, detune=0.3, cutoff=linvar([400, 1300], [16]), res=0.4, fenv=3, drive=1.5, amp=0.5).unison(3)

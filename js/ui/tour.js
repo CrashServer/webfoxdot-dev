@@ -108,7 +108,7 @@ p1 >> pluck([0, 2, 4, 7])
 #   oct   octave up/down        pan  stereo position (-1 left … 1 right)
 #
 # ▶ The same synth, shaped — faster, softer, higher, drifting L↔R:
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=[-0.5, 0.5])
 #
 # Every synth has its own extra knobs too — autocomplete (lesson 12) finds them.`),
 
@@ -127,24 +127,24 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 `# play("…") triggers SAMPLES from the kit. Each character is one step:
 #
 #   x = kick     o = snare     - = hi-hat     .  or space = a rest (silence)
-#   X / O louder ·  [xx] = two hits in one step (a roll) ·  <a b> alternates
+#   X / O louder ·  <xx> = two hits in one step (a roll) ·  [a b] alternates
 #
 # ▶ A basic beat (needs the kit from lesson 5):
 d1 >> play("x-o-")
 #
 # ▶ Busier — run it to swap the pattern live, no gap:
-d1 >> play("x.x.o.[xx]")`),
+d1 >> play("x.x.o.<xx>")`),
 
     lesson(7, 'Patterns — lists, chords, alternation',
 `# The list in [ … ] is a PATTERN: one value per step, looping. It's how
 # EVERYTHING cycles. Three building blocks:
 #
-#   [0, 2, 4]    a sequence — one note per step
-#   (0, 4, 7)    a CHORD — those notes sound together (a group)
-#   <7 9>        ALTERNATE — 7 one cycle, 9 the next, then repeat
+#   [0, 2, 4]     a sequence — one note per step
+#   (0, 4, 7)     a CHORD — those notes sound together (a group)
+#   [0, [7, 9]]   a NESTED list ALTERNATES — 7 one cycle, 9 the next, then repeat
 #
 # ▶ All three in one line:
-p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`),
+p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`),
 
     lesson(8, 'Generators — patterns that write themselves',
 `# Instead of typing every note, GENERATORS build patterns for you:
@@ -372,7 +372,7 @@ d1 >> play("x-o-", dur=1/2)
 #@chorus(16)
 p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
-d1 >> play("x-[oo]", dur=1/2)
+d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%: into the drop …
 #@goto(verse, 1)        # … the other 60%: back to the verse (chained gotos = multi-way)
@@ -708,7 +708,7 @@ p1 >> pluck([0, 2, 4, 7])
 #   oct   octave plus haut/bas  pan  position stéréo (-1 gauche … 1 droite)
 #
 # ▶ Le même synthé, façonné — plus rapide, plus doux, plus haut, qui dérive G↔D :
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=[-0.5, 0.5])
 #
 # Chaque synthé a aussi ses propres réglages — l'autocomplétion (leçon 12) les trouve.`, 'fr'),
 
@@ -727,13 +727,13 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 `# play("…") déclenche des SAMPLES du kit. Chaque caractère est un pas :
 #
 #   x = grosse caisse   o = caisse claire   - = charleston   .  ou espace = un silence
-#   X / O plus fort ·  [xx] = deux frappes en un pas (un roulement) ·  <a b> alterne
+#   X / O plus fort ·  <xx> = deux frappes en un pas (un roulement) ·  [a b] alterne
 #
 # ▶ Un beat de base (nécessite le kit de la leçon 5) :
 d1 >> play("x-o-")
 #
 # ▶ Plus dense — lance-le pour changer le pattern en direct :
-d1 >> play("x.x.o.[xx]")`, 'fr'),
+d1 >> play("x.x.o.<xx>")`, 'fr'),
 
     lesson(7, 'Les patterns — listes, accords, alternance',
 `# La liste dans [ … ] est un PATTERN : une valeur par pas, en boucle. C'est ainsi
@@ -741,10 +741,10 @@ d1 >> play("x.x.o.[xx]")`, 'fr'),
 #
 #   [0, 2, 4]    une séquence — une note par pas
 #   (0, 4, 7)    un ACCORD — ces notes sonnent ensemble (un groupe)
-#   <7 9>        ALTERNE — 7 un cycle, 9 le suivant, puis ça se répète
+#   [7, 9]        ALTERNE — 7 un cycle, 9 le suivant, puis ça se répète
 #
 # ▶ Les trois dans une seule ligne :
-p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`, 'fr'),
+p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'fr'),
 
     lesson(8, 'Les générateurs — des patterns automatiques',
 `# Plutôt que de taper chaque note, les GÉNÉRATEURS construisent les patterns :
@@ -976,7 +976,7 @@ d1 >> play("x-o-", dur=1/2)
 #@chorus(16)
 p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
-d1 >> play("x-[oo]", dur=1/2)
+d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40% : dans le drop …
 #@goto(verse, 1)        # … les 60% restants : retour au couplet (gotos chaînés = multi-voies)
@@ -1313,7 +1313,7 @@ p1 >> pluck([0, 2, 4, 7])
 #   oct   Oktave höher/tiefer   pan  Stereo-Position (-1 links … 1 rechts)
 #
 # ▶ Derselbe Synth, geformt — schneller, leiser, höher, links↔rechts wandernd:
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=[-0.5, 0.5])
 #
 # Jeder Synth hat auch eigene Regler — die Autovervollständigung (Lektion 12) findet sie.`, 'de'),
 
@@ -1332,13 +1332,13 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 `# play("…") triggert SAMPLES aus dem Kit. Jedes Zeichen ist ein Schritt:
 #
 #   x = Bassdrum   o = Snare   - = Hi-Hat   .  oder Leerzeichen = eine Pause
-#   X / O lauter ·  [xx] = zwei Schläge in einem Schritt (ein Wirbel) ·  <a b> alterniert
+#   X / O lauter ·  <xx> = zwei Schläge in einem Schritt (ein Wirbel) ·  [a b] alterniert
 #
 # ▶ Ein einfacher Beat (braucht das Kit aus Lektion 5):
 d1 >> play("x-o-")
 #
 # ▶ Dichter — führe es aus, um das Pattern live zu tauschen:
-d1 >> play("x.x.o.[xx]")`, 'de'),
+d1 >> play("x.x.o.<xx>")`, 'de'),
 
     lesson(7, 'Patterns — Listen, Akkorde, Alternation',
 `# Die Liste in [ … ] ist ein PATTERN: ein Wert pro Schritt, in der Schleife. So läuft
@@ -1346,10 +1346,10 @@ d1 >> play("x.x.o.[xx]")`, 'de'),
 #
 #   [0, 2, 4]    eine Sequenz — eine Note pro Schritt
 #   (0, 4, 7)    ein AKKORD — diese Noten klingen zusammen (eine Gruppe)
-#   <7 9>        ALTERNIERT — 7 in einem Zyklus, 9 im nächsten, dann wiederholt es sich
+#   [7, 9]        ALTERNIERT — 7 in einem Zyklus, 9 im nächsten, dann wiederholt es sich
 #
 # ▶ Alle drei in einer Zeile:
-p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`, 'de'),
+p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'de'),
 
     lesson(8, 'Generatoren — Patterns, die sich selbst schreiben',
 `# Statt jede Note zu tippen, bauen GENERATOREN die Patterns für dich:
@@ -1578,7 +1578,7 @@ d1 >> play("x-o-", dur=1/2)
 #@chorus(16)
 p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
-d1 >> play("x-[oo]", dur=1/2)
+d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%: in den Drop …
 #@goto(verse, 1)        # … die anderen 60%: zurück zur Strophe (verkettete gotos = Mehrweg)
@@ -1914,7 +1914,7 @@ p1 >> pluck([0, 2, 4, 7])
 #   oct   octava arriba/abajo  pan  posición estéreo (-1 izq … 1 der)
 #
 # ▶ El mismo synth, moldeado — más rápido, más suave, más agudo, yendo izq↔der:
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=[-0.5, 0.5])
 #
 # Cada synth tiene sus propias perillas — el autocompletado (lección 12) las encuentra.`, 'es'),
 
@@ -1933,13 +1933,13 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 `# play("…") dispara SAMPLES del kit. Cada carácter es un paso:
 #
 #   x = bombo   o = caja   - = charles   .  o espacio = un silencio
-#   X / O más fuerte ·  [xx] = dos golpes en un paso (un redoble) ·  <a b> alterna
+#   X / O más fuerte ·  <xx> = dos golpes en un paso (un redoble) ·  [a b] alterna
 #
 # ▶ Un beat sencillo (necesita el kit de la lección 5):
 d1 >> play("x-o-")
 #
 # ▶ Más denso — ejecútalo para cambiar el pattern en vivo:
-d1 >> play("x.x.o.[xx]")`, 'es'),
+d1 >> play("x.x.o.<xx>")`, 'es'),
 
     lesson(7, 'Patterns — listas, acordes, alternancia',
 `# La lista en [ … ] es un PATTERN: un valor por paso, en bucle. Así es como TODO
@@ -1947,10 +1947,10 @@ d1 >> play("x.x.o.[xx]")`, 'es'),
 #
 #   [0, 2, 4]    una secuencia — una nota por paso
 #   (0, 4, 7)    un ACORDE — esas notas suenan juntas (un grupo)
-#   <7 9>        ALTERNA — 7 en un ciclo, 9 en el siguiente, y se repite
+#   [7, 9]        ALTERNA — 7 en un ciclo, 9 en el siguiente, y se repite
 #
 # ▶ Los tres en una línea:
-p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`, 'es'),
+p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'es'),
 
     lesson(8, 'Generadores — patterns que se escriben solos',
 `# En vez de teclear cada nota, los GENERADORES construyen los patterns por ti:
@@ -2179,7 +2179,7 @@ d1 >> play("x-o-", dur=1/2)
 #@chorus(16)
 p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
-d1 >> play("x-[oo]", dur=1/2)
+d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%: al drop …
 #@goto(verse, 1)        # … el otro 60%: de vuelta al verso (gotos encadenados = varias vías)
@@ -2515,7 +2515,7 @@ p1 >> pluck([0, 2, 4, 7])
 #   oct   オクターブ上下     pan  ステレオ位置（-1 左 … 1 右）
 #
 # ▶ 同じシンセを形づくる — 速く、静かに、高く、左右に動かす：
-p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=<-0.5 0.5>)
+p1 >> pluck([0, 2, 4, 7], dur=1/2, amp=0.5, oct=5, pan=[-0.5, 0.5])
 #
 # どのシンセにも固有のつまみがある — オートコンプリート（レッスン12）が見つけてくれる。`, 'ja'),
 
@@ -2534,13 +2534,13 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 `# play("…") はキットの「サンプル」を鳴らす。各文字が1ステップ：
 #
 #   x = バスドラム   o = スネア   - = ハイハット   .  または空白 = 休符
-#   X / O は大きく ·  [xx] = 1ステップに2打（ロール） ·  <a b> は交替
+#   X / O は大きく ·  <xx> = 1ステップに2打（ロール） ·  [a b] は交替
 #
 # ▶ シンプルなビート（レッスン5のキットが必要）：
 d1 >> play("x-o-")
 #
 # ▶ もっと密に — 実行するとパターンをライブで差し替え：
-d1 >> play("x.x.o.[xx]")`, 'ja'),
+d1 >> play("x.x.o.<xx>")`, 'ja'),
 
     lesson(7, 'パターン — リスト・和音・交替',
 `# [ … ] の中のリストが「パターン」：1ステップに1値、ループする。すべてがこうして
@@ -2548,10 +2548,10 @@ d1 >> play("x.x.o.[xx]")`, 'ja'),
 #
 #   [0, 2, 4]    シーケンス — 1ステップに1音
 #   (0, 4, 7)    「和音」— それらの音が一緒に鳴る（1つのグループ）
-#   <7 9>        「交替」— あるサイクルは 7、次は 9、そして繰り返す
+#   [7, 9]        「交替」— あるサイクルは 7、次は 9、そして繰り返す
 #
 # ▶ 3つを1行で：
-p1 >> pluck([0, (0,4,7), 4, <7 9>], dur=1/2)`, 'ja'),
+p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'ja'),
 
     lesson(8, 'ジェネレーター — 自動でパターンを作る',
 `# 音符を一つずつ打つ代わりに、「ジェネレーター」がパターンを組み立ててくれる：
@@ -2779,7 +2779,7 @@ d1 >> play("x-o-", dur=1/2)
 #@chorus(16)
 p1 >> pluck([0, 4, 7, 4], oct=6, dur=1/4, amp=0.4).unison(2)
 b1 >> bass([0, 3, 5, 7], oct=3, dur=1/4, amp=0.5)
-d1 >> play("x-[oo]", dur=1/2)
+d1 >> play("x-<oo>", dur=1/2)
 h1 >> play("-", dur=1/4, hpf=6000, amp=0.35)
 #@goto(drop, 0.4)       # 40%：drop へ …
 #@goto(verse, 1)        # … 残り60%：verse に戻る（goto を連ねる = 多方向）

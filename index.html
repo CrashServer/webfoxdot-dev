@@ -1080,8 +1080,8 @@ b1 >> play(x.x.x.x., amp=0.7).sometimes("stutter", 2)
 p3 >> dbass([0, -3, 0, 4], oct=4, tanh=0.5, drive=4, amp=0.8)
 p2 >> plaits([0, (0,4,7), 4, 7], oct=5, engine=4, morph=sinvar([0,1],[8]), dur=1/2, chorus=0.5, amp=0.3).every(8, "reverse")
 p4 >> blip([0,4,7,5,7,4], oct=6, dur=1/4, fbdelay=0.4, fbtime=0.25, fbfeed=0.6, amp=0.22).sometimes("stutter", 4)
-b1 >> play(X.[xx]X.x., amplify=PFDur((3,8),(5,8)), amp=0.85)
-h1 >> play(<-.><-o>, hpf=6500, amp=Pacc("offbeat"))
+b1 >> play(X.<xx>X.x., amplify=PFDur((3,8),(5,8)), amp=0.85)
+h1 >> play([-.][-o], hpf=6500, amp=Pacc("offbeat"))
 
 #@goto(break, 0.35)   # 35% breakdown, else a variation
 
@@ -1118,9 +1118,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 # ════════ CHEATSHEET — everything below is reference; edit & run freely ════
 # Full docs, the changelog and a copy-paste example library: the [ ? ] button.
 
-# DRUMS — play()  ( . = rest )   (xo) together  [xo] subdivide  {xo} random  <xo> alternate
+# DRUMS — play()  ( . = rest )   (xo) together  [xo] alternate  {xo} random  <xo> subdivide
 # b2 >> play(x-o-, lpf=1500, reverb=0.3)         # FX work on drums too
-# b3 >> play(<x.><[--]><x.>, amp=0.8)            # brackets nest
+# b3 >> play([x.]<-->[x.], amp=0.8)              # brackets nest
 # b4 >> play(x-o-).sometimes("stutter", 2)        # probabilistic
 
 # SYNTHS — dbass bass saw sine rsin donk pluck pulse(width) blip(rate) fm bell pads prophet
