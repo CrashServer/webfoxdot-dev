@@ -1881,6 +1881,7 @@ body.is-offline #btn-galaxy {
 #perform-overlay.hidden { display: none; }
 .perf-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .perf-title { font-weight: bold; letter-spacing: 1px; color: var(--green); }
+.perf-beat { width: 12px; height: 12px; border-radius: 50%; background: var(--green); flex: 0 0 auto; will-change: transform, opacity; }
 .perf-close {
     margin-left: auto; min-width: 40px; min-height: 40px;
     background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-1);
@@ -1889,6 +1890,7 @@ body.is-offline #btn-galaxy {
 .perf-close:active { background: var(--bg-2); }
 .perf-tiles {
     flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+    touch-action: pan-y;   /* vertical drag scrolls the grid; tiles claim horizontal for volume */
     display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px;
     align-content: start;
 }
@@ -1901,8 +1903,8 @@ body.is-offline #btn-galaxy {
     transition: border-color 0.12s, box-shadow 0.12s;
 }
 .perf-tile-fill {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 66%;
-    background: linear-gradient(to top, var(--green-dim), transparent);
+    position: absolute; left: 0; top: 0; bottom: 0; width: 66%;
+    background: linear-gradient(to right, var(--green-dim), transparent);
     pointer-events: none;
 }
 .perf-tile-name {
@@ -1923,9 +1925,10 @@ body.is-offline #btn-galaxy {
 .perf-sec.on { border-color: var(--green); color: var(--green); background: var(--green-dim); }
 .perf-fx { flex: 0 0 auto; display: flex; gap: 8px; }
 .perf-fxbtn {
-    flex: 1; min-height: 44px; border-radius: 10px;
+    flex: 1; min-width: 0; min-height: 44px; border-radius: 10px;
     background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text-1);
-    font-size: 14px; font-weight: bold; letter-spacing: 1px; cursor: pointer;
+    font-size: 13px; font-weight: bold; letter-spacing: .5px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     user-select: none; touch-action: none;
 }
 .perf-fxbtn.on { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 0 16px var(--glow); }

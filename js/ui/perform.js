@@ -1,8 +1,10 @@
 // perform.js — a full-screen, keyboard-free PERFORMANCE surface (built for phones,
 // works anywhere). The phone becomes a live instrument for a set authored elsewhere
 // (desktop, a shared link, an example): tap a player TILE to launch/stop it (bar-
-// quantised), DRAG a tile up/down for its volume, tap a SECTION button to jump the
-// arrangement, and sweep the MASTER / FILTER / SPACE macros over everything.
+// quantised), DRAG a tile left/right for its volume (swipe up/down to scroll the grid),
+// tap a SECTION button to jump the arrangement, hold a momentary FX (DROP / STUTTER /
+// GATE / ECHO), and sweep the MASTER + XY (FILTER / SPACE) over everything. A beat dot
+// pulses the tempo.
 //
 // It drives the SAME engine as the mixer (shared launch/stop/level) and the sections
 // sequencer — no duplicate state, so it always agrees with the code + the desk.
@@ -11,7 +13,7 @@ import { tracks, parts, launchPlayer, stopPlayer, levelOf, setLevel } from './mi
 import { getSections, runSection } from '../engine/sections.js';
 import { setMasterMix } from '../engine/player.js';
 
-let _clock = null, _modal = null, _open = false, _timer = null;
+let _clock = null, _modal = null, _open = false, _timer = null, _beatRAF = null;
 let _tilesEl = null, _secsEl = null;
 let _lastTiles = '', _lastSecs = '';
 
@@ -30,32 +32,39 @@ function fillTile(el, name) {
     const lvl = levelOf(name);
     el.classList.toggle('on', isPlaying(name));
     const fill = el.querySelector('.perf-tile-fill');
-    if (fill) fill.style.height = Math.min(100, (lvl / 1.5) * 100) + '%';
+    if (fill) fill.style.width = Math.min(100, (lvl / 1.5) * 100) + '%';   // left→right volume fill
 }
+// short haptic tick on a launch/stop tap (phones only; no-op elsewhere)
+function buzz(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } catch (_) {} }
 
 function makeTile(name) {
     const el = document.createElement('div');
     el.className = 'perf-tile';
     el.dataset.name = name;
     el.innerHTML = `<span class="perf-tile-fill"></span><span class="perf-tile-name">${name}</span>`;
-    let dragging = false, moved = false, startY = 0, startLvl = 1;
-    el.addEventListener('pointerdown', (e) => {
-        dragging = true; moved = false; startY = e.clientY; startLvl = levelOf(name);
-        try { el.setPointerCapture(e.pointerId); } catch (_) {}
-    });
+    // Gesture split so the tile grid can still SCROLL:
+    //   tap            → launch / stop (quantised)
+    //   horizontal drag → volume (this tile)
+    //   vertical drag   → yields to the native pan-y scroll of the grid
+    // We don't capture the pointer until the move is confirmed horizontal, and a
+    // pointercancel (the browser taking the gesture for scrolling) is NOT a tap.
+    let sx = 0, sy = 0, startLvl = 1, mode = null;   // mode: null | 'vol' | 'scroll'
+    el.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; startLvl = levelOf(name); mode = null; });
     el.addEventListener('pointermove', (e) => {
-        if (!dragging) return;
-        const dy = startY - e.clientY;
-        if (Math.abs(dy) > 6) moved = true;
-        if (moved) { setLevel(name, Math.max(0, Math.min(1.5, startLvl + dy / 140))); fillTile(el, name); }
+        if (mode === 'scroll') return;
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        if (mode === null) {
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+            if (Math.abs(dx) > Math.abs(dy)) { mode = 'vol'; try { el.setPointerCapture(e.pointerId); } catch (_) {} }
+            else { mode = 'scroll'; return; }   // let the grid scroll
+        }
+        if (mode === 'vol') { setLevel(name, Math.max(0, Math.min(1.5, startLvl + dx / 130))); fillTile(el, name); }
     });
-    const end = () => {
-        if (!dragging) return;
-        dragging = false;
-        if (!moved) { isPlaying(name) ? stopPlayer(name) : launchPlayer(name); refresh(); }  // TAP = launch/stop
-    };
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
+    el.addEventListener('pointerup', () => {
+        if (mode === null) { isPlaying(name) ? stopPlayer(name) : launchPlayer(name); buzz(); refresh(); }   // TAP
+        mode = null;
+    });
+    el.addEventListener('pointercancel', () => { mode = null; });   // scroll takeover — not a tap
     return el;
 }
 
@@ -65,14 +74,17 @@ function build() {
     _modal.className = 'hidden';
     _modal.innerHTML = `
         <div class="perf-head">
+            <span class="perf-beat" title="beat"></span>
             <span class="perf-title">▶ PERFORM</span>
             <button class="perf-close" title="exit perform mode">×</button>
         </div>
-        <div class="perf-tiles" title="tap a tile = launch/stop (quantised) · drag up/down = its volume"></div>
+        <div class="perf-tiles" title="tap = launch / stop (quantised) · drag ◄ ► = volume · swipe ↕ to scroll"></div>
         <div class="perf-secs-wrap"><div class="perf-secs" title="jump the arrangement to a section"></div></div>
         <div class="perf-fx" title="hold to fire, release to return">
             <button class="perf-fxbtn" data-fx="drop">DROP</button>
             <button class="perf-fxbtn" data-fx="stutter">STUTTER</button>
+            <button class="perf-fxbtn" data-fx="gate">GATE</button>
+            <button class="perf-fxbtn" data-fx="echo">ECHO</button>
         </div>
         <div class="perf-macros">
             <label class="perf-macro perf-macro-master">MASTER<input type="range" class="perf-mac perf-master" min="0" max="1.5" step="0.01" value="1"></label>
@@ -124,13 +136,18 @@ function build() {
     let stutSaved = null;
     const fxEngage = (fx) => {
         if (!_clock) return;
+        buzz(18);
         if (fx === 'drop') _clock._players.forEach((p) => { p.setAttr('lpf', 180); p.setAttr('lpr', 0.2); });
         else if (fx === 'stutter') { stutSaved = new Map(); _clock._players.forEach((p, n) => { stutSaved.set(n, p._multiply ?? 1); p._multiply = 4; }); }
+        else if (fx === 'gate') _clock._players.forEach((p) => { p.setAttr('rgate', 0.85); p.setAttr('rgaterate', 8); });
+        else if (fx === 'echo') _clock._players.forEach((p) => p.setAttr('echo', 0.6));
     };
     const fxRelease = (fx) => {
         if (!_clock) return;
         if (fx === 'drop') _clock._players.forEach((p) => p.setAttr('lpf', 0));   // slam open
         else if (fx === 'stutter') { _clock._players.forEach((p, n) => { p._multiply = (stutSaved && stutSaved.get(n)) || 1; }); stutSaved = null; }
+        else if (fx === 'gate') _clock._players.forEach((p) => p.setAttr('rgate', 0));
+        else if (fx === 'echo') _clock._players.forEach((p) => p.setAttr('echo', 0));
     };
     _modal.querySelectorAll('.perf-fxbtn').forEach((btn) => {
         const fx = btn.dataset.fx;
@@ -177,6 +194,21 @@ function refresh() {
     });
 }
 
+// Beat dot — pulses on the clock so the performer feels the tempo (accented downbeat).
+function beatLoop() {
+    if (!_open) { _beatRAF = null; return; }
+    const dot = _modal && _modal.querySelector('.perf-beat');
+    if (dot && _clock) {
+        const beat  = _clock.now ? _clock.now() : 0;
+        const pulse = 1 - (beat - Math.floor(beat));          // bright at the beat, fades to next
+        const down  = (Math.floor(beat) % (_clock.meter || 4)) === 0;
+        dot.style.opacity   = (0.25 + pulse * 0.75).toFixed(3);
+        dot.style.transform = `scale(${(0.75 + pulse * 0.55).toFixed(3)})`;
+        dot.style.background = down ? 'var(--yellow)' : 'var(--green)';
+    }
+    _beatRAF = requestAnimationFrame(beatLoop);
+}
+
 export function openPerform() {
     if (!_modal) build();
     _open = true; _lastTiles = ''; _lastSecs = '';
@@ -184,12 +216,14 @@ export function openPerform() {
     document.body.classList.add('performing');
     refresh();
     if (!_timer) _timer = setInterval(refresh, 400);
+    if (!_beatRAF) _beatRAF = requestAnimationFrame(beatLoop);
 }
 export function closePerform() {
     _open = false;
     if (_modal) _modal.classList.add('hidden');
     document.body.classList.remove('performing');
     if (_timer) { clearInterval(_timer); _timer = null; }
+    if (_beatRAF) { cancelAnimationFrame(_beatRAF); _beatRAF = null; }
 }
 export function togglePerform() { _open ? closePerform() : openPerform(); }
 export function isPerformOpen() { return _open; }
