@@ -159,14 +159,18 @@ function applyMidiMarks() {
     }
 }
 
-// The composition's tracks: players in #@ lines (incl. `# p1 >>` stops and `~p1 >>`
-// reset-players) ∪ active players.
+// The composition's tracks, in the order they appear in the CODE (top-to-bottom, so
+// they group naturally under their #@ parts) — each player at its FIRST occurrence.
+// Includes `# p1 >>` stops and `~p1 >>` reset-players. Any currently-live players not
+// written in the buffer (chaos / the jam bot) are appended in creation order.
 export function tracks() {
-    const set = new Set(_clock ? _clock._players.keys() : []);
+    const seen = [];
+    const add = (n) => { if (n && !seen.includes(n)) seen.push(n); };
     if (_editor && _editor.getValue) {
-        for (const m of _editor.getValue().matchAll(/^\s*#?\s*~?\s*([a-zA-Z_]\w*)\s*>>/gm)) set.add(m[1]);
+        for (const m of _editor.getValue().matchAll(/^\s*#?\s*~?\s*([a-zA-Z_]\w*)\s*>>/gm)) add(m[1]);
     }
-    return [...set].sort();
+    if (_clock) for (const n of _clock._players.keys()) add(n);
+    return seen;
 }
 
 // The composition's named parts WITH their line, in document order — duplicates kept
@@ -327,6 +331,7 @@ function rebuildChannels(names) {
         row.className = 'mixer-chan';
         row.dataset.name = name;
         row.innerHTML = `
+            <span class="mixer-chan-live" title="lit = playing now"></span>
             <span class="mixer-chan-name" title="tap to launch this track's selected-part version">${name}</span>
             <input type="range" class="mixer-chan-fader" min="0" max="1.5" step="0.01" value="1">
             <span class="mixer-chan-lvl">1.00</span>

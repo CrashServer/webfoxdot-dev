@@ -1680,6 +1680,10 @@ body.is-offline #btn-galaxy {
 .mixer-chan-name:active { opacity: 0.6; }
 .mixer-master .mixer-chan-name { color: var(--green); cursor: default; }
 .mixer-chan.inactive { opacity: 0.5; }
+/* live LED — lit green when the player is currently playing, dim grey when not */
+.mixer-chan-live { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2); opacity: 0.3; flex: 0 0 auto; transition: background .15s, opacity .15s, box-shadow .15s; }
+.mixer-chan:not(.inactive):not(.mixer-master) .mixer-chan-live { background: var(--green); opacity: 1; box-shadow: 0 0 5px var(--green); animation: mixerLive 1.8s ease-in-out infinite; }
+@keyframes mixerLive { 0%, 100% { box-shadow: 0 0 3px var(--green); } 50% { box-shadow: 0 0 8px var(--green); } }
 .mixer-chan-fader {
     writing-mode: vertical-lr; direction: rtl;      /* vertical, bottom = 0, top = max */
     -webkit-appearance: none; appearance: none;
