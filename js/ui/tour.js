@@ -135,16 +135,18 @@ d1 >> play("x-o-")
 # ▶ Busier — run it to swap the pattern live, no gap:
 d1 >> play("x.x.o.<xx>")`),
 
-    lesson(7, 'Patterns — lists, chords, alternation',
-`# The list in [ … ] is a PATTERN: one value per step, looping. It's how
-# EVERYTHING cycles. Three building blocks:
+    lesson(7, 'Patterns — lists, chords, subdivision',
+`# The list in [ … ] is a PATTERN: one value per step, looping. Brackets mean the
+# SAME thing here as in play():
 #
-#   [0, 2, 4]     a sequence — one note per step
-#   (0, 4, 7)     a CHORD — those notes sound together (a group)
-#   [0, [7, 9]]   a NESTED list ALTERNATES — 7 one cycle, 9 the next, then repeat
+#   [0, 2, 4]      a sequence — one value per step
+#   (0, 4, 7)      a CHORD — those notes sound together (a group)
+#   [0, [7, 9]]    a NESTED list ALTERNATES — 7 one cycle, 9 the next, then repeat
+#   <7 7 7>        SUBDIVISION — cram those into ONE step (a ratchet/flam)
+#   {0, 4, 7}      RANDOM — pick one each step
 #
-# ▶ All three in one line:
-p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`),
+# ▶ All of it in one line — the 3rd slot ratchets, the last alternates:
+p1 >> pluck([0, (0,4,7), <4 4 4>, [7, 9]], dur=1/2)`),
 
     lesson(8, 'Generators — patterns that write themselves',
 `# Instead of typing every note, GENERATORS build patterns for you:
@@ -735,16 +737,18 @@ d1 >> play("x-o-")
 # ▶ Plus dense — lance-le pour changer le pattern en direct :
 d1 >> play("x.x.o.<xx>")`, 'fr'),
 
-    lesson(7, 'Les patterns — listes, accords, alternance',
-`# La liste dans [ … ] est un PATTERN : une valeur par pas, en boucle. C'est ainsi
-# que TOUT tourne. Trois briques de base :
+    lesson(7, 'Les patterns — listes, accords, subdivision',
+`# La liste dans [ … ] est un PATTERN : une valeur par pas, en boucle. Les crochets
+# ont le MÊME sens ici que dans play() :
 #
-#   [0, 2, 4]    une séquence — une note par pas
-#   (0, 4, 7)    un ACCORD — ces notes sonnent ensemble (un groupe)
-#   [7, 9]        ALTERNE — 7 un cycle, 9 le suivant, puis ça se répète
+#   [0, 2, 4]      une séquence — une valeur par pas
+#   (0, 4, 7)      un ACCORD — ces notes sonnent ensemble (un groupe)
+#   [0, [7, 9]]    une liste IMBRIQUÉE ALTERNE — 7 un cycle, 9 le suivant, puis répète
+#   <7 7 7>        SUBDIVISION — les caser dans UN seul pas (un roulement/flam)
+#   {0, 4, 7}      ALÉATOIRE — en choisir une à chaque pas
 #
-# ▶ Les trois dans une seule ligne :
-p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'fr'),
+# ▶ Tout en une ligne — le 3e emplacement fait un roulement, le dernier alterne :
+p1 >> pluck([0, (0,4,7), <4 4 4>, [7, 9]], dur=1/2)`, 'fr'),
 
     lesson(8, 'Les générateurs — des patterns automatiques',
 `# Plutôt que de taper chaque note, les GÉNÉRATEURS construisent les patterns :
@@ -1340,16 +1344,18 @@ d1 >> play("x-o-")
 # ▶ Dichter — führe es aus, um das Pattern live zu tauschen:
 d1 >> play("x.x.o.<xx>")`, 'de'),
 
-    lesson(7, 'Patterns — Listen, Akkorde, Alternation',
-`# Die Liste in [ … ] ist ein PATTERN: ein Wert pro Schritt, in der Schleife. So läuft
-# ALLES zyklisch. Drei Bausteine:
+    lesson(7, 'Patterns — Listen, Akkorde, Subdivision',
+`# Die Liste in [ … ] ist ein PATTERN: ein Wert pro Schritt, in der Schleife. Klammern
+# bedeuten hier das GLEICHE wie in play():
 #
-#   [0, 2, 4]    eine Sequenz — eine Note pro Schritt
-#   (0, 4, 7)    ein AKKORD — diese Noten klingen zusammen (eine Gruppe)
-#   [7, 9]        ALTERNIERT — 7 in einem Zyklus, 9 im nächsten, dann wiederholt es sich
+#   [0, 2, 4]      eine Sequenz — ein Wert pro Schritt
+#   (0, 4, 7)      ein AKKORD — diese Noten klingen zusammen (eine Gruppe)
+#   [0, [7, 9]]    eine VERSCHACHTELTE Liste ALTERNIERT — 7 einen Zyklus, dann 9
+#   <7 7 7>        SUBDIVISION — in EINEN Schritt pressen (ein Wirbel/Flam)
+#   {0, 4, 7}      ZUFALL — pro Schritt eine auswählen
 #
-# ▶ Alle drei in einer Zeile:
-p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'de'),
+# ▶ Alles in einer Zeile — der 3. Platz wirbelt, der letzte alterniert:
+p1 >> pluck([0, (0,4,7), <4 4 4>, [7, 9]], dur=1/2)`, 'de'),
 
     lesson(8, 'Generatoren — Patterns, die sich selbst schreiben',
 `# Statt jede Note zu tippen, bauen GENERATOREN die Patterns für dich:
@@ -1941,16 +1947,18 @@ d1 >> play("x-o-")
 # ▶ Más denso — ejecútalo para cambiar el pattern en vivo:
 d1 >> play("x.x.o.<xx>")`, 'es'),
 
-    lesson(7, 'Patterns — listas, acordes, alternancia',
-`# La lista en [ … ] es un PATTERN: un valor por paso, en bucle. Así es como TODO
-# corre en ciclo. Tres bloques básicos:
+    lesson(7, 'Patterns — listas, acordes, subdivisión',
+`# La lista en [ … ] es un PATTERN: un valor por paso, en bucle. Los corchetes
+# significan lo MISMO aquí que en play():
 #
-#   [0, 2, 4]    una secuencia — una nota por paso
-#   (0, 4, 7)    un ACORDE — esas notas suenan juntas (un grupo)
-#   [7, 9]        ALTERNA — 7 en un ciclo, 9 en el siguiente, y se repite
+#   [0, 2, 4]      una secuencia — un valor por paso
+#   (0, 4, 7)      un ACORDE — esas notas suenan juntas (un grupo)
+#   [0, [7, 9]]    una lista ANIDADA ALTERNA — 7 un ciclo, 9 el siguiente, y repite
+#   <7 7 7>        SUBDIVISIÓN — meterlas en UN solo paso (un redoble/flam)
+#   {0, 4, 7}      ALEATORIO — elegir una en cada paso
 #
-# ▶ Los tres en una línea:
-p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'es'),
+# ▶ Todo en una línea — el 3.º hueco hace un redoble, el último alterna:
+p1 >> pluck([0, (0,4,7), <4 4 4>, [7, 9]], dur=1/2)`, 'es'),
 
     lesson(8, 'Generadores — patterns que se escriben solos',
 `# En vez de teclear cada nota, los GENERADORES construyen los patterns por ti:
@@ -2542,16 +2550,18 @@ d1 >> play("x-o-")
 # ▶ もっと密に — 実行するとパターンをライブで差し替え：
 d1 >> play("x.x.o.<xx>")`, 'ja'),
 
-    lesson(7, 'パターン — リスト・和音・交替',
-`# [ … ] の中のリストが「パターン」：1ステップに1値、ループする。すべてがこうして
-# 循環する。3つの基本要素：
+    lesson(7, 'パターン — リスト・和音・サブディビジョン',
+`# [ … ] の中のリストが「パターン」：1ステップに1値、ループする。括弧の意味は
+# play() と同じ：
 #
-#   [0, 2, 4]    シーケンス — 1ステップに1音
-#   (0, 4, 7)    「和音」— それらの音が一緒に鳴る（1つのグループ）
-#   [7, 9]        「交替」— あるサイクルは 7、次は 9、そして繰り返す
+#   [0, 2, 4]      シーケンス — 1ステップに1値
+#   (0, 4, 7)      「和音」— それらの音が一緒に鳴る（1つのグループ）
+#   [0, [7, 9]]    ネストしたリストは交替 — 7を1周、次は9、以降くり返し
+#   <7 7 7>        サブディビジョン — 1ステップに詰め込む（ロール/フラム）
+#   {0, 4, 7}      ランダム — 各ステップで1つを選ぶ
 #
-# ▶ 3つを1行で：
-p1 >> pluck([0, (0,4,7), 4, [7, 9]], dur=1/2)`, 'ja'),
+# ▶ 1行に全部 — 3番目はロール、最後は交替：
+p1 >> pluck([0, (0,4,7), <4 4 4>, [7, 9]], dur=1/2)`, 'ja'),
 
     lesson(8, 'ジェネレーター — 自動でパターンを作る',
 `# 音符を一つずつ打つ代わりに、「ジェネレーター」がパターンを組み立ててくれる：
