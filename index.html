@@ -175,6 +175,7 @@
         <option value="paper">Paper &amp; Ink</option>
         <option value="sakura">Sakura</option>
         <option value="fiesta">Fiesta</option>
+        <option value="solar">Solar Opposites</option>
       </select>
       <div class="cp-row rec-row" style="gap:4px;margin-top:4px">
         <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
@@ -494,7 +495,7 @@
             // theme()  reports the current skin · theme("synthwave")  switches it (same set
             // as Settings ▸ Theme). Mirrors the dropdown: sets the root class + persists it.
             theme: (name) => {
-                const THEMES = ['dark', 'nova', 'cyberpunk', 'synthwave', 'hacker', 'brutalist', 'paper', 'sakura', 'fiesta'];
+                const THEMES = ['dark', 'nova', 'cyberpunk', 'synthwave', 'hacker', 'brutalist', 'paper', 'sakura', 'fiesta', 'solar'];
                 if (name == null) { log(`theme: ${localStorage.getItem('theme') || 'cyberpunk'}  ·  theme("synthwave") — one of: ${THEMES.join(', ')}`, 'info'); return; }
                 const q = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
                 const t = THEMES.find(x => x === q) || THEMES.find(x => x.startsWith(q)) || THEMES.find(x => q.startsWith(x));
