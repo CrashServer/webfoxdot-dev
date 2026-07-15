@@ -21,7 +21,13 @@ const LAYER_ORDER = ['kick', 'snare', 'hat', 'perc'];
 const MUT_CHARS   = { kick: 'Xx', snare: 'oO*u', hat: '-=', perc: 'ts+:~' };
 
 // genre can be a number (index into the genre list) for short coding: pbuild(0).
-function resolveGenre(g) {
+function resolveGenre(g, step = 0) {
+    // A var / pattern / array / group genre resolves PER BAR, so pbuild(["techno",
+    // "house"]) or pbuild(var([...])) switches genre as the pattern evolves. (A clock
+    // TimeVar samples at the current beat; an array / P-pattern samples by bar index.)
+    if (g != null && typeof g.get === 'function') g = g.get(step);
+    else if (isGroup(g)) g = patGet(g.__group[0], step);
+    else if (Array.isArray(g)) g = g[((step % g.length) + g.length) % g.length];
     const names = Object.keys(_genres);
     if (typeof g === 'number') return names[((Math.round(g) % names.length) + names.length) % names.length];
     if (_genres[g]) return g;
@@ -185,12 +191,15 @@ function renderBar(kit, opts, i) {
 // per bar). Returns a play() string.
 export function pbuild(genre = 'techno', opts = {}) {
     if (typeof opts === 'number') opts = { evolve: opts };
-    genre = resolveGenre(genre);
     const evolve = Math.max(1, Math.round(sampleNum(opts.evolve, 0, 8)));
-    const kit = new DrumKit(genre, opts);
-    if (evolve <= 1) return renderBar(kit, opts, 0);
     const parts = [];
+    // Resolve the genre PER BAR (so an array / pattern genre switches as it evolves);
+    // rebuild the kit only when the genre actually changes — a static genre keeps one
+    // kit and drifts across bars exactly as before.
+    let kit = null, cur = null;
     for (let i = 0; i < evolve; i++) {
+        const g = resolveGenre(genre, i);
+        if (g !== cur) { kit = new DrumKit(g, opts); cur = g; }
         const fillN = Math.round(sampleNum(opts.fill, i, 0));
         if (fillN > 0 && (i + 1) % fillN === 0) parts.push(kit._getFill());
         else parts.push(renderBar(kit, opts, i));
