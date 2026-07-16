@@ -5,18 +5,16 @@
 
 // The scenes — each has a fieldVal()/point renderer in clift.js. Order matters only
 // for the autopilot pools & docs.
+// The scene vocabulary — must match the render/scenes/ registry (one field module each).
+// Grows a name here + a file there. Kept small + solid first; port more one at a time.
 export const SCENES = [
-    // originals
-    'plasma', 'tunnel', 'spectrum', 'wave', 'grid', 'rain',
-    'aurora', 'cells', 'starfield', 'fire', 'ripple', 'interference',
-    'helix', 'spiral', 'nebula', 'flow', 'lissajous', 'attractor',
-    // ported from clift_final (ikeda / demoscene / tunnels / generative)
-    'bars', 'matrix', 'moire', 'voronoi', 'copperbars', 'hextunnel',
-    'kaleido', 'scope', 'mandala', 'lattice', 'warp', 'checker', 'diamond', 'swarm',
+    'plasma', 'tunnel', 'wave', 'rain', 'spiral', 'cells',
+    'starfield', 'nebula', 'moire', 'bars', 'grid', 'ripple',
 ];
 
-// Point-plotted scenes (drawn as scattered glyphs, not a filled cell field).
-export const POINT_SCENES = new Set(['lissajous', 'attractor', 'swarm']);
+// (No point-plotted scenes in the field-based renderer — kept as an empty set so any
+//  legacy import still resolves.)
+export const POINT_SCENES = new Set();
 
 // ── Palettes (from clift_final/src/palettes/registry.ts) ─────────────────────
 // luminance 0..1 → colour ramp. Stops in hex; sampled/lerped on demand.
