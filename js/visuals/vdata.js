@@ -10,6 +10,8 @@
 export const SCENES = [
     'plasma', 'tunnel', 'wave', 'rain', 'spiral', 'cells',
     'starfield', 'nebula', 'moire', 'bars', 'grid', 'ripple',
+    'fire', 'aurora', 'kaleido', 'warp', 'metaballs', 'hexgrid',
+    'checker', 'swarm', 'flow', 'contour', 'voronoi',
 ];
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any

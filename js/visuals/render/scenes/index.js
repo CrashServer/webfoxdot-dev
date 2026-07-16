@@ -16,8 +16,22 @@ import moire     from './moire.js';
 import bars      from './bars.js';
 import grid      from './grid.js';
 import ripple    from './ripple.js';
+import fire      from './fire.js';
+import aurora    from './aurora.js';
+import kaleido   from './kaleido.js';
+import warp      from './warp.js';
+import metaballs from './metaballs.js';
+import hexgrid   from './hexgrid.js';
+import checker   from './checker.js';
+import swarm     from './swarm.js';
+import flow      from './flow.js';
+import contour   from './contour.js';
+import voronoi   from './voronoi.js';
 
-const list = [plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple];
+const list = [
+    plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
+    fire, aurora, kaleido, warp, metaballs, hexgrid, checker, swarm, flow, contour, voronoi,
+];
 const byName = new Map(list.map((s) => [s.name, s]));
 
 export const SCENE_NAMES = list.map((s) => s.name);
