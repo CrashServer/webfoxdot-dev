@@ -12,6 +12,7 @@ export const SCENES = [
     'starfield', 'nebula', 'moire', 'bars', 'grid', 'ripple',
     'fire', 'aurora', 'kaleido', 'warp', 'metaballs', 'hexgrid',
     'checker', 'swarm', 'flow', 'contour', 'voronoi',
+    'helix', 'mandala', 'lattice', 'truchet', 'noise', 'rings', 'spectrum', 'marble',
 ];
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any
@@ -53,15 +54,16 @@ export function blendIndex(v) {
 }
 
 // ── Render / glyph modes — the character ramp luminance maps onto ─────────────
+// GLYPH ramps — value → character. The pixel modes ('smooth' default, 'pixel' crisp)
+// are handled directly in draw.js (they're not ASCII), so vmode() spans both worlds.
 export const RENDER_MODES = {
     ascii:  ' .,:;-=+*o#%@',
-    shade:  ' ░▒▓█',            //  ░▒▓█
-    blocks: ' ▁▂▃▄▅▆▇█', //  ▁▂▃▄▅▆▇█
-    dots:   ' ·:•●',                 //  ·:•●
-    bars:   ' ▏▎▍▌▋▊▉█', //  ▏▎▍▌▋▊▉█
-    dark:   ' █',                              // solid block (pixel look)
+    shade:  ' ░▒▓█',
+    blocks: ' ▁▂▃▄▅▆▇█',
+    dots:   ' ·:•●',
+    bars:   ' ▏▎▍▌▋▊▉█',
 };
-export const RENDER_MODE_NAMES = Object.keys(RENDER_MODES);
+export const RENDER_MODE_NAMES = ['smooth', 'pixel', ...Object.keys(RENDER_MODES)];
 
 // Parse "#rrggbb" → [r,g,b] 0..255.
 function hex(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }

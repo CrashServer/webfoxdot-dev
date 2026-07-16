@@ -27,10 +27,19 @@ import swarm     from './swarm.js';
 import flow      from './flow.js';
 import contour   from './contour.js';
 import voronoi   from './voronoi.js';
+import helix     from './helix.js';
+import mandala   from './mandala.js';
+import lattice   from './lattice.js';
+import truchet   from './truchet.js';
+import noise     from './noise.js';
+import rings     from './rings.js';
+import spectrum  from './spectrum.js';
+import marble    from './marble.js';
 
 const list = [
     plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
     fire, aurora, kaleido, warp, metaballs, hexgrid, checker, swarm, flow, contour, voronoi,
+    helix, mandala, lattice, truchet, noise, rings, spectrum, marble,
 ];
 const byName = new Map(list.map((s) => [s.name, s]));
 

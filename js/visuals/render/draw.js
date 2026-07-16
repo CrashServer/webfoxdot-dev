@@ -18,10 +18,10 @@ function ensureImg(cols, rows) {
 
 export function draw(ctx, grid, modeName) {
     const { cols, rows, val, r, gch, b, W, H } = grid;
-    const ramp = RENDER_MODES[modeName];
-    const block = !ramp || modeName === 'dark' || modeName === 'block';
+    const ramp = RENDER_MODES[modeName];             // a glyph ramp, or undefined → pixel mode
 
-    if (block) {                                   // ── solid blocks via ImageData ──
+    if (!ramp) {                                      // ── pixel mode via ImageData ──
+        const crisp = modeName === 'pixel' || modeName === 'dark';   // else smooth (interpolated)
         const img = ensureImg(cols, rows); const d = img.data;
         for (let k = 0; k < cols * rows; k++) {
             const v = val[k]; const p = k * 4;
@@ -29,7 +29,7 @@ export function draw(ctx, grid, modeName) {
         }
         _offCtx.putImageData(img, 0, 0);
         const prev = ctx.imageSmoothingEnabled;
-        ctx.imageSmoothingEnabled = modeName === 'block';   // 'block' = smooth, 'dark' = crisp pixels
+        ctx.imageSmoothingEnabled = !crisp;
         ctx.drawImage(_off, 0, 0, cols, rows, 0, 0, W, H);
         ctx.imageSmoothingEnabled = prev;
         return;

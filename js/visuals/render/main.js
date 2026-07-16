@@ -14,7 +14,7 @@ const ctx = canvas.getContext('2d', { alpha: false });
 const hud = document.getElementById('hud');
 
 let W = 0, H = 0;
-const grid = makeGrid(10);                    // ~10px cells → smooth blocks or a fine glyph grid
+const grid = makeGrid(9);                     // ~9px cells → fine enough for smooth, legible for glyphs
 const aud = { bass: 0, mid: 0, treble: 0, level: 0 };   // smoothed copy for the scenes
 let beatPulse = 0;
 
@@ -65,7 +65,7 @@ function loop(ts) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = `rgba(0,0,0,${0.10 + (1 - trails) * 0.90})`; ctx.fillRect(0, 0, W, H);   // trails = feedback
         composite(grid, V, t, aud);
-        draw(ctx, grid, V.mode || 'dark');
+        draw(ctx, grid, V.mode || 'smooth');   // default is the smooth (non-ASCII) look
         const g = maxFx('glitch', 0); if (g > 0.05) fx.glitch(ctx, W, H, g);
         if (maxFx('invert', 0) >= 1) fx.invert(ctx, W, H);
         const sc = maxFx('scan', 0); if (sc > 0.02) fx.scan(ctx, W, H, sc);
