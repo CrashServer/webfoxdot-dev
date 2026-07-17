@@ -14,6 +14,7 @@ export const SCENES = [
     'checker', 'swarm', 'flow', 'contour', 'voronoi',
     'helix', 'mandala', 'lattice', 'truchet', 'noise', 'rings', 'spectrum', 'marble',
     'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
+    'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
 ];
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any

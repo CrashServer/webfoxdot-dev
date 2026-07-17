@@ -41,12 +41,18 @@ import biomech      from './biomech.js';
 import escher       from './escher.js';
 import circuit      from './circuit.js';
 import panopticon   from './panopticon.js';
+import penrose      from './penrose.js';
+import mobius       from './mobius.js';
+import hexdump      from './hexdump.js';
+import lissajous    from './lissajous.js';
+import ikedaglitch  from './ikedaglitch.js';
 
 const list = [
     plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
     fire, aurora, kaleido, warp, metaballs, hexgrid, checker, swarm, flow, contour, voronoi,
     helix, mandala, lattice, truchet, noise, rings, spectrum, marble,
     testpattern, interference, biomech, escher, circuit, panopticon,
+    penrose, mobius, hexdump, lissajous, ikedaglitch,
 ];
 const byName = new Map(list.map((s) => [s.name, s]));
 

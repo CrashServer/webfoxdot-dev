@@ -14,6 +14,7 @@ export const SCENE_GLSL_ORDER = [
     'flow', 'contour', 'voronoi', 'helix', 'mandala', 'lattice', 'truchet', 'noise', 'rings', 'spectrum',
     'marble',
     'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
+    'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
 ];
 
 export const SCENE_GLSL = {
@@ -506,6 +507,163 @@ export const SCENE_GLSL = {
     }
     if (abs(cu) < 0.003 && abs(cv) < 0.15) val = max(val, 0.6);
     if (abs(cv) < 0.003 && abs(cu) < 0.15) val = max(val, 0.6);
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    penrose: `float segDist(vec2 pp, vec2 A, vec2 B){
+    vec2 d = B - A;
+    float l2 = dot(d, d);
+    float tp = 0.0;
+    if (l2 > 1e-8) tp = dot(pp - A, d) / l2;
+    tp = clamp(tp, 0.0, 1.0);
+    vec2 q = A + d * tp;
+    return length(pp - q);
+}
+float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x;
+    float tt = t * sp;
+    float epSize = 0.35, epThickness = 0.02, epRotSpeed = 0.2;
+    float cu = u - 0.5, cv = v - 0.5;
+    float ang = tt * epRotSpeed;
+    float ca = cos(ang), sa = sin(ang);
+    vec2 pr = vec2(ca * cu - sa * cv, sa * cu + ca * cv);
+    float size = epSize * (1.0 + bass * 0.2);
+    vec2 v0 = vec2(0.0, size * 0.866);
+    vec2 v1 = vec2(-size * 0.866, -size * 0.433);
+    vec2 v2 = vec2(size * 0.866, -size * 0.433);
+    float d0 = segDist(pr, v0, v1);
+    float d1 = segDist(pr, v1, v2);
+    float d2 = segDist(pr, v2, v0);
+    vec2 c0 = (v0 + v1) * 0.5;
+    vec2 c1 = (v1 + v2) * 0.5;
+    vec2 c2 = (v0 + v2) * 0.5;
+    float off = epThickness * 2.5;
+    float k = off / size;
+    vec2 v0b = v0 + (c0 - v0) * k;
+    vec2 v1b = v1 + (c1 - v1) * k;
+    vec2 v2b = v2 + (c2 - v2) * k;
+    float d0b = segDist(pr, v0b, v1b);
+    float d1b = segDist(pr, v1b, v2b);
+    float d2b = segDist(pr, v2b, v0b);
+    float thick = epThickness;
+    float dmin = min(min(min(d0, d1), d2), min(min(d0b, d1b), d2b));
+    if (dmin > thick) return 0.0;
+    float val = 1.0 - dmin / thick;
+    val = val * val * (3.0 - 2.0 * val);
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    mobius: `float scene_mobius(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float tt = t * sp;
+    float emRotSpeed = 0.2, emTwists = 1.0, emThickness = 0.03;
+    float cu = (u - 0.5) * 1.6, cv = (v - 0.5) * 1.6;
+    float rotT = tt * emRotSpeed;
+    float ca = cos(rotT), sa = sin(rotT);
+    vec2 pr = vec2(ca * cu + sa * cv, -sa * cu + ca * cv);
+    const int N = 48;
+    const int INNER = 3;
+    float closestD = 1e9;
+    for (int i = 0; i < N; i++){
+        float th = float(i) / float(N) * 2.0 * PI;
+        for (int j = 0; j < INNER; j++){
+            float w = (float(j) / float(INNER - 1) - 0.5) * 0.15;
+            float twist = emTwists * th * 0.5;
+            float rad = 0.5 + w * cos(twist);
+            float yOff = w * sin(twist);
+            float px = cos(th) * rad;
+            float py = sin(th) * rad + yOff * 0.5;
+            float dx = pr.x - px, dy = pr.y - py;
+            float d2 = dx * dx + dy * dy;
+            if (d2 < closestD) closestD = d2;
+        }
+    }
+    float d = sqrt(closestD);
+    if (d > emThickness) return 0.0;
+    float val = 1.0 - d / emThickness;
+    val = val * val * (3.0 - 2.0 * val);
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    hexdump: `float scene_hexdump(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float tt = t * sp;
+    float hdColumnDensity = 24.0, hdFallSpeed = 0.5, hdTrailLength = 0.4, hdCharChange = 8.0;
+    float cols = max(4.0, floor(hdColumnDensity * sc + 0.5));
+    float col = floor(u * cols);
+    float h = hash2(vec2(col, 17.0));
+    float speed = hdFallSpeed * (0.5 + h);
+    float phase = hash2(vec2(col + 5.7, 41.0));
+    float headV = 1.0 - fract(tt * speed + phase);
+    float rows = max(4.0, floor(hdColumnDensity * 2.0 * sc + 0.5));
+    float row = floor(v * rows);
+    float rowV = row / rows;
+    float dv = headV - rowV;
+    if (dv < 0.0) dv += 1.0;
+    float trail = hdTrailLength;
+    if (dv > trail) return 0.0;
+    float val = 1.0 - dv / trail;
+    float frame = floor(tt * hdCharChange);
+    float on = step(0.125, hash2(vec2(col + 3.3, row + frame * 7.919)));
+    if (on < 0.5) return 0.0;
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    lissajous: `float scene_lissajous(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x, mid = aud.y, treble = aud.z;
+    float tt = t * sp;
+    float liThickness = 0.02;
+    float av = 3.0 + mid * 4.0;
+    float bv = 2.0 + treble * 5.0;
+    float delta = tt * 0.5 + bass * 3.14;
+    float cu = (u - 0.5) * 1.6, cy = (v - 0.5) * 1.6;
+    const int N = 80;
+    float closest = 1e9;
+    for (int i = 0; i < N; i++){
+        float th = float(i) / float(N) * 2.0 * PI;
+        float px = sin(av * th + delta) * 0.6;
+        float py = sin(bv * th) * 0.6;
+        float dx = px - cu, dy = py - cy;
+        float d2 = dx * dx + dy * dy;
+        if (d2 < closest) closest = d2;
+    }
+    float thickness = liThickness + bass * 0.008;
+    float d = sqrt(closest);
+    float val = 1.0 - min(d / thickness, 1.0);
+    val = val * val * (3.0 - 2.0 * val);
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    ikedaglitch: `float scene_ikedaglitch(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x, volume = aud.w;
+    float beatDetected = step(0.5, bass);
+    float tt = t * sp;
+    float glBaseProb = 0.3, glRowProbBase = 0.05, glRowCount = 40.0, glOffsetScale = 1.0;
+    float frameId = floor(tt * 60.0);
+    float baseProb = glBaseProb + bass * 0.25;
+    float rowProb = glRowProbBase + bass * 0.2 + beatDetected * 0.3;
+    float rowCount = max(1.0, floor(glRowCount * max(sc, 0.1)));
+    float row = floor(v * rowCount);
+    float col = floor(u * rowCount * 2.0);
+    float rowR = hash2(vec2(row, frameId));
+    float rowGlitch = (rowR < rowProb) ? 1.0 : 0.0;
+    float colOffset = 0.0;
+    if (rowGlitch > 0.5){
+        float sign = (hash2(vec2(row + 19.3, frameId + 7.1)) < 0.5) ? -1.0 : 1.0;
+        float mag = (5.0 + volume * 15.0) * glOffsetScale;
+        colOffset = floor(sign * mag + 0.5);
+    }
+    float sx = col + colOffset;
+    float val = 0.0;
+    float pixR = hash2(vec2(sx, row + frameId * 7919.0));
+    if (pixR < baseProb) val = 0.5 + hash2(vec2(sx + 2.7, row + frameId * 7919.0 + 4.1)) * 0.5;
+    if (rowGlitch > 0.5){
+        float rowPixR = hash2(vec2(sx + 8.8, row + frameId * 7919.0 + 1.3));
+        val = (rowPixR < 0.6) ? (0.7 + bass * 0.3) : 0.0;
+    }
     return clamp(val, 0.0, 1.0);
 }`,
 };

@@ -8,7 +8,7 @@ import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
-const VFX_NAMES   = ['trails', 'feedback', 'blur', 'bloom', 'scan', 'vignette', 'glitch', 'invert', 'posterize', 'droste', 'fold', 'hueshift', 'dither'];
+const VFX_NAMES   = ['trails', 'feedback', 'blur', 'bloom', 'scan', 'vignette', 'glitch', 'invert', 'posterize', 'droste', 'fold', 'hueshift', 'dither', 'pixelsort', 'mirror'];
 // Every knob a scene understands. Scenes only read speed/scale (+ audio); the rest are
 // universal controls the compositor applies to any scene. Ctrl+Space inside a scene call
 // lists them all. `pal`/`dur` are discoverable here but kept OUT of the inserted template

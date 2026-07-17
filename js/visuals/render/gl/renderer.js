@@ -128,8 +128,10 @@ const PRESENT_FRAG = PRELUDE + `
 uniform sampler2D uTex;
 uniform vec2 uRes;
 uniform float uTime, uGlitch, uScan, uVignette, uInvert, uBlur, uBloom, uPosterize;
-uniform float uDroste, uFold, uHue, uDither;
+uniform float uDroste, uFold, uHue, uDither, uPixelsort, uMirror;
 out vec4 fragColor;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
 
 // 3×3 tap average around uv, step in pixels — the kernel for blur + bloom.
 vec3 box9(vec2 uv, vec2 px){
@@ -167,6 +169,26 @@ void main(){
     if (uFold > 0.001){                                // kaleidoscope mirror-fold (fxl_fold)
         vec2 q = abs(uv - 0.5) / (1.0 - uFold * 0.45) + 0.5;
         c = mix(c, texture(uTex, clamp(q, 0.0, 1.0)).rgb, clamp(uFold, 0.0, 1.0));
+    }
+    if (uMirror > 0.001){                              // N-way radial kaleidoscope (fxl_mirror)
+        vec2 q = uv - 0.5; float rad = length(q);
+        float wedge = 6.2831853 / 6.0;                 // 6 segments
+        float ang = atan(q.y, q.x);
+        ang = abs(ang - wedge * floor((ang + wedge * 0.5) / wedge));
+        vec2 mq = vec2(cos(ang), sin(ang)) * rad + 0.5;
+        c = mix(c, texture(uTex, clamp(mq, 0.0, 1.0)).rgb, clamp(uMirror, 0.0, 1.0));
+    }
+    if (uPixelsort > 0.001){                           // bright-run streak = pixel-sort glitch (fxl_pixelsort)
+        float thr = 0.35; int maxLen = int(4.0 + uPixelsort * 60.0);
+        vec3 found = c;
+        if (luma(c) > thr){
+            for (int k = 0; k < 64; k++){ if (k >= maxLen) break;
+                float nx = uv.x - float(k + 1) / uRes.x; if (nx < 0.0) break;
+                vec3 sc2 = texture(uTex, vec2(nx, uv.y)).rgb;
+                found = sc2; if (luma(sc2) <= thr) break;
+            }
+        }
+        c = mix(c, found, clamp(uPixelsort, 0.0, 1.0));
     }
     if (uBlur > 0.001){                                // box blur, radius scales with amount
         vec2 px = (1.0 + uBlur * 6.0) / uRes;
@@ -239,7 +261,7 @@ export function createGLRenderer(canvas) {
         'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
-        'uDroste', 'uFold', 'uHue', 'uDither']) pLoc[n] = gl.getUniformLocation(presentProg, n);
+        'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
     const palTex = gl.createTexture();
@@ -368,6 +390,8 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uFold, num(fx.fold, 0));
         gl.uniform1f(pLoc.uHue, num(fx.hueshift, 0));
         gl.uniform1f(pLoc.uDither, num(fx.dither, 0));
+        gl.uniform1f(pLoc.uPixelsort, num(fx.pixelsort, 0));
+        gl.uniform1f(pLoc.uMirror, num(fx.mirror, 0));
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[dst]); gl.uniform1i(pLoc.uTex, 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 
