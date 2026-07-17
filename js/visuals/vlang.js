@@ -1,11 +1,11 @@
 // Visual language — the "visual synths" of crashDot, authored in the SAME editor as
 // your audio in a FoxDot-close syntax and rendered in the pop-out window (▦ visuals):
 //
-//   v2 >> plasma(hue=.6, ch=0)          # a layer on channel 0
-//   v6 >> tunnel(pal="ice", ch=1)       # a layer on channel 1
-//   v9 >> mix(linvar([0,1],32), dur=1/4, blend="screen")   # the A↔B crossfader
+//   video1 >> plasma(hue=.6, ch=0)      # a layer on channel 0  (video1, video2, … by convention)
+//   video2 >> tunnel(pal="ice", ch=1)   # a layer on channel 1
+//   video9 >> mix(linvar([0,1],32), dur=1/4, blend="screen")   # the A↔B crossfader
 //   palette("fire")   vmode("shade")    # global palette / glyph mode
-//   v2.stop()
+//   video2.stop()
 //
 // This module is the AUTHORITATIVE store (it runs in the main window). Because a layer
 // param can be a live pattern/TimeVar (PWhite, linvar, …) — which can't cross a
@@ -130,7 +130,7 @@ export function getVisualPlayer(name) {
     if (!p) { p = new VisualPlayer(name); _players.set(name, p); }
     return p;
 }
-export function isVisualName(name) { return /^v\d+$/.test(name); }
+export function isVisualName(name) { return /^video\d*$/i.test(name); }   // convention: video1, video2, …
 export function isScene(name) { return SCENE_SET.has(name); }
 // True if `name` is CURRENTLY a live video layer or the crossfader — any name can be
 // video, so autocomplete uses this (not a naming convention) to float scenes first.

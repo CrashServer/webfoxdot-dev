@@ -48,8 +48,8 @@
       <button id="docs-toggle-btn" title="documentation (F1)">?</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
-      <!-- visuals: hidden until thoroughly tested (the vN >> scene language still works if typed) -->
-      <button id="btn-visuals" title="pop out the visuals window — a 2-channel mixer for vN scene players (v1 &gt;&gt; plasma() · v2 &gt;&gt; tunnel(ch=1) · mix(0.5))">▦ visuals</button>
+      <!-- visuals: a 2-channel video mixer driven by video1/video2/… >> scene players -->
+      <button id="btn-visuals" title="pop out the visuals window — a 2-channel mixer for video players (video1 &gt;&gt; plasma() · video2 &gt;&gt; tunnel(ch=1) · video9 &gt;&gt; mix(0.5))">▦ visuals</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -1467,10 +1467,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // ── Guided tour — launch the beginner walkthrough ───────────────────────────
     document.getElementById('btn-tour').onclick = () => { if (_tour) _tour.start(); };
 
-    // ── Visuals pop-out — reactive scenes + the vN >> visual language ───────────
+    // ── Visuals pop-out — reactive scenes + the video1/video2/… >> visual language ──
     document.getElementById('btn-visuals').onclick = () => {
         openVisuals();
-        log('visuals window opened — try  v1 >> plasma(hue=.6)  ·  v1.stop()', 'info');
+        log('visuals window opened — try  video1 >> plasma(hue=.6)  ·  video1.stop()', 'info');
     };
 
     // ── Load the default sample pack (webfoxdot-kit) from GitHub, one click ──────

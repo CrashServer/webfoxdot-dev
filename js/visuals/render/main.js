@@ -77,11 +77,11 @@ function idle(t) {
     ctx.globalAlpha = 0.12 + pulse * 0.10; ctx.fillStyle = '#63b982'; ctx.font = 'bold 30px monospace';
     ctx.fillText('▦ crashDot', W / 2, H / 2 - 12);
     ctx.globalAlpha = 0.09 + pulse * 0.06; ctx.fillStyle = '#8a97a0'; ctx.font = '13px monospace';
-    ctx.fillText('run   v1 >> plasma()   ·   v2 >> tunnel(ch=1)   ·   v9 >> mix(0.5)', W / 2, H / 2 + 18);
+    ctx.fillText('run   video1 >> plasma()   ·   video2 >> tunnel(ch=1)   ·   video9 >> mix(0.5)', W / 2, H / 2 + 18);
     ctx.restore(); ctx.globalAlpha = 1;
     const waiting = performance.now() - S.lastMsg > 1500;
     ctx.beginPath(); ctx.arc(W - 16, 16, 5, 0, Math.PI * 2); ctx.fillStyle = waiting ? '#3a4750' : '#3fb950'; ctx.fill();
-    hud.textContent = 'idle  ·  no visual code running  ·  run a  vN >>  line in the editor';
+    hud.textContent = 'idle  ·  no visual code running  ·  run a  video1 >>  line in the editor';
 }
 
 // CPU path — glyph render modes, or the whole pipeline when WebGL2 is missing.
