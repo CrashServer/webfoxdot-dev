@@ -59,6 +59,7 @@ uniform sampler2D uPal;         // palette LUT (256 x NPAL)
 uniform float uNPal;
 uniform sampler2D uPrev;        // last frame (feedback)
 uniform float uTrails;          // 0 = clear each frame, →1 = long trails
+uniform float uFeedback;        // zooming echo of the last frame (infinite-tunnel feedback)
 uniform float uMix;             // crossfader 0..1
 uniform int   uBlend;           // blend index 0..6
 uniform int   uN;               // active layer count
@@ -111,8 +112,12 @@ void main(){
     vec3 ca = palSample(uPalA.x, av, uPalA.y);
     vec3 cb = palSample(uPalB.x, bv, uPalB.y);
     vec3 col = blendCol(av, bv, ca, cb, uMix, uv);
-    vec3 prev = texelFetch(uPrev, ivec2(gl_FragCoord.xy), 0).rgb;
-    col = max(col, prev * uTrails);                    // feedback = light-trails
+    vec2 tc = gl_FragCoord.xy / uRes;
+    col = max(col, texture(uPrev, tc).rgb * uTrails);            // trails = static feedback
+    if (uFeedback > 0.001){                                      // feedback = zooming echo
+        vec2 z = (tc - 0.5) * (1.0 - 0.035) + 0.5;
+        col = max(col, texture(uPrev, z).rgb * uFeedback);
+    }
     fragColor = vec4(col, 1.0);
 }
 `;
@@ -122,8 +127,18 @@ void main(){
 const PRESENT_FRAG = PRELUDE + `
 uniform sampler2D uTex;
 uniform vec2 uRes;
-uniform float uTime, uGlitch, uScan, uVignette, uInvert;
+uniform float uTime, uGlitch, uScan, uVignette, uInvert, uBlur, uBloom, uPosterize;
 out vec4 fragColor;
+
+// 3×3 tap average around uv, step in pixels — the kernel for blur + bloom.
+vec3 box9(vec2 uv, vec2 px){
+    vec3 s = vec3(0.0);
+    for (int y = -1; y <= 1; y++)
+        for (int x = -1; x <= 1; x++)
+            s += texture(uTex, uv + vec2(float(x), float(y)) * px).rgb;
+    return s / 9.0;
+}
+
 void main(){
     vec2 uv = gl_FragCoord.xy / uRes;
     if (uGlitch > 0.01){                               // shift random horizontal bands
@@ -132,7 +147,20 @@ void main(){
         if (h > 0.72) uv.x = fract(uv.x + (h - 0.86) * uGlitch * 0.5);
     }
     vec3 c = texture(uTex, uv).rgb;
+    if (uBlur > 0.001){                                // box blur, radius scales with amount
+        vec2 px = (1.0 + uBlur * 6.0) / uRes;
+        c = mix(c, box9(uv, px), clamp(uBlur, 0.0, 1.0));
+    }
+    if (uBloom > 0.001){                               // bright-pass, blurred, added back = glow
+        vec2 px = (2.0 + uBloom * 5.0) / uRes;
+        vec3 b = max(box9(uv, px) - 0.55, 0.0);
+        c += b * uBloom * 2.2;
+    }
     if (uInvert > 0.5) c = 1.0 - c;
+    if (uPosterize > 1.5){                             // quantise to N levels (N = amount)
+        float n = floor(uPosterize);
+        c = floor(c * n) / max(1.0, n - 1.0);
+    }
     if (uScan > 0.01){                                 // CRT scanlines
         float s = 0.5 + 0.5 * sin(gl_FragCoord.y * PI);
         c *= 1.0 - uScan * 0.6 * s;
@@ -141,7 +169,7 @@ void main(){
         float d = length(uv - 0.5);
         c *= 1.0 - uVignette * smoothstep(0.35, 0.85, d);
     }
-    fragColor = vec4(c, 1.0);
+    fragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
 `;
 
@@ -178,10 +206,10 @@ export function createGLRenderer(canvas) {
 
     // uniform locations — scene program
     const uLoc = {};
-    for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uMix', 'uBlend',
+    for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
         'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
-    for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert']) pLoc[n] = gl.getUniformLocation(presentProg, n);
+    for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
     const palTex = gl.createTexture();
@@ -267,6 +295,7 @@ export function createGLRenderer(canvas) {
         x = cl01(x);
         const blend = vstate.mix ? (vstate.mix.blend | 0) : 0;
         const trails = Math.max(0, Math.min(0.995, num(fx.trails, 0)));
+        const feedback = Math.max(0, Math.min(0.995, num(fx.feedback, 0)));
 
         const src = cur, dst = 1 - cur;                // read src (last frame), write dst
         gl.bindVertexArray(vao);
@@ -281,6 +310,7 @@ export function createGLRenderer(canvas) {
         gl.uniform4f(uLoc.uAud, aud.bass || 0, aud.mid || 0, aud.treble || 0, aud.level || 0);
         gl.uniform1f(uLoc.uNPal, NPAL);
         gl.uniform1f(uLoc.uTrails, trails);
+        gl.uniform1f(uLoc.uFeedback, feedback);
         gl.uniform1f(uLoc.uMix, x);
         gl.uniform1i(uLoc.uBlend, blend);
         gl.uniform1i(uLoc.uN, n);
@@ -301,6 +331,9 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uScan, num(fx.scan, 0));
         gl.uniform1f(pLoc.uVignette, num(fx.vignette, 0));
         gl.uniform1f(pLoc.uInvert, fx.invert ? 1 : 0);
+        gl.uniform1f(pLoc.uBlur, num(fx.blur, 0));
+        gl.uniform1f(pLoc.uBloom, num(fx.bloom, 0));
+        gl.uniform1f(pLoc.uPosterize, num(fx.posterize, 0));
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[dst]); gl.uniform1i(pLoc.uTex, 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 
