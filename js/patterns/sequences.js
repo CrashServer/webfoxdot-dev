@@ -724,7 +724,9 @@ export function PStep(n, value = 1, dflt = 0) {
     }
     if (typeof n === 'number') {
         const len = Math.max(1, Math.round(n));
-        return { get: (step) => (((step % len) + len) % len === 0 ? value : dflt) };
+        // value / default may themselves be patterns or lists ({5,6,7} → PRand,
+        // [5,6,7] cycling) — resolve per step so PStep(4, {5,6,7}, {6,4,3}) works.
+        return { get: (step) => (((step % len) + len) % len === 0 ? patGet(value, step) : patGet(dflt, step)) };
     }
     const mapping = n, cycle = value === 1 ? null : value;
     const max = cycle ?? (Math.max(...Object.keys(mapping).map(Number)) + 1);
