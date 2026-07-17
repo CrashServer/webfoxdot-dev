@@ -128,7 +128,7 @@ const PRESENT_FRAG = PRELUDE + `
 uniform sampler2D uTex;
 uniform vec2 uRes;
 uniform float uTime, uGlitch, uScan, uVignette, uInvert, uBlur, uBloom, uPosterize;
-uniform float uDroste, uFold, uHue, uDither, uPixelsort, uMirror, uEdge;
+uniform float uDroste, uFold, uHue, uDither, uPixelsort, uMirror, uEdge, uPixelate;
 out vec4 fragColor;
 
 float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -156,6 +156,11 @@ void main(){
         float band = floor(uv.y * 48.0);
         float h = hash1(band + floor(uTime * 14.0));
         if (h > 0.72) uv.x = fract(uv.x + (h - 0.86) * uGlitch * 0.5);
+    }
+    if (uPixelate > 0.001){                            // blocky downsample (aspect-square cells)
+        float n = mix(180.0, 8.0, clamp(uPixelate, 0.0, 1.0));
+        vec2 g = vec2(n, max(1.0, floor(n * uRes.y / uRes.x)));
+        uv = (floor(uv * g) + 0.5) / g;
     }
     vec3 c = texture(uTex, uv).rgb;
     if (uDroste > 0.001){                              // recursive log-spiral zoom (fxl_droste)
@@ -212,7 +217,8 @@ void main(){
         float gx = -tl - 2.0*ml - bl + tr + 2.0*mr + br;
         float gy = -tl - 2.0*tm - tr + bl + 2.0*bm + br;
         float e = clamp(sqrt(gx*gx + gy*gy) * 2.2, 0.0, 1.0);
-        c = mix(c, c * e, clamp(uEdge, 0.0, 1.0));      // outline: scene colour at edges, black flats
+        vec3 ec = mix(vec3(e), c * (0.4 + e), 0.35);    // mostly white outlines, a hint of source hue
+        c = mix(c, ec, clamp(uEdge, 0.0, 1.0));         // edge-detection: bright outlines, black flats
     }
     if (uInvert > 0.5) c = 1.0 - c;
     if (abs(uHue) > 0.001){                            // hue rotation in turns (fxl_hueshift)
@@ -276,7 +282,7 @@ export function createGLRenderer(canvas) {
         'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
-        'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge']) pLoc[n] = gl.getUniformLocation(presentProg, n);
+        'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
     const palTex = gl.createTexture();
@@ -408,6 +414,7 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uPixelsort, num(fx.pixelsort, 0));
         gl.uniform1f(pLoc.uMirror, num(fx.mirror, 0));
         gl.uniform1f(pLoc.uEdge, num(fx.edge, 0));
+        gl.uniform1f(pLoc.uPixelate, num(fx.pixelate, 0));
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[dst]); gl.uniform1i(pLoc.uTex, 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 

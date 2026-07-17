@@ -8,7 +8,7 @@ import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
-const VFX_NAMES   = ['trails', 'feedback', 'blur', 'bloom', 'scan', 'vignette', 'glitch', 'invert', 'posterize', 'droste', 'fold', 'hueshift', 'dither', 'pixelsort', 'mirror', 'edge'];
+const VFX_NAMES   = ['trails', 'feedback', 'blur', 'bloom', 'scan', 'vignette', 'glitch', 'invert', 'posterize', 'droste', 'fold', 'hueshift', 'dither', 'pixelsort', 'mirror', 'edge', 'pixelate'];
 // Every knob a scene understands. Scenes only read speed/scale (+ audio); the rest are
 // universal controls the compositor applies to any scene. Ctrl+Space inside a scene call
 // lists them all. `pal`/`dur` are discoverable here but kept OUT of the inserted template
@@ -478,11 +478,12 @@ function hintFn(cm) {
         // Scenes float to the TOP when the name looks/behaves like video: a vN name, a
         // name containing "vid", or one that's already a live video layer.
         // Convention: VIDEO players are named video1, video2, … — they get the VIDEO
-        // vocabulary (scenes + mix + fx, each scene pick inserting all its knobs like a
-        // synth). Every other name (v1, d4, pad, bass, …) gets the MUSIC vocabulary.
+        // vocabulary, organised into two groups: "video synths" (the scenes, each pick
+        // inserting all its knobs like a synth) and "fx" (the mixer + post-effects).
+        // Every other name (v1, d4, pad, bass, …) gets the MUSIC vocabulary.
         if (/^video\d*$/i.test(ctx.player || '')) {
-            list = [...VSCENES.map(sceneItem),
-                item('mix()', 'hint-keyword', 'mix'),
+            list = [sep('video synths'), ...VSCENES.map(sceneItem),
+                sep('fx'), item('mix()', 'hint-keyword', 'mix'),
                 ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
         } else {
             list = [playItem(), ...synthFamilyList()];
