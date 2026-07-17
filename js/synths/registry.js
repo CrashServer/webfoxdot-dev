@@ -53,6 +53,12 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.12, drive: 3, cutoff: 3000, tone: 0.4, palm: 0 },
         extraParams: ['drive', 'cutoff', 'tone', 'palm'],
     },
+    // a_xbass — aggressive rhythmic punk / math-rock bass with a built-in accent groove
+    a_xbass: {
+        scName: 'fd_a_xbass',
+        defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.05, dist: 8, cutoff: 800, rq: 0.7, rhythmType: 0, accent: 0.5 },
+        extraParams: ['dist', 'cutoff', 'rq', 'rhythmType', 'accent'],
+    },
     // a_daft — Daft Punk-style punchy filter bass (CrashServer port)
     a_daft: {
         scName: 'fd_a_daft',

@@ -18,7 +18,7 @@ const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx|
 // Rough role → so we pick musically-appropriate patterns/octaves per synth. Every
 // synth is classified so none falls through to a generic 'lead' by accident.
 const ROLES = {
-    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk', 'dab', 'growl'],
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk', 'dab', 'growl', 'a_xbass'],
     lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab', 'varsaw', 'war', 'fuzz', 'guitar'],
     pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad', 'a_vpad'],
     keys:  ['bell', 'basic', 'karp', 'rhodes', 'piano', 'sine', 'rsin', 'klank'],
