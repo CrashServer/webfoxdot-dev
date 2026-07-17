@@ -1,0 +1,148 @@
+
+
+# crashDot — example4 · MORE TRACKS
+# dub techno · jungle · electro — using the new synths + FX
+# (rhodes / supersaw / wobble / a_bd · squiz / drop / comp)
+# ------------------------------------------------------------------
+# Boot + load the kit. Evaluate a few lines at a time. Ctrl+; stops all.
+# A scratch pad — NOT wired into the in-app examples.
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  1 · DUBPLATE  —  dub techno, rhodes skank, deep sub  @ 130
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 130
+Root.default = "D"
+Scale.default = "minor"
+
+# a rhodes chord skank on the offbeat, drenched in delay + reverb, glued with comp
+
+k1 >> rhodes(PChord(0, 3), oct=4, dur=1, sus=0.3, cutoff=1800, echo=0.5, echo_time=linvar([0.1, 0.3], 32), mverb=0.6,  comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+b1 >> dbass([0, 0, 5, 3], oct=5, dur=2, tanh=0.2, lpf=linvar([700, 1000, 1100, 1400, 1700, 2000, 2300, 2400, 2700, 2900], [1, 2, 1, 1, 1, 1, 1, 2, 1, 0.25]), amp=0.6).unison(3)
+b1 >> dbass([0, 0, 5, 3], fbdelay=0.5, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, oct=(5, 6), dur=2, tanh=0.2, lpf=linvar([700, 1000, 1100, 1400, 1700, 2000, 2300, 2400, 2700, 2900], [1, 2, 1, 1, 1, 1, 1, 2, 1, 0.25]), amp=0.6).unison(3)
+
+
+d1 >> play("x", dur=1, amp=0.8)
+h1 >> play(".-", dur=0.5, hpf=7000, amp=0.4)
+d2 >> play("...c", dur=1, squiz=0.6, squizpitch=3, room=0.5, amp=0.4).sometimes("stutter", 3)
+
+k1 >> rhodes(PChord(0, "4"), oct=4, dur=2, sus=0.5, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+p1 >> supersaw([0, (0,3,7)], oct=4, dur=1, cutoff=sinvar([600, 4000], [8]), squiz=0.4, squizpitch=2, amp=0.3).every(8, "reverse")
+
+k1 >> rhodes(PChord(0, "9"), oct=4, dur=2, sus=0.5, cutoff=1800, echo=0.5, echo_time=0.375, mverb=0.6, comp=0.6, compthresh=0.2, amp=0.35).offbeat()
+
+
+d1 >> play("x", dur=1, amp=0.8,sample=2)
+h1 >> play("[--]", dur=0.5, hpf=7000, amp=0.4)
+d2 >> play("...c", dur=1, squiz=0.6, squizpitch=3, room=0.5, amp=0.4).sometimes("stutter", 3)
+
+v1 >> play(pbuild("techno", evolve=8, fill=4, density=1, kick=1, snare=1, hat=1, perc=1))
+
+# v2 >> bass(PChord(0, "1"), cutoff=12000, rq=0.3, rate=4, dur=1/2, mverb=0.5, shimmer=1)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  2 · JUNGLE  —  chopped breaks, reese, ragga stabs  @ 172
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 172
+Root.default = "G"
+Scale.default = "minor"
+
+# chopped amen-style break — nested subdiv/random, dropout glitch, sped/reversed rate
+d1 >> play("x[oo]x{o }x[xx]o{ c}", dur=0.25, drop=0.5, dropof=30, rate=PwRand([1, 2, -1], [5, 2, 1]), amp=0.7).sometimes("stutter", 4)
+
+# a rolling reese — wobble bass, slow LFO, distorted
+b1 >> wobble([0, 0, 5, 3], oct=3, dur=2, rate=2, cutoff=5000, dist2=0.5, dist2shape=1, amp=0.6)
+
+# a ragga stab — supersaw through a squiz, flipped every 8 beats
+
+# sub hits under it
+b2 >> a_gesa([0, ., 5, .], oct=4, dur=1, distortion=5, cutoff=800, amp=0.7)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  3 · ELECTRO  —  EBM / French electro, distorted lead  @ 138
+# ═══════════════════════════════════════════════════════════════════════════
+Clock.bpm = 138
+Root.default = "C"
+Scale.default = "phrygian"
+
+# electro kick + a compressed clap
+k1 >> a_bd([0], oct=2, dur=1, distortion=4, punch=6, amp=1)
+d1 >> play("....o...", dur=0.5, comp=0.5, room=0.3, amp=0.8)
+h1 >> play("-.-.-.-.", dur=0.25, hpf=8000, amp=Pacc("offbeat"))
+
+# a distorted supersaw riff, spinning and glued
+p1 >> supersaw([0, 3, 5, 0, 7, 5, 3, 0], oct=4, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=4, tanh=0.5, spin=0.5, comp=0.4, amp=0.35)
+
+# a mean acid bassline
+b1 >> tb303([0, 0, 3, 0], oct=3, dur=0.25, lpf=sinvar([400, 3500], [4]), lpf_rq=0.12, dist2=0.4, amp=0.4)
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  example1231 — MINIMALISM:  Philip Glass additive + Steve Reich phasing
+#
+#  Two classic techniques, both already possible with what's here:
+#   • Reich "phasing" (dephasing): two IDENTICAL cells, one drifting a hair
+#     slower (dur * 1.01…), so they slide in and out of alignment. Pan them
+#     L/R and you HEAR the phase move. No special function needed — just dur.
+#   • Glass "additive process": an arpeggio that GROWS a note at a time —
+#     PGrowArp([0,2,4,7]) → 0 · 0 2 · 0 2 4 · 0 2 4 7 …  (this IS the tool).
+#
+#  The only thing worth adding is a bright music-box timbre — so there's a
+#  `celeste` defined inline below with defsynth() (no engine rebuild).
+#
+#  HOW TO PLAY:  run the defsynth block ONCE (cursor on it, Ctrl+Alt+Enter),
+#  then run the parts. Give it a minute — the whole point is the slow drift.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── the timbre — a bright music-box / celeste  (run this block ONCE) ──────────
+defsynth("celeste", { bright: 1 }, ({ out, note, amp, sus, pan, attack, release, bright }) => {
+  const f = note.midicps()
+  const env = EnvGen.ar(Env.perc(0.001, sus, 1, -4), { doneAction: 2 })
+  let sig = SinOsc.ar(f)
+  sig = sig.add(SinOsc.ar(f.mul(2)).mul(0.5))
+  sig = sig.add(SinOsc.ar(f.mul(3)).mul(0.25).mul(bright))
+  sig = sig.add(SinOsc.ar(f.mul(4.2)).mul(0.12).mul(bright))   // slight inharmonic shimmer
+  sig = sig.mul(env).mul(amp).mul(0.4)
+  Out.ar(out, Pan2.ar(sig, pan))
+})
+
+
+Clock.bpm = 138
+Scale.default = "major"
+Root.default = "C"
+
+
+# ── PART 1 — REICH PHASING ────────────────────────────────────────────────────
+# The SAME 6-note cell, twice. p2's dur is 1.2% longer, so it drifts; panned hard
+# L/R you hear the two lines walk apart and slowly come back. This is the piece.
+p1 >> celeste([0, 2, 4, 7, 4, 2], oct=5, dur=1/6,         sus=0.4, amp=0.4, pan=-0.4, room=0.6, reverb=0.35)
+p2 >> celeste([0, 2, 4, 7, 4, 2], oct=5, dur=1/6 * 1.012, sus=0.4, amp=0.4, pan=0.4,  room=0.6, reverb=0.35)
+
+
+# ── PART 2 — GLASS ADDITIVE PROCESS ──────────────────────────────────────────
+# The arpeggio grows a note at a time and loops — hypnotic, always the same yet
+# always moving. Different subdivision (1/8) from the phasing cells (1/6) → a
+# shifting polyrhythm against them.
+ar >> organ(PGrowArp([0, 2, 4, 7, 9]), oct=5, dur=1/8, sus=0.12, amp=0.24, lpf=4500, room=0.4)
+
+
+# ── PART 3 — SLOW HARMONY ─────────────────────────────────────────────────────
+# A chord bed and bass moving on a gentle progression (I V vi IV), one chord
+# every 2 bars — the slow harmonic rhythm that lets the fast figures float.
+pd >> darkpad(PProg("pop"), oct=4, dur=8, sus=8, amp=0.28, attack=2.5, cutoff=1400, reverb=0.6, room=0.9, chorus=0.4)
+bs >> sine([0, 4, 5, 3], oct=2, dur=8, sus=6, amp=0.5, lpf=700)      # roots of I V vi IV
+
+
+# ── variations to explore ─────────────────────────────────────────────────────
+p2 >> celeste([0,2,4,7,4,2], oct=5, dur=1/6 * 1.03, ...)   # phase FASTER
+ar >> organ(PGrowArp([0,2,4,5,7,9,11]), dur=1/12, ...)     # busier additive
+hi >> celeste(PGrowArp([0,4,7,11]), oct=6, dur=1/8, amp=0.14, bright=1.5, echo=0.3, echo_time=0.375)
+Scale.default = "dorian"                                   # colour shift
+Scale.default = var(["major", "lydian", "mixolydian"])     # slow modal drift
+pd >> darkpad(PProg("andalusian"), oct=4, dur=8)
+p3 >> celeste([0,2,4,7,4,2], oct=6, dur=1/6 * 0.994, amp=0.3, pan=0)
+

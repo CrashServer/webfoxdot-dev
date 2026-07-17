@@ -2319,6 +2319,104 @@ video9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
 # video9 >> mix(PWhite(0,1), dur=1) # random every beat`)}
     `, 'vis-mixer');
 
+    const vAll = section('Visuals — every scene & every FX (reference)', `
+        ${note('The full catalogue as one runnable <code>#@</code> set: all <b>42 scenes</b> and all <b>17 FX</b> + all 7 blend modes. Open <b>▦ visuals</b>, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through every scene family, each part chaining a few different FX. Video players are <code>video1…video9</code>; <code>video9</code> is the A↔B crossfader. Boot audio first so the scenes react.')}
+        ${code(`#@#@ all visuals — every scene & FX
+
+#@intro(8)
+Clock.bpm = 128
+Scale.default = "minor"
+d1 >> play("x-o-", amp=0.7)                     # any audio makes the scenes react
+b1 >> dbass([0, 3, 5], oct=4, dur=1/2, amp=0.5)
+palette("neon")
+vmode("smooth")                                 # smooth · pixel · shade · blocks · ascii · dots · bars
+# vres(0.5)                                     # ↓ render resolution if a weak machine struggles
+
+# ═══ CLASSIC — plasma tunnel wave rain spiral cells ═══
+#@classic(16)
+video1 >> plasma(ch=0, pal="fire") + bloom(0.5)
+video2 >> tunnel(ch=0)
+video3 >> wave(ch=0)
+video4 >> rain(ch=1, pal="matrix")
+video5 >> spiral(ch=1)
+video6 >> cells(ch=1)
+video9 >> mix(sinvar([0, 1], [16]), blend="screen")
+
+# ═══ FIELDS — starfield nebula moire bars grid ripple ═══
+#@fields(16)
+video1 >> starfield(ch=0) + trails(0.85)
+video2 >> nebula(ch=0, pal="ice")
+video3 >> moire(ch=0)
+video4 >> bars(ch=1, pal="acid")
+video5 >> grid(ch=1)
+video6 >> ripple(ch=1)
+video9 >> mix(linvar([0, 1], [8]), blend="add")
+
+# ═══ ENERGY — fire aurora kaleido warp metaballs hexgrid ═══
+#@energy(16)
+video1 >> fire(ch=0, pal="blood") + blur(0.3)
+video2 >> aurora(ch=0)
+video3 >> kaleido(ch=0)
+video4 >> warp(ch=1, pal="cyber") + vignette(0.5)
+video5 >> metaballs(ch=1)
+video6 >> hexgrid(ch=1)
+video9 >> mix(0.5, blend="difference")
+
+# ═══ GEOMETRY — checker swarm flow contour voronoi helix ═══
+#@geometry(16)
+video1 >> checker(ch=0) + scan(0.4)
+video2 >> swarm(ch=0)
+video3 >> flow(ch=0)
+video4 >> contour(ch=1, pal="vhs") + glitch(0.6)
+video5 >> voronoi(ch=1)
+video6 >> helix(ch=1)
+video9 >> mix(sinvar([0.2, 0.8], [8]), blend="wipe")
+
+# ═══ SYMMETRY — mandala lattice truchet noise rings spectrum marble ═══
+#@symmetry(16)
+video1 >> mandala(ch=0) + droste(0.6)
+video2 >> lattice(ch=0)
+video3 >> truchet(ch=0) + fold(0.5)
+video4 >> noise(ch=1)
+video5 >> rings(ch=1) + hueshift(linvar([0, 1], [8]))
+video6 >> spectrum(ch=1)
+video7 >> marble(ch=1)
+video9 >> mix(0.5, blend="multiply")
+palette("sunset")
+
+# ═══ IKEDA — testpattern interference biomech escher circuit panopticon ═══
+#@ikeda(16)
+video7.stop()
+video1 >> testpattern(ch=0) + dither(0.7)
+video2 >> interference(ch=0)
+video3 >> biomech(ch=0)
+video4 >> escher(ch=1) + edge(0.9)
+video5 >> circuit(ch=1) + pixelsort(0.6)
+video6 >> panopticon(ch=1)
+video9 >> mix(sinvar([0, 1], [8]), blend="dissolve")
+palette("mono")
+
+# ═══ CLIFT — penrose mobius hexdump lissajous ikedaglitch ═══
+#@clift(16)
+video6.stop()
+video1 >> penrose(ch=0) + mirror(0.8)
+video2 >> mobius(ch=0) + pixelate(0.5)
+video3 >> hexdump(ch=1, pal="matrix") + feedback(0.7)
+video4 >> lissajous(ch=1) + posterize(4)
+video5 >> ikedaglitch(ch=1) + invert()
+video9 >> mix(0.5, blend="add")
+
+#@outro(16)
+clear()                                         # wipe the trails for a clean finale ([c] in the window)
+video2.stop()
+video3.stop()
+video4.stop()
+video5.stop()
+video1 >> aurora(ch=0, pal="ice", bright=1.2) + trails(0.9)
+video9 >> mix(0)`)}
+        ${note('<b>42 scenes</b> — plasma tunnel wave rain spiral cells starfield nebula moire bars grid ripple fire aurora kaleido warp metaballs hexgrid checker swarm flow contour voronoi helix mandala lattice truchet noise rings spectrum marble · testpattern interference biomech escher circuit panopticon penrose mobius hexdump lissajous ikedaglitch. <b>17 FX</b> (chain with <code>+</code>) — trails feedback blur bloom scan vignette glitch invert posterize droste fold hueshift dither pixelsort mirror edge pixelate. <b>7 blends</b> — mix add screen multiply difference wipe dissolve. <b>10 palettes</b> — fire ice neon sunset matrix mono blood cyber vhs acid (also by index: <code>pal=7</code>). <b>7 render modes</b> — smooth pixel shade blocks ascii dots bars via <code>vmode()</code>.')}
+    `, 'vis-all');
+
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
         ['Live sets',       [no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
@@ -2327,7 +2425,7 @@ video9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
         ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, alpha29new, samples, loop]],
         ['Perform & MIDI',  [sections, midi, perf]],
-        ['Visuals',         [vTour, vShow, vMix]],
+        ['Visuals',         [vTour, vAll, vShow, vMix]],
         ['Deep dives',      DEEP],
         ...TUT_CATS,
     ];
