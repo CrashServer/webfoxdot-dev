@@ -210,7 +210,8 @@ export const VERSION = 'beta10';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'beta11', title: '16 industrial/gritty synths · richer chaos · 2 new live sets', items: [
+    { v: 'beta11', title: '16 industrial/gritty synths · richer chaos · 3 new live sets', items: [
+        'New Live set — Foundry (svdk): a phrygian INDUSTRIAL #@ set showcasing the 16 new voices — a clipped industrialdrone bed, doom/superbass/wob/glitchbass low end, an acidline 303, a wavefolded tekno lead + gated hardstab stabs, brutal industrialsnare/crunch percussion and a chaotic virus break cooling into gaze/waves pads. Built the codeBank way — evolving linvar/expvar/sinvar sweeps, Euclidean PDur rhythms, heavy crush/fold/multicrush.',
         'New Live set — Celeste (svdk): a bright major #@ set built on an inline defsynth — a shimmering additive celeste (sine partials + a faint 4.2× inharmonic shimmer) played as two hard-panned voices detuned by dur=1/3 * 1.012 for a chorus beat, over a PGrowArp organ, a darkpad progression and a deep sine bass, the key floating through var(["major", "lydian", "mixolydian"]). In the examples dropdown + Examples page.',
         'New Live set — Dark Synth Pop (svdk, from codeBank): a moody dorian synth-pop cut transposed from the CrashServer codeBank — a triple-unison organ hook on a Euclidean PDur(3,8) with dist2 grit, over the new lbass acid bass whose cutoff rides a fractal PFr pattern, plus a stuttering drum break.',
         '16 new synths ported from CrashServer FoxDot (stock-UGen reimplementations, all audible). Industrial/gritty: tekno · dirt · doom · industrialdrone · glitchbass · hardstab · industrialsnare · crunch. Bass: lbass · wob · acidline · superbass. Leads: darklead · virus. Pads: gaze · waves. Their character knobs follow the house convention (cutoff / rq / dist — never an FX-key name).',
@@ -2440,9 +2441,65 @@ r8 >> organ(var([6, 5, 3, 1], [8, 4, 2, 2]), oct=6, cutoff=linvar([1200, 4000], 
 #@end(16)`)}
     `, 'darksynthpop');
 
+    const foundry = section('Foundry — svdk', `
+        ${note('A phrygian INDUSTRIAL <code>#@</code> set by <b>svdk</b> showcasing the new CrashServer-ported voices — a clipped <code>industrialdrone</code> bed, a <code>doom</code> / <code>superbass</code> / <code>wob</code> / <code>glitchbass</code> low end, an <code>acidline</code> 303, a wavefolded <code>tekno</code> lead + gated <code>hardstab</code> stabs, brutal <code>industrialsnare</code> / <code>crunch</code> percussion and a chaotic <code>virus</code> break, cooling into <code>gaze</code> / <code>waves</code> pads. Built the codeBank way — evolving <code>linvar</code>/<code>expvar</code>/<code>sinvar</code> filter sweeps, Euclidean <code>PDur</code> rhythms, and heavy <code>crush</code>/<code>fold</code>/<code>multicrush</code>. Boot + load the kit, cursor on <code>#@intro</code>, Ctrl+Enter.')}
+        ${code(`#@#@ foundry
+
+#@intro(8)
+Clock.bpm = 132
+Root.default = "E"
+Scale.default = "phrygian"
+
+# a clipped industrial drone bed
+dr >> industrialdrone([0], oct=3, dur=8, sus=8, cutoff=linvar([300, 1200], [16]), fbk=0.5, noise=0.2, amp=0.3, reverb=0.4, room=0.8)
+
+#@kick(16)
+k1 >> play("X.x.", dur=1/2, amp=1, sample=2, crush=0.4, bits=5)
+b1 >> doom([0, 0, 0, 3], oct=3, dur=1/2, cutoff=linvar([400, 2000], [8]), wnoise=0.15, amp=0.7)
+
+#@acid(16)
+a1 >> acidline([0, 0, 3, 0, 5, 0, 0, 3], oct=4, dur=1/4, cutoff=expvar([300, 3500], 8), accent=P[0, 0, 1, 0], beef=3, amp=0.6)
+
+#@lead(16)
+l1 >> tekno([0, 3, 5, 7], oct=5, dur=PDur(3, 8), grit=0.6, wfold=linvar([0, 0.5], [16]), cutoff=linvar([600, 4000], [8]), amp=0.4, crush=0.4)
+sn >> industrialsnare([0], oct=4, dur=2, decay=0.25, snap=0.7, amp=0.6)
+
+#@peak(16)
+h1 >> hardstab([0, (0,3,7)], oct=5, dur=1, sus=0.2, dist=4, wfold=0.4, cutoff=sinvar([800, 5000], [8]), amp=0.4, rgate=0.7, rgaterate=8)
+w1 >> wob([0, 0, 5, 3], oct=3, dur=1/2, rate=4, depth=0.9, cutoff=350, amp=0.6)
+
+#@break(8)
+k1.stop()
+b1.stop()
+cr >> crunch([0, _, 0, 0], oct=5, dur=1/4, amp=0.5, echo=0.3, echo_time=0.375)
+gz >> gaze([0, 3, 7], oct=5, dur=8, sus=8, shimmer=0.5, amp=0.4, reverb=0.6, room=0.9)
+
+#@drop(16)
+k1 >> play("X.x.", dur=1/2, amp=1, sample=2, crush=0.5, bits=4)
+b1 >> superbass([0, 0, 3, 5], oct=3, dur=1/2, spread=0.7, cutoff=linvar([500, 3000], [8]), amp=0.6, multicrush=0.5)
+gl >> glitchbass([0, 5], oct=4, dur=1/4, rate=2, cutoff=2500, amp=0.4, fold=0.3)
+
+#@chaos(16)
+v1 >> virus([0, 3, 7], oct=5, dur=1, cutoff=linvar([2000, 7000], [8]), mod1=0.15, mod2=0.3, amp=0.35, crush=0.4)
+dk >> darklead(PGrowArp([0, 3, 5, 7]), oct=5, dur=1/8, dist=2, cutoff=sinvar([600, 3000], [8]), amp=0.35, echo=0.3)
+
+#@outro(16)
+a1.stop()
+l1.stop()
+h1.stop()
+w1.stop()
+v1.stop()
+dk.stop()
+gl.stop()
+wv >> waves([0, 7], oct=4, dur=16, sus=16, rate=6, amp=0.4, reverb=0.7, room=0.9)
+dr >> industrialdrone([0], oct=3, dur=16, sus=16, cutoff=linvar([1200, 200], [16]), amp=linvar([0.3, 0], [16]))
+
+#@end(16)`)}
+    `, 'foundry');
+
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [celeste, darksynthpop, no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [foundry, celeste, darksynthpop, no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
