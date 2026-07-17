@@ -214,7 +214,7 @@ const CHANGELOG = [
         'The pop-out visuals window (▦ visuals) is rebuilt from scratch as a proper A/B video mixer. Same language as before — v1 >> plasma() layers deck A, v2 >> tunnel(ch=1) layers deck B, and v9 >> mix(x) crossfades A↔B (x = 0…1, and x can be a linvar/pattern) with a blend mode (mix · add · screen · multiply · difference · wipe · dissolve). palette("fire") sets the colour ramp, vmode("shade") the look.',
         'The fix for the old overlap/blend mess: mixing now happens in FIELD space (each scene is a scalar field 0…1) and the result is colourised ONCE. So stacking layers on a deck combines by field-max — bright structure wins, never blowing out to white — and the A↔B crossfade is one coherent value blend instead of canvas-compositing guesswork. Each deck can carry its own palette; render as smooth blocks or a glyph ramp.',
         'Under the hood it\'s modular, not a monolith: a tiny engine (grid · compositor · palette · blends · draw · postfx) plus one file per scene behind a registry — adding a scene is a new file + one import, and a WebGL backend later only touches the draw step. Ships with 31 scenes — plasma tunnel wave rain spiral cells starfield nebula moire bars grid ripple fire aurora kaleido warp metaballs hexgrid checker swarm flow contour voronoi helix mandala lattice truchet noise rings spectrum marble — all audio-reactive. Every scene also gets universal knobs for free (coords zoom/rot/panx/pany, value bright/gain/contrast/inv), and [] {} patterns / TimeVars work in visual params just like audio. Rendering isn\'t ASCII-first: smooth (interpolated) is the default look, with pixel + the glyph ramps via vmode(). See the "Visuals — the complete tour" example for absolutely everything in one runnable set.',
-        'Now GPU-rendered (WebGL2). Every scene is evaluated per-PIXEL at native resolution instead of a coarse upscaled grid — sharp instead of blurry, and the heavy per-pixel work runs on the GPU, so it stays smooth even on a phone. One static shader holds all 31 scenes (layers/params/palette/crossfader are uniforms → no recompile while you code), feedback trails are real FBO ping-pong, and post-fx (glitch/scan/vignette) run in the blit. Glyph modes and any browser without WebGL2 fall back to the CPU renderer automatically. New clear() wipes the feedback buffer for a clean reset (or press [c] in the visuals window) — layers keep running.',
+        'Now GPU-rendered (WebGL2). Every scene is evaluated per-PIXEL at native resolution instead of a coarse upscaled grid — sharp instead of blurry, and the heavy per-pixel work runs on the GPU, so it stays smooth even on a phone. One static shader holds all 31 scenes (layers/params/palette/crossfader are uniforms → no recompile while you code), feedback trails are real FBO ping-pong, and post-fx (glitch/scan/vignette) run in the blit. Glyph modes and any browser without WebGL2 fall back to the CPU renderer automatically. New clear() blanks the video — stops every layer + the crossfader and wipes the buffer (or press [c] in the visuals window). pal and blend now take a 0-based INDEX as well as a name (pal=7, blend=2), so [] {} patterns and TimeVars can drive them — and picking a scene in autocomplete now inserts all its knobs, like a synth.',
     ] },
     { v: 'beta09', title: 'Parameter cleanup — one word per idea', items: [
         'Perform mode (phone) — redesigned for a small screen, no scrolling. The player tiles now FIT the screen: the grid auto-sizes so every track is on screen and one tap away (no more hunting by scroll). Tap = launch / stop, drag up/down = volume, and a LONG-PRESS solos it (shared with the mixer + Players panel — a gold S). The controls are now TABBED — SECTIONS · FX · MACRO — so the space-hungry XY pad only appears on its own tab and the tiles re-fit around whatever\'s open. Plus a tempo beat-dot in the header (accented downbeat), four momentary FX (DROP · STUTTER · GATE · ECHO held to fire), and haptic ticks.',
@@ -2177,10 +2177,10 @@ v9 >> mix(0.5, blend="add")
 
 #@drop(16)
 # patterns + brackets work in visual params, exactly like audio
-v1 >> voronoi(ch=0, scale={2, 3, 4}, hue=[0, 0.3, 0.6])    # {random} · [alternate]
+v1 >> voronoi(ch=0, scale={2, 3, 4}, pal=[1, 7, 9])        # {random} · [alternate]
 v2.stop()
 v3 >> spectrum(ch=1, speed=PWhite(0.6, 2))
-v9 >> mix(linvar([0, 1], [8]), blend="wipe")               # hard wipe A→B
+v9 >> mix(linvar([0, 1], [8]), blend=[2, 4, 5])            # pal & blend take a NAME or a 0-based INDEX
 palette("acid")
 
 #@peak(16)
@@ -2197,9 +2197,8 @@ vmode("smooth")
 v1.stop()
 v2 >> aurora(ch=0, pal="ice", speed=0.6, bright=1.2) + trails(0.9)
 v3.stop()
-v9 >> mix(0)
-d1 >> play("x...", amp=0.5)`)}
-        ${note('<b>31 scenes</b> — plasma tunnel wave rain spiral cells starfield nebula moire bars grid ripple fire aurora kaleido warp metaballs hexgrid checker swarm flow contour voronoi helix mandala lattice truchet noise rings spectrum marble. <b>Palettes</b> — fire ice neon sunset matrix mono blood cyber vhs acid. <b>Blends</b> — mix add screen multiply difference wipe dissolve. <b>Render modes</b> — smooth pixel shade blocks ascii dots bars. Per-layer knobs — speed scale bright hue pal · zoom rot panx pany · gain contrast inv.')}
+v9 >> mix(0)`)}
+        ${note('<b>31 scenes</b> — plasma tunnel wave rain spiral cells starfield nebula moire bars grid ripple fire aurora kaleido warp metaballs hexgrid checker swarm flow contour voronoi helix mandala lattice truchet noise rings spectrum marble. <b>Palettes</b> — fire ice neon sunset matrix mono blood cyber vhs acid. <b>Blends</b> — mix add screen multiply difference wipe dissolve. <b>pal</b> and <b>blend</b> also take a 0-based <b>index</b> (so <code>[]</code> <code>{}</code> patterns work — e.g. <code>pal=[1,7,9]</code>, <code>blend={2,4}</code>). <b>Render modes</b> — smooth pixel shade blocks ascii dots bars. Per-layer knobs — speed scale bright hue pal · zoom rot panx pany · gain contrast inv.')}
     `, 'vis-tour');
     const vShow = section('Code your visuals — scenes · palette · glyph mode', `
         ${note('Open <b>▦ visuals</b> (top bar), then run these. <code>vN</code> players drive the pop-out; layers stack and react to the audio. <code>+ scan()</code> chains a screen-FX; <code>palette()</code> / <code>vmode()</code> are global. Ctrl+Space after <code>v1 &gt;&gt; </code> lists every scene. Full reference in the <b>Visuals</b> docs tab.')}

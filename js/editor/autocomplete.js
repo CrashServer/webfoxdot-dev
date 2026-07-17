@@ -9,7 +9,14 @@ import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
 const VFX_NAMES   = ['scan', 'trails', 'vignette', 'glitch', 'invert', 'posterize'];
-const VSCENE_PARAMS = ['hue=', 'speed=', 'bright=', 'alpha=', 'ch=', 'pal=', 'mode=', 'dur='];
+// Every knob a scene understands. Scenes only read speed/scale (+ audio); the rest are
+// universal controls the compositor applies to any scene. Ctrl+Space inside a scene call
+// lists them all. `pal`/`dur` are discoverable here but kept OUT of the inserted template
+// (pal would force a palette; dur is a pattern-timing meta-param).
+const VSCENE_PARAMS = ['ch=', 'speed=', 'scale=', 'bright=', 'gain=', 'contrast=', 'hue=', 'pal=', 'zoom=', 'rot=', 'panx=', 'pany=', 'inv=', 'dur='];
+// The template a scene pick inserts — all knobs at NO-OP defaults (behaves like name()),
+// so every control is visible and tweakable in place, the way a synth pick exposes its.
+const VSCENE_DEFAULTS = [['ch', 0], ['speed', 1], ['scale', 1], ['bright', 1], ['gain', 1], ['contrast', 0], ['hue', 0], ['zoom', 1], ['rot', 0], ['panx', 0], ['pany', 0], ['inv', 0]];
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
@@ -78,6 +85,28 @@ function synthItem(name) {
             // the cursor to edit.
             const ch = data.from.ch + bracket + 1;           // the 0 inside the first [ ]
             cm.setCursor({ line: data.from.line, ch: ch + 1 });
+        },
+    };
+}
+
+// A video-scene completion. Like synthItem, it inserts the FULL call (every knob at its
+// no-op default) so the controls are exposed for tweaking, and drops a caret just inside
+// the parens (on ch) rather than selecting anything.
+function fullSceneCall(name) {
+    return `${name}(${VSCENE_DEFAULTS.map(([k, v]) => `${k}=${v}`).join(', ')})`;
+}
+function sceneItem(name) {
+    const text = fullSceneCall(name);
+    return {
+        text, displayText: name, className: 'hint-synth',
+        hint(cm, data) {
+            if (callFollows(cm, data)) {                       // just swap the name in
+                cm.replaceRange(name, data.from, data.to);
+                cm.setCursor({ line: data.from.line, ch: data.from.ch + name.length });
+                return;
+            }
+            cm.replaceRange(text, data.from, data.to);
+            cm.setCursor({ line: data.from.line, ch: data.from.ch + name.length + 1 });   // just inside the (
         },
     };
 }
@@ -284,7 +313,9 @@ function getContext(cm) {
     if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.$/))    return { type: 'method', word: '' };
     if (before.match(/(?:[a-zA-Z_]\w*|[)\]])\.\w+$/)) return { type: 'method', word };
     // `name >> ` — any player can be audio (a synth) OR video (a scene); offer both.
-    if (before.match(/[a-zA-Z_]\w*\s*>>\s*[a-zA-Z_]*$/)) return { type: 'synth', word };
+    // Capture the player name so a vN (video) name can float the visuals category up top.
+    const rhsM = before.match(/([a-zA-Z_]\w*)\s*>>\s*[a-zA-Z_]*$/);
+    if (rhsM) return { type: 'synth', word, player: rhsM[1] };
     const scaleM = before.match(/Scale\s*\.\s*default\s*=\s*["']([a-zA-Z]*)$/);
     if (scaleM) return { type: 'scale', word: scaleM[1] };
 
@@ -439,10 +470,14 @@ function hintFn(cm) {
         // Synths are grouped into families (bass/lead/keys/…) so the list is
         // browsable; typing filters across all of them (dropEmptySeps prunes).
         // Audio synths (grouped by family) + a visuals category (scenes/mixer/fx) —
-        // any player can be either; the RHS you pick decides.
-        list = [playItem(), ...synthFamilyList(),
-            sep('visuals'), ...VSCENES.map(n => item(n + '()', 'hint-synth', n)),
+        // any player can be either; the RHS you pick decides. A scene pick inserts the
+        // full knob call (sceneItem), like a synth. When the player is a vN (video by
+        // convention), the visuals block floats to the TOP so it's the first thing offered.
+        const audio = [playItem(), ...synthFamilyList()];
+        const visuals = [sep('visuals'), ...VSCENES.map(sceneItem),
             item('mix()', 'hint-keyword', 'mix'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
+        const isVid = /^v\d+$/.test(ctx.player || '');
+        list = isVid ? [...visuals, sep('audio'), ...audio] : [...audio, ...visuals];
         list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
     } else if (ctx.type === 'vparam') {
         const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;

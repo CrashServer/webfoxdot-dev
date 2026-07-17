@@ -24,6 +24,12 @@ const SID = new Map(SCENE_GLSL_ORDER.map((n, i) => [n, i]));
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 const cl01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+// palette by NAME ("cyber") or by integer INDEX (8 → wraps) — so pal can be pattern-driven
+function paletteIndex(v) {
+    if (v == null) return ICE;
+    if (typeof v === 'number' && isFinite(v)) return (((Math.round(v) % NPAL) + NPAL) % NPAL);
+    return PAL_IDX.has(String(v)) ? PAL_IDX.get(String(v)) : ICE;
+}
 
 // ── shared GLSL prelude (the scene bodies assume these) ──────────────────────
 const PRELUDE = `#version 300 es
@@ -230,12 +236,11 @@ export function createGLRenderer(canvas) {
             L0[o] = id; L0[o + 1] = num(p.speed, 1); L0[o + 2] = num(p.scale, 1); L0[o + 3] = base;
             L1[o] = num(p.zoom, 1); L1[o + 1] = num(p.rot, 0); L1[o + 2] = num(p.panx, 0); L1[o + 3] = num(p.pany, 0);
             L2[o] = num(p.bright, 1); L2[o + 1] = num(p.gain, 1); L2[o + 2] = num(p.contrast, 0); L2[o + 3] = (p.inv === true || p.inv === 1) ? 1 : 0;
-            if (p.pal != null) pal = String(p.pal);
+            if (p.pal != null) pal = p.pal;                 // name or index, resolved below
             if (p.hue != null) hue = num(p.hue, 0);
             n++;
         }
-        const idx = (pal != null && PAL_IDX.has(pal)) ? PAL_IDX.get(pal) : ICE;
-        return { count: n, palIdx: idx, hue };
+        return { count: n, palIdx: paletteIndex(pal), hue };
     }
 
     function render(vstate, tSec, aud, fx) {

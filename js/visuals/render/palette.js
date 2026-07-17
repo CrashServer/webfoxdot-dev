@@ -2,11 +2,17 @@
 // the renderer never touches hex parsing. A per-channel palette is picked from the
 // channel's layers; `hue` rotates the ramp for quick variation without new palettes.
 
-import { paletteLut, PALETTES } from '../vdata.js';
+import { paletteLut, PALETTES, PALETTE_NAMES } from '../vdata.js';
 
 const DEFAULT = 'ice';
 
+// Accept a palette NAME ("cyber") or an integer INDEX (8 → wraps) — so pal can be a
+// number / pattern, not just a string.
 export function paletteName(name) {
+    if (typeof name === 'number' && isFinite(name)) {
+        const N = PALETTE_NAMES.length;
+        return PALETTE_NAMES[(((Math.round(name) % N) + N) % N)];
+    }
     return (name && PALETTES[name]) ? name : DEFAULT;
 }
 

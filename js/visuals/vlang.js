@@ -83,11 +83,12 @@ export function visualBuilders() {
     for (const [k, d] of Object.entries(VFX)) out[k] = fxBuilder(k, d);
     // mix(value, dur=, blend=) — the A↔B crossfader (value 0=chan0 … 1=chan1)
     out.mix = (value = 0, opts = {}) => new MixSpec(value, opts);
-    // palette("fire" | "off") — global colour ramp; vmode("shade") — global glyph set
-    out.palette = (name) => { master.palette = (name == null || name === 'off') ? null : String(name); _open(); return name; };
+    // palette("fire" | 8 | "off") — global colour ramp (name OR integer index); vmode("shade")
+    out.palette = (name) => { master.palette = (name == null || name === 'off') ? null : name; _open(); return name; };
     out.vmode   = (name) => { master.mode = (name == null) ? null : String(name); _open(); return name; };
-    // clear() — wipe the renderer's feedback/trails buffer (a clean reset); layers keep running
-    out.clear   = () => { clearSeq++; _open(); return 'clear'; };
+    // clear() — blank the video: stop every layer + the crossfader and wipe the feedback
+    // buffer, a full reset ([c] in the visuals window does the same).
+    out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };
     return out;
 }
 
@@ -143,7 +144,8 @@ export function snapshot(beat) {
     if (mixer) {
         let v = Number(resolveVisual(mixer.value, beat, mixer.dur)) || 0;
         v = Math.max(0, Math.min(1, v));
-        out.mix = { value: v, blend: blendIndex(mixer.blend) };
+        // blend resolves on the clock too → blend=2 (index), "screen" (name), or a pattern all work
+        out.mix = { value: v, blend: blendIndex(resolveVisual(mixer.blend, beat, mixer.dur)) };
     }
     return out;
 }
