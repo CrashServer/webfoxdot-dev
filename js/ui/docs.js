@@ -2063,6 +2063,104 @@ lead  >> pluck(Pvar([arp([0, 4, 7], "up"), melody()[:8]], 8), oct=[5, 6], dur=1/
 perc >> play(PEuclid2(5, 8, ".", "X"), dur=1/4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, leg=4, octclean=4, rate=0.5, ocsub=40, ocup=0.3, amp=0.26, octclean=0.53, ocsub=0.68, ocup=0.41, leg=12).sometimes("stutter", 3)`)}
     `, 'thelakeisgreen');
 
+    const no_harm = section('no_harm — svdk', `
+        ${note('A hard phrygian techno <code>#@</code> set by <b>svdk</b> — a distorted <code>a_bd</code> kick over evolving <code>dbass</code> / <code>ebass</code> / <code>a_daft</code> layers driven by <code>multicrush</code>, <code>resonbank</code> sweeps and feedback delays, stacked and re-soloed through the <code>#@noise2</code> parts into a <code>pbuild</code> techno engine. Boot + load the kit first, then put the cursor on <code>#@settings</code> and Ctrl+Enter — it auto-advances through the whole arrangement.')}
+        ${code(`#@settings(2)
+Clock.bpm = 138
+Root.default = "C"
+Scale.default = "phrygian"
+
+#@bd(8)
+k1 >> a_bd([0], oct=2, dur=1, distortion=4, punch=PLorenz(4, 8), amp=1, echo=0.125)
+
+
+#@snare(8)
+d1 >> play("....o...", dur=0.5, sample=9, comp=0.5, amp=0.8, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, mverb=0.2, echo=0.1, rate=(12, 6), pan=[-1, 1])
+
+#@bass(16)
+p1 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=3, cheapverb=0.5, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=2, tanh=1, spin=0, comp=0.1, amp=0.83, multicrush=0.6, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500)
+
+#@bass2(16)
+p2 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=4, cheapverb=0.1, cvdecay=1, cvdamp=0.1, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=1, tanh=1, spin=0, comp=0.1, amp=0.83, multicrush=var([0, 1], [14, 2]), mclowdrive=0.3, mcmiddrive=[2, 3,2, 2, 4, 5], mchighdrive=0, octclean=5, ocsub=10, ocup=0.6, mclofreq=300, mchifreq=2500).unison(3)
+
+#@bassone(16)
+p1 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=5, cheapverb=0.2, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=2, tanh=1, spin=0, comp=0.1, amp=0.83, multicrush=0.6, mclowdrive=1, mcmiddrive=0, mchighdrive=2, mclofreq=300, mchifreq=2500)
+
+#@hihat(16)
+h1 >> play("-", dur=0.25, hpf=8000, amp=Pacc("offbeat"))
+
+#@noise(16)
+p2 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=4, cheapverb=0.3, cvdecay=1, cvdamp=0.1, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=2, tanh=1, spin=0, comp=0.1, amp=0.83, multicrush=0.6, mclowdrive=1, mcmiddrive=2, mchighdrive=2, octclean=1, ocsub=5, ocup=0.4, mclofreq=300, mchifreq=2500, phaser=0.5).unison(3)
+
+#@noise2(16)
+p2 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=4, cheapverb=0.3, cvdecay=1, cvdamp=0.1, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=2, tanh=1, spin=0, comp=0.1, amp=0.83, multicrush=0.6, mclowdrive=1, mcmiddrive=2, mchighdrive=4, octclean=3, ocsub=6, ocup=0.6, mclofreq=300, mchifreq=2500, phaser=0.6, phaser_rate=4).unison(3)
+
+#@noise2(16)
+p1 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=6, cheapverb=0.5, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=2, tanh=0, spin=0, comp=0.1, amp=0.83, multicrush=0.2, mclowdrive=0.2, mcmiddrive=0, mchighdrive=2, mclofreq=300, mchifreq=2500)
+
+#@noise2(32)
+p1 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=6, cheapverb=0.5, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=1, tanh=0, spin=0, comp=0.1, amp=0.83, multicrush=0.6, resonbank=0.03, rbfreq=70, rbdecay=0.5, rbspread=1, mclowdrive=4, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500).unison(3)
+
+#@noise2(16)
+p2.oct=5
+p1.oct=5
+soloRnd()
+
+#@noise2(32)
+d1 >> play([--], sample=3)
+v2 >> play(X)
+h1 >> play("[-]", dur=0.25, hpf=8000, amp=Pacc("offbeat"))
+p2.oct=4
+p1.oct=4
+
+#@noise2(16)
+v3 >> a_bd(amp=4, click=4, sub=1, oct=3, tanh=4, dist2=0.3).unison(5)
+
+#@noise2(16)
+v3 >> a_bd(amp=4, click=40, sub=10, oct=3, tanh=1, dist2=0.2).unison(5).every(4, "stutter", click=12, oct=2)
+
+#@noise2(32)
+v4 >> play(pbuild("techno", evolve=8, fill=4, density=1, kick=1, snare=1, hat=1, perc=1), comp=0.5, compthresh=0.3, compratio=4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+soloRnd()
+
+#@noise2(16)
+p1 >> dbass([0, 3, 5, 0, 7, 5, 3, 0], oct=6, cheapverb=0.5, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=1, tanh=0, spin=0, comp=0.1, amp=0.83, multicrush=0.2, resonbank=linvar([0.03, 0.08], 128), rbfreq=70, rbdecay=0.5, rbspread=1, mclowdrive=4, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+
+#@noise2(16)
+v3 >> a_bd(amp=2, click=40, sub=50, oct=3, tanh=1, dist2=0.2).unison(5).every(4, "stutter", click=12, oct=2)
+v5 >> play([XX], comp=4, tanh=4, dist2=2)
+
+#@noise2(16)
+p1.comp=12
+
+#@noise2(16)
+p2.comp=24
+soloRnd()
+
+#@noise2(16)
+p2 >> pads([0, 3, 5, 0, 7, 5, 3, 0], oct=4, cheapverb=0.3, cvdecay=1, cvdamp=0.1, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=2, tanh=1, spin=0, comp=0.1, amp=0.83, multicrush=0.6, mclowdrive=1, mcmiddrive=2, mchighdrive=2, octclean=4, ocsub=4, ocup=4, mclofreq=300, mchifreq=2500, phaser=0.5).unison(3)
+
+#@noise2(16)
+p1 >> ebass([0, 3, 5, 0, 7, 5, 3, 0], oct=6, cheapverb=0.5, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=1, tanh=1, spin=0, comp=0.7, amp=0.83, multicrush=0.2, resonbank=linvar([0.03, 0.08], 128), rbfreq=12, rbdecay=0.5, rbspread=1, mclowdrive=4, mcmiddrive=8, mchighdrive=2, mclofreq=300, mchifreq=2500, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+
+#@noise2(16)
+v1 >> play(..C., fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, mverb=0.5, sample=4, echo=0.5, amp=2)
+
+#@noise2(16)
+v2 >> play([KKXX], amp=2)
+
+#@noise2(16)
+p1 >> a_daft([0, 3, 5, 0, 7, 5, 3, 0], oct=5, cheapverb=0.5, cvdecay=4, cvdamp=0.2, dur=0.25, cutoff=linvar([500, 4500], [8]), drive=1, tanh=0, spin=0, comp=0.1, amp=0.83, multicrush=0.2, resonbank=linvar([0.03, 0.08], 128), rbfreq=70, rbdecay=0.5, rbspread=1, mclowdrive=4, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02).unison(3)
+
+#@noise2(16)
+v6 >> play(V, amp=8).every(32, "stutter", 8)
+
+
+
+k1.oct=5
+v5.stop()`)}
+    `, 'no_harm');
+
     const flickering = section('Flickering Streets at Dawn — svdk', `
         ${note('A long dark <code>#@</code> set by <b>svdk</b> — detuned <code>synthbass</code> arps drifting through root &amp; scale changes, then an andalusian <code>darkpad</code> with rich <code>cs80</code> chords (<code>PRoman</code> / <code>PProg</code>) and a slow unwind to a lone <code>cs80</code>. Boot audio, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through the whole arrangement.')}
         ${code(`#flickering streets at dawn
@@ -2221,7 +2319,7 @@ v9 >> mix(linvar([0,1], 16), dur=1/4, blend="screen")   # auto-fade A -> B
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
