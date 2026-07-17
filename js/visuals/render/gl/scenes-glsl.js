@@ -15,6 +15,7 @@ export const SCENE_GLSL_ORDER = [
     'marble',
     'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
     'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
+    'barcode', 'equalizer', 'datamatrix',
 ];
 
 export const SCENE_GLSL = {
@@ -664,6 +665,34 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud){
         float rowPixR = hash2(vec2(sx + 8.8, row + frameId * 7919.0 + 1.3));
         val = (rowPixR < 0.6) ? (0.7 + bass * 0.3) : 0.0;
     }
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    barcode: `float scene_barcode(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float x = fract(u * 0.5 + t * sp * 0.08);
+    float e = spec(x);
+    float lines = 0.5 + 0.5 * sin(u * sc * 200.0);
+    return e > 0.4 ? (0.4 + 0.6 * lines) * (0.5 + e * 0.5) : 0.0;
+}`,
+
+    equalizer: `float scene_equalizer(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float h = spec(u) * 0.95;
+    float bar = step(1.0 - h, v);
+    float gap = step(0.1, fract(u * 32.0 * sc));
+    return bar * gap;
+}`,
+
+    datamatrix: `float scene_datamatrix(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float cu = floor(u * 128.0 * sc), cv = floor(v * 64.0 * sc);
+    float th = 0.3 + 0.14 * hash2(vec2(cu, cv));
+    float e = spec(u);
+    float val = e > th ? (0.55 + e * 0.45) : 0.0;
+    float scanV = fract(t * sp * 0.1);
+    float sd = abs(v - scanV);
+    if (sd < 0.03) val = max(val, (0.55 + aud.w * 0.45) * (1.0 - sd / 0.03));
     return clamp(val, 0.0, 1.0);
 }`,
 };

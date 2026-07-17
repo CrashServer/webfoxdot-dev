@@ -51,7 +51,12 @@ function sceneFrag() {
     SCENE_GLSL_ORDER.forEach((n, i) => { dispatch += `  ${i ? 'else ' : ''}if(id==${i}) return scene_${n}(uv,t,sp,sc,a);\n`; });
     dispatch += '  return 0.0;\n}\n';
 
-    return PRELUDE + bodies + '\n' + dispatch + `
+    // uSpec + spec() go BEFORE the scene bodies so FFT scenes (barcode/datamatrix/…) can
+    // sample the 32-bin spectrum by u ∈ [0,1].
+    const specDecl = `uniform float uSpec[32];
+float spec(float u){ int i = int(clamp(u, 0.0, 0.99999) * 32.0); return uSpec[i]; }
+`;
+    return PRELUDE + specDecl + bodies + '\n' + dispatch + `
 uniform vec2  uRes;
 uniform float uTime;
 uniform vec4  uAud;              // bass, mid, treble, level
@@ -279,7 +284,7 @@ export function createGLRenderer(canvas) {
     // uniform locations — scene program
     const uLoc = {};
     for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
-        'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
+        'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB', 'uSpec']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
         'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate']) pLoc[n] = gl.getUniformLocation(presentProg, n);
@@ -335,6 +340,7 @@ export function createGLRenderer(canvas) {
 
     // reusable uniform scratch
     const L0 = new Float32Array(MAXL * 4), L1 = new Float32Array(MAXL * 4), L2 = new Float32Array(MAXL * 4);
+    const SPEC = new Float32Array(32);            // FFT spectrum → uSpec[32]
 
     // build one deck's per-layer uniform rows + its palette/hue (last layer on the deck wins)
     function pack(layers, base, count, globalPal) {
@@ -381,6 +387,8 @@ export function createGLRenderer(canvas) {
         gl.uniform2f(uLoc.uRes, W, H);
         gl.uniform1f(uLoc.uTime, tSec);
         gl.uniform4f(uLoc.uAud, aud.bass || 0, aud.mid || 0, aud.treble || 0, aud.level || 0);
+        const sp = aud.spectrum; if (sp) { for (let i = 0; i < 32; i++) SPEC[i] = sp[i] || 0; }
+        gl.uniform1fv(uLoc.uSpec, SPEC);
         gl.uniform1f(uLoc.uNPal, NPAL);
         gl.uniform1f(uLoc.uTrails, trails);
         gl.uniform1f(uLoc.uFeedback, feedback);

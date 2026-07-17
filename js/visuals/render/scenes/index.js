@@ -46,6 +46,9 @@ import mobius       from './mobius.js';
 import hexdump      from './hexdump.js';
 import lissajous    from './lissajous.js';
 import ikedaglitch  from './ikedaglitch.js';
+import barcode      from './barcode.js';
+import equalizer    from './equalizer.js';
+import datamatrix   from './datamatrix.js';
 
 const list = [
     plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
@@ -53,6 +56,7 @@ const list = [
     helix, mandala, lattice, truchet, noise, rings, spectrum, marble,
     testpattern, interference, biomech, escher, circuit, panopticon,
     penrose, mobius, hexdump, lissajous, ikedaglitch,
+    barcode, equalizer, datamatrix,
 ];
 const byName = new Map(list.map((s) => [s.name, s]));
 

@@ -26,7 +26,7 @@ if (!glr) console.warn('visuals: WebGL2 unavailable — falling back to the CPU 
 
 let W = 0, H = 0;
 const grid = makeGrid(9);                        // CPU grid (glyph + fallback only)
-const aud = { bass: 0, mid: 0, treble: 0, level: 0 };
+const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: AUD.spectrum };
 let beatPulse = 0;
 let lastClearSeq = 0;
 let lastRes;                                     // last applied vres() scale
@@ -104,6 +104,7 @@ function loop(ts) {
     const t = ts / 1000;
     aud.bass += (AUD.bass - aud.bass) * 0.35; aud.mid += (AUD.mid - aud.mid) * 0.35;
     aud.treble += (AUD.treble - aud.treble) * 0.35; aud.level += (AUD.level - aud.level) * 0.35;
+    aud.spectrum = AUD.spectrum;                          // FFT bins (unsmoothed) for the spectrum scenes
     beatPulse *= 0.85; if (S.beatPulse) { beatPulse = 1; S.beatPulse = false; }
 
     if (V.res !== lastRes) { lastRes = V.res; if (glr) glr.setResolution(V.res); }

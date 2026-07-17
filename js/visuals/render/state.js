@@ -4,7 +4,7 @@
 // plain-number `vstate`, so nothing here has to know about patterns.
 
 export const V   = { layers: [], mix: null, palette: null, mode: null, res: null, clearSeq: 0 };   // visual language
-export const AUD = { bass: 0, mid: 0, treble: 0, level: 0, bpm: 120, beat: 0, bar: 0, section: '', autoplay: false };
+export const AUD = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(32).fill(0), bpm: 120, beat: 0, bar: 0, section: '', autoplay: false };
 export const S   = { lastMsg: 0, beatPulse: false, lastBeat: -1 };
 
 const chan = new BroadcastChannel('crashdot-visuals');
@@ -16,6 +16,7 @@ chan.onmessage = (e) => {
         if (typeof m.clearSeq === 'number') V.clearSeq = m.clearSeq;
     } else if (m.t === 'audio') {
         AUD.bass = m.bass; AUD.mid = m.mid; AUD.treble = m.treble; AUD.level = m.level;
+        if (Array.isArray(m.spectrum)) AUD.spectrum = m.spectrum;
         AUD.bpm = m.bpm; AUD.beat = m.beat; AUD.bar = m.bar;
         AUD.section = m.section || ''; AUD.autoplay = !!m.autoplay;
         const fb = Math.floor(m.beat);

@@ -84,8 +84,9 @@ export function startVisualsAudio(sc, clock, getMeta) {
     if (!_timer) _timer = setInterval(_tick, 33);   // ~30 Hz
 }
 
+const SPEC_BINS = 32;
 function _bands() {
-    if (!_an) return { bass: 0, mid: 0, treble: 0, level: 0 };
+    if (!_an) return { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(SPEC_BINS).fill(0) };
     _an.getByteFrequencyData(_freq);
     const n = _freq.length;
     const avg = (a, b) => {
@@ -93,11 +94,21 @@ function _bands() {
         for (let i = lo; i < hi; i++) s += _freq[i];
         return hi > lo ? s / ((hi - lo) * 255) : 0;
     };
+    // 32-bin spectrum for the FFT scenes — perceptual (square-law) bin edges give the
+    // lows more resolution, and we ride the useful lower ~85% of the range.
+    const spectrum = new Array(SPEC_BINS);
+    const top = Math.floor(n * 0.85);
+    for (let i = 0; i < SPEC_BINS; i++) {
+        const f0 = Math.floor(Math.pow(i / SPEC_BINS, 2) * top);
+        const f1 = Math.max(f0 + 1, Math.floor(Math.pow((i + 1) / SPEC_BINS, 2) * top));
+        spectrum[i] = avg(f0, f1);
+    }
     return {
         bass:   avg(0,        n * 0.08),
         mid:    avg(n * 0.08, n * 0.40),
         treble: avg(n * 0.40, n),
         level:  avg(0,        n),
+        spectrum,
     };
 }
 
