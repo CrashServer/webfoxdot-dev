@@ -35,11 +35,18 @@ import noise     from './noise.js';
 import rings     from './rings.js';
 import spectrum  from './spectrum.js';
 import marble    from './marble.js';
+import testpattern  from './testpattern.js';
+import interference from './interference.js';
+import biomech      from './biomech.js';
+import escher       from './escher.js';
+import circuit      from './circuit.js';
+import panopticon   from './panopticon.js';
 
 const list = [
     plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
     fire, aurora, kaleido, warp, metaballs, hexgrid, checker, swarm, flow, contour, voronoi,
     helix, mandala, lattice, truchet, noise, rings, spectrum, marble,
+    testpattern, interference, biomech, escher, circuit, panopticon,
 ];
 const byName = new Map(list.map((s) => [s.name, s]));
 

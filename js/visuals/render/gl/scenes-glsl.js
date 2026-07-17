@@ -13,6 +13,7 @@ export const SCENE_GLSL_ORDER = [
     'grid', 'ripple', 'fire', 'aurora', 'kaleido', 'warp', 'metaballs', 'hexgrid', 'checker', 'swarm',
     'flow', 'contour', 'voronoi', 'helix', 'mandala', 'lattice', 'truchet', 'noise', 'rings', 'spectrum',
     'marble',
+    'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
 ];
 
 export const SCENE_GLSL = {
@@ -348,5 +349,163 @@ export const SCENE_GLSL = {
         f *= 2.0; amp *= 0.5;
     }
     return sin((u + v) * 8.0 * sc + turb * 6.0) * 0.5 + 0.5;
+}`,
+
+    testpattern: `float scene_testpattern(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x;
+    float grating = 0.5 + 0.5 * sin(u * 40.0 * sc * 6.28318 + t * sp * 2.0 + bass * 8.0);
+    float blocks = max(2.0, floor(12.0 * sc + 0.5));
+    float bx = floor(u * blocks), by = floor(v * blocks * 0.6), tick = floor(t * sp * 8.0);
+    float hraw = sin((bx + by * 0.13) * 127.1 + (tick + 0.5) * 311.7) * 43758.5453;
+    float h = hraw - floor(hraw);
+    float block = h > (0.82 - bass * 0.3) ? 1.0 : 0.0;
+    float scan = max(0.0, 1.0 - abs(mod(v - t * sp * 0.3, 1.0) - 0.02) / 0.03);
+    return min(1.0, max(max(pow(grating, 2.0) * block, block * 0.9), scan));
+}`,
+
+    interference: `float scene_interference(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    vec2 p = (vec2(u, v) - 0.5) * 2.0;
+    float freq = 8.0 * sc, contrast = 1.5, audioReact = 1.0;
+    float tt = t * sp;
+    const int NS = 4;
+    float s = 0.0;
+    for (int i = 0; i < NS; i++){
+        float fi = float(i);
+        vec2 src = vec2(cos(tt * 0.5 + fi * 2.1), sin(tt * 0.4 + fi * 1.7)) * 0.6;
+        s += sin(length(p - src) * freq * (1.0 + aud.x * audioReact) - tt * 2.0);
+    }
+    float n = 0.5 + 0.5 * s / float(NS);
+    n = pow(clamp(n, 0.0, 1.0), contrast);
+    return clamp(n, 0.0, 1.0);
+}`,
+
+    biomech: `float scene_biomech(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x, mid = aud.y, beat = aud.x;
+    float tt = t * sp;
+    float sway = sin(v * 8.0 + tt * 1.5) * (0.03 + bass * 0.02);
+    float du = abs(u - (0.5 + sway));
+    du = min(du, 1.0 - du);
+    float val = exp(-(du * du) * 6000.0) * (0.55 + bass * 0.35);
+    float vertebraT = fract(v * 20.0 + tt * 0.4);
+    float vert = exp(-(vertebraT - 0.5) * (vertebraT - 0.5) * 50.0);
+    float vertebraW = exp(-(du * du) * 900.0);
+    val = max(val, vert * vertebraW * (0.55 + mid * 0.35));
+    float ribT = fract(v * 8.0 + tt * 0.2);
+    if (ribT > 0.12 && ribT < 0.20){
+        float ribW = 0.15 + mid * 0.08 + beat * 0.05;
+        float armDist = du - 0.005;
+        if (armDist > 0.0 && armDist < ribW){
+            float fall = 1.0 - armDist / ribW;
+            val = max(val, fall * (0.5 + beat * 0.4));
+        }
+    }
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    escher: `float scene_escher(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x, beat = aud.x;
+    float tt = t * sp;
+    float cx = (u - 0.5) * 1.8;
+    float cy = (v - 0.5) * 1.8;
+    float angle = 0.25 + tt * 0.2 + bass * 0.3;
+    float ca = cos(angle), sa = sin(angle);
+    float rx = ca * cx - sa * cy;
+    float ry = sa * cx + ca * cy;
+    float stepsPerCycle = 10.0 * max(sc, 0.3);
+    float stepIdx = rx * stepsPerCycle * 0.5 + ry * stepsPerCycle * 0.25;
+    float stepFrac = fract(stepIdx);
+    float cycleIdx = floor(stepIdx + tt * 0.5);
+    float val = 0.0;
+    float topEdge = abs(stepFrac - 0.5);
+    if (topEdge < 0.06) val = max(val, 1.0 - topEdge / 0.06);
+    float r = length(vec2(cx, cy));
+    val *= max(0.0, 1.0 - r * 1.2);
+    val *= 0.6 + 0.4 * bass;
+    if (beat > 0.3){
+        if (hash2(vec2(cycleIdx, floor(tt * 2.0))) < 0.125){
+            val = max(val, beat * 0.9);
+        }
+    }
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    circuit: `float scene_circuit(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float tt = t * sp;
+    float grid = max(6.0, floor(12.0 * sc + 0.5));
+    float halfN = max(2.0, floor(grid * 0.5));
+    float cellU = 1.0 / grid;
+    float cellV = 1.0 / halfN;
+    float cx = floor(u / cellU);
+    float cy = floor(v / cellV);
+    float localU = (u - cx * cellU) / cellU;
+    float localV = (v - cy * cellV) / cellV;
+    float prob = 0.5;
+    bool hTrace = hash2(vec2(cx, cy)) < 0.5 && hash2(vec2(cx, cy) + 7.3) < prob;
+    bool vTrace = hash2(vec2(cx, cy) + 3.1) < 0.5 && hash2(vec2(cx, cy) + 11.7) < prob;
+    float traceWidth = 0.04;
+    float val = 0.0;
+    if (hTrace && abs(localV - 0.5) < traceWidth){
+        float fall = 1.0 - abs(localV - 0.5) / traceWidth;
+        val = max(val, fall * 0.7);
+    }
+    if (vTrace && abs(localU - 0.5) < traceWidth){
+        float fall = 1.0 - abs(localU - 0.5) / traceWidth;
+        val = max(val, fall * 0.7);
+    }
+    if (hTrace && vTrace){
+        float dr = length(vec2(localU - 0.5, localV - 0.5));
+        if (dr < 0.15){
+            float fall = 1.0 - dr / 0.15;
+            fall = fall * fall;
+            val = max(val, fall * 0.9 * (1.0 + aud.x));
+        }
+    }
+    if (hTrace){
+        float pulsePos = fract(tt * 0.3 * (1.0 + aud.x) + cy * 0.17);
+        float dp = abs(localU - pulsePos);
+        if (dp < 0.08 && abs(localV - 0.5) < traceWidth * 1.5){
+            float pulse = exp(-(dp * dp) * 600.0);
+            val = max(val, pulse);
+        }
+    }
+    return clamp(val, 0.0, 1.0);
+}`,
+
+    panopticon: `float scene_panopticon(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float cu = u - 0.5, cv = v - 0.5;
+    float r = length(vec2(cu, cv)) * 2.0;
+    float theta = atan(cv, cu);
+    if (theta < 0.0) theta += 2.0 * PI;
+    if (r > 1.05) return 0.0;
+    const int N = 6;
+    float val = 0.0;
+    float eyeRadius = 0.12;
+    for (int i = 0; i < N; i++){
+        float ang = 2.0 * PI * float(i) / float(N);
+        float rr = 0.35;
+        float ex = rr * cos(ang);
+        float ey = rr * sin(ang);
+        float d = length(vec2(cu - ex, cv - ey));
+        if (d < eyeRadius){
+            float fall = 1.0 - d / eyeRadius;
+            fall = fall * fall;
+            val = max(val, fall * (0.8 + aud.x * 0.2));
+        }
+        float dAng = abs(theta - ang);
+        if (dAng > PI) dAng = 2.0 * PI - dAng;
+        if (dAng < 0.015 && r < 0.6){
+            float fall = 1.0 - dAng / 0.015;
+            val = max(val, fall * 0.3);
+        }
+    }
+    if (abs(cu) < 0.003 && abs(cv) < 0.15) val = max(val, 0.6);
+    if (abs(cv) < 0.003 && abs(cu) < 0.15) val = max(val, 0.6);
+    return clamp(val, 0.0, 1.0);
 }`,
 };
