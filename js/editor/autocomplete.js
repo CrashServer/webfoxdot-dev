@@ -322,6 +322,12 @@ function getContext(cm) {
     // Are we inside an unclosed function call? Scan bracket depth so nested
     // chords/groups/arrays (which contain their own ")") don't fool us.
     const call = enclosingCall(before);
+    // `videoN >> scene() + ` — chaining a post-FX on a video line, at top level (not in a
+    // call). Offer the FX so `+ blur…` autocompletes.
+    if (!(call && call.fn) && /^\s*video\d*\s*>>/.test(line)) {
+        const plusM = before.match(/\+\s*([a-zA-Z_]*)$/);
+        if (plusM) return { type: 'vfx', word: plusM[1] };
+    }
     if (call && call.fn) {
         // ── Visual language: scene(...) / mix(...) / palette(...) / vmode(...) ──
         const vfn = call.fn;
@@ -489,6 +495,9 @@ function hintFn(cm) {
             list = [playItem(), ...synthFamilyList()];
         }
         list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
+    } else if (ctx.type === 'vfx') {
+        // `+ ` chain on a video line → the post-FX (not mix — that's a separate crossfader)
+        list = filter(VFX_NAMES.map(n => item(n + '()', 'hint-param', n)));
     } else if (ctx.type === 'vparam') {
         const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;
         list = filter(ps.map(p => item(p, 'hint-param', p.replace('=', ''))));
