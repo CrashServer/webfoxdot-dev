@@ -1,5 +1,7 @@
 // Editor keybinding handlers.
 
+import { stopVisual } from '../visuals/vlang.js';
+
 // Nudge the number under the cursor by delta, then re-eval (the caller passes the
 // run fn — the current line, so a nudge only updates that player).
 export function incrementValue(cm, delta, runFn) {
@@ -66,7 +68,7 @@ export function stopPlayerAtCursor(cm, clock, runLineFn) {
             { line: lineNo, ch: 0 },
             { line: lineNo, ch: line.length });
         const name = playerNameFromLine(line);
-        if (name) clock._players.get(name)?.stop(STOP_GRID);   // quantised to next bar
+        if (name) { clock._players.get(name)?.stop(STOP_GRID); stopVisual(name); }   // audio (quantised) + video
     }
 }
 

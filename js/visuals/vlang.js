@@ -132,8 +132,14 @@ export function getVisualPlayer(name) {
 }
 export function isVisualName(name) { return /^v\d+$/.test(name); }
 export function isScene(name) { return SCENE_SET.has(name); }
+// True if `name` is CURRENTLY a live video layer or the crossfader — any name can be
+// video, so autocomplete uses this (not a naming convention) to float scenes first.
+export function isVideoLayer(name) { return layers.has(name) || (!!mixer && mixer.owner === name); }
 
 export function clearAll() { layers.clear(); mixer = null; }   // shutup()/panic
+// Stop one video player by name (its layer or the crossfader it owns) — used by Alt+X /
+// .stop() so video stops like any other player.
+export function stopVisual(name) { layers.delete(name); if (mixer && mixer.owner === name) mixer = null; }
 export function hasContent() { return layers.size > 0 || !!mixer; }
 
 // The resolved, serialisable state for the renderer (called on the clock tick).

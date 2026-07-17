@@ -5,6 +5,7 @@
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
 import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
+import { isVideoLayer } from '../visuals/vlang.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
@@ -473,15 +474,23 @@ function hintFn(cm) {
         // any player can be either; the RHS you pick decides. A scene pick inserts the
         // full knob call (sceneItem), like a synth. When the player is a vN (video by
         // convention), the visuals block floats to the TOP so it's the first thing offered.
+        // Any player can be video (v1, x4, z2, video, …) — so scenes are ALWAYS listed
+        // FLAT and directly choosable (audio synths stay compact under family flyouts).
+        // Scenes float to the TOP when the name looks/behaves like video: a vN name, a
+        // name containing "vid", or one that's already a live video layer.
+        // Scenes/mix/fx/play are flat LEAVES; the synth families are sep-categories
+        // (flyouts). toTree() only keeps leaves top-level while they come BEFORE the first
+        // sep — so every flat item must precede synthFamilyList(). videoish → scenes lead;
+        // otherwise play leads (audio anchor) but the scenes still sit flat and visible.
         const scenes = VSCENES.map(sceneItem);
         const vfx = [item('mix()', 'hint-keyword', 'mix'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
-        const audio = [playItem(), ...synthFamilyList()];
-        const isVid = /^v\d+$/.test(ctx.player || '');
-        // A vN (video) player lists SCENES FLAT up front — directly choosable, no flyout —
-        // then the audio synths (their families as flyouts). Any other name: audio first,
-        // with the scenes tucked under a "visuals" flyout.
-        list = isVid ? [...scenes, ...vfx, ...audio]
-                     : [...audio, sep('visuals'), ...scenes, ...vfx];
+        const play = playItem();
+        const families = synthFamilyList();
+        const p = ctx.player || '';
+        let videoish = /^v\d+$/.test(p) || /vid/i.test(p);
+        try { videoish = videoish || isVideoLayer(p); } catch (_) {}
+        list = videoish ? [...scenes, ...vfx, play, ...families]
+                        : [play, ...scenes, ...vfx, ...families];
         list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
     } else if (ctx.type === 'vparam') {
         const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;
