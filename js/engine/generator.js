@@ -18,12 +18,12 @@ const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx|
 // Rough role → so we pick musically-appropriate patterns/octaves per synth. Every
 // synth is classified so none falls through to a generic 'lead' by accident.
 const ROLES = {
-    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk', 'dab', 'growl', 'a_xbass'],
-    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab', 'varsaw', 'war', 'fuzz', 'guitar'],
-    pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad', 'a_vpad'],
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk', 'dab', 'growl', 'a_xbass', 'doom', 'glitchbass', 'lbass', 'wob', 'acidline', 'superbass'],
+    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab', 'varsaw', 'war', 'fuzz', 'guitar', 'tekno', 'dirt', 'hardstab', 'darklead', 'virus'],
+    pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad', 'a_vpad', 'industrialdrone', 'gaze', 'waves'],
     keys:  ['bell', 'basic', 'karp', 'rhodes', 'piano', 'sine', 'rsin', 'klank'],
     pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin', 'arpy'],
-    perc:  ['a_bd', 'a_hhat', 'compkick'],
+    perc:  ['a_bd', 'a_hhat', 'compkick', 'industrialsnare', 'crunch'],
 };
 const roleOf = (n) => { for (const [r, list] of Object.entries(ROLES)) if (list.includes(n)) return r; return 'lead'; };
 
@@ -75,13 +75,72 @@ const freqVal = (lo, hi) => {
         `var([${rint(lo, hi)}, ${rint(lo, hi)}, ${rint(lo, hi)}], ${pick([4, 8])})`]);
 };
 
+// ── deeper structure builders (nesting · tuplets · polymeter · sus) ────────────
+// A degree/dur list whose slots can themselves recurse into sub-lists — per-bar →
+// per-beat → per-16th subdivisions.
+const deepList = (lo, hi, depth = 2) => '[' + Array.from({ length: rint(2, 4) }, (_, i) =>
+    (i > 0 && depth > 0 && chance(0.4)) ? deepList(lo, hi, depth - 1) : rint(lo, hi)).join(', ') + ']';
+// A simultaneous group whose members can be subdivided — (0, [4, 7], 2) = root + a
+// two-note ratchet + a third voice, all struck together.
+const chordSub = () => '(' + Array.from({ length: rint(2, 4) }, (_, i) =>
+    (i > 0 && chance(0.35)) ? `[${rint(0, 7)}, ${rint(0, 7)}]` : rint(0, 7)).join(', ') + ')';
+// Tuplet / ratchet durations — a slot subdivided into 2..4 hits (flam, roll, triplet).
+const tupletDur = () => pick(['[1/4, [1/8, 1/8]]', '[1/2, [1/4, 1/4, 1/4]]', '[1/4, [1/8, 1/8, 1/8]]',
+    '[1, [1/2, 1/2]]', '[1/2, 1/4, [1/8, 1/8]]', '[1/4, [1/8, [1/16, 1/16]]]',
+    '[1/2, [1/4, [1/8, 1/8]]]', '[3/4, 1/4, [1/8, 1/8]]', '[1/4, 1/4, 1/6, 1/6, 1/6]']);
+// Polymeter — durations that cycle against the bar so the phrase drifts and re-aligns.
+const polyDur = () => pick([`var([1/4, 1/3, 1/2], [${pick([3, 5])}, ${pick([4, 7])}, ${pick([2, 3])}])`,
+    `PDur([${rint(3, 5)}, ${rint(5, 7)}], ${pick([8, 16])})`, `Pvar([PDur(3, 8), PDur(5, 8)], ${pick([8, 16])})`,
+    `PDur(${rint(5, 7)}, ${pick([8, 12, 16])})`, '[1/4, 1/4, 1/3, 1/3, 1/3]']);
+// sus (note length) shaped per role — staccato / palm-mute vs legato / swell, often evolving.
+const susVal = (role) => role === 'bass'
+        ? pick(['0.1', flt(0.2, 0.5), 'PDur(3,8)*0.9', 'var([0.1, 0.5], 8)', `[${flt(0.1, 0.3)}, ${flt(0.4, 0.8)}]`])
+    : (role === 'pad' || role === 'keys')
+        ? pick(['2', '4', 'linvar([2, 6], [16])', `var([2, 4], ${pick([8, 16])})`, 'sinvar([2, 8], [16])'])
+        : pick(['0.1', flt(0.1, 0.4), 'PWhite(0.1, 0.6)', `[${flt(0.1, 0.3)}, ${flt(0.5, 1.5)}]`, 'var([0.1, 1], 8)', 'sinvar([0.1, 0.8], [8])']);
+
+// A generator FUNCTION usable as a degree — meant to be NESTED inside a list so a single
+// line already contains an arp / walk / motif alongside plain notes. (No [:n] slices here —
+// they don't transpile safely inside a list literal.)
+const fnDeg = (lo = 0, hi = 7) => pick([
+    `arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown'])}")`,
+    `motif(${rint(2, 4)})`, `melody()`, `PWalk(${rint(3, 5)}, 1)`, `PxRand(${lo}, ${hi})`,
+    `PSine(${lo}, ${hi})`, `PBrown(${lo}, ${hi}, 1)`, `PGrowArp(${CHORDLIST()})`,
+    `PShuf([${lo}, ${rint(2, 4)}, ${hi}])`, `PContour(${rint(0, 3)}, 4, ${hi})`]);
+// A list that MIXES plain degrees, nested ratchets, chord voices, rests AND nested
+// generator functions — e.g. [0, arp([0,4,7], "up"), (2,5), PWalk(3,1)] — so a single
+// degree already evolves within the bar instead of repeating one flat shape.
+const mixList = (lo, hi) => '[' + Array.from({ length: rint(3, 5) }, (_, i) => {
+    if (i === 0) return rint(lo, Math.min(hi, lo + 2));            // anchor low
+    const r = Math.random();
+    if (r < 0.30) return fnDeg(lo, hi);                            // nested function
+    if (r < 0.46) return `[${rint(lo, hi)}, ${rint(lo, hi)}]`;     // ratchet
+    if (r < 0.58) return `(${rint(0, 4)}, ${rint(4, 7)})`;         // chord voice
+    if (r < 0.68) return '_';                                      // rest
+    return rint(lo, hi);
+}).join(', ') + ']';
+// A duration list that nests rhythm-generator functions (PDur/PBeat) among plain values.
+const mixDur = () => '[' + Array.from({ length: rint(2, 4) }, (_, i) => {
+    const r = Math.random();
+    if (r < 0.28) return pick(['PDur(3,8)', 'PDur(5,8)', 'PBeat("x xx x")']);
+    if (r < 0.48) return pick(['[1/8, 1/8]', '[1/4, 1/4]', '[1/8, 1/8, 1/8]']);
+    return pick(['1/4', '1/2', '1', '3/4', '1/8']);
+}).join(', ') + ']';
+
 // Degree strategies — the clever bit: draw widely from the pattern library per role.
 function degBass() {
     return pick([`[0]`, `[0, 0, ${rint(3, 7)}, 0]`, `[0, ${rint(-3, 0)}, ${rint(3, 7)}, 0]`,
                  `PRange(0, 4)`, randList(rint(2, 4), 0, 5), `[0, {0, 3, 5}]`, restList(4, 0, 5),
                  `PWalk(4, 1)`, `PxRand(0, 5)`, `[0, [0, 5], ${rint(2, 5)}, 0]`, `PStep(4, ${rint(3, 7)}, 0)`,
                  `PSaw(0, ${rint(3, 5)})`, `PLorenz(0, ${rint(3, 5)})`, nestList(rint(3, 4), 0, 5),
-                 `PPing([0, ${rint(2, 5)}, ${rint(-3, 0)}])`]);
+                 `PPing([0, ${rint(2, 5)}, ${rint(-3, 0)}])`,
+                 // deeper / grittier riff shapes
+                 deepList(-2, 5, 2), `[0, 0, [-5, -7], 0]`, `[0, [0, 7], ${rint(-3, 0)}, [0, 5]]`,
+                 `[0, 0, -5, -5, -7, -7, 0, 0]`, `${chordSub()}`, `[(0, ${rint(3, 7)}), 0, ${rint(-3, 0)}]`,
+                 `PStutter([0, ${rint(-3, 0)}, ${rint(3, 7)}], [${rint(3, 6)}, 1, ${rint(1, 3)}])`,
+                 `P[0, 0, ${rint(3, 7)}, 0] + P*[0, 0, 0, ${rint(5, 7)}]`,
+                 // lists that nest generator functions among the notes
+                 mixList(-2, 5), mixList(0, 5)]);
 }
 function degLead() {
     return pick([`arp(${CHORDLIST()}, "${pick(['up', 'down', 'updown', 'downup'])}")`, `PArp(${CHORDLIST()}, ${rint(0, 9)})`,
@@ -96,13 +155,29 @@ function degLead() {
                  `PLogistic(3.9, ${flt(0.3, 0.7)}, 0, ${rint(5, 9)})`,
                  `PPing(${randList(rint(3, 5), 0, 7)})`, `PDelta(${zeroDeltas()}, ${rint(0, 3)})`,
                  nestList(rint(3, 5), 0, 7),
-                 `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9)]);
+                 `P*${randList(rint(3, 5), 0, 9)}`, randList(rint(3, 6), 0, 9),
+                 // deeper nesting + chord/arp hybrids + layered transforms
+                 deepList(0, 9, 2), deepList(-3, 9, 2), `${chordSub()}`,
+                 `[${rint(0, 5)}, ${chordSub()}, ${rint(0, 7)}, [${rint(0, 7)}, ${rint(0, 7)}]]`,
+                 `arp(${CHORDLIST()}, "up") + P[0, 0, ${rint(3, 5)}]`,
+                 `PZip(${randList(rint(3, 4), 0, 7)}, ${randList(rint(3, 4), 0, 7)})`,
+                 `PStutter(${randList(rint(3, 4), 0, 7)}, [${rint(2, 4)}, 1, ${rint(1, 3)}])`,
+                 `P${randList(rint(3, 5), 0, 7)}.stretch(${pick([8, 16])})`,
+                 `P${randList(rint(3, 5), 0, 9)}.palindrome()`, `melody()[:${rint(5, 9)}] + P*[0, ${rint(3, 7)}]`,
+                 `PIndex(${rint(0, 4)}, ${randList(rint(4, 6), 0, 9)})`,
+                 // lists that nest generator functions among the notes
+                 mixList(0, 8), mixList(-3, 9), mixList(0, 7)]);
 }
 function degPad() {
     return pick([`PRoman(${ROMAN()})`, `PProg("${pick(['50s', '251', 'pop', 'andalusian', 'canon'])}")`, `PProg(${rint(0, 6)})`,
                  `PChord(0, "${pick(['7', '9', 'sus4', 'add9', '11'])}")`, `PCircle(8, 0, "7")`,
                  `P${CHORDLIST()}.layer("add", ${rint(2, 4)})`,
-                 `[0, (0,4,7), 5, (2,5,9)]`, `(0,4,7,11)`, `PZip(${CHORDLIST()}, ${randList(3, 4, 9)})`]);
+                 `[0, (0,4,7), 5, (2,5,9)]`, `(0,4,7,11)`, `PZip(${CHORDLIST()}, ${randList(3, 4, 9)})`,
+                 // nested voicings + evolving chord qualities
+                 `[(0,4,7), [(2,5,9), (4,7,11)], (5,9,0)]`, `PChord(0, var(["7", "9", "add9", "m7"], ${pick([8, 16])}))`,
+                 `Pvar([PRoman(${ROMAN()}), PRoman(${ROMAN()})], ${pick([8, 16])})`,
+                 `PProg("${pick(['50s', '251', 'andalusian', 'canon'])}").layer("add", ${rint(2, 4)})`,
+                 `[(0,4,7), (0,3,7), [(0,5,7), (0,4,7,11)]]`]);
 }
 const degForRole = (role) => role === 'bass' ? degBass()
     : (role === 'pad' || role === 'keys') ? degPad()
@@ -110,10 +185,22 @@ const degForRole = (role) => role === 'bass' ? degBass()
     : role === 'pluck' ? (chance(0.5) ? degLead() : pick([`PCircle(8)`, `arp(${CHORDLIST()}, "up")`, `PGrowArp(${CHORDLIST()})`, randList(rint(3, 6), 0, 9)]))
     : degLead();
 
-const durForRole = (role) => role === 'bass' ? pick(['1/2', '1', '1', '2', 'PDur(3,8)', 'PDur([3,5],8)', '[1, [1/2, 1/2]]', 'var([1, 1/2], 8)'])
-    : (role === 'pad' || role === 'keys') ? pick(['2', '4', '4', '1', '[2, 4]', '[4, [2, 2]]', 'Pvar([2, 4], 16)'])
-    : role === 'perc' ? pick(['1/4', '1/4', '1/2', '1', 'PDur(3,8)', 'PDur(5,8)', 'PBeat("x xx x")', '[1/4, 1/2]', '[1/4, [1/8, 1/8]]'])
-    : pick(['1/4', '1/4', '1/2', 'PDur(3,8)', `PDur([3,5],8)`, 'PGroove("swing")', 'PGroove("gallop")', `PGroove(${rint(0, 9)})`, 'PBeat("x xx x")', '[1/4, 1/2]', '[1/4, [1/4, 1/2]]', 'var([1/4, 1/2], 8)', 'Pvar([1/4, 1/2], 8)']);
+const durForRole = (role) => {
+    // ~1 in 3 non-pad lines gets an intricate rhythm: tuplet, polymeter, or a mixed list
+    // that nests rhythm-generator functions (PDur/PBeat) among plain durations.
+    if (role !== 'pad' && role !== 'keys' && chance(0.34)) return pick([tupletDur(), polyDur(), mixDur(), mixDur()]);
+    if (role === 'bass') return pick(['1/2', '1', '2', '3/4', '4/3', 'PDur(3,8)', 'PDur([3,5],8)', 'PDur([3,3,2],8)', 'PDur(5,8)',
+        '[1, [1/2, 1/2]]', '[1, [1/2, [1/4, 1/4]]]', '[3/4, 1/4]', '[2, 1, 1]', 'var([1, 1/2], 8)', 'var([2, 1, 1/2], [2, 3, 3])', 'PBeat("x x xx")']);
+    if (role === 'pad' || role === 'keys') return pick(['2', '4', '1', '3', '8', '[2, 4]', '[4, [2, 2]]', '[4, [2, [1, 1]]]', '[1, 2, 1]',
+        'Pvar([2, 4], 16)', 'var([4, 2], [3, 1])', 'linvar([2, 6], [16])', 'var([4, 2, 3], 8)']);
+    if (role === 'perc') return pick(['1/4', '1/2', '1', '1/8', '1/3', 'PDur(3,8)', 'PDur(5,8)', 'PDur(5,16)', 'PBeat("x xx x")', 'PBeat("x x xx x")',
+        '[1/4, 1/2]', '[1/4, [1/8, 1/8]]', '[1/8, 1/8, 1/4]', tupletDur(), mixDur()]);
+    // lead / pluck — the widest palette (no duplicate-weighting, so no one value dominates)
+    return pick(['1/4', '1/2', '1', '3/4', '1/8', '1/3', '2/3', 'PDur(3,8)', 'PDur([3,5],8)', 'PDur(5,8)', 'PDur(5,16)',
+        'PGroove("swing")', 'PGroove("gallop")', `PGroove(${rint(0, 9)})`, 'PBeat("x xx x")', 'PBeat("x x xx")',
+        '[1/4, 1/2]', '[1/2, 1/4, 1/4]', '[1/4, [1/4, 1/2]]', '[3/4, 1/4]', '[1/2, [1/4, 1/4, 1/4]]', '[1/4, [1/8, 1/8], 1/2]',
+        'var([1/4, 1/2], 8)', 'var([1/2, 1/4, 1/8], [2, 3, 3])', 'Pvar([1/4, 1/2], 8)']);
+};
 // oct — integer octave, static or evolving, kept inside the role's ~2-octave window.
 const octForRole = (role) => {
     const base = role === 'bass' ? [3, 3, 4] : role === 'perc' ? [3, 4, 5] : role === 'pluck' ? [5, 6] : (role === 'pad' || role === 'keys') ? [4, 5] : [5, 5, 6];
@@ -210,7 +297,7 @@ const pentaDeg = () => pick(['PRand([0,3,5,7,10])', 'PxRand(0,10)', 'PWalk(5,1)'
 const STYLES = {
     // PUNK / rock — gritty voices, power chords + pentatonic, palm-muted chug, driven.
     punk: {
-        pools: { bass: ['dab', 'growl', 'dbass', 'ebass', 'a_gesa', 'cbass'], lead: ['war', 'fuzz', 'guitar', 'saw', 'ssaw', 'pulse'], keys: ['guitar', 'war'] },
+        pools: { bass: ['dab', 'growl', 'dbass', 'ebass', 'a_gesa', 'cbass', 'doom', 'superbass'], lead: ['war', 'fuzz', 'guitar', 'saw', 'ssaw', 'pulse', 'dirt', 'darklead'], keys: ['guitar', 'war'] },
         scales: ['minor', 'phrygian', 'blues', 'harmonicMinor'], scaleChance: 0.9,
         roles: ['bass', 'lead', 'lead', 'lead', 'keys'],
         deg: (r) => r === 'bass' ? pick(['[0]', '[0,0,7,0]', '[0,0,-5,-5,-7,-7,0,0]', '[0,7,0,5]', pentaDeg()]) : (chance(0.55) ? powerDeg() : pentaDeg()),
@@ -225,7 +312,7 @@ const STYLES = {
     },
     // TECHNO — repetitive acid/sub bass, stabs, driving 16ths, filter sweeps + pump.
     techno: {
-        pools: { bass: ['dbass', 'acidbass', 'tb303', 'dab', 'pumpbass', 'a_daft'], lead: ['saw', 'pulse', 'blip', 'ssaw', 'fuzz'], keys: ['pluck', 'blip'] },
+        pools: { bass: ['dbass', 'acidbass', 'tb303', 'dab', 'pumpbass', 'a_daft', 'lbass', 'wob', 'acidline'], lead: ['saw', 'pulse', 'blip', 'ssaw', 'fuzz', 'tekno', 'hardstab'], keys: ['pluck', 'blip'] },
         scales: ['minor', 'phrygian', 'dorian'], scaleChance: 0.85,
         roles: ['bass', 'bass', 'lead', 'lead', 'keys'],
         deg: (r) => r === 'bass' ? pick(['[0]', '[0,0,0,7]', 'PxRand(0,5)', 'PRand([0,0,3,5,7])', '[0, _, 0, 3]']) : pick(['[0]', 'PxRand(0,7)', `arp(${CHORDLIST()}, "up")`, 'PRand([0,3,7,10])']),
@@ -236,6 +323,24 @@ const STYLES = {
         fx: [() => `lpf=${freqVal(400, 5000)}, lpr=${floatVal(0.2, 0.5)}`, () => `djf=${flt(0.6, 0.85)}`, () => `crush=${flt(0.4, 0.6)}, bits=${rint(4, 8)}`,
              () => `pong=${flt(0.3, 0.5)}, pongtime=0.375`, () => `pumper=${flt(0.7, 0.9)}, pumprate=1`, () => `fbdelay=0.5, fbtime=0.25, fbfeed=${flt(0.3, 0.5)}, fbcutoff=3000`,
              () => `mpf=${freqVal(400, 2200)}, mpr=${flt(1, 3)}`],
+    },
+    // INDUSTRIAL — harsh machine music: doom/glitch bass, tekno/hardstab leads, clipped
+    // drones + brutal snares, heavy crush/fold/multicrush, driving 16ths, dark scales.
+    industrial: {
+        pools: { bass: ['doom', 'glitchbass', 'wob', 'a_gesa', 'superbass', 'dab'], lead: ['tekno', 'hardstab', 'dirt', 'darklead', 'virus'], pad: ['industrialdrone', 'gaze'], perc: ['industrialsnare', 'crunch'] },
+        scales: ['phrygian', 'minor', 'locrian', 'harmonicMinor'], scaleChance: 0.92,
+        roles: ['bass', 'bass', 'lead', 'lead', 'pad', 'perc'],
+        deg: (r) => r === 'bass' ? pick(['[0]', '[0,0,0,-5]', 'PxRand(0,5)', '[0, _, 0, 3]', 'PStep(4, 0, -5)'])
+            : r === 'pad' ? pick(['[0]', '(0,3,7)', degPad()])
+            : r === 'perc' ? pick(['[0]', restList(rint(4, 8), 0, 2)])
+            : pick(['[0]', 'PxRand(0,7)', powerDeg(), 'PRand([0,3,5,7,10])']),
+        oct: (r) => String(r === 'bass' ? pick([2, 3, 4]) : r === 'pad' ? pick([4, 5]) : r === 'perc' ? pick([4, 5]) : pick([5, 6])),
+        dur: (r) => r === 'bass' ? pick(['1/2', '1', 'PDur(3,8)']) : r === 'pad' ? pick(['4', '8']) : r === 'perc' ? pick(['1/4', '1/2', 'PBeat("x xx x")']) : pick(['1/4', '1/16', '1/2', 'PDur([3,5],8)']),
+        amp: (r) => r === 'bass' ? String(flt(0.7, 0.9)) : r === 'pad' ? String(flt(0.25, 0.4)) : r === 'perc' ? String(flt(0.5, 0.7)) : String(flt(0.4, 0.6)),
+        fxChance: 0.82,
+        fx: [() => `crush=${flt(0.5, 0.8)}, bits=${rint(3, 6)}`, () => `dist2=${flt(0.5, 0.8)}`, () => `fold=${flt(0.4, 0.7)}`,
+             () => `multicrush=${flt(0.5, 0.8)}`, () => `rgate=${flt(0.6, 0.9)}, rgaterate=${pick([8, 16])}`, () => `lpf=${freqVal(400, 4000)}, lpr=${floatVal(0.2, 0.5)}`,
+             () => `fbdelay=0.5, fbtime=0.25, fbfeed=${flt(0.3, 0.5)}, fbcutoff=2000`],
     },
     // SYNTHWAVE — the lush 80s: analog leads/pads, arps + roman progressions, reverb/chorus.
     synthwave: {
@@ -252,7 +357,7 @@ const STYLES = {
     },
     // AMBIENT — slow evolving pads/textures, long notes, big reverb + shimmer, sparse.
     ambient: {
-        pools: { pad: ['pads', 'choir', 'darkpad', 'organ', 'a_vpad'], lead: ['plaits', 'bell', 'sine', 'glass', 'rsin'], bass: ['dbass', 'synthbass'] },
+        pools: { pad: ['pads', 'choir', 'darkpad', 'organ', 'a_vpad', 'gaze', 'waves', 'industrialdrone'], lead: ['plaits', 'bell', 'sine', 'klank', 'rsin'], bass: ['dbass', 'synthbass'] },
         scales: ['dorian', 'lydian', 'minor', 'melodicMinor', 'egyptian'], scaleChance: 0.8,
         roles: ['pad', 'pad', 'lead', 'bass'],
         deg: (r) => r === 'bass' ? pick(['[0]', '[0, 5]', 'PWalk(3,1)']) : (r === 'pad') ? degPad() : pick(['motif(3)', 'melody()[:4]', `arp(${CHORDLIST()}, "up")`, 'PSine(0,7)']),
@@ -274,8 +379,9 @@ function synthLineStyled(name, S) {
     const fxN  = chance(S.fxChance) ? (chance(0.3) ? 2 : 1) : 0;
     const fx   = fxN ? ', ' + pickN(S.fx, fxN).map(f => f()).join(', ') : '';
     const extra = S.extra ? S.extra(role) : '';
+    const susE  = (!extra.includes('sus=') && chance(0.4)) ? `, sus=${susVal(role)}` : '';
     const meth = chance(0.35) ? pickN(METHODS, 1).map(f => f()).join('') : '';
-    return `${name} >> ${synth}(${deg}, oct=${S.oct(role)}, dur=${S.dur(role)}, amp=${S.amp(role)}${extra}${panExtra()}${fx})${meth}`;
+    return `${name} >> ${synth}(${deg}, oct=${S.oct(role)}, dur=${S.dur(role)}, amp=${S.amp(role)}${susE}${extra}${panExtra()}${fx})${meth}`;
 }
 
 function synthLine(name) {
@@ -288,7 +394,8 @@ function synthLine(name) {
     const fx    = fxN ? ', ' + pickN(FX, fxN).map(f => f()).join(', ') : '';
     const mN    = chance(0.6) ? (chance(0.3) ? 2 : 1) : 0;
     const meth  = pickN(METHODS, mN).map(f => f()).join('');
-    return `${name} >> ${synth}(${deg}, oct=${octForRole(role)}, dur=${durForRole(role)}, amp=${ampForRole(role)}${panExtra()}${fx})${meth}${transposeExtra()}`;
+    const susE  = chance(0.35) ? `, sus=${susVal(role)}` : '';
+    return `${name} >> ${synth}(${deg}, oct=${octForRole(role)}, dur=${durForRole(role)}, amp=${ampForRole(role)}${susE}${panExtra()}${fx})${meth}${transposeExtra()}`;
 }
 
 function drumLine(name, chars) {
@@ -327,7 +434,7 @@ export function chaosLines(n = 4, type = null, { sampleChars = [], taken = new S
     // Pick ONE coherent style for the block — eclectic weighted so it stays broad/varied,
     // then punk / techno / synthwave / ambient for a focused vibe. No arg needed: chaos()
     // just lands somewhere different each time.
-    const S = STYLES[pick(['eclectic', 'eclectic', 'punk', 'techno', 'synthwave', 'ambient'])] || null;
+    const S = STYLES[pick(['eclectic', 'eclectic', 'punk', 'techno', 'industrial', 'synthwave', 'ambient'])] || null;
     if (S) { if (chance(S.scaleChance)) lines.push(`Scale.default = "${pick(S.scales)}"`); }
     else if (chance(0.4)) lines.push(`Scale.default = "${pick(SCALES)}"`);
     let idx = 1;
@@ -428,7 +535,7 @@ export class JamBot {
     _pickStyle() {
         // A jam sits in one style, drifting occasionally — punk / techno / synthwave /
         // ambient, or eclectic (the broad default). Sets a matching scale when it changes.
-        this.style = STYLES[pick(['eclectic', 'eclectic', 'punk', 'techno', 'synthwave', 'ambient'])] || null;
+        this.style = STYLES[pick(['eclectic', 'eclectic', 'punk', 'techno', 'industrial', 'synthwave', 'ambient'])] || null;
         if (this.style && chance(this.style.scaleChance)) this.run(`Scale.default = "${pick(this.style.scales)}"`);
     }
 
