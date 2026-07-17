@@ -23,6 +23,7 @@ const SCENE_SET = new Set(SCENES);
 const layers = new Map();          // name → { scene, ch, params(raw), fx(raw), born }
 let   mixer  = null;               // { owner, value(raw), dur, blend } — SINGLETON crossfader
 const master = { palette: null, mode: null };
+let   clearSeq = 0;                 // bumped by clear() → renderer wipes its feedback buffer
 let   _openHook = null;            // () => ensure the visuals window is open (set by index.html)
 export function setOpenHook(fn) { _openHook = fn; }
 const _open = () => { try { _openHook && _openHook(); } catch (_) {} }
@@ -85,6 +86,8 @@ export function visualBuilders() {
     // palette("fire" | "off") — global colour ramp; vmode("shade") — global glyph set
     out.palette = (name) => { master.palette = (name == null || name === 'off') ? null : String(name); _open(); return name; };
     out.vmode   = (name) => { master.mode = (name == null) ? null : String(name); _open(); return name; };
+    // clear() — wipe the renderer's feedback/trails buffer (a clean reset); layers keep running
+    out.clear   = () => { clearSeq++; _open(); return 'clear'; };
     return out;
 }
 
@@ -131,7 +134,7 @@ export function hasContent() { return layers.size > 0 || !!mixer; }
 
 // The resolved, serialisable state for the renderer (called on the clock tick).
 export function snapshot(beat) {
-    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode };
+    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, clearSeq };
     for (const [name, l] of layers) {
         if (!l.scene) continue;
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;

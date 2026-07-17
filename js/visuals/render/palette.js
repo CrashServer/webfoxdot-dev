@@ -14,8 +14,8 @@ export function paletteName(name) {
 // the sampling position, which slides the ramp — a cheap recolour knob.
 export function sample(name, v, hue = 0) {
     const lut = paletteLut(paletteName(name));
-    let x = v + hue;                          // hue slides where we read the ramp
-    x = x - Math.floor(x);                    // wrap into 0..1
+    let x = Math.min(v, 0.999999) + hue;      // cap below 1 so peak value hits the ramp top, not floor-wrapped to 0 (black)
+    x = x - Math.floor(x);                    // hue slides where we read the ramp; wrap into 0..1
     const i = Math.max(0, Math.min(255, (x * 255) | 0));
     return lut[i];
 }
