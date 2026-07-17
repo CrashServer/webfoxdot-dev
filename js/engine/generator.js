@@ -221,60 +221,75 @@ const panExtra = () => !chance(0.32) ? '' : ', ' + pick([
 ]);
 const transposeExtra = () => !chance(0.22) ? '' : ' + ' + pick([`${rint(2, 7)}`, `(0,4,7)`, `(0,3,7)`, `[0, ${rint(2, 5)}]`]);
 
-// FX ideas — a broad palette; many use a TimeVar sweep so the sound moves. Each
-// is a distinct thunk (pickN never picks the same one twice, so no doubled keys).
+// An FX mix/depth (0..1) that usually MOVES — chaos should modulate its effects live,
+// not merely switch them on. Scalar / weighted-random / LFO-swept / stepped / per-step.
+const fxv = (lo, hi) => {
+    const q = (hi - lo) * 0.3;
+    return pick([`${flt(lo, hi)}`, `${flt(lo, hi)}`,
+        `sinvar([${flt(lo, lo + q)}, ${flt(hi - q, hi)}], [${pick([8, 16])}])`,
+        `linvar([${flt(lo, hi)}, ${flt(lo, hi)}], [${pick([8, 16, 32])}])`,
+        `var([${flt(lo, hi)}, ${flt(lo, hi)}], ${pick([4, 8])})`,
+        `PWhite(${flt(lo, lo + q)}, ${flt(hi - q, hi)})`,
+        `[${flt(lo, hi)}, ${flt(lo, hi)}]`]);
+};
+// An FX rate/time/count that sometimes evolves into a var or per-step pattern.
+const fxr = (...opts) => pick([...opts, ...opts,
+    `var([${pick(opts)}, ${pick(opts)}], ${pick([4, 8])})`, `P[${pick(opts)}, ${pick(opts)}]`]);
+
+// FX ideas — a broad palette; every depth can breathe on a TimeVar and rates/counts can
+// themselves pattern, so the FX evolve. Each is a distinct thunk (pickN never repeats a key).
 const FX = [
     () => `lpf=${freqVal(300, 6000)}${chance(0.4) ? `, lpr=${floatVal(0.2, 0.6)}` : ''}`,
     () => `hpf=${freqVal(200, 1200)}`,
-    () => `bpf=${freqVal(600, 3000)}, bpr=${flt(0.1, 0.5)}`,
-    () => `djf=${pick([flt(0.15, 0.4), flt(0.6, 0.85)])}`,
-    () => `mverb=${floatVal(0.3, 0.7)}, mverbmix=0.6`,
-    () => `room=${flt(0.5, 0.9)}, reverb=${floatVal(0.3, 0.6)}`,
-    () => `cheapverb=${floatVal(0.4, 0.7)}`,
-    () => `chorus=${floatVal(0.3, 0.7)}, chorus_rate=${flt(0.2, 0.8)}`,
-    () => `echo=${flt(0.2, 0.5)}, echo_time=${pick(['0.25', '0.375', '0.5'])}`,
-    () => `fbdelay=${flt(0.4, 0.6)}, fbtime=0.25, fbfeed=${flt(0.3, 0.6)}, fbcutoff=3000`,
-    () => `pong=${flt(0.3, 0.6)}, pongtime=${pick(['0.25', '0.375'])}`,
-    () => `spin=${flt(0.4, 0.8)}`,
-    () => `chop=${pick([2, 4, 4, 8])}`,
-    () => `rgate=${flt(0.5, 0.9)}, rgaterate=${pick([4, 8])}`,
-    () => `tremolo=${flt(0.4, 0.7)}, trem_rate=${pick([4, 8])}`,
-    () => `vibrato=${flt(0.4, 0.8)}, vib_rate=${rint(4, 8)}`,
-    () => `flanger=${flt(0.4, 0.7)}, flanger_rate=${flt(0.2, 0.6)}`,
-    () => `phaser=${flt(0.4, 0.7)}, phaser_rate=${flt(0.2, 0.6)}`,
-    () => `ringmod=${flt(0.3, 0.6)}, ringmod_freq=${rint(100, 900)}`,
-    () => `formant=${flt(0.4, 0.8)}, formant_vowel=${rint(0, 4)}`,
-    () => `vowel=${flt(0.4, 0.7)}`,
-    () => `drive=${flt(1, 5, 1)}, tanh=${flt(0.3, 0.6)}`,
-    () => `shape=${flt(0.4, 0.7)}`,
-    () => `dist2=${flt(0.4, 0.7)}, dist2shape=${flt(0.1, 0.5)}`,
-    () => `crush=${flt(0.4, 0.7)}, bits=${rint(3, 8)}`,
-    () => `multicrush=${flt(0.4, 0.7)}`,
-    () => `fold=${flt(0.3, 0.6)}, symetry=${rint(1, 3)}`,
-    () => `lofi=${flt(0.4, 0.7)}`,
-    () => `tube=${flt(0.4, 0.8)}`,
-    () => `resonbank=${flt(0.2, 0.4)}, rbfreq=${rint(40, 80)}`,
+    () => `bpf=${freqVal(600, 3000)}, bpr=${floatVal(0.1, 0.5)}`,
+    () => `djf=${pick([flt(0.15, 0.4), flt(0.6, 0.85), 'sinvar([0.2, 0.8], [16])'])}`,
+    () => `mverb=${fxv(0.3, 0.7)}, mverbmix=0.6`,
+    () => `room=${flt(0.5, 0.9)}, reverb=${fxv(0.3, 0.6)}`,
+    () => `cheapverb=${fxv(0.4, 0.7)}`,
+    () => `chorus=${fxv(0.3, 0.7)}, chorus_rate=${fxr('0.3', '0.5', '0.8')}`,
+    () => `echo=${fxv(0.2, 0.5)}, echo_time=${fxr('0.25', '0.375', '0.5')}`,
+    () => `fbdelay=${flt(0.4, 0.6)}, fbtime=0.25, fbfeed=${fxv(0.3, 0.6)}, fbcutoff=3000`,
+    () => `pong=${fxv(0.3, 0.6)}, pongtime=${pick(['0.25', '0.375'])}`,
+    () => `spin=${fxv(0.4, 0.8)}`,
+    () => `chop=${fxr('2', '4', '4', '8')}`,
+    () => `rgate=${fxv(0.5, 0.9)}, rgaterate=${fxr('4', '8', '16')}`,
+    () => `tremolo=${fxv(0.4, 0.7)}, trem_rate=${fxr('4', '8')}`,
+    () => `vibrato=${fxv(0.4, 0.8)}, vib_rate=${rint(4, 8)}`,
+    () => `flanger=${fxv(0.4, 0.7)}, flanger_rate=${pick([flt(0.2, 0.6), 'sinvar([0.1, 0.6], [16])'])}`,
+    () => `phaser=${fxv(0.4, 0.7)}, phaser_rate=${pick([flt(0.2, 0.6), 'sinvar([0.1, 0.6], [16])'])}`,
+    () => `ringmod=${fxv(0.3, 0.6)}, ringmod_freq=${pick([`${rint(100, 900)}`, `linvar([${rint(100, 400)}, ${rint(500, 900)}], [8])`])}`,
+    () => `formant=${fxv(0.4, 0.8)}, formant_vowel=${fxr('0', '1', '2', '4')}`,
+    () => `vowel=${fxv(0.4, 0.7)}`,
+    () => `drive=${flt(1, 5, 1)}, tanh=${fxv(0.3, 0.6)}`,
+    () => `shape=${fxv(0.4, 0.7)}`,
+    () => `dist2=${fxv(0.4, 0.7)}, dist2shape=${floatVal(0.1, 0.5)}`,
+    () => `crush=${fxv(0.4, 0.7)}, bits=${fxr('4', '5', '6', '8')}`,
+    () => `multicrush=${fxv(0.4, 0.7)}`,
+    () => `fold=${fxv(0.3, 0.6)}, symetry=${rint(1, 3)}`,
+    () => `lofi=${fxv(0.4, 0.7)}`,
+    () => `tube=${fxv(0.4, 0.8)}`,
+    () => `resonbank=${fxv(0.2, 0.4)}, rbfreq=${rint(40, 80)}`,
     () => `eq3=1, eqlow=${rint(-4, 5)}, eqhigh=${rint(-4, 5)}`,
     // ── newer FX (alpha29/30 ports) ──
-    () => `mpf=${freqVal(400, 2200)}, mpr=${flt(1, 3.5)}`,                            // Moog ladder LPF
-    () => `resonz=${floatVal(0.5, 0.8)}, rfreq=${freqVal(400, 2200)}`,                // resonant band
-    () => `fshift=${rint(20, 300)}, fmix=${flt(0.3, 0.6)}`,                           // frequency shift (metallic)
-    () => `shimmer=${flt(0.4, 0.7)}, shimpitch=${flt(0.4, 1)}`,                       // octave-shimmer reverb
-    () => `room2=${flt(0.5, 0.9)}, mix2=${flt(0.2, 0.4)}`,                            // stereo reverb
-    () => `combres=${flt(0.4, 0.7)}, combfreq=${rint(120, 400)}`,                     // comb resonator
-    () => `subenh=${flt(0.4, 0.7)}`,                                                  // sub-bass enhancer
-    () => `stereowidth=${flt(0.5, 0.85)}`,                                            // stereo widener
+    () => `mpf=${freqVal(400, 2200)}, mpr=${floatVal(1, 3.5)}`,                       // Moog ladder LPF
+    () => `resonz=${fxv(0.5, 0.8)}, rfreq=${freqVal(400, 2200)}`,                     // resonant band
+    () => `fshift=${pick([`${rint(20, 300)}`, `linvar([${rint(20, 150)}, ${rint(150, 300)}], [16])`])}, fmix=${fxv(0.3, 0.6)}`, // frequency shift (metallic)
+    () => `shimmer=${fxv(0.4, 0.7)}, shimpitch=${flt(0.4, 1)}`,                       // octave-shimmer reverb
+    () => `room2=${flt(0.5, 0.9)}, mix2=${fxv(0.2, 0.4)}`,                            // stereo reverb
+    () => `combres=${fxv(0.4, 0.7)}, combfreq=${rint(120, 400)}`,                     // comb resonator
+    () => `subenh=${fxv(0.4, 0.7)}`,                                                  // sub-bass enhancer
+    () => `stereowidth=${fxv(0.5, 0.85)}`,                                            // stereo widener
     () => `pumper=${flt(0.6, 0.9)}, pumprate=1`,                                      // sidechain pump
     // ── glitch / character FX ──
-    () => `octclean=${flt(0.4, 0.8)}, ocsub=${flt(0.3, 0.7)}, ocup=${flt(0.2, 0.5)}`, // clean octaver (±1 oct)
-    () => `squiz=${flt(0.4, 0.7)}, squizpitch=${rint(2, 5)}`,                         // grainy pitch-up glitch
-    () => `drop=${flt(0.4, 0.7)}, dropof=${flt(0.3, 0.6)}`,                           // waveform dropout glitch
-    () => `ebmix=${flt(0.4, 0.7)}, ebfeed=${flt(0.3, 0.6)}`,                          // tape echo
-    () => `csweep=${flt(0.4, 0.7)}, cswrate=${flt(0.1, 0.5)}`,                        // auto filter sweep
-    () => `sbrk=${flt(0.4, 0.7)}`,                                                    // beat-repeat stutter
-    () => `feed=${flt(0.4, 0.7)}, feedfreq=${rint(200, 2000)}`,                       // feedback tone
+    () => `octclean=${fxv(0.4, 0.8)}, ocsub=${fxv(0.3, 0.7)}, ocup=${fxv(0.2, 0.5)}`, // clean octaver (±1 oct)
+    () => `squiz=${fxv(0.4, 0.7)}, squizpitch=${fxr('2', '3', '4', '5')}`,            // grainy pitch-up glitch
+    () => `drop=${fxv(0.4, 0.7)}, dropof=${flt(0.3, 0.6)}`,                           // waveform dropout glitch
+    () => `ebmix=${fxv(0.4, 0.7)}, ebfeed=${fxv(0.3, 0.6)}`,                          // tape echo
+    () => `csweep=${fxv(0.4, 0.7)}, cswrate=${flt(0.1, 0.5)}`,                        // auto filter sweep
+    () => `sbrk=${fxv(0.4, 0.7)}`,                                                    // beat-repeat stutter
+    () => `feed=${fxv(0.4, 0.7)}, feedfreq=${rint(200, 2000)}`,                       // feedback tone
     () => `comp=${flt(0.5, 0.8)}, compthresh=${flt(0.3, 0.6)}`,                       // compressor
-    () => `drcomp=${flt(0.4, 0.8)}`,                                                  // dynamics / drum compressor
+    () => `drcomp=${fxv(0.4, 0.8)}`,                                                  // dynamics / drum compressor
     () => `lpf=PLorenz(${rint(300, 700)}, ${rint(3000, 6000)})`,                      // chaotic filter movement
 ];
 // Live transforms + fatteners chained onto the player.
@@ -376,7 +391,7 @@ function synthLineStyled(name, S) {
     const synth = pick(S.pools[role] || S.pools.lead);
     let deg = S.deg(role);
     if (chance(0.1)) deg = `Pvar([${deg}, ${S.deg(role)}], ${pick([8, 16])})`;
-    const fxN  = chance(S.fxChance) ? (chance(0.3) ? 2 : 1) : 0;
+    const fxN  = chance(S.fxChance) ? (chance(0.45) ? (chance(0.35) ? 3 : 2) : 1) : 0;
     const fx   = fxN ? ', ' + pickN(S.fx, fxN).map(f => f()).join(', ') : '';
     const extra = S.extra ? S.extra(role) : '';
     const susE  = (!extra.includes('sus=') && chance(0.4)) ? `, sus=${susVal(role)}` : '';
@@ -390,7 +405,7 @@ function synthLine(name) {
     // degree — occasionally a Pvar that swaps between two whole phrases over time.
     let deg = degForRole(role);
     if (chance(0.12)) deg = `Pvar([${deg}, ${degForRole(role)}], ${pick([8, 16])})`;
-    const fxN   = chance(0.78) ? (chance(0.4) ? 2 : 1) : 0;
+    const fxN   = chance(0.82) ? (chance(0.5) ? (chance(0.4) ? 3 : 2) : 1) : 0;
     const fx    = fxN ? ', ' + pickN(FX, fxN).map(f => f()).join(', ') : '';
     const mN    = chance(0.6) ? (chance(0.3) ? 2 : 1) : 0;
     const meth  = pickN(METHODS, mN).map(f => f()).join('');
