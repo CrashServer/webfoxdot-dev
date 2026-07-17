@@ -2,7 +2,7 @@
 export default {
     name: 'mandala',
     field(u, v, t, p) {
-        const s = (p.speed ?? 1), pet = Math.max(3, Math.round((p.scale ?? 1) * 8));
+        const s = (p.speed ?? 1), pet = p.petals ?? 8;
         const dx = u - 0.5, dy = v - 0.5;
         const r = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
         const petals = Math.abs(Math.cos(ang * pet + t * s * 0.5));

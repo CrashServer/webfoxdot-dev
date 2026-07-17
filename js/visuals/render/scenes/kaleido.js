@@ -2,7 +2,7 @@
 export default {
     name: 'kaleido',
     field(u, v, t, p) {
-        const s = (p.speed ?? 1), seg = Math.max(3, Math.round((p.scale ?? 1) * 6));
+        const s = (p.speed ?? 1), seg = p.segments ?? 6;
         const dx = u - 0.5, dy = v - 0.5;
         const r = Math.hypot(dx, dy);
         let ang = Math.atan2(dy, dx) + t * s * 0.2;

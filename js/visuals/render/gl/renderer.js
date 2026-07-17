@@ -14,7 +14,7 @@
 // colourise once, value-space crossfade) so switching backends never changes the look.
 
 import { SCENE_GLSL, SCENE_GLSL_ORDER } from './scenes-glsl.js';
-import { PALETTE_NAMES, paletteLut } from '../../vdata.js';
+import { PALETTE_NAMES, paletteLut, SCENE_PARAMS } from '../../vdata.js';
 
 const MAXL = 12;                                  // hard cap on simultaneous layers
 const NPAL = PALETTE_NAMES.length;
@@ -47,8 +47,8 @@ void main(){ vec2 p = vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2)); gl_
 // ── the scene / compositor fragment program ──────────────────────────────────
 function sceneFrag() {
     const bodies = SCENE_GLSL_ORDER.map((n) => SCENE_GLSL[n]).join('\n');
-    let dispatch = 'float sceneEval(int id, vec2 uv, float t, float sp, float sc, vec4 a){\n';
-    SCENE_GLSL_ORDER.forEach((n, i) => { dispatch += `  ${i ? 'else ' : ''}if(id==${i}) return scene_${n}(uv,t,sp,sc,a);\n`; });
+    let dispatch = 'float sceneEval(int id, vec2 uv, float t, float sp, float sc, vec4 a, vec4 pp){\n';
+    SCENE_GLSL_ORDER.forEach((n, i) => { dispatch += `  ${i ? 'else ' : ''}if(id==${i}) return scene_${n}(uv,t,sp,sc,a,pp);\n`; });
     dispatch += '  return 0.0;\n}\n';
 
     // uSpec + spec() go BEFORE the scene bodies so FFT scenes (barcode/datamatrix/…) can
@@ -71,6 +71,7 @@ uniform int   uN;               // active layer count
 uniform vec4  uL0[${MAXL}];     // sceneId, speed, scale, deck
 uniform vec4  uL1[${MAXL}];     // zoom, rot, panx, pany
 uniform vec4  uL2[${MAXL}];     // bright, gain, contrast, inv
+uniform vec4  uL3[${MAXL}];     // scene-specific params (pp.x..pp.w)
 uniform vec2  uPalA;            // palIndexA, hueA
 uniform vec2  uPalB;            // palIndexB, hueB
 out vec4 fragColor;
@@ -88,7 +89,7 @@ float layerVal(int i, vec2 uv, float t, vec4 a){
     vec2 d = (uv - 0.5) * iz;
     if (L1.y != 0.0){ float c = cos(L1.y), s = sin(L1.y); d = vec2(d.x*c - d.y*s, d.x*s + d.y*c); }
     vec2 p = d + 0.5 - L1.zw;                          // pan
-    float f = sceneEval(int(L0.x + 0.5), p, t, L0.y, L0.z, a);
+    float f = sceneEval(int(L0.x + 0.5), p, t, L0.y, L0.z, a, uL3[i]);
     f = f * L2.x * L2.y;                               // bright * gain
     if (L2.z != 0.0) f = 0.5 + (f - 0.5) * (1.0 + L2.z);   // contrast
     if (L2.w > 0.5) f = 1.0 - f;                       // invert
@@ -284,7 +285,7 @@ export function createGLRenderer(canvas) {
     // uniform locations — scene program
     const uLoc = {};
     for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
-        'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB', 'uSpec']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
+        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uPalA', 'uPalB', 'uSpec']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
         'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate']) pLoc[n] = gl.getUniformLocation(presentProg, n);
@@ -339,7 +340,7 @@ export function createGLRenderer(canvas) {
     }
 
     // reusable uniform scratch
-    const L0 = new Float32Array(MAXL * 4), L1 = new Float32Array(MAXL * 4), L2 = new Float32Array(MAXL * 4);
+    const L0 = new Float32Array(MAXL * 4), L1 = new Float32Array(MAXL * 4), L2 = new Float32Array(MAXL * 4), L3 = new Float32Array(MAXL * 4);
     const SPEC = new Float32Array(32);            // FFT spectrum → uSpec[32]
 
     // build one deck's per-layer uniform rows + its palette/hue (last layer on the deck wins)
@@ -353,6 +354,9 @@ export function createGLRenderer(canvas) {
             L0[o] = id; L0[o + 1] = num(p.speed, 1); L0[o + 2] = num(p.scale, 1); L0[o + 3] = base;
             L1[o] = num(p.zoom, 1); L1[o + 1] = num(p.rot, 0); L1[o + 2] = num(p.panx, 0); L1[o + 3] = num(p.pany, 0);
             L2[o] = num(p.bright, 1); L2[o + 1] = num(p.gain, 1); L2[o + 2] = num(p.contrast, 0); L2[o + 3] = (p.inv === true || p.inv === 1) ? 1 : 0;
+            L3[o] = L3[o + 1] = L3[o + 2] = L3[o + 3] = 0;   // scene-specific params (defaults from schema)
+            const specs = SCENE_PARAMS[l.scene];
+            if (specs) for (let si = 0; si < specs.length && si < 4; si++) L3[o + si] = num(p[specs[si].n], specs[si].d);
             if (p.pal != null) pal = p.pal;                 // name or index, resolved below
             if (p.hue != null) hue = num(p.hue, 0);
             n++;
@@ -395,7 +399,7 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(uLoc.uMix, x);
         gl.uniform1i(uLoc.uBlend, blend);
         gl.uniform1i(uLoc.uN, n);
-        gl.uniform4fv(uLoc.uL0, L0); gl.uniform4fv(uLoc.uL1, L1); gl.uniform4fv(uLoc.uL2, L2);
+        gl.uniform4fv(uLoc.uL0, L0); gl.uniform4fv(uLoc.uL1, L1); gl.uniform4fv(uLoc.uL2, L2); gl.uniform4fv(uLoc.uL3, L3);
         gl.uniform2f(uLoc.uPalA, da.palIdx, da.hue);
         gl.uniform2f(uLoc.uPalB, db.palIdx, db.hue);
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, palTex); gl.uniform1i(uLoc.uPal, 0);

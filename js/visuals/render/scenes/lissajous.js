@@ -5,7 +5,7 @@ export default {
         const s = (p.speed ?? 1);
         const bass = a ? a.bass : 0, mid = a ? a.mid : 0, treble = a ? a.treble : 0;
         const tt = t * s;
-        const liA = 3, liB = 2, liThickness = 0.02, liSampleCount = 80;
+        const liA = p.freqA ?? 3, liB = p.freqB ?? 2, liThickness = 0.02, liSampleCount = 80;
         const av = liA + mid * 4;
         const bv = liB + treble * 5;
         const delta = tt * 0.5 + bass * 3.14;

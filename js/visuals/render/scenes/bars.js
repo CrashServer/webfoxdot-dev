@@ -3,7 +3,7 @@
 export default {
     name: 'bars',
     field(u, v, t, p, a) {
-        const n = 16, bar = Math.min(n - 1, Math.floor(u * n));
+        const n = p.count ?? 16, bar = Math.min(n - 1, Math.floor(u * n));
         let lvl;
         if (a && (a.bass || a.mid || a.treble)) {
             const band = bar / n;

@@ -3,7 +3,7 @@
 export default {
     name: 'voronoi',
     field(u, v, t, p) {
-        const s = (p.speed ?? 1), n = Math.max(2, Math.round((p.scale ?? 1) * 4));
+        const s = (p.speed ?? 1), n = Math.max(2, Math.round((p.scale ?? 1) * (p.cells ?? 4)));
         let d1 = 9, d2 = 9;
         for (let gy = 0; gy < n; gy++) {
             for (let gx = 0; gx < n; gx++) {

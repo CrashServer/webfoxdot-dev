@@ -2,7 +2,7 @@
 export default {
     name: 'swarm',
     field(u, v, t, p) {
-        const s = (p.speed ?? 1), n = Math.max(3, Math.round((p.scale ?? 1) * 6));
+        const s = (p.speed ?? 1), n = p.count ?? 6;
         let sum = 0;
         for (let i = 0; i < n; i++) {
             const ph = i * 2.399;                                  // golden-angle spread

@@ -2,7 +2,7 @@
 export default {
     name: 'cells',
     field(u, v, t, p) {
-        const s = (p.speed ?? 1), n = Math.max(2, Math.round(4 * (p.scale ?? 1)));
+        const s = (p.speed ?? 1), n = Math.max(2, Math.round((p.cells ?? 4) * (p.scale ?? 1)));
         let best = 9;
         for (let gy = 0; gy < n; gy++) {
             for (let gx = 0; gx < n; gx++) {

@@ -19,6 +19,27 @@ export const SCENES = [
     'tron', 'butterfly', 'lightning',
 ];
 
+// Per-scene SPECIFIC params (beyond speed/scale + the universal knobs). Each entry maps
+// a name → default; its ARRAY INDEX is the slot the renderer packs it into (pp.x..pp.w in
+// GLSL, p.<name> in JS). Max 4 per scene. Unset → the default, so old behaviour is kept.
+export const SCENE_PARAMS = {
+    spiral:    [{ n: 'arms',      d: 3  }],
+    tunnel:    [{ n: 'sectors',   d: 6  }],
+    kaleido:   [{ n: 'segments',  d: 6  }],
+    mandala:   [{ n: 'petals',    d: 8  }],
+    metaballs: [{ n: 'count',     d: 3  }],
+    swarm:     [{ n: 'count',     d: 6  }],
+    rings:     [{ n: 'count',     d: 10 }],
+    lissajous: [{ n: 'freqA',     d: 3  }, { n: 'freqB', d: 2 }],
+    bars:      [{ n: 'count',     d: 16 }],
+    wave:      [{ n: 'crest',     d: 9  }],
+    moire:     [{ n: 'lines',     d: 40 }],
+    hexgrid:   [{ n: 'cells',     d: 7  }],
+    grid:      [{ n: 'divisions', d: 10 }],
+    cells:     [{ n: 'cells',     d: 4  }],
+    voronoi:   [{ n: 'cells',     d: 4  }],
+};
+
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any
 //  legacy import still resolves.)
 export const POINT_SCENES = new Set();

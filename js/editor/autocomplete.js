@@ -4,7 +4,7 @@
 
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
-import { SCENES as VSCENES, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
+import { SCENES as VSCENES, SCENE_PARAMS, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
@@ -93,7 +93,9 @@ function synthItem(name) {
 // no-op default) so the controls are exposed for tweaking, and drops a caret just inside
 // the parens (on ch) rather than selecting anything.
 function fullSceneCall(name) {
-    return `${name}(${VSCENE_DEFAULTS.map(([k, v]) => `${k}=${v}`).join(', ')})`;
+    const specific = (SCENE_PARAMS[name] || []).map((x) => `${x.n}=${x.d}`);   // scene's own params first
+    const universal = VSCENE_DEFAULTS.map(([k, v]) => `${k}=${v}`);
+    return `${name}(${[...specific, ...universal].join(', ')})`;
 }
 function sceneItem(name) {
     const text = fullSceneCall(name);
@@ -499,7 +501,9 @@ function hintFn(cm) {
         // `+ ` chain on a video line → the post-FX (not mix — that's a separate crossfader)
         list = filter(VFX_NAMES.map(n => item(n + '()', 'hint-param', n)));
     } else if (ctx.type === 'vparam') {
-        const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;
+        // scene's own params first (spiral → arms=, tunnel → sectors=), then the universal knobs
+        const specific = (SCENE_PARAMS[ctx.vfn] || []).map((x) => x.n + '=');
+        const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : [...specific, ...VSCENE_PARAMS];
         list = filter(ps.map(p => item(p, 'hint-param', p.replace('=', ''))));
     } else if (ctx.type === 'vnames') {
         const names = ctx.kind === 'palette' ? PALETTE_NAMES : ctx.kind === 'mode' ? RENDER_MODE_NAMES : BLEND_NAMES;

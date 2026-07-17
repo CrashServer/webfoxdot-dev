@@ -2,7 +2,7 @@
 export default {
     name: 'metaballs',
     field(u, v, t, p, a) {
-        const s = (p.speed ?? 1), k = Math.max(2, Math.round((p.scale ?? 1) * 3));
+        const s = (p.speed ?? 1), k = Math.max(2, p.count ?? 3);
         let sum = 0;
         for (let i = 0; i < k; i++) {
             const px = 0.5 + Math.sin(t * s * 0.7 + i * 2.1) * 0.35;
