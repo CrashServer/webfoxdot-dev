@@ -78,7 +78,8 @@ function fxBuilder(key, dflt) { return (v) => new VSpec(null, {}, { [key]: v ===
 // Video FX chained with `+` (like synth FX). trails/feedback are frame-feedback; blur/
 // bloom/scan/vignette/glitch/invert/posterize are post-process. Values are the default
 // amount when called bare, e.g. video1 >> plasma() + bloom() + blur(0.3).
-const VFX = { trails: 0.7, feedback: 0.8, blur: 0.5, bloom: 0.6, scan: 0.5, vignette: 0.5, glitch: 1, invert: true, posterize: 3 };
+const VFX = { trails: 0.7, feedback: 0.8, blur: 0.5, bloom: 0.6, scan: 0.5, vignette: 0.5, glitch: 1, invert: true,
+              posterize: 3, droste: 0.6, fold: 0.6, hueshift: 0.5, dither: 0.7 };
 
 export function visualBuilders() {
     const out = {};

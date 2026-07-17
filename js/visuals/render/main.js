@@ -51,6 +51,7 @@ function fxBundle() {
         trails: maxFx('trails', 0), feedback: maxFx('feedback', 0), glitch: maxFx('glitch', 0),
         scan: maxFx('scan', 0), vignette: maxFx('vignette', 0), invert: maxFx('invert', 0) >= 1,
         blur: maxFx('blur', 0), bloom: maxFx('bloom', 0), posterize: maxFx('posterize', 0),
+        droste: maxFx('droste', 0), fold: maxFx('fold', 0), hueshift: maxFx('hueshift', 0), dither: maxFx('dither', 0),
     };
 }
 

@@ -128,6 +128,7 @@ const PRESENT_FRAG = PRELUDE + `
 uniform sampler2D uTex;
 uniform vec2 uRes;
 uniform float uTime, uGlitch, uScan, uVignette, uInvert, uBlur, uBloom, uPosterize;
+uniform float uDroste, uFold, uHue, uDither;
 out vec4 fragColor;
 
 // 3×3 tap average around uv, step in pixels — the kernel for blur + bloom.
@@ -138,6 +139,14 @@ vec3 box9(vec2 uv, vec2 px){
             s += texture(uTex, uv + vec2(float(x), float(y)) * px).rgb;
     return s / 9.0;
 }
+// Bayer 4×4 ordered-dither threshold at a pixel, 0..1 (adapted from fxl_dither.wgsl).
+float bayer4(vec2 fc){
+    int x = int(mod(fc.x, 4.0)), y = int(mod(fc.y, 4.0));
+    int i = y * 4 + x;
+    float m = i==0?0.0:i==1?8.0:i==2?2.0:i==3?10.0:i==4?12.0:i==5?4.0:i==6?14.0:i==7?6.0:
+              i==8?3.0:i==9?11.0:i==10?1.0:i==11?9.0:i==12?15.0:i==13?7.0:i==14?13.0:5.0;
+    return m / 16.0;
+}
 
 void main(){
     vec2 uv = gl_FragCoord.xy / uRes;
@@ -147,6 +156,18 @@ void main(){
         if (h > 0.72) uv.x = fract(uv.x + (h - 0.86) * uGlitch * 0.5);
     }
     vec3 c = texture(uTex, uv).rgb;
+    if (uDroste > 0.001){                              // recursive log-spiral zoom (fxl_droste)
+        vec2 p = uv - 0.5; float r = length(p) + 1e-5, ang = atan(p.y, p.x);
+        float period = log(2.0);
+        float lr = log(r) - uTime * 0.1; lr = lr - period * floor(lr / period);
+        float a2 = ang + uDroste * 3.14159 * (lr / period) + uTime * 0.2;
+        vec2 np = vec2(cos(a2), sin(a2)) * exp(lr) + 0.5;
+        c = mix(c, texture(uTex, fract(np)).rgb, clamp(uDroste, 0.0, 1.0));
+    }
+    if (uFold > 0.001){                                // kaleidoscope mirror-fold (fxl_fold)
+        vec2 q = abs(uv - 0.5) / (1.0 - uFold * 0.45) + 0.5;
+        c = mix(c, texture(uTex, clamp(q, 0.0, 1.0)).rgb, clamp(uFold, 0.0, 1.0));
+    }
     if (uBlur > 0.001){                                // box blur, radius scales with amount
         vec2 px = (1.0 + uBlur * 6.0) / uRes;
         c = mix(c, box9(uv, px), clamp(uBlur, 0.0, 1.0));
@@ -157,9 +178,17 @@ void main(){
         c += b * uBloom * 2.2;
     }
     if (uInvert > 0.5) c = 1.0 - c;
+    if (abs(uHue) > 0.001){                            // hue rotation in turns (fxl_hueshift)
+        vec3 k = vec3(0.57735027); float a = uHue * 6.28318, ca = cos(a), sa = sin(a);
+        c = max(c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca), 0.0);
+    }
     if (uPosterize > 1.5){                             // quantise to N levels (N = amount)
         float n = floor(uPosterize);
         c = floor(c * n) / max(1.0, n - 1.0);
+    }
+    if (uDither > 0.001){                              // Bayer ordered dither → data/ikeda quantise
+        float lv = mix(8.0, 2.0, clamp(uDither, 0.0, 1.0));
+        c = floor(c * lv + (bayer4(gl_FragCoord.xy) - 0.5)) / max(1.0, lv - 1.0);
     }
     if (uScan > 0.01){                                 // CRT scanlines
         float s = 0.5 + 0.5 * sin(gl_FragCoord.y * PI);
@@ -209,7 +238,8 @@ export function createGLRenderer(canvas) {
     for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
         'uN', 'uL0', 'uL1', 'uL2', 'uPalA', 'uPalB']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
-    for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize']) pLoc[n] = gl.getUniformLocation(presentProg, n);
+    for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
+        'uDroste', 'uFold', 'uHue', 'uDither']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
     const palTex = gl.createTexture();
@@ -334,6 +364,10 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uBlur, num(fx.blur, 0));
         gl.uniform1f(pLoc.uBloom, num(fx.bloom, 0));
         gl.uniform1f(pLoc.uPosterize, num(fx.posterize, 0));
+        gl.uniform1f(pLoc.uDroste, num(fx.droste, 0));
+        gl.uniform1f(pLoc.uFold, num(fx.fold, 0));
+        gl.uniform1f(pLoc.uHue, num(fx.hueshift, 0));
+        gl.uniform1f(pLoc.uDither, num(fx.dither, 0));
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[dst]); gl.uniform1i(pLoc.uTex, 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 
