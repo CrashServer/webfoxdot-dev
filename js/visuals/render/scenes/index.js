@@ -49,6 +49,9 @@ import ikedaglitch  from './ikedaglitch.js';
 import barcode      from './barcode.js';
 import equalizer    from './equalizer.js';
 import datamatrix   from './datamatrix.js';
+import tron         from './tron.js';
+import butterfly    from './butterfly.js';
+import lightning    from './lightning.js';
 
 const list = [
     plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
@@ -57,6 +60,7 @@ const list = [
     testpattern, interference, biomech, escher, circuit, panopticon,
     penrose, mobius, hexdump, lissajous, ikedaglitch,
     barcode, equalizer, datamatrix,
+    tron, butterfly, lightning,
 ];
 const byName = new Map(list.map((s) => [s.name, s]));
 

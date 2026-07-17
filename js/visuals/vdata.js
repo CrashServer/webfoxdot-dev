@@ -16,6 +16,7 @@ export const SCENES = [
     'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
     'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
     'barcode', 'equalizer', 'datamatrix',
+    'tron', 'butterfly', 'lightning',
 ];
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any

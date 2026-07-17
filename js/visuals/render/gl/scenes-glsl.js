@@ -16,6 +16,7 @@ export const SCENE_GLSL_ORDER = [
     'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
     'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
     'barcode', 'equalizer', 'datamatrix',
+    'tron', 'butterfly', 'lightning',
 ];
 
 export const SCENE_GLSL = {
@@ -694,5 +695,96 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud){
     float sd = abs(v - scanV);
     if (sd < 0.03) val = max(val, (0.55 + aud.w * 0.45) * (1.0 - sd / 0.03));
     return clamp(val, 0.0, 1.0);
+}`,
+
+    tron: `float scene_tron(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x;
+    float cx = (u - 0.5) * 2.0, cy = (0.5 - v) * 2.0;
+    float r = max(length(vec2(cx, cy)), 0.001);
+    float ang = atan(cy, cx);
+    float radial = 1.0 / r;
+    float density = sc, zFreq = 1.5 + density * 6.0, aFreq = 8.0 + density * 16.0;
+    float thick = 0.06, scroll = t * sp;
+    float aTwisted = ang + radial * 0.5;
+    float zEdge = smoothstep(thick, 0.0, abs(fract(radial * zFreq + scroll) - 0.5));
+    float aEdge = smoothstep(thick, 0.0, abs(fract(aTwisted * aFreq * 0.159155 + 0.5) - 0.5));
+    float fade = smoothstep(4.0, 1.0, radial);
+    float grid = (zEdge + aEdge) * fade;
+    float vMax = max(abs(cx), abs(cy));
+    float vert = cy / max(vMax, 1e-4);
+    float floorMask = smoothstep(-0.4, -1.0, vert), ceilMask = smoothstep(0.4, 1.0, vert);
+    float dropoff = smoothstep(1.4, 0.0, r);
+    float glow = (floorMask * 0.5 + ceilMask * 0.3) * dropoff;
+    return clamp(grid + glow * (1.0 + bass), 0.0, 1.0);
+}`,
+
+    butterfly: `float scene_butterfly(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float bass = aud.x, treble = aud.z;
+    float cx = (u - 0.5) * 2.0, cy = (0.5 - v) * 2.0;
+    float r = length(vec2(cx, cy));
+    if (r > 1.0) return 0.0;
+    float xMirror = abs(cx), yFromC = abs(cy);
+    float nBars = 24.0 * sc;
+    float barF = xMirror * nBars, barI = floor(barF), subX = barF - barI;
+    float amp = clamp(spec(xMirror) * (1.0 + bass), 0.04, 1.0);
+    float gap = 0.15;
+    bool inGap = subX < gap || subX > 1.0 - gap;
+    float fill = (yFromC <= amp && !inGap) ? (1.0 - yFromC * 0.5) : 0.0;
+    float tip = (yFromC > amp - 0.03 && yFromC <= amp && !inGap) ? treble * 0.8 : 0.0;
+    float center = abs(cy) < 0.02 ? 0.6 : 0.0;
+    return clamp(max(fill + tip, center), 0.0, 1.0);
+}`,
+
+    lightning: `float vnoise(vec2 p){
+    vec2 ip = floor(p), fp = fract(p);
+    float a = hash2(ip);
+    float b = hash2(ip + vec2(1.0, 0.0));
+    float c = hash2(ip + vec2(0.0, 1.0));
+    float d = hash2(ip + vec2(1.0, 1.0));
+    vec2 s = fp * fp * (3.0 - 2.0 * fp);
+    return a + (b - a) * s.x + (c - a) * s.y + (a - b - c + d) * s.x * s.y;
+}
+float fbm(vec2 p){
+    float val = 0.0, amp = 0.5, f = 1.0;
+    for (int i = 0; i < 5; i++){ val += amp * vnoise(p * f); f *= 2.07; amp *= 0.5; }
+    return val;
+}
+float scene_lightning(vec2 uv, float t, float sp, float sc, vec4 aud){
+    float u = uv.x, v = uv.y;
+    float sky = fbm(vec2(u * 3.0 + t * sp * 0.1, v * 3.0)) * 0.15;
+    float rate = 0.7 * sp;
+    float ep = floor(t * rate), age = fract(t * rate);
+    float seed = ep * 13.1;
+    float boltI = 0.0, env = 0.0;
+    if (age < 0.32){
+        env = max(exp(-age * 7.0) * (0.55 + 0.45 * sin(age * 85.0)), 0.0);
+        float xs = u, ys = 1.0 - v;
+        for (int branch = 0; branch < 2; branch++){
+            float zigSeed = seed + float(branch) * 7.3;
+            float drift = (branch == 0) ? (hash2(vec2(seed, 0.37)) - 0.5) * 0.35
+                                        : (hash2(vec2(seed, float(branch) * 2.1)) - 0.5) * 1.4;
+            float jit = (branch == 0) ? 0.06 : 0.10;
+            float px = 0.5, py = 1.0, minDsq = 1e9;
+            for (int k = 1; k <= 20; k++){
+                float ny = 1.0 - float(k) / 20.0;
+                float bend = (hash2(vec2(zigSeed, float(k))) - 0.5) * jit;
+                float nx = px + bend + drift / 20.0;
+                float ex = nx - px, ey = ny - py;
+                float l2 = ex * ex + ey * ey;
+                float tp = l2 > 1e-8 ? ((xs - px) * ex + (ys - py) * ey) / l2 : 0.0;
+                tp = clamp(tp, 0.0, 1.0);
+                float qx = px + ex * tp, qy = py + ey * tp;
+                float dSq = (xs - qx) * (xs - qx) + (ys - qy) * (ys - qy);
+                if (dSq < minDsq) minDsq = dSq;
+                px = nx; py = ny;
+            }
+            boltI += exp(-minDsq * 55000.0) + exp(-minDsq * 1500.0) * 0.5;
+        }
+        boltI *= env;
+    }
+    float skyFlash = (age < 0.32) ? env * 0.3 : 0.0;
+    return clamp(sky + boltI + skyFlash, 0.0, 1.0);
 }`,
 };
