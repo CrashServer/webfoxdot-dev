@@ -210,9 +210,8 @@ export const VERSION = 'beta10';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
-    { v: 'beta11', title: '16 industrial/gritty synths · richer chaos · 2 new live sets', items: [
+    { v: 'beta11', title: '16 industrial/gritty synths · richer chaos · a new live set', items: [
         'New Live set — Celeste (svdk): a bright major #@ set built on an inline defsynth — a shimmering additive celeste (sine partials + a faint 4.2× inharmonic shimmer) played as two hard-panned voices detuned by dur=1/3 * 1.012 for a chorus beat, over a PGrowArp organ, a darkpad progression and a deep sine bass, the key floating through var(["major", "lydian", "mixolydian"]). In the examples dropdown + Examples page.',
-        'New Live set — Dark Synth Pop (svdk, from codeBank): a moody dorian synth-pop cut transposed from the CrashServer codeBank — a triple-unison organ hook on a Euclidean PDur(3,8) with dist2 grit, over the new lbass acid bass whose cutoff rides a fractal PFr pattern, plus a stuttering drum break.',
         '16 new synths ported from CrashServer FoxDot (stock-UGen reimplementations, all audible). Industrial/gritty: tekno · dirt · doom · industrialdrone · glitchbass · hardstab · industrialsnare · crunch. Bass: lbass · wob · acidline · superbass. Leads: darklead · virus. Pads: gaze · waves. Their character knobs follow the house convention (cutoff / rq / dist — never an FX-key name).',
         'chaos() gained an INDUSTRIAL style (doom/glitch bass, tekno/hardstab leads, clipped drones + brutal snares, heavy crush/fold), and the new voices are woven into the punk/techno/ambient pools too.',
         'chaos() writes more varied, less repetitive patterns — durations draw from a much wider palette (51 distinct values, no single one dominating), and degree/duration lists now NEST generator functions among the notes: [0, arp([0,4,7], "up"), (2,5), PWalk(3,1)] or dur=[1/4, PDur(3,8), 1/2]. Plus richer tuplets, polymeter and role-aware sus shaping.',
@@ -2417,32 +2416,9 @@ pd >> darkpad(PProg("andalusian"), oct=4, dur=8)
 #@end(16)`)}
     `, 'celeste');
 
-    const darksynthpop = section('Dark Synth Pop — svdk (from codeBank)', `
-        ${note('A moody <code>dorian</code> synth-pop cut transposed from the CrashServer <b>codeBank</b> — a triple-<code>unison</code> <code>organ</code> hook on a Euclidean <code>PDur(3, 8)</code> with <code>dist2</code> grit, over the new <code>lbass</code> acid bass whose cutoff rides a fractal <code>PFr</code> pattern (with a <code>P*[…]</code> passing-tone shift), and a stuttering drum break. Boot + load the kit, cursor on <code>#@intro</code>, Ctrl+Enter.')}
-        ${code(`#@#@ darksynthpop
-
-#@intro(8)
-Clock.bpm = 110
-Scale.default = "dorian"
-Root.default = "C"
-
-#@groove(16)
-r8 >> organ(var([6, 5, 3, 1], [8, 4, 2, 2]), oct=6, cutoff=2600, dur=PDur(3, 8), sus=1, mverb=0.2, dist2=0.4, amp=0.3).unison(3)
-e2 >> lbass(var([0, 5, 6], [8, 4, 4]), dur=1/2, oct=5, cutoff=PFr(1400, 4000, 512), tone=0.8, amp=0.5) + var([0, P*[-1, 0, 1]], [7, 1])
-
-#@beat(16)
-o5 >> play("<x-><..><..o.>", sample=7, amp=1).sometimes("stutter")
-k4 >> play("X.", amp=1)
-
-#@lift(16)
-r8 >> organ(var([6, 5, 3, 1], [8, 4, 2, 2]), oct=6, cutoff=linvar([1200, 4000], [16]), dur=PDur(3, 8), sus=1, mverb=0.3, dist2=0.5, pong=0.3, pongtime=0.375, amp=0.3).unison(3)
-
-#@end(16)`)}
-    `, 'darksynthpop');
-
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [celeste, darksynthpop, no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
