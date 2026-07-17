@@ -18,8 +18,8 @@ const GEN_SYNTHS = Object.keys(SYNTH_DEFS).filter(n => !/sampler|loop|master|fx|
 // Rough role → so we pick musically-appropriate patterns/octaves per synth. Every
 // synth is classified so none falls through to a generic 'lead' by accident.
 const ROLES = {
-    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk'],
-    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab', 'varsaw'],
+    bass:  ['dbass', 'bass', 'ebass', 'acidbass', 'pumpbass', 'tb303', 'a_gesa', 'a_daft', 'wobble', 'synthbass', 'dafbass', 'cbass', 'svdk', 'dab', 'growl'],
+    lead:  ['saw', 'ssaw', 'pulse', 'blip', 'hoover', 'prophet', 'cs80', 'plaits', 'faim', 'fm', 'supersaw', 'a_vlead', 'a_daftlead', 'a_stab', 'varsaw', 'war', 'fuzz', 'guitar'],
     pad:   ['pads', 'choir', 'brass', 'organ', 'darkpad', 'a_vpad'],
     keys:  ['bell', 'basic', 'karp', 'rhodes', 'piano', 'sine', 'rsin', 'klank'],
     pluck: ['pluck', 'moogpluck', 'guit', 'donk', 'lapin', 'arpy'],
@@ -200,6 +200,84 @@ const METHODS = [
     () => `.reroll(${pick([4, 8, 8, 16])})`,   // re-roll frozen random generators over time
 ];
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+// chaos()/son() pick ONE style per block so the output is coherent — and it varies
+// call-to-call: a punk block, a techno block, a synthwave block, an ambient block, or
+// the broad "eclectic" default. Each style biases the synth pool, scale, degree/rhythm
+// idiom, register, FX and dynamics. Only synths that exist in the roster are listed.
+const powerDeg = () => pick(['[0,0,-5,-5,-7,-7,0,0]', '[0,7]', '[0,0,0,7]', '[0,0,3,5]', '[0,-5,0,-7]']);
+const pentaDeg = () => pick(['PRand([0,3,5,7,10])', 'PxRand(0,10)', 'PWalk(5,1)', '[0,3,5,7]', 'PShuf([0,3,5,7,10])']);
+const STYLES = {
+    // PUNK / rock — gritty voices, power chords + pentatonic, palm-muted chug, driven.
+    punk: {
+        pools: { bass: ['dab', 'growl', 'dbass', 'ebass', 'a_gesa', 'cbass'], lead: ['war', 'fuzz', 'guitar', 'saw', 'ssaw', 'pulse'], keys: ['guitar', 'war'] },
+        scales: ['minor', 'phrygian', 'blues', 'harmonicMinor'], scaleChance: 0.9,
+        roles: ['bass', 'lead', 'lead', 'lead', 'keys'],
+        deg: (r) => r === 'bass' ? pick(['[0]', '[0,0,7,0]', '[0,0,-5,-5,-7,-7,0,0]', '[0,7,0,5]', pentaDeg()]) : (chance(0.55) ? powerDeg() : pentaDeg()),
+        oct: (r) => String(r === 'bass' ? pick([3, 4]) : pick([5, 6])),
+        dur: () => pick(['1/2', '1/2', '1/4', '1']),
+        amp: (r) => r === 'bass' ? '0.8' : String(flt(0.6, 0.85)),
+        extra: (r) => `, sus=${flt(0.3, 0.5)}`,
+        fxChance: 0.7,
+        fx: [() => `crush=${flt(0.4, 0.7)}, bits=${rint(3, 6)}`, () => `dist2=${flt(0.4, 0.7)}`, () => `tanh=${flt(0.4, 0.7)}`,
+             () => `fold=${flt(0.3, 0.6)}`, () => `drive=${flt(2, 5, 1)}, tanh=${flt(0.3, 0.6)}`, () => `rgate=${flt(0.6, 0.9)}, rgaterate=8`,
+             () => `echo=${flt(0.2, 0.4)}, echo_time=0.375`, () => `lpf=${freqVal(600, 5000)}`],
+    },
+    // TECHNO — repetitive acid/sub bass, stabs, driving 16ths, filter sweeps + pump.
+    techno: {
+        pools: { bass: ['dbass', 'acidbass', 'tb303', 'dab', 'pumpbass', 'a_daft'], lead: ['saw', 'pulse', 'blip', 'ssaw', 'fuzz'], keys: ['pluck', 'blip'] },
+        scales: ['minor', 'phrygian', 'dorian'], scaleChance: 0.85,
+        roles: ['bass', 'bass', 'lead', 'lead', 'keys'],
+        deg: (r) => r === 'bass' ? pick(['[0]', '[0,0,0,7]', 'PxRand(0,5)', 'PRand([0,0,3,5,7])', '[0, _, 0, 3]']) : pick(['[0]', 'PxRand(0,7)', `arp(${CHORDLIST()}, "up")`, 'PRand([0,3,7,10])']),
+        oct: (r) => String(r === 'bass' ? pick([3, 4]) : pick([5, 6])),
+        dur: (r) => r === 'bass' ? pick(['1/2', '1', '1/2']) : pick(['1/4', '1/4', '1/16', 'PDur(3,8)']),
+        amp: (r) => r === 'bass' ? String(flt(0.7, 0.85)) : String(flt(0.4, 0.6)),
+        fxChance: 0.75,
+        fx: [() => `lpf=${freqVal(400, 5000)}, lpr=${floatVal(0.2, 0.5)}`, () => `djf=${flt(0.6, 0.85)}`, () => `crush=${flt(0.4, 0.6)}, bits=${rint(4, 8)}`,
+             () => `pong=${flt(0.3, 0.5)}, pongtime=0.375`, () => `pumper=${flt(0.7, 0.9)}, pumprate=1`, () => `fbdelay=0.5, fbtime=0.25, fbfeed=${flt(0.3, 0.5)}, fbcutoff=3000`,
+             () => `mpf=${freqVal(400, 2200)}, mpr=${flt(1, 3)}`],
+    },
+    // SYNTHWAVE — the lush 80s: analog leads/pads, arps + roman progressions, reverb/chorus.
+    synthwave: {
+        pools: { bass: ['dbass', 'synthbass', 'cbass'], lead: ['prophet', 'cs80', 'hoover', 'supersaw', 'ssaw', 'plaits'], pad: ['pads', 'choir', 'brass', 'a_vpad'], keys: ['rhodes', 'bell'] },
+        scales: ['minor', 'dorian', 'major', 'lydian'], scaleChance: 0.7,
+        roles: ['bass', 'lead', 'lead', 'pad', 'keys'],
+        deg: (r) => r === 'bass' ? degBass() : (r === 'pad' || r === 'keys') ? degPad() : degLead(),
+        oct: (r) => String(r === 'bass' ? pick([3, 4]) : (r === 'pad' || r === 'keys') ? pick([4, 5]) : pick([5, 6])),
+        dur: (r) => r === 'bass' ? pick(['1/2', '1']) : (r === 'pad' || r === 'keys') ? pick(['2', '4']) : pick(['1/4', '1/2', 'PDur(3,8)']),
+        amp: (r) => r === 'bass' ? String(flt(0.6, 0.8)) : (r === 'pad' || r === 'keys') ? String(flt(0.3, 0.45)) : String(flt(0.3, 0.45)),
+        fxChance: 0.8,
+        fx: [() => `chorus=${flt(0.3, 0.7)}, chorus_rate=${flt(0.2, 0.6)}`, () => `reverb=${floatVal(0.3, 0.6)}, room=${flt(0.5, 0.8)}`, () => `mverb=${floatVal(0.3, 0.6)}, mverbmix=0.6`,
+             () => `echo=${flt(0.2, 0.4)}, echo_time=0.375`, () => `phaser=${flt(0.4, 0.6)}, phaser_rate=${flt(0.2, 0.5)}`, () => `lpf=${freqVal(1200, 6000)}`],
+    },
+    // AMBIENT — slow evolving pads/textures, long notes, big reverb + shimmer, sparse.
+    ambient: {
+        pools: { pad: ['pads', 'choir', 'darkpad', 'organ', 'a_vpad'], lead: ['plaits', 'bell', 'sine', 'glass', 'rsin'], bass: ['dbass', 'synthbass'] },
+        scales: ['dorian', 'lydian', 'minor', 'melodicMinor', 'egyptian'], scaleChance: 0.8,
+        roles: ['pad', 'pad', 'lead', 'bass'],
+        deg: (r) => r === 'bass' ? pick(['[0]', '[0, 5]', 'PWalk(3,1)']) : (r === 'pad') ? degPad() : pick(['motif(3)', 'melody()[:4]', `arp(${CHORDLIST()}, "up")`, 'PSine(0,7)']),
+        oct: (r) => String(r === 'bass' ? pick([3, 4]) : r === 'pad' ? pick([4, 5]) : pick([5, 6])),
+        dur: (r) => r === 'pad' ? pick(['4', '8', '4']) : r === 'bass' ? pick(['4', '2']) : pick(['1', '2', '4']),
+        amp: (r) => r === 'pad' ? String(flt(0.25, 0.4)) : String(flt(0.2, 0.35)),
+        fxChance: 0.9,
+        fx: [() => `shimmer=${flt(0.4, 0.7)}, shimpitch=${flt(0.5, 1)}`, () => `room2=${flt(0.6, 0.9)}, mix2=${flt(0.3, 0.4)}`, () => `mverb=${floatVal(0.5, 0.8)}, mverbmix=0.7`,
+             () => `cheapverb=${floatVal(0.5, 0.8)}, cvdecay=${rint(2, 6)}`, () => `reverb=${floatVal(0.4, 0.7)}`, () => `lpf=${freqVal(600, 3000)}`],
+    },
+};
+
+// Build one styled line. `S` is a STYLES entry; role/synth/degree/rhythm/FX all come from it.
+function synthLineStyled(name, S) {
+    const role  = pick(S.roles);
+    const synth = pick(S.pools[role] || S.pools.lead);
+    let deg = S.deg(role);
+    if (chance(0.1)) deg = `Pvar([${deg}, ${S.deg(role)}], ${pick([8, 16])})`;
+    const fxN  = chance(S.fxChance) ? (chance(0.3) ? 2 : 1) : 0;
+    const fx   = fxN ? ', ' + pickN(S.fx, fxN).map(f => f()).join(', ') : '';
+    const extra = S.extra ? S.extra(role) : '';
+    const meth = chance(0.35) ? pickN(METHODS, 1).map(f => f()).join('') : '';
+    return `${name} >> ${synth}(${deg}, oct=${S.oct(role)}, dur=${S.dur(role)}, amp=${S.amp(role)}${extra}${panExtra()}${fx})${meth}`;
+}
+
 function synthLine(name) {
     const synth = pick(GEN_SYNTHS);
     const role  = roleOf(synth);
@@ -246,15 +324,20 @@ const SCALES = ['minor', 'major', 'dorian', 'phrygian', 'mixolydian', 'lydian', 
 
 export function chaosLines(n = 4, type = null, { sampleChars = [], taken = new Set() } = {}) {
     const lines = [];
-    // Occasionally set a scale/mode for the whole block (draws from the ported library).
-    if (chance(0.4)) lines.push(`Scale.default = "${pick(SCALES)}"`);
+    // Pick ONE coherent style for the block — eclectic weighted so it stays broad/varied,
+    // then punk / techno / synthwave / ambient for a focused vibe. No arg needed: chaos()
+    // just lands somewhere different each time.
+    const S = STYLES[pick(['eclectic', 'eclectic', 'punk', 'techno', 'synthwave', 'ambient'])] || null;
+    if (S) { if (chance(S.scaleChance)) lines.push(`Scale.default = "${pick(S.scales)}"`); }
+    else if (chance(0.4)) lines.push(`Scale.default = "${pick(SCALES)}"`);
     let idx = 1;
     const freeName = () => { while (taken.has('g' + idx)) idx++; const nm = 'g' + idx; taken.add(nm); idx++; return nm; };
     for (let i = 0; i < Math.max(1, n | 0); i++) {
         let t = type;
         if (!t) t = (sampleChars.length && chance(0.35)) ? 'drum' : 'synth';
         const name = freeName();
-        lines.push(t === 'drum' && sampleChars.length ? drumLine(name, sampleChars) : synthLine(name));
+        lines.push(t === 'drum' && sampleChars.length ? drumLine(name, sampleChars)
+            : (S ? synthLineStyled(name, S) : synthLine(name)));
     }
     return lines;
 }
@@ -325,6 +408,7 @@ export class JamBot {
         if (this.opts.min > this.opts.max) this.opts.min = this.opts.max;
         if (this.running) return `jam bot already running (${this.active.size} players)`;
         this.running = true;
+        this._pickStyle();
         this._next();
         return `jam bot on — g* players, ${this.opts.min}–${this.opts.max} voices`;
     }
@@ -341,8 +425,16 @@ export class JamBot {
         this.clock.future(dur, () => { if (this.running) { try { this._order(); } catch (e) { /* keep the loop alive */ } this._next(); } });
     }
 
+    _pickStyle() {
+        // A jam sits in one style, drifting occasionally — punk / techno / synthwave /
+        // ambient, or eclectic (the broad default). Sets a matching scale when it changes.
+        this.style = STYLES[pick(['eclectic', 'eclectic', 'punk', 'techno', 'synthwave', 'ambient'])] || null;
+        if (this.style && chance(this.style.scaleChance)) this.run(`Scale.default = "${pick(this.style.scales)}"`);
+    }
+
     _order() {
         this.tick++;
+        if (chance(0.06)) this._pickStyle();          // occasionally drift to a new style
         // Prune names whose players the user/Alt+X stopped out from under us.
         for (const n of [...this.active]) { const p = this.clock._players.get(n); if (!p || p._active === false) this._forget(n); }
         const n = this.active.size;
@@ -373,7 +465,7 @@ export class JamBot {
         const name  = this._freeName();
         const chars = this.sampleChars();
         const wantDrum = chars.length && Math.random() < this.opts.drum / (this.opts.synth + this.opts.drum);
-        const line = wantDrum ? drumLine(name, chars) : synthLine(name);
+        const line = wantDrum ? drumLine(name, chars) : (this.style ? synthLineStyled(name, this.style) : synthLine(name));
         this.active.add(name); this.born.set(name, this.tick);
         this.run(line);
     }

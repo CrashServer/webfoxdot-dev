@@ -22,6 +22,37 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 1, dur: 1, pan: 0, attack: 0.01, release: 0.05, dist: 8, cutoff: 800, rq: 0.7 },
         extraParams: ['dist', 'cutoff', 'rq'],
     },
+    // ── Rock / punk grit (CrashServer ports, stock-UGen reimplementations) ──
+    // war — power-chord riff machine: detuned saws + sub through heavy tanh drive (beef)
+    war: {
+        scName: 'fd_war',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 1200, rq: 0.4, beef: 8, sub: 0.3 },
+        extraParams: ['cutoff', 'rq', 'beef', 'sub'],
+    },
+    // dab — dirty overdriven bass for walking / riff lines
+    dab: {
+        scName: 'fd_dab',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, cutoff: 900, rq: 0.35, drive: 4, sub: 0.6 },
+        extraParams: ['cutoff', 'rq', 'drive', 'sub'],
+    },
+    // fuzz — raw aliased fuzz lead (self-FM'd LFSaw, hard-clipped)
+    fuzz: {
+        scName: 'fd_fuzz',
+        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 4000, rq: 0.5, drive: 6 },
+        extraParams: ['cutoff', 'rq', 'drive'],
+    },
+    // growl — talking ring-mod growl bass-lead
+    growl: {
+        scName: 'fd_growl',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.08, rate: 1, cutoff: 3000, rq: 0.5 },
+        extraParams: ['rate', 'cutoff', 'rq'],
+    },
+    // guitar — Karplus-Strong electric guitar (Pluck → overdrive → amp-sim), palm-mutable
+    guitar: {
+        scName: 'fd_guitar',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.12, drive: 3, cutoff: 3000, tone: 0.4, palm: 0 },
+        extraParams: ['drive', 'cutoff', 'tone', 'palm'],
+    },
     // a_daft — Daft Punk-style punchy filter bass (CrashServer port)
     a_daft: {
         scName: 'fd_a_daft',
