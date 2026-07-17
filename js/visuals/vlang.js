@@ -22,7 +22,7 @@ const SCENE_SET = new Set(SCENES);
 // ── Store ────────────────────────────────────────────────────────────────────
 const layers = new Map();          // name → { scene, ch, params(raw), fx(raw), born }
 let   mixer  = null;               // { owner, value(raw), dur, blend } — SINGLETON crossfader
-const master = { palette: null, mode: null };
+const master = { palette: null, mode: null, res: null };   // res = GPU render-scale (null → default)
 let   clearSeq = 0;                 // bumped by clear() → renderer wipes its feedback buffer
 let   _openHook = null;            // () => ensure the visuals window is open (set by index.html)
 export function setOpenHook(fn) { _openHook = fn; }
@@ -86,6 +86,9 @@ export function visualBuilders() {
     // palette("fire" | 8 | "off") — global colour ramp (name OR integer index); vmode("shade")
     out.palette = (name) => { master.palette = (name == null || name === 'off') ? null : name; _open(); return name; };
     out.vmode   = (name) => { master.mode = (name == null) ? null : String(name); _open(); return name; };
+    // vres(scale) — GPU render resolution as a multiplier of CSS pixels: 1 = native,
+    // 0.5 = half (faster, audio stays smooth), 2 = supersampled. vres() / vres(null) → default.
+    out.vres    = (s) => { master.res = (s == null) ? null : Number(s); _open(); return s; };
     // clear() — blank the video: stop every layer + the crossfader and wipe the feedback
     // buffer, a full reset ([c] in the visuals window does the same).
     out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };
@@ -135,7 +138,7 @@ export function hasContent() { return layers.size > 0 || !!mixer; }
 
 // The resolved, serialisable state for the renderer (called on the clock tick).
 export function snapshot(beat) {
-    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, clearSeq };
+    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq };
     for (const [name, l] of layers) {
         if (!l.scene) continue;
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;

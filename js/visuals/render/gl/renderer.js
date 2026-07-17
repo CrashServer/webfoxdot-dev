@@ -174,6 +174,7 @@ export function createGLRenderer(canvas) {
 
     const vao = gl.createVertexArray();                // empty VAO (fullscreen tri needs no attribs)
     const dpr = Math.min(2, (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) || 1);
+    let userScale = null;                              // vres() override (backing px per CSS px); null → dpr
 
     // uniform locations — scene program
     const uLoc = {};
@@ -212,8 +213,9 @@ export function createGLRenderer(canvas) {
         tex[i] = tx; fb[i] = f;
     }
     function resize() {
-        const w = Math.max(1, Math.round(canvas.clientWidth * dpr) || Math.round(innerWidth * dpr));
-        const h = Math.max(1, Math.round(canvas.clientHeight * dpr) || Math.round(innerHeight * dpr));
+        const scale = userScale || dpr;
+        const w = Math.max(1, Math.round((canvas.clientWidth || innerWidth) * scale));
+        const h = Math.max(1, Math.round((canvas.clientHeight || innerHeight) * scale));
         if (w === W && h === H) return;
         W = w; H = h; canvas.width = W; canvas.height = H;
         for (const t of tex) if (t) gl.deleteTexture(t);
@@ -221,6 +223,14 @@ export function createGLRenderer(canvas) {
         makeTarget(0); makeTarget(1); needClear = true;
     }
     resize();
+
+    // vres(scale): render-scale override in backing px per CSS px (clamped). null → dpr default.
+    function setResolution(s) {
+        const v = Number(s);
+        const next = (s == null || !isFinite(v) || v <= 0) ? null : Math.max(0.25, Math.min(2, v));
+        if (next === userScale) return;
+        userScale = next; W = H = 0; resize();          // force a rebuild at the new scale
+    }
 
     // reusable uniform scratch
     const L0 = new Float32Array(MAXL * 4), L1 = new Float32Array(MAXL * 4), L2 = new Float32Array(MAXL * 4);
@@ -299,5 +309,5 @@ export function createGLRenderer(canvas) {
 
     function clear() { needClear = true; }             // wipe the feedback buffers (clear() reset)
 
-    return { render, resize, clear, gl, get size() { return { W, H }; } };
+    return { render, resize, clear, setResolution, gl, get size() { return { W, H }; } };
 }

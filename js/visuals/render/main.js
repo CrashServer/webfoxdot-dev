@@ -29,6 +29,7 @@ const grid = makeGrid(9);                        // CPU grid (glyph + fallback o
 const aud = { bass: 0, mid: 0, treble: 0, level: 0 };
 let beatPulse = 0;
 let lastClearSeq = 0;
+let lastRes;                                     // last applied vres() scale
 let overlayOpaque = true;                        // is the 2D canvas currently covering GL?
 
 function resize() {
@@ -57,7 +58,7 @@ function hudText() {
     const mixTxt = V.mix ? `  ·  mix ${V.mix.value.toFixed(2)}` : '';
     const palTxt = V.palette ? `  ·  ${V.palette}` : '';
     const modeTxt = V.mode ? `  ·  ${V.mode}` : '';
-    const eng = glr ? 'gpu' : 'cpu';
+    const eng = glr ? `gpu ${glr.size.W}×${glr.size.H}` : 'cpu';
     return `live · ${eng} · ${V.layers.length} layer${V.layers.length === 1 ? '' : 's'} · ${names || '—'}${mixTxt}${palTxt}${modeTxt} · ${AUD.bpm | 0} bpm`;
 }
 
@@ -102,6 +103,7 @@ function loop(ts) {
     aud.treble += (AUD.treble - aud.treble) * 0.35; aud.level += (AUD.level - aud.level) * 0.35;
     beatPulse *= 0.85; if (S.beatPulse) { beatPulse = 1; S.beatPulse = false; }
 
+    if (V.res !== lastRes) { lastRes = V.res; if (glr) glr.setResolution(V.res); }
     if (V.clearSeq !== lastClearSeq) { lastClearSeq = V.clearSeq; if (glr) glr.clear(); ctx.clearRect(0, 0, W, H); overlayOpaque = false; }
 
     if (V.layers.length) {

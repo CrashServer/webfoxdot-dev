@@ -473,11 +473,15 @@ function hintFn(cm) {
         // any player can be either; the RHS you pick decides. A scene pick inserts the
         // full knob call (sceneItem), like a synth. When the player is a vN (video by
         // convention), the visuals block floats to the TOP so it's the first thing offered.
+        const scenes = VSCENES.map(sceneItem);
+        const vfx = [item('mix()', 'hint-keyword', 'mix'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
         const audio = [playItem(), ...synthFamilyList()];
-        const visuals = [sep('visuals'), ...VSCENES.map(sceneItem),
-            item('mix()', 'hint-keyword', 'mix'), ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
         const isVid = /^v\d+$/.test(ctx.player || '');
-        list = isVid ? [...visuals, sep('audio'), ...audio] : [...audio, ...visuals];
+        // A vN (video) player lists SCENES FLAT up front — directly choosable, no flyout —
+        // then the audio synths (their families as flyouts). Any other name: audio first,
+        // with the scenes tucked under a "visuals" flyout.
+        list = isVid ? [...scenes, ...vfx, ...audio]
+                     : [...audio, sep('visuals'), ...scenes, ...vfx];
         list = dropEmptySeps(list.filter(it => it.className === 'hint-sep' || filter([it]).length > 0));
     } else if (ctx.type === 'vparam') {
         const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : VSCENE_PARAMS;
