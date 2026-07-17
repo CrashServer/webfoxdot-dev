@@ -59,6 +59,103 @@ export const SYNTH_DEFS = {
         defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.05, dist: 8, cutoff: 800, rq: 0.7, rhythmType: 0, accent: 0.5 },
         extraParams: ['dist', 'cutoff', 'rq', 'rhythmType', 'accent'],
     },
+    // ── Industrial / gritty / techno (CrashServer ports, stock-UGen reimplementations) ──
+    // tekno — acid-techno lead: multidrive saws + Moog ladder + wavefolder
+    tekno: {
+        scName: 'fd_tekno',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.003, release: 0.02, cutoff: 800, rq: 0.5, grit: 0.5, wfold: 0, sub: 0.6, sync: 0 },
+        extraParams: ['cutoff', 'rq', 'grit', 'wfold', 'sub', 'sync'],
+    },
+    // dirt — grinding dirty lead/chord (saw + VarSaw + self-FM sine, 2 octaves down)
+    dirt: {
+        scName: 'fd_dirt',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.01, release: 0.05, rate: 0.01, cutoff: 6000 },
+        extraParams: ['rate', 'cutoff'],
+    },
+    // doom — filthy hard-clipped doom bass with LFO-swept LPF
+    doom: {
+        scName: 'fd_doom',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.05, cutoff: 3000, rq: 0.5, pw: 0.5, wnoise: 0.1 },
+        extraParams: ['cutoff', 'rq', 'pw', 'wnoise'],
+    },
+    // industrialdrone — evolving clipped drone/pad (detuned swarm + noise), use long sus
+    industrialdrone: {
+        scName: 'fd_industrialdrone',
+        defaults: { oct: 4, amp: 0.8, dur: 4, sus: 4, pan: 0, attack: 0.5, release: 1, cutoff: 800, rq: 0.4, dist: 1.3, detune: 0.01, fbk: 0.4, noise: 0.15, sub: 0.5 },
+        extraParams: ['cutoff', 'rq', 'dist', 'detune', 'fbk', 'noise', 'sub'],
+    },
+    // glitchbass — impulse-driven metallic glitch bass
+    glitchbass: {
+        scName: 'fd_glitchbass',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.0001, release: 0.05, cutoff: 2000, rq: 0.8, rate: 1 },
+        extraParams: ['cutoff', 'rq', 'rate'],
+    },
+    // hardstab — hard rave/industrial stab (compressed brick-wall punch)
+    hardstab: {
+        scName: 'fd_hardstab',
+        defaults: { oct: 5, amp: 0.8, dur: 1, sus: 0.2, pan: 0, attack: 0.001, release: 0.15, cutoff: 3000, rq: 0.5, dist: 3, wfold: 0.3, detune: 0.01, fbk: 0.2, comp: 6 },
+        extraParams: ['cutoff', 'rq', 'dist', 'wfold', 'detune', 'fbk', 'comp'],
+    },
+    // industrialsnare — brutal layered/crushed industrial snare (perc)
+    industrialsnare: {
+        scName: 'fd_industrialsnare',
+        defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.0005, release: 0.05, decay: 0.2, tone: 0.5, noise: 0.7, dist: 4, snap: 0.6 },
+        extraParams: ['decay', 'tone', 'noise', 'dist', 'snap'],
+    },
+    // crunch — crunchy broken-digital noise perc (Crackle-modulated stepped noise)
+    crunch: {
+        scName: 'fd_crunch',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.01, release: 0.1, grit: 15 },
+        extraParams: ['grit'],
+    },
+    // lbass — Moog acid bass (tri/saw crossfade + pulse sub through env-swept ladder)
+    lbass: {
+        scName: 'fd_lbass',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 4500, rq: 0.5, tone: 0.16, detune: 0.3, oscmix: 0.5, submix: 0.5 },
+        extraParams: ['cutoff', 'rq', 'tone', 'detune', 'oscmix', 'submix'],
+    },
+    // wob — dub wobble bass (morphable LFO through 24dB MoogFF ladder)
+    wob: {
+        scName: 'fd_wob',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.015, release: 0.08, rate: 2, depth: 0.85, cutoff: 400, rq: 2.2, lshape: 0, sub: 0.55, dist: 1.8, detune: 0.006, drift: 0.4, glide: 0 },
+        extraParams: ['rate', 'depth', 'cutoff', 'rq', 'lshape', 'sub', 'dist', 'detune', 'drift', 'glide'],
+    },
+    // acidline — 303-style acid bassline (accent-swept resonant filter)
+    acidline: {
+        scName: 'fd_acidline',
+        defaults: { oct: 4, amp: 0.9, dur: 1, sus: 0.3, pan: 0, attack: 0.001, release: 0.1, cutoff: 1000, rq: 0.6, beef: 2, accent: 0 },
+        extraParams: ['cutoff', 'rq', 'beef', 'accent'],
+    },
+    // superbass — fat EBM supersaw bass (6 detuned side saws + sub, env-swept ladder)
+    superbass: {
+        scName: 'fd_superbass',
+        defaults: { oct: 4, amp: 0.8, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 5000, rq: 0.5, sub: 1, fdecay: 4, spread: 0.5 },
+        extraParams: ['cutoff', 'rq', 'sub', 'fdecay', 'spread'],
+    },
+    // darklead — dark resonant analog lead
+    darklead: {
+        scName: 'fd_darklead',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.01, release: 0.2, cutoff: 2000, rq: 0.35, dist: 1.5, detune: 0.006, width: 0.5, sub: 0.4 },
+        extraParams: ['cutoff', 'rq', 'dist', 'detune', 'width', 'sub'],
+    },
+    // virus — chaotic Henon-driven glitch lead/texture (experimental)
+    virus: {
+        scName: 'fd_virus',
+        defaults: { oct: 5, amp: 0.6, dur: 1, pan: 0, attack: 0.01, release: 0.1, cutoff: 5400, mod1: 0.1, mod2: 0.25, rate: 1 },
+        extraParams: ['cutoff', 'mod1', 'mod2', 'rate'],
+    },
+    // gaze — shoegaze wavetable-style pad (morphing detuned swarm, dual ladders, wide)
+    gaze: {
+        scName: 'fd_gaze',
+        defaults: { oct: 5, amp: 0.7, dur: 2, sus: 2, pan: 0, attack: 0.05, release: 0.4, cutoff: 1200, rq: 0.2, detune: 0.02, shimmer: 0.3, sub: 0.3 },
+        extraParams: ['cutoff', 'rq', 'detune', 'shimmer', 'sub'],
+    },
+    // waves — evolving oceanic ambient pad/texture (FM + comb diffusion + verb)
+    waves: {
+        scName: 'fd_waves',
+        defaults: { oct: 5, amp: 0.6, dur: 2, sus: 2, pan: 0, attack: 0.01, release: 0.5, rate: 4, mod: 1 },
+        extraParams: ['rate', 'mod'],
+    },
     // a_daft — Daft Punk-style punchy filter bass (CrashServer port)
     a_daft: {
         scName: 'fd_a_daft',
