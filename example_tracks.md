@@ -173,3 +173,128 @@ bs >> dbass([0, 0, 0, 3, 0, 0, -2, 0], oct=3, dur=1, amp=0.45, lpf=1000)
 st >> pluck((0, 3, 7), oct=4, dur=2, sus=0.3, amp=0.18)
 d1 >> play("x-o-", dur=1/2, amp=0.55)
 ```
+
+---
+
+# More — electronic · pop · rock · metal · punk · movies
+
+*(These lean on webfoxDot's richer features — `linvar`/`sinvar` filter sweeps, `PDur` rhythms,
+`.every`/`.sometimes`/`.unison` transforms and chord voicings — so they evolve as they loop.)*
+
+## Popcorn — Gershon Kingsley (classic electronic)
+
+```
+Clock.bpm = 130
+Root.default = "A"
+Scale.default = "minor"
+pop >> pulse([0, -1, 0, -3, -5, -7, -3, 0, -1, 0, -3, -5, -7, -3, 0, 1, 2, 1, 2, 1, 2, 0], dur=[1/2, 1/2, 1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2, 1/2, 1/2, 1/2, 1], oct=5, sus=0.12, amp=0.4, cutoff=linvar([1200, 5000], [16]), lpr=0.3)
+bs >> dbass([0, 0, 4, 4], oct=3, dur=PDur(3, 8), amp=0.4, lpf=800)
+ar >> pluck([0, 2, 4], oct=6, dur=1/4, sus=0.1, amp=0.14, pan=sinvar([-0.6, 0.6], [8]))
+d1 >> play("x-o-", dur=1/2, amp=0.5).sometimes("stutter", 2)
+```
+
+## Sweet Dreams — Eurythmics (synth-pop)
+
+```
+Clock.bpm = 126
+Root.default = "C"
+Scale.default = "minor"
+sd >> sine([4, 4, 4, 4, 2, 0, 3, 3, 3, 2, 1, 0], dur=[1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2], oct=5, sus=0.4, amp=0.35, cutoff=sinvar([800, 3000], [16]), room=0.4)
+bs >> dbass([0, 0, 5, 5, 3, 3, 4, 4], oct=3, dur=1/2, amp=0.5, lpf=linvar([500, 1600], [8]))
+ar >> pluck(var([0, 2, 4], [4]), oct=5, dur=1/4, sus=0.2, amp=0.16).every(8, "reverse")
+d1 >> play("x-o-", dur=1/2, amp=0.5)
+```
+
+## Africa — Toto (pop)
+
+```
+Clock.bpm = 92
+Root.default = "A"
+Scale.default = "major"
+af >> pluck([0, 2, 2, 4, 2, 1, 0, 2], dur=[1/2, 1/2, 1, 1, 1/2, 1/2, 1, 1], oct=5, sus=0.3, amp=0.3, room=0.4).unison(2)
+ch >> pads([(0, 2, 4), (5, 7, 9), (3, 5, 7), (4, 6, 8)], oct=4, dur=4, sus=4, amp=0.16, cutoff=linvar([1200, 2400], [16]), chorus=0.3, reverb=0.3)
+bs >> dbass([0, 5, 3, 4], oct=3, dur=4, amp=0.45, lpf=900)
+d1 >> play("x-o-", dur=1/2, amp=0.45)
+```
+
+## Come As You Are — Nirvana (rock)
+
+```
+Clock.bpm = 120
+Root.default = "E"
+Scale.default = "chromatic"
+caya >> fuzz([0, 0, 0, 2, 3, 2, 0, -2, 0], dur=[1, 1, 1/2, 1/2, 1/2, 1/2, 1, 1, 2], oct=4, amp=0.45, dist=4, lpf=sinvar([1400, 3200], [8]), chorus=0.5)
+bs >> dbass([0, 0, 0, 2, 3, 2, 0, -2, 0], dur=[1, 1, 1/2, 1/2, 1/2, 1/2, 1, 1, 2], oct=2, amp=0.4, lpf=700)
+d1 >> play("x-o-", dur=1/2, amp=0.5).sometimes("stutter", 2)
+```
+
+## Sweet Child O' Mine — Guns N' Roses (rock)
+
+```
+Clock.bpm = 125
+Root.default = "D"
+Scale.default = "chromatic"
+scom >> guitar([0, 12, 7, 5, 7, 12, 7, 5], dur=1/4, oct=4, sus=0.2, amp=0.35, lpf=linvar([2000, 5000], [16]))
+bs >> dbass([0, 0, 0, 0, -2, -2, 5, 5], oct=3, dur=1/2, amp=0.4, lpf=900)
+ch >> pads((0, 4, 7), oct=4, dur=8, sus=8, amp=0.12, cutoff=1500, reverb=0.3)
+d1 >> play("x-o-", dur=1/2, amp=0.45)
+```
+
+## Enter Sandman — Metallica (metal)
+
+```
+Clock.bpm = 123
+Root.default = "E"
+Scale.default = "chromatic"
+es >> war([0, 0, 0, 3, 0, 0, 5, 6, 5], dur=[1, 1, 1/2, 1/2, 1, 1, 1/2, 1/2, 1], oct=3, amp=0.5, dist=3, lpf=linvar([1200, 4000], [8]))
+bs >> dbass([0, 0, 0, 3, 0, 0, 5, 6, 5], dur=[1, 1, 1/2, 1/2, 1, 1, 1/2, 1/2, 1], oct=2, amp=0.45, lpf=700)
+d1 >> play("x", dur=1, amp=0.7)
+d2 >> play("..o...o.", dur=1/2, amp=0.5)
+h1 >> play("-", dur=1/2, amp=0.2, hpf=8000)
+```
+
+## Blitzkrieg Bop — Ramones (punk)
+
+```
+Clock.bpm = 180
+Root.default = "A"
+Scale.default = "chromatic"
+bb >> war([0, 0, 0, 0, 5, 5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5], dur=1/4, oct=4, sus=0.2, amp=0.45, dist=4, lpf=3000)
+bs >> dbass([0, 0, 5, 5, 7, 7, 5, 5], oct=3, dur=1/2, amp=0.45, lpf=1000)
+d1 >> play("x-o-", dur=1/4, amp=0.6).sometimes("stutter", 3)
+```
+
+## Harry Potter — Hedwig's Theme (movie)
+
+```
+Clock.bpm = 96
+Root.default = "E"
+Scale.default = "chromatic"
+hp >> bell([-5, 0, 3, 2, 0, 7, 5, 2, 0, 3, 2, -1, 1], dur=[3/2, 1, 1/2, 1, 1/2, 3, 3/2, 1, 3/2, 1, 1/2, 1, 3/2], oct=5, sus=0.5, amp=0.4, room=0.6, reverb=0.4)
+ch >> pads([(0, 3, 7), (0, 3, 7), (0, 3, 8)], oct=3, dur=6, sus=6, amp=0.14, cutoff=1400, reverb=0.5)
+bs >> dbass([0, -2, 0], oct=2, dur=6, amp=0.4, lpf=700)
+```
+
+## He's a Pirate — Pirates of the Caribbean (movie)
+
+```
+Clock.bpm = 140
+Root.default = "D"
+Scale.default = "minor"
+hap >> saw([0, 0, 0, 1, 2, 2, 2, 2, 3, 4, 4, 4, 4, 5, 4, 3, 2], dur=[1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2], oct=5, sus=0.3, amp=0.32, lpf=linvar([1800, 4500], [8]), room=0.3).unison(3)
+bs >> dbass([0, 0, 3, 3, 4, 4, 0, 0], oct=2, dur=1/2, amp=0.45, lpf=900)
+ch >> pads([(0, 3, 7), (5, 0, 3), (2, 5, 0), (4, 6, 3)], oct=4, dur=2, sus=2, amp=0.15, cutoff=1600)
+d1 >> play("x.x.o.x.", dur=1/2, amp=0.55)
+```
+
+## The Final Countdown — Europe (synth rock)
+
+```
+Clock.bpm = 118
+Root.default = "F#"
+Scale.default = "minor"
+tfc >> saw([4, 5, 4, 3, 4, 3, 4, 2, 3, 2, 1, 2], dur=[1/2, 1/2, 1, 1, 2, 1/2, 1/2, 1, 1, 1/2, 1/2, 2], oct=5, sus=0.4, amp=0.35, lpf=linvar([2000, 5000], [16]), room=0.4).unison(3)
+ch >> pads([(3, 5, 0), (4, 6, 1), (0, 2, 4), (2, 4, 6)], oct=4, dur=4, sus=4, amp=0.15, cutoff=1800, chorus=0.3)
+bs >> dbass([3, 4, 0, 2], oct=3, dur=4, amp=0.45, lpf=1000)
+d1 >> play("x-o-", dur=1/2, amp=0.5)
+```
