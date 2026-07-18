@@ -10,6 +10,13 @@ Film / game themes use `Scale.default = "chromatic"` so the degrees are literal 
 from the root** (0 = root, 7 = a fifth up, −5 = a fourth down); the diatonic tunes use a named
 scale so the degrees are ordinary scale steps. `_` in a degree list is a rest.
 
+Many parts **evolve as they loop** rather than repeating a fixed line — worth stealing the
+tricks: `var([[…], […]], 8)` swaps whole phrases over time; `PShuf`/`PWalk`/`PBrown` generate a
+line that wanders; `.every(4, "rotate")` / `.every(8, "reverse")` cyclically transform the
+figure; `.sometimes("stutter"/"mirror")` throws in occasional ornaments; and `+ var([0, 2, 3,
+5], [8, …])` transposes the whole part up in stages (In the Hall of the Mountain King even
+speeds up with `dur=var([1/2, 1/4], [16, 16])`, the way the real piece does).
+
 ---
 
 ## Star Wars — Main Title (fanfare)
@@ -317,7 +324,7 @@ k1 >> play("x", dur=1, amp=0.9)
 h1 >> play(" -", dur=1/2, amp=0.3, hpf=7000)
 cp >> play(".o", dur=1, amp=0.5)
 bs >> dbass([0, 0, 0, 0, 5, 5, 3, 3], oct=3, dur=1/2, amp=0.5, lpf=linvar([700, 2500], [8]))
-st >> pluck((0, 2, 4), oct=5, dur=1/2, sus=0.2, amp=0.22, room=0.3).every(4, "reverse")
+st >> pluck(var([(0, 2, 4), (5, 0, 2), (3, 5, 0)], 4), oct=5, dur=1/2, sus=0.2, amp=0.22, room=0.3).every(4, "rotate")
 pd >> pads((0, 2, 4), oct=4, dur=8, sus=8, amp=0.12, cutoff=sinvar([800, 2000], [16]))
 ```
 
@@ -331,7 +338,7 @@ k1 >> play("x", dur=1, amp=0.95)
 h1 >> play("-", dur=1/2, amp=0.3, hpf=8000)
 ac >> acidline([0, 0, 3, 0, 5, 0, 3, 0], oct=4, dur=1/4, cutoff=expvar([300, 4000], 8), accent=P[0, 0, 1, 0], beef=3, amp=0.5)
 bs >> dbass([0], oct=2, dur=1, amp=0.5, lpf=600)
-st >> tekno([0, 7], oct=5, dur=PDur(3, 8), grit=0.5, wfold=sinvar([0, 0.5], [16]), amp=0.3, crush=0.3)
+st >> tekno(PShuf([0, 3, 5, 7]), oct=5, dur=PDur(3, 8), grit=0.5, wfold=sinvar([0, 0.5], [16]), amp=0.3, crush=0.3).every(4, "rotate")
 ```
 
 ## Drum & Bass
@@ -343,7 +350,7 @@ Scale.default = "minor"
 br >> play("x-o-x-xo", dur=1/2, amp=0.6).sometimes("stutter", 3)
 sub >> dbass([0, 0, 0, 5], oct=2, dur=2, sus=2, amp=0.6, lpf=500)
 pd >> pads((0, 2, 4), oct=4, dur=8, sus=8, amp=0.14, cutoff=linvar([600, 2000], [16]), reverb=0.4)
-st >> blip([0, 3, 5, 7], oct=5, dur=PDur(5, 8), sus=0.2, amp=0.18, pan=PWhite(-0.6, 0.6))
+st >> blip([0, 3, 5, 7, 10], oct=5, dur=PDur(5, 8), sus=0.2, amp=0.18, pan=PWhite(-0.6, 0.6)).every(4, "rotate").sometimes("mirror")
 ```
 
 ## Dub / Reggae (one-drop + skank)
@@ -407,7 +414,7 @@ k1 >> play("x..x....", dur=1/2, amp=0.9)
 s1 >> play("....o...", dur=1/2, amp=0.6)
 hh >> play("-", dur=1/4, amp=0.2, hpf=8000).sometimes("stutter", PRand([2, 3, 4]))
 b8 >> dbass([0, 0, 5, 3], oct=2, dur=1, sus=0.8, amp=0.6, lpf=500)
-ld >> bell([0, 3, 5, 7], oct=5, dur=PDur(3, 8), sus=0.3, amp=0.2, room=0.4)
+ld >> bell(var([[0, 3, 5, 7], [0, 5, 3, 7], [0, 3, 7, 10]], 8), oct=5, dur=PDur(3, 8), sus=0.3, amp=0.2, room=0.4)
 ```
 
 ## Bossa Nova
@@ -429,7 +436,7 @@ Clock.bpm = 70
 Root.default = "D"
 Scale.default = "dorian"
 pd >> pads(PProg("50s"), oct=4, dur=8, sus=8, amp=0.2, attack=3, cutoff=linvar([600, 1800], [32]), reverb=0.6, room=0.9, chorus=0.4)
-be >> bell([0, 4, 7, 11], oct=5, dur=PDur(3, 16), sus=0.5, amp=0.15, room=0.7, pan=sinvar([-0.7, 0.7], [16]))
+be >> bell(PShuf([0, 4, 7, 11, 14]), oct=5, dur=PDur(3, 16), sus=0.5, amp=0.15, room=0.7, pan=sinvar([-0.7, 0.7], [16])).every(4, "rotate")
 dr >> gaze([0, 7], oct=3, dur=16, sus=16, amp=0.2, shimmer=0.5, reverb=0.6)
 ```
 
@@ -464,8 +471,8 @@ me >> bell([2, 1, 0, -1, -2, -3, -2, -1], dur=2, oct=5, sus=0.6, amp=0.3, room=0
 Clock.bpm = 130
 Root.default = "B"
 Scale.default = "minor"
-mk >> pluck([0, 1, 2, 3, 2, 4, 2, 4, 0, 1, 2, 3, 2, 4, 2, 0], dur=1/2, oct=4, sus=0.2, amp=linvar([0.2, 0.5], [32]))
-bs >> dbass([0, 0, 4, 4], oct=2, dur=2, amp=0.4, lpf=700)
+mk >> pluck([0, 1, 2, 3, 2, 4, 2, 4], dur=var([1/2, 1/4], [16, 16]), oct=4, sus=0.2, amp=linvar([0.2, 0.6], [32])) + var([0, 2, 3, 5], [8, 8, 8, 8])
+bs >> dbass([0, 0, 4, 4], oct=2, dur=2, amp=0.4, lpf=700) + var([0, 2, 3, 5], [16, 16, 16, 16])
 d1 >> play("x", dur=1, amp=linvar([0.3, 0.7], [32]))
 ```
 
@@ -521,7 +528,7 @@ Clock.bpm = 128
 Root.default = "E"
 Scale.default = "minor"
 dw >> dbass([0, 0, 0, 4, 0, 0, 0, 4], oct=2, dur=1/2, amp=0.5, lpf=sinvar([500, 1500], [8]))
-sw >> sine([0, 4, 7], oct=6, dur=4, sus=3, amp=0.15, cutoff=sinvar([2000, 6000], [16]), room=0.6)
+sw >> sine(PBrown(0, 9, 2), oct=6, dur=4, sus=3, amp=0.15, cutoff=sinvar([2000, 6000], [16]), room=0.6)
 d1 >> play("x-x-", dur=1/2, amp=0.4)
 ```
 
@@ -572,7 +579,7 @@ Scale.default = "minor"
 k1 >> play("x", dur=1, amp=0.9)
 oh >> play(" -", dur=1/2, amp=0.3, hpf=8000)
 bs >> dbass([0], oct=2, dur=1/4, amp=0.45, lpf=700).offbeat()
-ld >> supersaw([0, 3, 4, 7], oct=5, dur=1/2, sus=0.4, amp=0.3, cutoff=linvar([800, 5000], [32]), reverb=0.4).unison(3)
+ld >> supersaw(var([[0, 3, 4, 7], [3, 7, 4, 10]], 8), oct=5, dur=1/2, sus=0.4, amp=0.3, cutoff=linvar([800, 5000], [32]), reverb=0.4).unison(3).every(8, "reverse")
 pd >> pads(PProg("pop"), oct=4, dur=8, sus=8, amp=0.14, cutoff=sinvar([1000, 3000], [16]))
 ```
 
@@ -583,7 +590,7 @@ Clock.bpm = 100
 Root.default = "A"
 Scale.default = "minor"
 bs >> dbass([0, 0, 5, 5, 3, 3, 4, 4], oct=2, dur=1/4, amp=0.5, lpf=1400)
-ld >> ssaw([0, 3, 7, 3], oct=5, dur=1/2, sus=0.4, amp=0.28, cutoff=sinvar([1200, 4000], [16]), chorus=0.4, reverb=0.4)
+ld >> ssaw([0, 3, 7, 3, 10, 7], oct=5, dur=1/2, sus=0.4, amp=0.28, cutoff=sinvar([1200, 4000], [16]), chorus=0.4, reverb=0.4).every(4, "rotate")
 pd >> pads((0, 3, 7), oct=4, dur=8, sus=8, amp=0.14, chorus=0.4, cutoff=linvar([800, 2000], [16]))
 d1 >> play("x-o-", dur=1/2, amp=0.5)
 ```
@@ -649,7 +656,7 @@ Scale.default = "minor"
 k1 >> play("x", dur=1, amp=0.9)
 bs >> dbass([0], oct=2, dur=1/2, amp=0.45, lpf=sinvar([500, 1200], [16])).offbeat()
 cl >> play("..o.", dur=1, amp=0.4)
-bl >> blip([0, 0, 3, 0], oct=6, dur=PDur(3, 8), sus=0.1, amp=0.15, pan=sinvar([-0.7, 0.7], [8]))
+bl >> blip(PWalk(5, 1), oct=6, dur=PDur(3, 8), sus=0.1, amp=0.15, pan=sinvar([-0.7, 0.7], [8]))
 pd >> pads((0, 3, 7), oct=4, dur=16, sus=16, amp=0.1, cutoff=linvar([600, 2000], [32]))
 ```
 
@@ -661,7 +668,7 @@ Root.default = "E"
 Scale.default = "phrygian"
 k1 >> play("x", dur=1, amp=0.9)
 bs >> dbass([_, 0, 0, 0], oct=2, dur=1/4, amp=0.45, lpf=800)
-ld >> ssaw([0, 1, 3, 0, 5, 3], oct=5, dur=1/4, sus=0.15, amp=0.22, cutoff=linvar([1000, 5000], [16]))
+ld >> ssaw([0, 1, 3, 0, 5, 3], oct=5, dur=1/4, sus=0.15, amp=0.22, cutoff=linvar([1000, 5000], [16])).every(4, "rotate").sometimes("stutter", 2)
 oh >> play(" -", dur=1/2, amp=0.25, hpf=8000)
 ```
 
