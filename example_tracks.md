@@ -88,3 +88,54 @@ ch >> pads(PProg("pop"), oct=4, dur=4, sus=4, amp=0.3, cutoff=1600, reverb=0.4, 
 bs >> dbass([0, 4, 5, 3], oct=3, dur=4, amp=0.5, lpf=800)
 me >> bell([4, 2, 4, 7, 4, 2, 1, 0], dur=[1, 1, 1, 1, 1/2, 1/2, 1, 1], oct=5, sus=0.4, amp=0.3, room=0.5)
 ```
+
+---
+
+# Classic rock · pop · electronic
+
+## Smoke on the Water — Deep Purple (the riff)
+
+```
+Clock.bpm = 112
+Root.default = "G"
+Scale.default = "chromatic"
+sotw >> fuzz([0, 3, 5, 0, 3, 6, 5, 0, 3, 5, 3, 0], dur=[1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 2], oct=4, amp=0.5, dist=5, lpf=2600)
+```
+
+## Another One Bites the Dust — Queen (the bassline)
+
+```
+Clock.bpm = 110
+Root.default = "E"
+Scale.default = "chromatic"
+# E . E E . . G E   —  _ is a rest
+aobtd >> dbass([0, _, 0, 0, _, _, 3, 0], dur=1/2, oct=2, amp=0.6, lpf=900)
+```
+
+## Billie Jean — Michael Jackson (the bassline)
+
+```
+Clock.bpm = 117
+Root.default = "F#"
+Scale.default = "minor"
+# walks F# down to C# and back
+bj >> dbass([0, -3, -2, -1, 0, -1, -2, -3], dur=1/2, oct=3, amp=0.55, lpf=1100)
+```
+
+## Take On Me — a-ha (the synth riff)
+
+```
+Clock.bpm = 168
+Root.default = "A"
+Scale.default = "major"
+toms >> pulse([5, 5, 3, 1, 1, 4, 4, 4, 6, 6, 7, 8, 7, 7, 7, 4, 3, 5, 5, 5, 4, 4, 5, 4], dur=1/2, oct=5, sus=0.3, amp=0.4, room=0.4, reverb=0.3)
+```
+
+## Axel F — Beverly Hills Cop (Harold Faltermeyer)
+
+```
+Clock.bpm = 118
+Root.default = "F"
+Scale.default = "chromatic"
+axel >> blip([0, 3, 0, 0, 5, 0, -2, 0, 0, 7, 0, 0, 8, 7, 3, 0], dur=[1, 1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2, 1/2, 1/2, 1], oct=5, sus=0.3, amp=0.4, room=0.4)
+```
