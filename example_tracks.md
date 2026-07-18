@@ -546,3 +546,246 @@ hab >> pluck([0, -1, -2, -3, -4, -5, -4, -5, -3, -2], dur=[1, 1/2, 1/2, 1, 1/2, 
 bs >> dbass([-12, 7, 3, 7], oct=4, dur=1/2, amp=0.4, lpf=800)
 d1 >> play("x..x.x..", dur=1/2, amp=0.4)
 ```
+
+---
+
+# More grooves — modern electronic + world
+
+## Dubstep (wobble)
+
+```
+Clock.bpm = 140
+Root.default = "E"
+Scale.default = "minor"
+k1 >> play("x...", dur=1, amp=0.9)
+s1 >> play("..o.", dur=1, amp=0.7)
+wb >> wob([0, 0, 3, 0], oct=2, dur=1, rate=var([2, 4, 8], 4), depth=0.9, cutoff=350, amp=0.6)
+hh >> play("-", dur=1/4, amp=0.2, hpf=8000).sometimes("stutter", 3)
+```
+
+## Trance (uplifting)
+
+```
+Clock.bpm = 138
+Root.default = "A"
+Scale.default = "minor"
+k1 >> play("x", dur=1, amp=0.9)
+oh >> play(" -", dur=1/2, amp=0.3, hpf=8000)
+bs >> dbass([0], oct=2, dur=1/4, amp=0.45, lpf=700).offbeat()
+ld >> supersaw([0, 3, 4, 7], oct=5, dur=1/2, sus=0.4, amp=0.3, cutoff=linvar([800, 5000], [32]), reverb=0.4).unison(3)
+pd >> pads(PProg("pop"), oct=4, dur=8, sus=8, amp=0.14, cutoff=sinvar([1000, 3000], [16]))
+```
+
+## Synthwave / Outrun
+
+```
+Clock.bpm = 100
+Root.default = "A"
+Scale.default = "minor"
+bs >> dbass([0, 0, 5, 5, 3, 3, 4, 4], oct=2, dur=1/4, amp=0.5, lpf=1400)
+ld >> ssaw([0, 3, 7, 3], oct=5, dur=1/2, sus=0.4, amp=0.28, cutoff=sinvar([1200, 4000], [16]), chorus=0.4, reverb=0.4)
+pd >> pads((0, 3, 7), oct=4, dur=8, sus=8, amp=0.14, chorus=0.4, cutoff=linvar([800, 2000], [16]))
+d1 >> play("x-o-", dur=1/2, amp=0.5)
+```
+
+## UK Garage (2-step)
+
+```
+Clock.bpm = 132
+Root.default = "G"
+Scale.default = "minor"
+k1 >> play("x..x..x.", dur=1/2, amp=0.85)
+s1 >> play("..o...o.", dur=1/2, amp=0.5)
+hh >> play("-", dur=1/4, amp=0.2, hpf=8000).sometimes("stutter", 2)
+bs >> dbass([0, 0, 5, 3], oct=2, dur=1/2, amp=0.5, lpf=900)
+ch >> rhodes(PChord(0, var(["m7", "m9"], 8)), oct=5, dur=1, sus=0.3, amp=0.2, room=0.3).offbeat()
+```
+
+## Ska (offbeat upstrokes)
+
+```
+Clock.bpm = 160
+Root.default = "C"
+Scale.default = "major"
+sk >> pluck((0, 2, 4), oct=5, dur=1/2, sus=0.1, amp=0.3).offbeat()
+bs >> dbass([0, 4, 5, 4], oct=2, dur=1, amp=0.5, lpf=900)
+br >> brass([0, 2, 4, 2], oct=5, dur=1, sus=0.3, amp=0.2)
+k1 >> play("x", dur=1, amp=0.7)
+s1 >> play(".o", dur=1, amp=0.5)
+```
+
+## Afrobeat
+
+```
+Clock.bpm = 110
+Root.default = "E"
+Scale.default = "dorian"
+bs >> dbass([0, 0, 4, 0, 2, 0, 4, 2], oct=2, dur=1/4, amp=0.5, lpf=1000)
+gt >> pluck([(0, 2, 4), _, (0, 2, 4), (2, 4, 6)], oct=5, dur=1/4, sus=0.15, amp=0.2).sometimes("stutter", 4)
+k1 >> play("x..x..x.", dur=1/2, amp=0.7)
+h1 >> play("-", dur=1/4, amp=0.2, hpf=7000)
+pc >> play("..x.x...", dur=1/2, amp=0.3, sample=2)
+```
+
+## Lo-fi hip-hop
+
+```
+Clock.bpm = 82
+Root.default = "F"
+Scale.default = "major"
+ch >> rhodes(PChord(0, var(["maj7", "m7", "9"], 4)), oct=4, dur=2, sus=1.8, amp=0.25, lpf=1600, room=0.4)
+bs >> dbass([0, 5, 3, 4], oct=2, dur=2, amp=0.5, lpf=600)
+k1 >> play("x..x.x..", dur=1/2, amp=0.7).sometimes("stutter", 8)
+s1 >> play("..o...o.", dur=1/2, amp=0.45)
+vy >> play("-", dur=1/4, amp=0.12, hpf=5000)
+```
+
+## Minimal techno
+
+```
+Clock.bpm = 128
+Root.default = "C"
+Scale.default = "minor"
+k1 >> play("x", dur=1, amp=0.9)
+bs >> dbass([0], oct=2, dur=1/2, amp=0.45, lpf=sinvar([500, 1200], [16])).offbeat()
+cl >> play("..o.", dur=1, amp=0.4)
+bl >> blip([0, 0, 3, 0], oct=6, dur=PDur(3, 8), sus=0.1, amp=0.15, pan=sinvar([-0.7, 0.7], [8]))
+pd >> pads((0, 3, 7), oct=4, dur=16, sus=16, amp=0.1, cutoff=linvar([600, 2000], [32]))
+```
+
+## Psytrance (rolling bass)
+
+```
+Clock.bpm = 145
+Root.default = "E"
+Scale.default = "phrygian"
+k1 >> play("x", dur=1, amp=0.9)
+bs >> dbass([_, 0, 0, 0], oct=2, dur=1/4, amp=0.45, lpf=800)
+ld >> ssaw([0, 1, 3, 0, 5, 3], oct=5, dur=1/4, sus=0.15, amp=0.22, cutoff=linvar([1000, 5000], [16]))
+oh >> play(" -", dur=1/2, amp=0.25, hpf=8000)
+```
+
+## Big Beat
+
+```
+Clock.bpm = 130
+Root.default = "E"
+Scale.default = "minor"
+br >> play("x-o-x-o-", dur=1/2, amp=0.7).sometimes("stutter", 4)
+bs >> dbass([0, 0, 0, 3], oct=2, dur=1/2, amp=0.55, dist2=0.4, lpf=1000)
+st >> fuzz([0, 0, 3, 5], oct=4, dur=1, sus=0.3, amp=0.25, dist=4, crush=0.3)
+```
+
+---
+
+# More themes — classical · film · games · jazz
+
+## Mission: Impossible (in 5)
+
+```
+Clock.bpm = 160
+Root.default = "G"
+Scale.default = "minor"
+mi >> dbass([0, 0, 2, 3], dur=[1, 1, 1, 2], oct=2, amp=0.5, lpf=900)
+ld >> brass([0, 0, 2, 3, 6, 5, 4, 5], dur=[1, 1, 1, 2, 1, 1, 1, 2], oct=5, sus=0.3, amp=0.3, dist=1)
+d1 >> play("x..x.", dur=1, amp=0.6)
+```
+
+## The Godfather — Waltz (Speak Softly Love)
+
+```
+Clock.bpm = 100
+Root.default = "C"
+Scale.default = "minor"
+gf >> brass([4, 5, 6, 4, 3, 2, 0], dur=[2, 1, 1, 1, 1, 1, 3], oct=5, sus=0.6, amp=0.35, room=0.5, reverb=0.4)
+ch >> pads([(0, 2, 4), (5, 0, 2), (4, 6, 1)], oct=4, dur=3, sus=3, amp=0.15, cutoff=1400, reverb=0.4)
+bs >> dbass([0, _, _, 4, _, _], oct=3, dur=1, amp=0.4, lpf=700)
+```
+
+## Toccata and Fugue in D minor — Bach
+
+```
+Clock.bpm = 90
+Root.default = "D"
+Scale.default = "chromatic"
+toc >> organ([7, 5, 7, 5, 3, 2, 0, -1, 0], dur=[1/4, 1/4, 1/2, 1/4, 1/4, 1/4, 1/4, 1/2, 2], oct=5, sus=0.5, amp=0.35, room=0.6, reverb=0.5)
+ped >> organ([0], oct=2, dur=4, sus=4, amp=0.28, cutoff=1200, room=0.4)
+```
+
+## Ride of the Valkyries — Wagner
+
+```
+Clock.bpm = 84
+Root.default = "B"
+Scale.default = "chromatic"
+val >> brass([0, 3, 7, 7, 5, 7, 3], dur=[1/2, 1/4, 3/2, 1/2, 1/4, 3/2, 1], oct=5, sus=0.5, amp=0.38, dist=1, room=0.5, reverb=0.4)
+ch >> pads((0, 3, 7), oct=3, dur=6, sus=6, amp=0.16, cutoff=linvar([700, 2000], [16]))
+d1 >> play("x..x..", dur=1/2, amp=0.5)
+```
+
+## Megalovania — Undertale
+
+```
+Clock.bpm = 120
+Root.default = "D"
+Scale.default = "chromatic"
+mg >> saw([0, 0, 12, 7, 6, 5, 3, 0, 3, 5], dur=[1/2, 1/2, 1, 1, 1/2, 1/2, 1/2, 1/2, 1/2, 1/2], oct=4, sus=0.2, amp=0.3, dist=2, lpf=linvar([1500, 4000], [8]))
+bs >> dbass([0, 0, 0, 0], oct=2, dur=1/4, amp=0.45, lpf=800)
+d1 >> play("x-o-", dur=1/2, amp=0.5).sometimes("stutter", 4)
+```
+
+## Super Mario Bros — underworld
+
+```
+Clock.bpm = 120
+Root.default = "C"
+Scale.default = "chromatic"
+mu >> blip([12, 12, 12, 9, 9, 9, 6, 6, 6, 8, 8, 8], dur=[1/2, 1/2, 1, 1/2, 1/2, 1, 1/2, 1/2, 1, 1/2, 1/2, 1], oct=4, sus=0.2, amp=0.35, lpf=1800)
+bs >> dbass([0, -3, -6, -4], oct=3, dur=2, amp=0.4, lpf=800)
+d1 >> play("x..x", dur=1/2, amp=0.4)
+```
+
+## Moonlight Sonata — Beethoven
+
+```
+Clock.bpm = 108
+Root.default = "C#"
+Scale.default = "minor"
+ms >> rhodes([0, 2, 4], oct=4, dur=1/3, sus=0.4, amp=0.22, room=0.5)
+me >> bell([4, 4, 4, 4, 3, 4], dur=[3, 3, 1, 1, 1, 1], oct=5, sus=1, amp=0.24, room=0.5)
+bs >> dbass([0, -2, 1, 0], oct=2, dur=6, amp=0.35, lpf=700)
+```
+
+## Fly Me to the Moon — jazz standard
+
+```
+Clock.bpm = 120
+Root.default = "C"
+Scale.default = "major"
+fm >> rhodes([5, 4, 3, 2, 1, 2, 3, 4], dur=[1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1], oct=5, sus=0.4, amp=0.35, room=0.4)
+ch >> pluck(PChord(0, var(["m7", "7", "maj7"], 4)), oct=4, dur=2, sus=0.5, amp=0.2, room=0.3)
+bs >> dbass([5, 1, 4, 0], oct=2, dur=2, amp=0.45, lpf=800)
+d1 >> play("x-o-", dur=1/2, amp=0.35)
+```
+
+## Pink Panther — Henry Mancini
+
+```
+Clock.bpm = 120
+Root.default = "E"
+Scale.default = "chromatic"
+pp >> pluck([3, 4, _, 3, 4, 6, 7, _, 6, 7, 10, 9, 7, 6], dur=[1/2, 1, 1/2, 1/2, 1/2, 1/2, 1, 1/2, 1/2, 1/2, 1/2, 1/2, 1/2, 1], oct=5, sus=0.3, amp=0.32, room=0.4)
+bs >> dbass([0, _, 0, _, 3, _, 2, _], oct=2, dur=1/2, amp=0.4, lpf=700)
+d1 >> play("- -", dur=1/2, amp=0.2, hpf=6000)
+```
+
+## William Tell Overture — Rossini (the gallop)
+
+```
+Clock.bpm = 140
+Root.default = "E"
+Scale.default = "major"
+wt >> brass([0, 0, 4, 0, 0, 4, 0, 0, 4, 7, 4], dur=[1/3, 1/3, 1/3, 1/3, 1/3, 1/3, 1/3, 1/3, 1/3, 1, 1], oct=5, sus=0.2, amp=0.35, dist=1, room=0.4)
+bs >> dbass([0, 0, 4], oct=3, dur=[1/2, 1/2, 1], amp=0.4, lpf=900)
+d1 >> play("x-x-", dur=1/2, amp=0.5)
+```
