@@ -23,23 +23,23 @@ export const SYNTH_DEFS = {
         extraParams: ['dist', 'cutoff', 'rq'],
     },
     // ── Rock / punk grit (CrashServer ports, stock-UGen reimplementations) ──
-    // war — power-chord riff machine: detuned saws + sub through heavy tanh drive (beef)
+    // war — power-chord riff machine: detuned saws + sub through heavy tanh drive (dist)
     war: {
         scName: 'fd_war',
-        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 1200, rq: 0.4, beef: 8, sub: 0.3 },
-        extraParams: ['cutoff', 'rq', 'beef', 'sub'],
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.005, release: 0.06, cutoff: 1200, rq: 0.4, dist: 8, sub: 0.3 },
+        extraParams: ['cutoff', 'rq', 'dist', 'sub'],
     },
     // dab — dirty overdriven bass for walking / riff lines
     dab: {
         scName: 'fd_dab',
-        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, cutoff: 900, rq: 0.35, drive: 4, sub: 0.6 },
-        extraParams: ['cutoff', 'rq', 'drive', 'sub'],
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.08, cutoff: 900, rq: 0.35, dist: 4, sub: 0.6 },
+        extraParams: ['cutoff', 'rq', 'dist', 'sub'],
     },
     // fuzz — raw aliased fuzz lead (self-FM'd LFSaw, hard-clipped)
     fuzz: {
         scName: 'fd_fuzz',
-        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 4000, rq: 0.5, drive: 6 },
-        extraParams: ['cutoff', 'rq', 'drive'],
+        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 4000, rq: 0.5, dist: 6 },
+        extraParams: ['cutoff', 'rq', 'dist'],
     },
     // growl — talking ring-mod growl bass-lead
     growl: {
@@ -50,8 +50,8 @@ export const SYNTH_DEFS = {
     // guitar — Karplus-Strong electric guitar (Pluck → overdrive → amp-sim), palm-mutable
     guitar: {
         scName: 'fd_guitar',
-        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.12, drive: 3, cutoff: 3000, tone: 0.4, palm: 0 },
-        extraParams: ['drive', 'cutoff', 'tone', 'palm'],
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.12, dist: 3, cutoff: 3000, tone: 0.4, palm: 0 },
+        extraParams: ['dist', 'cutoff', 'tone', 'palm'],
     },
     // a_xbass — aggressive rhythmic punk / math-rock bass with a built-in accent groove
     a_xbass: {
@@ -93,8 +93,8 @@ export const SYNTH_DEFS = {
     // hardstab — hard rave/industrial stab (compressed brick-wall punch)
     hardstab: {
         scName: 'fd_hardstab',
-        defaults: { oct: 5, amp: 0.8, dur: 1, sus: 0.2, pan: 0, attack: 0.001, release: 0.15, cutoff: 3000, rq: 0.5, dist: 3, wfold: 0.3, detune: 0.01, fbk: 0.2, comp: 6 },
-        extraParams: ['cutoff', 'rq', 'dist', 'wfold', 'detune', 'fbk', 'comp'],
+        defaults: { oct: 5, amp: 0.8, dur: 1, sus: 0.2, pan: 0, attack: 0.001, release: 0.15, cutoff: 3000, rq: 0.5, dist: 3, wfold: 0.3, detune: 0.01, fbk: 0.2, squash: 6 },
+        extraParams: ['cutoff', 'rq', 'dist', 'wfold', 'detune', 'fbk', 'squash'],
     },
     // industrialsnare — brutal layered/crushed industrial snare (perc)
     industrialsnare: {
@@ -147,8 +147,8 @@ export const SYNTH_DEFS = {
     // gaze — shoegaze wavetable-style pad (morphing detuned swarm, dual ladders, wide)
     gaze: {
         scName: 'fd_gaze',
-        defaults: { oct: 5, amp: 0.7, dur: 2, sus: 2, pan: 0, attack: 0.05, release: 0.4, cutoff: 1200, rq: 0.2, detune: 0.02, shimmer: 0.3, sub: 0.3 },
-        extraParams: ['cutoff', 'rq', 'detune', 'shimmer', 'sub'],
+        defaults: { oct: 5, amp: 0.7, dur: 2, sus: 2, pan: 0, attack: 0.05, release: 0.4, cutoff: 1200, rq: 0.2, detune: 0.02, glow: 0.3, sub: 0.3 },
+        extraParams: ['cutoff', 'rq', 'detune', 'glow', 'sub'],
     },
     // waves — evolving oceanic ambient pad/texture (FM + comb diffusion + verb)
     waves: {

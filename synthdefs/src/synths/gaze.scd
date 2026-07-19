@@ -1,9 +1,9 @@
 // gaze — shoegaze wavetable-style pad (CrashServer-inspired; stock-UGen reimplementation of
 // the VOsc original, which needs boot-time wavetables absent under WASM). A slow-morphing
 // detuned saw/tri swarm through dual Moog ladders with LFO drift, spread wide + shimmered.
-// Params: cutoff, rq, detune, shimmer (high-octave layer), sub.
+// Params: cutoff, rq, detune, glow (high-octave layer), sub.
 SynthDef(\fd_gaze, {|out=0, note=60, amp=0.7, sus=1, pan=0, attack=0.05, release=0.4,
-                     cutoff=1200, rq=0.2, detune=0.02, shimmer=0.3, sub=0.3|
+                     cutoff=1200, rq=0.2, detune=0.02, glow=0.3, sub=0.3|
     var freq, sig, env, swarm, morph, lfo1, lfo2, shim, subOsc;
     freq = note.midicps;
     morph = SinOsc.kr(0.1).range(0, 1);                 // slow wavetable-ish morph
@@ -13,7 +13,7 @@ SynthDef(\fd_gaze, {|out=0, note=60, amp=0.7, sus=1, pan=0, attack=0.05, release
         LFTri.ar(freq * (1 + detune))
     ]) * 0.28;
     subOsc = SinOsc.ar(freq * 0.5) * sub;
-    shim = LFSaw.ar(freq * 2 * (1 + (detune * 0.5))) * shimmer * 0.2;
+    shim = LFSaw.ar(freq * 2 * (1 + (detune * 0.5))) * glow * 0.2;
     sig = swarm + subOsc + shim;
     lfo1 = SinOsc.kr(0.13).range(0.6, 1.4);
     lfo2 = SinOsc.kr(0.19, 1).range(0.5, 1.3);

@@ -437,7 +437,7 @@ Root.default = "D"
 Scale.default = "dorian"
 pd >> pads(PProg("50s"), oct=4, dur=8, sus=8, amp=0.2, attack=3, cutoff=linvar([600, 1800], [32]), reverb=0.6, room=0.9, chorus=0.4)
 be >> bell(PShuf([0, 4, 7, 11, 14]), oct=5, dur=PDur(3, 16), sus=0.5, amp=0.15, room=0.7, pan=sinvar([-0.7, 0.7], [16])).every(4, "rotate")
-dr >> gaze([0, 7], oct=3, dur=16, sus=16, amp=0.2, shimmer=0.5, reverb=0.6)
+dr >> gaze([0, 7], oct=3, dur=16, sus=16, amp=0.2, glow=0.5, reverb=0.6)
 ```
 
 ---
