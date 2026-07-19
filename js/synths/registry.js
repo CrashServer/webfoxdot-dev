@@ -390,7 +390,8 @@ export const SYNTH_DEFS = {
                     decay: 0.01, beef: 0, rate: 0.01, level: 0.8, peak: 1 },
         extraParams: ['decay', 'beef', 'rate', 'level', 'peak', 'fmod'],
     },
-    // Plaits-engine guitar (ported from FoxDot guit — uses MiPlaits)
+    // guit — plucked guitar (ported from FoxDot guit; stock-UGen Pluck reimplementation,
+    // since the original MiPlaits engine is silent under the WASM build)
     guit: {
         scName: 'fd_guit',
         defaults: { oct: 5, amp: 0.9, dur: 1, pan: 0, attack: 0.0001, release: 0.01,

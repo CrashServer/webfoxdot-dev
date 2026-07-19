@@ -1,7 +1,7 @@
 // renderer.js — the WebGL2 backend. THE quality + performance win: every scene's field
 // is evaluated per-pixel on the GPU at native resolution (the old CPU path sampled a
 // ~1/9-res grid and upscaled → blurry, and melted phones). One static program holds all
-// 31 scene functions + a uniform-driven dispatch, so live-coding never triggers a shader
+// 48 scene functions + a uniform-driven dispatch, so live-coding never triggers a shader
 // recompile — layers, params, palette, crossfader and post-fx are ALL uniforms.
 //
 // Pipeline per frame:

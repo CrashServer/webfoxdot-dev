@@ -163,16 +163,8 @@ export const FX_REGISTRY = {
     shimpitch:{ scParam: 'shimpitch',default: 0.5, desc: 'Shimmer pitch: 0=unison .. 1=+1 octave' },
     shimmix:  { scParam: 'shimmix',  default: 0.5, desc: 'Internal reverb wet/dry' },
 
-    // clouds — MiClouds granular texture/reverb (Mutable Instruments), CrashServer port
-    clouds:   { scParam: 'clouds', default: 0,    desc: 'Granular cloud drywet (0=off)' },
-    cpos:     { scParam: 'cpos',   default: 0.5,  desc: 'Grain position' },
-    csize:    { scParam: 'csize',  default: 0.25, desc: 'Grain size' },
-    cdens:    { scParam: 'cdens',  default: 0.4,  desc: 'Grain density' },
-    ctex:     { scParam: 'ctex',   default: 0.5,  desc: 'Grain texture' },
-    cpitch:   { scParam: 'cpitch', default: 0,    desc: 'Grain pitch shift (semitones)' },
-    cgain:    { scParam: 'cgain',  default: 2,    desc: 'Input gain' },
-    cfb:      { scParam: 'cfb',    default: 0,    desc: 'Feedback 0–1' },
-    cmode:    { scParam: 'cmode',  default: 0,    desc: 'Mode: 0 granular · 1 stretch · 2 loop · 3 spectral' },
+    // (clouds — MiClouds granular FX removed: the Mutable-Instruments UGen is silent
+    //  under the WASM SuperCollider build, so it produced no sound.)
 
     // room2 — true-stereo FreeVerb2 reverb, CrashServer port
     room2:    { scParam: 'room2', default: 0,   desc: 'Stereo reverb room size (0=off)' },
@@ -297,7 +289,6 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_mverb',      keys: ['mverb', 'mverbmix', 'mverbdamp', 'mverbdiff', 'mverbfreeze'], trig: ['mverb'] },
     { scName: 'fd_fx_cheapverb',  keys: ['cheapverb', 'cvdecay', 'cvdamp'], trig: ['cheapverb'] },
     { scName: 'fd_fx_shimmer',    keys: ['shimmer', 'shimsize', 'shimpitch', 'shimmix'], trig: ['shimmer'] },
-    { scName: 'fd_fx_clouds',     keys: ['clouds', 'cpos', 'csize', 'cdens', 'ctex', 'cpitch', 'cgain', 'cfb', 'cmode'], trig: ['clouds'] },
     { scName: 'fd_fx_room2',      keys: ['room2', 'mix2', 'damp2'], trig: ['room2'] },
     { scName: 'fd_fx_chorus',     keys: ['chorus', 'chorus_rate', 'chorus_depth'], trig: ['chorus'] },
     { scName: 'fd_fx_tremolo',    keys: ['tremolo', 'trem_rate', 'trem_depth'], trig: ['tremolo'] },

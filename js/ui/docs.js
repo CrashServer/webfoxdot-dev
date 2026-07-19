@@ -1825,7 +1825,7 @@ d1 >> pluck([0], oct=6, dur=0.5, amp=0.3).follow("b1")`),
     const DEEP = [
         deep('d_pbuild', 'pbuild — genre drums', [
             `<b>pbuild(genre, opts)</b> generates a genre drum pattern as a play() string — feed it to play() with a small dur (0.25 = sixteenths). Every knob is a keyword:`,
-            `<b>genre</b>: a name (techno · house · dnb · breaks · halftime · industrial · reggae · afro) or an index number. &nbsp; <b>evolve</b>: bars before it loops, each a small mutation (default 8). &nbsp; <b>fill</b>: drop a fill every N bars. &nbsp; <b>density</b>: 0–1, thins hits out below 1.`,
+            `<b>genre</b>: a name (techno · ebm · house · dnb · breaks · halftime · industrial · reggae · afro) or an index number. &nbsp; <b>evolve</b>: bars before it loops, each a small mutation (default 8). &nbsp; <b>fill</b>: drop a fill every N bars. &nbsp; <b>density</b>: 0–1, thins hits out below 1.`,
             `<b>kick / snare / hat / perc</b> are per-bar GATES: 1 = on, 0 = off, a genre name to borrow that layer, or a pattern (PBin(4) / {1,0} / &lt;1 0&gt;) to toggle the layer bar by bar.`,
         ], `b1 >> play(pbuild("techno"), dur=0.25)                        # the simplest form
 b1 >> play(pbuild("dnb", evolve=16, fill=4, density=0.8), dur=0.25)  # evolves, fills, a bit sparser
