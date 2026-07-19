@@ -11,6 +11,7 @@ OUT="sw-manifest.js"
 # Enumerate the boot-critical, same-origin assets (URL paths relative to root).
 {
   echo "index.html"
+  [ -f visuals.html ] && echo "visuals.html"
   echo "config.json"
   [ -f manifest.webmanifest ] && echo "manifest.webmanifest"
   find icons -type f \( -name '*.png' -o -name '*.svg' \) 2>/dev/null

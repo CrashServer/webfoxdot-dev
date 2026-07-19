@@ -206,7 +206,7 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'beta10';
+export const VERSION = 'beta11';
 
 // items: a string, or { t: text, ex: examples-anchor-id } to link to a live example.
 const CHANGELOG = [
@@ -1227,7 +1227,7 @@ g55 >> choir([3, 2], oct=6, dur=1/4, amp=0.59, mverb=0.62).unison(2)
 g15 >> basic([4, ., 5, (0,3,4), 0], oct=4, dur=1/4, amp=0.3, chorus=0.59, tanh=0.2).unison(3)
 g24 >> pumpbass([5, 7, 4, (0,3,6), 7], oct=6, dur=1, amp=1)
 
-g21 >> brass([4, (0,4,7), 5, (2,5,9)], oct=4, a=0.5, dur=4, amp=1, hpf=1200, room=0, reverb=0, pong=0.44)
+g21 >> brass([4, (0,4,7), 5, (2,5,9)], oct=4, atk=0.5, dur=4, amp=1, hpf=1200, room=0, reverb=0, pong=0.44)
 
 g39 >> a_hhat([(0,2,5), 7, 2, 2], oct=5, dur=1/2, amp=0.50, drive=2.6, tanh=0.41).unison(2)
 v1 >> play(<-------->, amp=Pacc("offbeat"))
@@ -2083,7 +2083,7 @@ Root.default = "C"
 Scale.default = "phrygian"
 
 #@bd(8)
-k1 >> a_bd([0], oct=2, dur=1, distortion=4, punch=PLorenz(4, 8), amp=1, echo=0.125)
+k1 >> a_bd([0], oct=2, dur=1, dist=4, punch=PLorenz(4, 8), amp=1, echo=0.125)
 
 
 #@snare(8)
@@ -2184,7 +2184,7 @@ Root.default = "F"
 ld >> synthbass(arp([0, 3, [3, 7], 10, 12], 3), oct=4, dur=1/4, sus=0.5, detune=0.25, cutoff=sinvar([1200, 4000], [4]), rq=0.35, fenv=2, dist=1.3, echo=0.3, echo_time=0.375, pan=[-0.4, 0.4], amp=0.45).every(8, "shuffle").unison(3)
 
 #@synth(32)
-b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), rq=0.42, fenv=4, dist=1.7, pumper=0.7).unison(5)
+b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, atk=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), rq=0.42, fenv=4, dist=1.7, pumper=0.7).unison(5)
 
 #@rootchange(24)
 Root.default = "C"
@@ -2197,7 +2197,7 @@ Root.default = var(["E", "G", "E#", "A"])
 b1 >> synthbass([0, 0, 7, 0, 0, 3, 5, 3], oct=6, dur=1/2, sus=0.7, detune=0.45, cutoff=linvar([1200, 300], [16]), rq=0.4, fenv=3, dist=0.6, amp=linvar([0.9, 0], [16]), octclean=1, ocsub=0, ocup=1).unison(3)
 
 #@tweakb4(8)
-b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, a=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), rq=0.42, fenv=8, dist=1.7, pumper=0.7).unison(5)
+b4 >> synthbass([0, _, _, 0, 0, _, (4, 3), 3], oct=(6, 3), dur=2, atk=0.5, mverb=0.8, sus=2, detune=0.45, cutoff=sinvar([500, 1400], [8]), rq=0.42, fenv=8, dist=1.7, pumper=0.7).unison(5)
 
 #@masteroctave(16)
 b4.oct=3
