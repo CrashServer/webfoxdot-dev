@@ -8,8 +8,6 @@ let _sc       = null;             // SuperSonic ref, set at boot for runtime loa
 const USER_BUF_START = 600;
 let   _nextUserBuf   = USER_BUF_START;
 
-export function samplesLoaded() { return _loaded; }
-
 // Single-character sample names currently in the bank (for the generator/chaos).
 export function loadedSampleChars() {
     return Object.keys(_manifest).filter(c => c.length === 1 && (_manifest[c].count > 0 || _manifest[c]._loaded || _manifest[c]._loading));

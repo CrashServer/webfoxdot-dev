@@ -25,7 +25,7 @@ export const SCALE_MAP = {
     pentatonic:   [0, 2, 4, 7, 9],
     minPentatonic:[0, 3, 5, 7, 10],
     chromatic:    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-    diminished:   [0, 2, 3, 5, 6, 8, 9, 11],
+    diminished:   [0, 1, 3, 4, 6, 7, 9, 10],   // half-whole octatonic (matches FoxDot)
     bhairav:      [0, 1, 4, 5, 7, 8, 11],
     // ── FoxDot scale library (ported) ────────────────────────────────────────
     aeolian:        [0, 2, 3, 5, 7, 8, 10],   // = natural minor

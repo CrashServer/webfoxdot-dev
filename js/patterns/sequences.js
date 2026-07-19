@@ -529,7 +529,6 @@ export function _alt(...items) {
 // marker (NO .get, so it survives arg resolution intact); the fire path detects
 // `.__sub` on the degree and schedules each item at 1/N of the step. Nests: <0 <4 7>>.
 export function _sub(...items) { return { __sub: items }; }
-export function isSub(v) { return v != null && typeof v === 'object' && Array.isArray(v.__sub); }
 
 // Pattern arithmetic: linvar([1.4,0],32) * P[1,0,0.9], P[0,2,4] + 2, etc. JS can't
 // overload operators, so the transpiler rewrites arithmetic involving a pattern

@@ -164,7 +164,7 @@ function degLead() {
                  `PStutter(${randList(rint(3, 4), 0, 7)}, [${rint(2, 4)}, 1, ${rint(1, 3)}])`,
                  `P${randList(rint(3, 5), 0, 7)}.stretch(${pick([8, 16])})`,
                  `P${randList(rint(3, 5), 0, 9)}.palindrome()`, `melody()[:${rint(5, 9)}] + P*[0, ${rint(3, 7)}]`,
-                 `PIndex(${rint(0, 4)}, ${randList(rint(4, 6), 0, 9)})`,
+                 `PShuf(${randList(rint(4, 6), 0, 9)})`,
                  // lists that nest generator functions among the notes
                  mixList(0, 8), mixList(-3, 9), mixList(0, 7)]);
 }
@@ -618,7 +618,7 @@ export class JamBot {
         if (attr === 'amp')  v = (0.25 + Math.random() * 0.4).toFixed(2);
         else if (attr === 'oct') v = pick([3, 4, 4, 5, 5, 6]);
         else if (attr === 'dur') v = pick(['1/4', '1/2', '1', '2']);
-        else v = randDegrees();
+        else v = degLead();
         this.run(`${name}.${attr} = ${v}`);
     }
 

@@ -840,7 +840,7 @@ export class Player {
                         va[k] = isGroup(v) ? patGet(v.__group[vi % v.__group.length], step) : v;
                     }
                     const deg = va.degree ?? 0;
-                    if (deg === null) continue;
+                    if (deg === null || deg === REST) continue;   // `_` rest → no note
                     let note = toMidi(deg, va.oct ?? 5, this._scale, this._root);
                     if (note === null) continue;
                     note += (va.pshift ?? 0);

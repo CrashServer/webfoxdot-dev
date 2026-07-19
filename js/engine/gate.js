@@ -13,7 +13,6 @@ export function initGate(clock) { _clock = clock; }
 
 export function isMuted(n)  { return _muted.has(n); }
 export function isSoloed(n) { return _soloed.has(n); }
-export function anySolo()   { return _soloed.size > 0; }
 
 export function toggleMute(n) { _muted.has(n) ? _muted.delete(n) : _muted.add(n); apply(); }
 export function toggleSolo(n) { _soloed.has(n) ? _soloed.delete(n) : _soloed.add(n); apply(); }
