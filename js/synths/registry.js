@@ -473,8 +473,9 @@ export class SynthCall {
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
     // .every(beats, method, ...args) — call a player method every N beats (chainable)
     every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
-    // p >> synth(...) + N / + (a,b,c) — transpose the degree (chainable)
+    // p >> synth(...) + N / + (a,b,c) — transpose the degree up; - N transposes down
     __add__(x) { (this._degreeAdds ??= []).push(x); return this; }
+    __sub__(x) { (this._degreeAdds ??= []).push({ __sub: x }); return this; }
     // .unison(n, detune) — n detuned + stereo-spread voices (FoxDot formula).
     // Sets pan and pshift (semitone detune) groups; the group→voice machinery
     // does the rest. unison(4, 0.5) → pan=(-1,-0.5,0.5,1), pshift=(-0.5,-0.25,0.25,0.5)

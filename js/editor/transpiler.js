@@ -101,17 +101,18 @@ export function transpile(code) {
         const m = main.match(RE_RSHIFT);
         if (m) {
             const [, indent, tilde, player, rhs] = m;
-            // Player arithmetic: synth(...) + N / + (a,b,c) adds to the degree.
-            const parts = splitTopLevelPlus(rhs.trim());
+            // Player arithmetic: synth(...) + N / + (a,b,c) transposes the degree; - N drops it.
+            const parts = splitTopLevelAddSub(rhs.trim());
             // convertAlt/convertCurly after autoQuotePlay (so play strings are
             // already quoted & skipped) but before kwargify (so dur=<1 2> →
             // {dur:_alt(1,2)} parses and {2,4} → PRand([2,4]) before kwargs run).
             // convertPlayerRefs runs BEFORE kwargify so a player ref becomes
             // getAttr(...) — a pattern token — and any arithmetic on it (b1.degree+2)
             // is then wrapped in Pmath instead of evaluating to NaN.
-            let expr = kwargify(convertCurly(convertAlt(convertPlayerRefs(autoQuotePlay(parts[0].trim())))));
+            let expr = kwargify(convertCurly(convertAlt(convertPlayerRefs(autoQuotePlay(parts[0].text.trim())))));
             for (let i = 1; i < parts.length; i++) {
-                expr = `(${expr}).__add__(${kwargify(convertCurly(convertAlt(convertPlayerRefs(parts[i].trim()))))})`;
+                const method = parts[i].op === '-' ? '__sub__' : '__add__';
+                expr = `(${expr}).${method}(${kwargify(convertCurly(convertAlt(convertPlayerRefs(parts[i].text.trim()))))})`;
             }
             const resetArg = tilde ? ', true' : '';
             return `${indent}__p('${player}').__rshift__(${expr}${resetArg})${tail}`;
@@ -507,18 +508,26 @@ function autoQuotePlay(rhs) {
 
 // Split on '+' only at bracket depth 0 (player transposition operator).
 // '+' inside (...)/[...] (args, groups) stays put.
-function splitTopLevelPlus(s) {
-    const parts = [];
-    let depth = 0, cur = '';
+// Split a player RHS on top-level `+` / `-` transpose operators, returning segments
+// tagged with the operator that precedes each ('' for the base). A `-` counts only when
+// it's BINARY (preceded by an operand-ender) so unary minus inside a term is left alone;
+// brackets and string literals are skipped so `saw([0], amp=1-0.2)` / `play("a-b")` stay whole.
+function splitTopLevelAddSub(s) {
+    const segs = []; let depth = 0, cur = '', inStr = '', op = '';
     for (let i = 0; i < s.length; i++) {
         const c = s[i];
-        if ('([{'.includes(c)) depth++;
-        else if (')]}'.includes(c)) depth--;
-        if (c === '+' && depth === 0) { parts.push(cur); cur = ''; continue; }
+        if (inStr) { cur += c; if (c === inStr && s[i - 1] !== '\\') inStr = ''; continue; }
+        if (c === '"' || c === "'" || c === '`') { inStr = c; cur += c; continue; }
+        if ('([{'.includes(c)) { depth++; cur += c; continue; }
+        if (')]}'.includes(c)) { depth--; cur += c; continue; }
+        if (depth === 0 && (c === '+' || c === '-')) {
+            const prev = cur.replace(/\s+$/, '').slice(-1);
+            if (prev && /[)\]}\w]/.test(prev)) { segs.push({ op, text: cur }); op = c; cur = ''; continue; }
+        }
         cur += c;
     }
-    parts.push(cur);
-    return parts;
+    segs.push({ op, text: cur });
+    return segs;
 }
 
 function splitArgs(str) {

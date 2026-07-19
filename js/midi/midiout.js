@@ -108,6 +108,7 @@ export class MidiOutCall {
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
     every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
     __add__(x) { (this._degreeAdds ??= []).push(x); return this; }
+    __sub__(x) { (this._degreeAdds ??= []).push({ __sub: x }); return this; }
     degrade(prob = 0.5) { this._degrade = prob; return this; }
     solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }
     only(beats) { (this._calls ??= []).push(['only', beats]); return this; }

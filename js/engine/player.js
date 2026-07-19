@@ -149,7 +149,7 @@ function ungroup(v, step) {
 
 // degree + addend (player `+` transposition). Scalars sum; a group addend makes
 // a chord; group+group broadcasts. Pattern elements are resolved at `step`.
-function addDegree(base, add, step) {
+function addDegree(base, add, step, sign = 1) {
     const r = (x) => patGet(x, step, x);
     const baseArr = isGroup(base) ? base.__group : [base];
     const addArr  = isGroup(add)  ? add.__group  : [add];
@@ -160,9 +160,15 @@ function addDegree(base, add, step) {
         const a = r(addArr[i % addArr.length]);
         if (b === REST) { out.push(REST); continue; }              // a rest stays a rest
         if (b === null || b === undefined) { out.push(null); continue; }
-        out.push((b ?? 0) + (a ?? 0));
+        out.push((b ?? 0) + sign * (a ?? 0));
     }
     return out.length === 1 ? out[0] : { __group: out };
+}
+// Apply one degree transpose addend — a raw value (+), or a {__sub} marker (-).
+function applyDegreeAdd(degree, a, step) {
+    return (a && a.__sub !== undefined)
+        ? addDegree(degree ?? 0, a.__sub, step, -1)
+        : addDegree(degree ?? 0, a, step);
 }
 
 // Quantised first beat: a player's first note lands on the next beat that is a
@@ -499,7 +505,7 @@ export class Player {
 
         // Player `+` transposition — add each addend to the degree.
         if (this._degreeAdds) {
-            for (const a of this._degreeAdds) r.degree = addDegree(r.degree ?? 0, a, step);
+            for (const a of this._degreeAdds) r.degree = applyDegreeAdd(r.degree, a, step);
         }
 
         // Extract Axis-3 envelopes: keys ending in "_" whose value is an envelope.
@@ -807,7 +813,7 @@ export class Player {
         const r    = resolveArgs(this._midiOpts, step);
 
         if (this._degreeAdds) {
-            for (const a of this._degreeAdds) r.degree = addDegree(r.degree ?? 0, a, step);
+            for (const a of this._degreeAdds) r.degree = applyDegreeAdd(r.degree, a, step);
         }
         // fb/fi/fo used directly on a param (e.g. amp=fb(...)) → clock-synced value
         for (const k of Object.keys(r)) if (isEnv(r[k])) r[k] = envValue(r[k]);

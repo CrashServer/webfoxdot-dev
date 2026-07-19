@@ -204,6 +204,7 @@ export class PlayStringCall {
     every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
     // play() has no degree to transpose — accept `+` as a no-op so it can't crash
     __add__() { return this; }
+    __sub__() { return this; }
     // unison on samples: n layers detuned via playback rate (2^(pshift/12)) + pan spread
     unison(n = 2, detune = 0.125, spread = 100) { this._unison = n ? unisonSpread(n, detune, spread) : null; return this; }
     // .degrade(prob) — randomly silence prob (0–1) of steps (default 0.5)
@@ -239,6 +240,7 @@ export class LoopCall {
     after(beats, method, ...args) { this._after = { beats, method, args }; return this; }
     every(beats, method, ...args) { (this._everys ??= []).push({ beats, method, args }); return this; }
     __add__() { return this; }
+    __sub__() { return this; }
     degrade(prob = 0.5) { this._degrade = prob; return this; }
     solo(beats) { (this._calls ??= []).push(['solo', beats]); return this; }
     only(beats) { (this._calls ??= []).push(['only', beats]); return this; }
