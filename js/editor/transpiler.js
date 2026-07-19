@@ -16,7 +16,7 @@ const RE_WORD_REST       = /(?<=[,\[(]\s*)rest(?=\s*[,\]\)])/g;
 const RE_RSHIFT   = /^(\s*)(~?)\s*([a-zA-Z_]\w*)\s*>>\s*(.+)$/;
 const RE_ATTR     = /^(\s*)([a-zA-Z_]\w*)\.([a-zA-Z_]\w*)\s*=(?!=)\s*(.+)$/;
 const RE_RESERVED = /^(Clock|Scale|Root|Master|Server)$/;
-const RE_METHOD   = /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop|only|reroll|degrade|jump|once|penta|mirror|rotate|offbeat|accompany|follow)\s*\(/g;
+const RE_METHOD   = /\b([a-zA-Z_]\w*)\.(every|solo|soloDrop|stutter|reverse|shuffle|stop|only|reroll|degrade|jump|once|penta|mirror|rotate|offbeat|accompany|follow|strum|multiply|map|drummer|chroma|gtr)\s*\(/g;
 
 // Rewrite the FoxDot P object with a depth-aware scanner (regex `[^\]]*` couldn't
 // handle nesting, so P[0,[4,2]] produced a mismatched-paren syntax error):
@@ -413,10 +413,12 @@ function kwargify(expr) {
         const isCall   = /[A-Za-z0-9_$\])]/.test(prevChar);
         result += expr.slice(i, parenIdx);  // everything up to (but not incl) '('
 
-        // Find matching close paren
-        let depth = 1, j = parenIdx + 1;
+        // Find matching close paren (skip brackets that sit inside string literals)
+        let depth = 1, j = parenIdx + 1, inStr = '';
         while (j < expr.length && depth > 0) {
             const c = expr[j];
+            if (inStr) { if (c === inStr && expr[j - 1] !== '\\') inStr = ''; j++; continue; }
+            if (c === '"' || c === "'" || c === '`') { inStr = c; j++; continue; }
             if ('([{'.includes(c)) depth++;
             else if (')]}'. includes(c)) depth--;
             j++;
@@ -503,8 +505,11 @@ function splitTopLevelPlus(s) {
 
 function splitArgs(str) {
     const args = [];
-    let cur = '', depth = 0;
-    for (const c of str) {
+    let cur = '', depth = 0, inStr = '';
+    for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        if (inStr) { cur += c; if (c === inStr && str[i - 1] !== '\\') inStr = ''; continue; }  // inside a string: copy verbatim
+        if (c === '"' || c === "'" || c === '`') { inStr = c; cur += c; continue; }
         if ('([{'.includes(c)) depth++;
         else if (')]}'. includes(c)) depth--;
         else if (c === ',' && depth === 0) { args.push(cur); cur = ''; continue; }
