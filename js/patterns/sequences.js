@@ -373,7 +373,7 @@ export function PSum(n, total, lim = 0.125) {
 // PDelta(deltas, start=0) — cumulative sum: start, start+d0, start+d0+d1, …
 export function PDelta(deltas, start = 0) {
     const arr = Array.isArray(deltas) ? deltas : [deltas];
-    return { get: (i) => { let v = start; for (let j = 0; j < i; j++) v += Number(arr[j % arr.length]) || 0; return v; } };
+    return { get: (i) => { let v = start; for (let j = 0; j < i; j++) v += Number(patGet(arr[j % arr.length], j)) || 0; return v; } };
 }
 
 // PIndex() — the step index. PSquare() — the index squared. PFib() — Fibonacci.
@@ -490,7 +490,7 @@ export function PZ12(tokens = [1, 0], p = [1, 0.5]) {
 export function PPing(arr) {
     const fwd = [...arr], rev = [...arr].reverse().slice(1, -1);
     const loop = [...fwd, ...rev];
-    return { get: (i) => loop[i % loop.length] };
+    return { get: (i) => patGet(loop[i % loop.length], i) };
 }
 
 // ── Repetition / rotation ─────────────────────────────────────────────────────
@@ -500,7 +500,7 @@ export function PStutter(seq, n = 2) {
     const arr  = Array.isArray(seq) ? seq : [seq];
     const nArr = Array.isArray(n)   ? n   : null;
     const flat = arr.flatMap((v, i) => Array(nArr ? nArr[i % nArr.length] : n).fill(v));
-    return { get: (step) => flat[step % flat.length] };
+    return { get: (step) => patGet(flat[step % flat.length], step) };
 }
 
 // PAlt(p1, p2, ...) — alternate between patterns one step at a time

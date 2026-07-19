@@ -53,6 +53,15 @@ function rewriteP(s) {
     return out;
 }
 
+// Blank out string literals (returning a restore fn) so line-level regexes don't
+// rewrite tokens that sit inside a quoted string. Placeholder uses NUL so it can't
+// collide with real source or match the rest/bracket regexes.
+function maskStrings(s) {
+    const strs = [];
+    const masked = s.replace(/(["'`])(?:\\.|(?!\1)[\s\S])*?\1/g, m => `\x00${strs.push(m) - 1}\x00`);
+    return { masked, restore: (t) => t.replace(/\x00(\d+)\x00/g, (_, i) => strs[+i]) };
+}
+
 export function transpile(code) {
     return code.split('\n').map(line => {
         const stripped = line.trim();
@@ -72,14 +81,16 @@ export function transpile(code) {
         //   P(a,b,c)  → __group(a,b,c)   (simultaneous group)
         main = rewriteP(main);
 
-        // Standalone . used as rest → null in array/argument positions
-        // dbass([0, ., 4]) → dbass([0, null, 4])  (null → degree 0, still sounds)
-        main = main.replace(RE_DOT_REST, 'null');
-
-        // Standalone _ or bare `rest` in array/arg position → __REST (true silence).
-        // cs80([4, _, 1]) / cs80([4, rest, 1]) → cs80([4, __REST, 1])
-        main = main.replace(RE_UNDERSCORE_REST, '__REST');
-        main = main.replace(RE_WORD_REST, '__REST');
+        // Rest substitutions in array/argument positions — but NOT inside string
+        // literals (mask them first so foo="(.)" / play("x.o") are left alone):
+        //   dbass([0, ., 4]) → [0, null, 4]  (null → degree 0, still sounds)
+        //   cs80([4, _, 1]) / cs80([4, rest, 1]) → [4, __REST, 1]  (true silence)
+        {
+            const { masked, restore } = maskStrings(main);
+            main = restore(masked.replace(RE_DOT_REST, 'null')
+                                 .replace(RE_UNDERSCORE_REST, '__REST')
+                                 .replace(RE_WORD_REST, '__REST'));
+        }
 
         // Python slice that freezes a generator into a repeating phrase:
         //   melody()[:8] / PWhite(0,1)[:8]  →  Pslice(melody(), null, 8)
@@ -130,6 +141,13 @@ export function applyRenames(js) {
         .replace(/\blinvar\(/g, '_linvar(')
         .replace(/\bsinvar\(/g, '_sinvar(')
         .replace(/\bexpvar\(/g, '_expvar(');
+}
+
+// Transpile a bare pattern EXPRESSION (not a statement) — used by the Alt+I inspector.
+// Applies the same depth-aware P[…]/P*[…] (→ Ppat/PRand, nesting-safe), <a b> and {a,b}
+// rewrites the statement path uses, so e.g. P[0,[4,2]].shuffle() evaluates correctly.
+export function transpileExpr(s) {
+    return applyRenames(convertCurly(convertAlt(rewriteP(s))));
 }
 
 // SUBDIVISION: <a b c> / <a, b, c> → _sub(a, b, c) — cram the items into one step

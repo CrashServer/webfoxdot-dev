@@ -233,7 +233,7 @@
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { chaosLines, JamBot } from './js/engine/generator.js';
     import { pbuild, pkit, genres } from './js/engine/drumpatterns.js';
-    import { transpile, applyRenames }   from './js/editor/transpiler.js';
+    import { transpile, applyRenames, transpileExpr }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { inspect, initInspect }      from './js/editor/inspect.js';
     import { incrementValue, stopPlayerAtCursor,
@@ -1697,10 +1697,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── Inspector (Alt+I) — give it a way to evaluate a pattern expression ────
     function evalSnippet(expr) {
-        let js = expr
-            .replace(/\bP\s*\*\s*\[([^\]]*)\]/g, 'PRand([$1])')
-            .replace(/\bP\s*\[([^\]]*)\]/g, '[$1]');
-        js = applyRenames(js);
+        const js = transpileExpr(expr);   // full depth-aware P/alt/curly rewrite (nesting-safe)
         const ctx = buildCtx();
         return new Function(...Object.keys(ctx), 'return (' + js + ')')(...Object.values(ctx));
     }
