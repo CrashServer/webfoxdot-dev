@@ -84,6 +84,10 @@ export function startVisualsAudio(sc, clock, getMeta) {
     if (!_timer) _timer = setInterval(_tick, 33);   // ~30 Hz
 }
 
+// Current audio bands + 32-bin spectrum straight from the analyser — for the
+// in-editor background renderer, which runs in THIS window (no BroadcastChannel).
+export function getVisualAudio() { return _bands(); }
+
 const SPEC_BINS = 32;
 function _bands() {
     if (!_an) return { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(SPEC_BINS).fill(0) };

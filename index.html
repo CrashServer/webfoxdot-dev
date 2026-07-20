@@ -19,6 +19,7 @@
 <body>
   <!-- ── Left: editor column ───────────────────────────────────────────── -->
   <div id="editor-container">
+    <canvas id="editor-bg"></canvas>
 
     <div id="toolbar">
       <span id="status-dot"></span>
@@ -248,6 +249,7 @@
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
     import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
+    import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { initTour } from './js/ui/tour.js';
@@ -288,6 +290,7 @@
     const clock = new Clock();
     gate.initGate(clock); setGate(gate);   // shared mute/solo — panel + mixer + drop/.solo() agree
     initVisuals(clock);   // visual-language state resolves on this clock (works pre-boot too)
+    initEditorBg(document.getElementById('editor-bg'), clock);   // visuals-as-editor-background (vbg())
     let _tour = null;     // interactive guided tour (start_guided_tour()); created after the editor
     let _jamBot = null;   // generative jam bot (son/soff), created on first son()
     // Mode brightness order (Lydian brightest → Locrian darkest) for darker()/lighter().
@@ -476,6 +479,9 @@
             // Guided tour (lives in the editor): start_guided_tour() loads lesson 1,
             // next()/back() move between lessons. No-ops when no tour is running.
             start_guided_tour: () => { if (_tour) _tour.start(); return '▸ starting the guided tour…'; },
+            // vbg([on]) — run the visuals as a live background BEHIND the editor. No arg toggles;
+            // vbg(1)/vbg(0) force. Needs video layers running (video1 >> plasma() …). Shift+Alt+B too.
+            vbg: (on) => { const s = (on === undefined) ? toggleEditorBg() : setEditorBg(!!on && on !== 0); return `▸ visuals background ${s ? 'on' : 'off'}`; },
             next: () => { if (_tour) _tour.next(); },
             back: () => { if (_tour) _tour.back(); },
             // language("fr" | "en")  sets the language (drives the tour for now).
@@ -1600,6 +1606,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.addEventListener('keydown', (e) => {
         if (e.altKey && e.shiftKey && (e.key === 'Z' || e.key === 'z' || e.code === 'KeyZ')) {
             e.preventDefault(); toggleZen();
+        }
+        if (e.altKey && e.shiftKey && (e.key === 'B' || e.key === 'b' || e.code === 'KeyB')) {
+            e.preventDefault(); const on = toggleEditorBg(); log(`visuals background ${on ? 'on' : 'off'}`, 'info');
         }
     });
 

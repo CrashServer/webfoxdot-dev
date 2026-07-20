@@ -41,6 +41,8 @@ const SHORTCUTS = [
     { key: 'Shift+Alt+↑/↓',      desc: 'Nudge value ×10' },
     { key: 'Alt+T',              desc: 'Automation record: arm on a number, nudge it live, Alt+T again → var/linvar/sinvar (Alt+T cycles the form, Esc cancels)' },
     { key: 'Ctrl+/',             desc: 'Toggle line comment' },
+    { key: 'Shift+Alt+B',        desc: 'Toggle the visuals as a live background behind the editor (or vbg())' },
+    { key: 'Shift+Alt+Z',        desc: 'Zen — hide all UI' },
 ];
 
 export const PATTERNS = [
@@ -216,6 +218,7 @@ const CHANGELOG = [
         'chaos() gained an INDUSTRIAL style (doom/glitch bass, tekno/hardstab leads, clipped drones + brutal snares, heavy crush/fold), and the new voices are woven into the punk/techno/ambient pools too.',
         'chaos() writes more varied, less repetitive patterns — durations draw from a much wider palette (51 distinct values, no single one dominating), and degree/duration lists now NEST generator functions among the notes: [0, arp([0,4,7], "up"), (2,5), PWalk(3,1)] or dur=[1/4, PDur(3,8), 1/2]. Plus richer tuplets, polymeter and role-aware sus shaping.',
         'Fixed PStep(n, value, default) with pattern arguments — PStep(4, {5,6,7}, {6,4,3}) now resolves its value/default per step (they were returned raw, so a {…}/pattern arg came back unresolved).',
+        'Visuals as an editor BACKGROUND — vbg() (or Shift+Alt+B) runs the WebGL2 video engine live behind your code, not just in the pop-out window. Start any video layer (video1 >> plasma() …) and toggle it on; the code gets a theme-tinted scrim for readability and the visuals dim underneath. It reuses the exact renderer + reads the audio/clock directly in-page (no pop-out needed), and the on/off state persists.',
         'Code-audit pass — a batch of fixes. Subtraction transpose works now (p1 >> saw([0]) - 2 drops the degree, matching FoxDot). The distortion knob is dist everywhere (war/dab/fuzz/guitar were drive/beef, which silently shadowed the tanh FX; hardstab’s comp → squash, gaze’s shimmer → glow), so dist= actually applies on those voices. The diminished scale is now the half-whole octatonic (matches FoxDot). midiout([0, _, 2]) no longer crashes on a rest. Standalone live-tweaks p1.strum()/multiply()/map()/drummer()/chroma()/gtr() no longer throw. A string arg containing a bracket or comma (sample="]") no longer corrupts the line. The dead clouds FX (silent MiClouds) was removed; the offline PWA manifest now caches the visuals renderer.',
     ] },
     { v: 'beta10', title: 'Visuals — a clean 2-channel mixer', items: [

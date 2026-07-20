@@ -573,6 +573,26 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .CodeMirror-linenumber  { color: var(--border-2); }
 .CodeMirror-cursor      { border-left: 2px solid var(--green); }
 .CodeMirror-selected    { background: rgba(88,166,255,0.15) !important; }
+
+/* ── Visuals as editor background (vbg() · Shift+Alt+B) ─────────────────────── */
+#editor-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;                 /* shown only while vbg is on */
+    z-index: 0;                    /* behind the toolbar + editor, above the container bg */
+    pointer-events: none;
+    opacity: 0.55;                 /* dimmed so code stays readable */
+    transition: opacity 0.5s ease;
+}
+/* Lift the editor's own content above the background canvas (a positioned canvas
+   would otherwise paint over static siblings). Harmless when vbg is off. */
+#toolbar, #editor-wrap, #log-handle, #log, #peer-handle, #peer-feed { position: relative; z-index: 1; }
+/* When live, let the visuals show through with a theme-tinted scrim behind the code
+   for contrast (rgba fallback first, theme-aware color-mix second). */
+body.viz-bg .CodeMirror         { background: rgba(8,10,14,0.52); background: color-mix(in srgb, var(--bg-1) 60%, transparent); }
+body.viz-bg .CodeMirror-gutters { background: rgba(8,10,14,0.32); background: color-mix(in srgb, var(--bg-1) 42%, transparent); border-right-color: transparent; }
 .CodeMirror-activeline-background { background: var(--bg-2) !important; }
 .CodeMirror-matchingbracket { color: var(--green) !important; background: var(--green-dim); font-weight: bold; }
 /* Live degree highlight — the array element a player is currently sounding */
