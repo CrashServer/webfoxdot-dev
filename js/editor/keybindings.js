@@ -2,19 +2,26 @@
 
 import { stopVisual } from '../visuals/vlang.js';
 
+// Locate the numeric token straddling column `ch` → { start, end, str } (leading-zero
+// normalised, sign-aware) or null. Shared by drag-to-nudge and the automation recorder.
+export function numberTokenAt(line, ch) {
+    let s = ch, e = ch;
+    while (s > 0 && /[\d.\-]/.test(line[s - 1])) s--;
+    while (e < line.length && /[\d.]/.test(line[e])) e++;
+    let str = line.slice(s, e);
+    if (/^\.\d+$/.test(str)) str = '0' + str;
+    if (!/^-?\d+(\.\d+)?$/.test(str)) return null;
+    return { start: s, end: e, str };
+}
+
 // Nudge the number under the cursor by delta, then re-eval (the caller passes the
 // run fn — the current line, so a nudge only updates that player).
 export function incrementValue(cm, delta, runFn) {
     const cursor = cm.getCursor();
     const line   = cm.getLine(cursor.line);
-    let s = cursor.ch, e = cursor.ch;
-
-    while (s > 0 && /[\d.\-]/.test(line[s - 1])) s--;
-    while (e < line.length && /[\d.]/.test(line[e])) e++;
-
-    let numStr = line.slice(s, e);
-    if (/^\.\d+$/.test(numStr)) numStr = '0' + numStr;
-    if (!/^-?\d+(\.\d+)?$/.test(numStr)) return;
+    const tok = numberTokenAt(line, cursor.ch);
+    if (!tok) return;
+    const { start: s, end: e, str: numStr } = tok;
 
     let result;
     if (numStr.includes('.')) {

@@ -11,6 +11,8 @@
 // holds stay stepped instead of always gliding), grid-quantised durations, finer
 // value rounding, and the Alt+T form-cycling.
 
+import { numberTokenAt } from './keybindings.js';
+
 const GRID   = 0.25;   // quantise each hold duration to 1/4 beat
 const MINDUR = 0.25;
 const FORMS  = ['var', 'linvar', 'sinvar', 'array'];
@@ -81,13 +83,8 @@ export function buildExpr(form, values, durs) {
 
 // Locate the number token straddling cursor.ch; null if none.
 function numberAt(line, ch) {
-    let s = ch, e = ch;
-    while (s > 0 && /[\d.\-]/.test(line[s - 1])) s--;
-    while (e < line.length && /[\d.]/.test(line[e])) e++;
-    let str = line.slice(s, e);
-    if (/^\.\d+$/.test(str)) { str = '0' + str; }
-    if (!/^-?\d+(\.\d+)?$/.test(str)) return null;
-    return { start: s, end: e, value: parseFloat(str) };
+    const tok = numberTokenAt(line, ch);
+    return tok ? { start: tok.start, end: tok.end, value: parseFloat(tok.str) } : null;
 }
 
 // ── Stateful recorder ───────────────────────────────────────────────────────

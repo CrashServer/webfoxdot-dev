@@ -34,16 +34,11 @@ function rewriteP(s) {
         }
         const m = (c === 'P' && !idChar(s[i - 1])) ? /^P(\s*\*)?\s*([[(])/.exec(s.slice(i)) : null;
         if (m) {
-            const isRand = !!m[1], open = m[2], close = open === '[' ? ']' : ')';
-            let depth = 1, j = i + m[0].length, inStr = '';
-            for (; j < s.length && depth > 0; j++) {
-                const ch = s[j];
-                if (inStr) { if (ch === inStr && s[j - 1] !== '\\') inStr = ''; }
-                else if (ch === '"' || ch === "'" || ch === '`') inStr = ch;
-                else if (ch === '(' || ch === '[' || ch === '{') depth++;
-                else if (ch === ')' || ch === ']' || ch === '}') { depth--; if (depth === 0) break; }
-            }
-            const inner = rewriteP(s.slice(i + m[0].length, j));   // recurse for nested P
+            const isRand = !!m[1], open = m[2];
+            const openIdx = i + m[0].length - 1;           // the [ or ( char
+            let j = scanToMatch(s, openIdx);
+            if (j === -1) j = s.length;                    // unmatched — take the rest
+            const inner = rewriteP(s.slice(openIdx + 1, j));   // recurse for nested P
             out += open === '[' ? (isRand ? `PRand([${inner}])` : `Ppat([${inner}])`) : `__group(${inner})`;
             i = j + 1;
             continue;
@@ -51,6 +46,21 @@ function rewriteP(s) {
         out += c; i++;
     }
     return out;
+}
+
+// From an opening bracket at s[openIdx], return the index of its matching close
+// bracket — honouring nested ()[]{} and skipping string literals ('/"/`, \-escapes).
+// Returns -1 if unmatched. The one shared scanner behind rewriteP/convertCurly/findSlice.
+function scanToMatch(s, openIdx) {
+    let depth = 0, q = '';
+    for (let j = openIdx; j < s.length; j++) {
+        const c = s[j];
+        if (q) { if (c === q && s[j - 1] !== '\\') q = ''; continue; }
+        if (c === '"' || c === "'" || c === '`') { q = c; continue; }
+        if ('([{'.includes(c)) depth++;
+        else if (')]}'.includes(c)) { depth--; if (depth === 0) return j; }
+    }
+    return -1;
 }
 
 // Blank out string literals (returning a restore fn) so line-level regexes don't
@@ -193,16 +203,8 @@ function convertCurly(s) {
         if (inStr) { out += c; if (c === inStr) inStr = ''; i++; continue; }
         if (c === '"' || c === "'") { inStr = c; out += c; i++; continue; }
         if (c !== '{') { out += c; i++; continue; }
-        // matching } (respect nested brackets + strings)
-        let depth = 0, q = '', j = i;
-        for (; j < s.length; j++) {
-            const d = s[j];
-            if (q) { if (d === q) q = ''; continue; }
-            if (d === '"' || d === "'") { q = d; continue; }
-            if ('([{'.includes(d)) depth++;
-            else if (')]}'.includes(d)) { depth--; if (depth === 0) break; }
-        }
-        if (j >= s.length) { out += s.slice(i); break; }   // unmatched — leave rest
+        const j = scanToMatch(s, i);                       // matching }
+        if (j === -1) { out += s.slice(i); break; }        // unmatched — leave rest
         const inner = s.slice(i + 1, j);
         out += isRandChoice(inner) ? `PRand([${convertCurly(inner)}])` : `{${convertCurly(inner)}}`;
         i = j + 1;
@@ -253,16 +255,8 @@ function findSlice(s) {
         if (inStr) { if (c === inStr) inStr = ''; continue; }
         if (c === '"' || c === "'") { inStr = c; continue; }
         if (c !== '[') continue;
-        // matching ] (respect nested brackets + strings)
-        let depth = 0, q = '', j = i;
-        for (; j < s.length; j++) {
-            const d = s[j];
-            if (q) { if (d === q) q = ''; continue; }
-            if (d === '"' || d === "'") { q = d; continue; }
-            if ('([{'.includes(d)) depth++;
-            else if (')]}'.includes(d)) { depth--; if (depth === 0) break; }
-        }
-        if (j >= s.length) continue;          // unmatched — give up on this one
+        const j = scanToMatch(s, i);          // matching ]
+        if (j === -1) continue;               // unmatched — give up on this one
         const sl = parseSliceInner(s.slice(i + 1, j));
         if (sl) return { openIdx: i, closeIdx: j, start: sl.start, stop: sl.stop };
         // Not a slice (an array/ternary) — DON'T skip its interior: a real slice may
