@@ -817,6 +817,8 @@ float scene_lightning(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, v
     float a = spec((bin + 0.5) / 32.0) * clamp(pp2.w, 0.0, 1.0);   // per-cell spectrum pulse
     float g = clamp(pp2.z, 0.0, 0.49);                     // cell gap/inset
     float ins = step(g, f.x) * step(f.x, 1.0 - g) * step(g, f.y) * step(f.y, 1.0 - g);
-    return on * ins * (0.15 + 0.8 * r) * (0.6 + 0.4 * a);  // per-cell palette colour × brightness
+    float base = 0.15 + 0.8 * r;                           // per-cell palette colour
+    float tw = 0.72 + 0.28 * sin(t * sp * 1.7 + r * 6.2831);   // per-cell twinkle over time (speed-scaled; sp=0 freezes)
+    return on * ins * base * tw * (0.6 + 0.4 * a);         // colour × twinkle × audio brightness
 }`,
 };

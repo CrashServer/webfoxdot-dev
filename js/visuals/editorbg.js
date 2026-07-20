@@ -46,7 +46,8 @@ export function initEditorBg(canvas, clock) {
     _canvas = canvas; _clock = clock;
     try { _r = createGLRenderer(canvas); }
     catch (e) { console.warn('editor-bg: WebGL2 unavailable —', e?.message || e); _r = null; }
-    if (_r && localStorage.getItem('crashdot-vizbg') === '1') setEditorBg(true);
+    // Off every session — the background only appears when you explicitly toggle it
+    // (vbg() / Shift+Alt+B), never automatically. No persistence.
 }
 
 export function setEditorBg(on) {
@@ -54,7 +55,6 @@ export function setEditorBg(on) {
     _on = !!on;
     document.body.classList.toggle('viz-bg', _on);
     _canvas.style.display = _on ? 'block' : 'none';
-    try { localStorage.setItem('crashdot-vizbg', _on ? '1' : '0'); } catch {}
     cancelAnimationFrame(_raf);
     if (_on) _raf = requestAnimationFrame(frame);
     return _on;

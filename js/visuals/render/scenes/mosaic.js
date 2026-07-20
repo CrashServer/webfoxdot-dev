@@ -32,6 +32,8 @@ export default {
         const g   = Math.max(0, Math.min(0.49, p.gap ?? 0.08));
         const ins = (fx > g && fx < 1 - g && fy > g && fy < 1 - g) ? 1 : 0;
         const au  = (a ? (a.level || 0) : 0) * Math.max(0, Math.min(1, p.react ?? 0.6));
-        return on * ins * (0.15 + 0.8 * r) * (0.6 + 0.4 * au);
+        const base = 0.15 + 0.8 * r;
+        const tw = 0.72 + 0.28 * Math.sin(t * sp * 1.7 + r * 6.2831);   // per-cell twinkle (speed-scaled)
+        return on * ins * base * tw * (0.6 + 0.4 * au);
     },
 };
