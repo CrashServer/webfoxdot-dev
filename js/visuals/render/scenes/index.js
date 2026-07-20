@@ -52,6 +52,7 @@ import datamatrix   from './datamatrix.js';
 import tron         from './tron.js';
 import butterfly    from './butterfly.js';
 import lightning    from './lightning.js';
+import mosaic       from './mosaic.js';
 
 const list = [
     plasma, tunnel, wave, rain, spiral, cells, starfield, nebula, moire, bars, grid, ripple,
@@ -61,6 +62,7 @@ const list = [
     penrose, mobius, hexdump, lissajous, ikedaglitch,
     barcode, equalizer, datamatrix,
     tron, butterfly, lightning,
+    mosaic,
 ];
 const byName = new Map(list.map((s) => [s.name, s]));
 

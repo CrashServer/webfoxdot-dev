@@ -17,6 +17,7 @@ export const SCENES = [
     'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
     'barcode', 'equalizer', 'datamatrix',
     'tron', 'butterfly', 'lightning',
+    'mosaic',
 ];
 
 // Per-scene SPECIFIC params (beyond speed/scale + the universal knobs). Each entry maps
@@ -38,6 +39,7 @@ export const SCENE_PARAMS = {
     grid:      [{ n: 'divisions', d: 10 }],
     cells:     [{ n: 'cells',     d: 4  }],
     voronoi:   [{ n: 'cells',     d: 4  }],
+    mosaic:    [{ n: 'cells', d: 8 }, { n: 'fill', d: 0.5 }, { n: 'shift', d: 0 }, { n: 'react', d: 0.6 }],
 };
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any

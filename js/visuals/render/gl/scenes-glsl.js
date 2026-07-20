@@ -16,7 +16,7 @@ export const SCENE_GLSL_ORDER = [
     'testpattern', 'interference', 'biomech', 'escher', 'circuit', 'panopticon',
     'penrose', 'mobius', 'hexdump', 'lissajous', 'ikedaglitch',
     'barcode', 'equalizer', 'datamatrix',
-    'tron', 'butterfly', 'lightning',
+    'tron', 'butterfly', 'lightning', 'mosaic',
 ];
 
 export const SCENE_GLSL = {
@@ -786,5 +786,22 @@ float scene_lightning(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     }
     float skyFlash = (age < 0.32) ? env * 0.3 : 0.0;
     return clamp(sky + boltI + skyFlash, 0.0, 1.0);
+}`,
+
+    // mosaic — a cheap grid of colour cells that light up on the pattern you choose.
+    // pp.x cells (resolution) · pp.y fill (0..1 lit) · pp.z shift (slide the pattern) · pp.w react (audio).
+    mosaic: `float scene_mosaic(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    float n = clamp(floor(pp.x * sc + 0.5), 1.0, 64.0);
+    vec2 cell = floor(uv * n);
+    vec2 f = fract(uv * n);
+    float r = hash2(cell + 0.5);                            // stable per-cell 0..1
+    float fill = clamp(pp.y, 0.0, 1.0);
+    float phase = fract(r + pp.z + t * sp * 0.08);          // shift + slow time slide the lit set
+    float on = step(phase, fill);
+    float bin = mod(cell.x + cell.y * n, 32.0);
+    float a = spec((bin + 0.5) / 32.0) * clamp(pp.w, 0.0, 1.0);   // per-cell spectrum pulse
+    float g = 0.08;                                          // gap between cells
+    float ins = step(g, f.x) * step(f.x, 1.0 - g) * step(g, f.y) * step(f.y, 1.0 - g);
+    return on * ins * (0.15 + 0.8 * r) * (0.6 + 0.4 * a);    // per-cell palette colour × brightness
 }`,
 };

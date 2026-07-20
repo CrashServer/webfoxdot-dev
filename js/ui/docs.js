@@ -218,6 +218,7 @@ const CHANGELOG = [
         'chaos() gained an INDUSTRIAL style (doom/glitch bass, tekno/hardstab leads, clipped drones + brutal snares, heavy crush/fold), and the new voices are woven into the punk/techno/ambient pools too.',
         'chaos() writes more varied, less repetitive patterns — durations draw from a much wider palette (51 distinct values, no single one dominating), and degree/duration lists now NEST generator functions among the notes: [0, arp([0,4,7], "up"), (2,5), PWalk(3,1)] or dur=[1/4, PDur(3,8), 1/2]. Plus richer tuplets, polymeter and role-aware sus shaping.',
         'Fixed PStep(n, value, default) with pattern arguments — PStep(4, {5,6,7}, {6,4,3}) now resolves its value/default per step (they were returned raw, so a {…}/pattern arg came back unresolved).',
+        'New video scene — mosaic: a cheap grid of colour cells that light up on the pattern you choose. video1 >> mosaic(cells=8, fill=0.5, shift=var([0,0.3,0.6],4), react=0.7). cells = resolution, fill = how many light up (0..1), shift = slides which cells are lit (animate it with a var/linvar/pattern), react = audio pulse; each cell takes its own palette colour, so pal()/hue() recolour the whole grid. 49 scenes now.',
         'Visuals as an editor BACKGROUND — vbg() (or Shift+Alt+B) runs the WebGL2 video engine live behind your code, not just in the pop-out window. Start any video layer (video1 >> plasma() …) and toggle it on; the code gets a theme-tinted scrim for readability and the visuals dim underneath. It reuses the exact renderer + reads the audio/clock directly in-page (no pop-out needed), and the on/off state persists.',
         'Code-audit pass — a batch of fixes. Subtraction transpose works now (p1 >> saw([0]) - 2 drops the degree, matching FoxDot). The distortion knob is dist everywhere (war/dab/fuzz/guitar were drive/beef, which silently shadowed the tanh FX; hardstab’s comp → squash, gaze’s shimmer → glow), so dist= actually applies on those voices. The diminished scale is now the half-whole octatonic (matches FoxDot). midiout([0, _, 2]) no longer crashes on a rest. Standalone live-tweaks p1.strum()/multiply()/map()/drummer()/chroma()/gtr() no longer throw. A string arg containing a bracket or comma (sample="]") no longer corrupts the line. The dead clouds FX (silent MiClouds) was removed; the offline PWA manifest now caches the visuals renderer.',
     ] },
@@ -2267,7 +2268,7 @@ key.stop()
     // in sync with this page.
     const vAll = section('Visuals — scenes, FX & the mixer', `
         ${note('The pop-out <b>▦ visuals</b> window is a <b>2-channel video mixer</b>, coded in this same editor. Name a player <code>video1</code>, <code>video2</code>, … (the <code>video</code> prefix is the convention — autocomplete then offers scenes/FX): <code>video1 &gt;&gt; plasma()</code> puts a scene on <b>deck A</b> (<code>ch=0</code>), <code>video2 &gt;&gt; tunnel(ch=1)</code> on <b>deck B</b>, and <code>video9 &gt;&gt; mix(x)</code> crossfades A↔B (x = 0→A … 1→B; a number, pattern or TimeVar) with a <code>blend=</code> mode. Layers on a deck stack by field-max. <code>palette()</code> sets the colour ramp, <code>vmode()</code> the look (smooth · pixel · glyph ramps). Chain post-FX with <code>+</code> — <code>video1 &gt;&gt; plasma() + bloom(0.5)</code>. Ctrl+Space after <code>video1 &gt;&gt; </code> lists scenes; after <code>+ </code> lists FX.')}
-        ${note('The whole catalogue as one runnable <code>#@</code> set — all <b>48 scenes</b>, all <b>17 FX</b> and all 7 blends. Boot audio, open ▦ visuals, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through every scene family, each part chaining different FX.')}
+        ${note('The whole catalogue as one runnable <code>#@</code> set — all <b>49 scenes</b>, all <b>17 FX</b> and all 7 blends. Boot audio, open ▦ visuals, put the cursor on <code>#@intro</code> and Ctrl+Enter — it auto-advances through every scene family, each part chaining different FX.')}
         ${code(`#@#@ all visuals — every scene & FX
 
 #@intro(8)
@@ -2317,6 +2318,7 @@ video3 >> flow(ch=0)
 video4 >> contour(ch=1, pal="vhs") + glitch(0.6)
 video5 >> voronoi(ch=1)
 video6 >> helix(ch=1)
+video7 >> mosaic(ch=1, cells=8, fill=sinvar([0.3, 0.7], [8]), shift=linvar([0, 1], 8), react=0.8)
 video9 >> mix(sinvar([0.2, 0.8], [8]), blend="wipe")
 
 # ═══ SYMMETRY — mandala lattice truchet noise rings spectrum marble ═══
@@ -2380,7 +2382,7 @@ video4.stop()
 video5.stop()
 video1 >> aurora(ch=0, pal="ice", bright=1.2) + trails(0.9)
 video9 >> mix(0)`)}
-        ${note('<b>48 scenes</b> — plasma tunnel wave rain spiral cells starfield nebula moire bars grid ripple fire aurora kaleido warp metaballs hexgrid checker swarm flow contour voronoi helix mandala lattice truchet noise rings spectrum marble · testpattern interference biomech escher circuit panopticon penrose mobius hexdump lissajous ikedaglitch · barcode equalizer datamatrix (FFT-reactive) · tron butterfly lightning. <b>17 FX</b> (chain with <code>+</code>) — trails feedback blur bloom scan vignette glitch invert posterize droste fold hueshift dither pixelsort mirror edge pixelate. <b>7 blends</b> — mix add screen multiply difference wipe dissolve. <b>10 palettes</b> — fire ice neon sunset matrix mono blood cyber vhs acid (also by index: <code>pal=7</code>). <b>7 render modes</b> — smooth pixel shade blocks ascii dots bars via <code>vmode()</code>.')}
+        ${note('<b>49 scenes</b> — plasma tunnel wave rain spiral cells starfield nebula moire bars grid ripple fire aurora kaleido warp metaballs hexgrid checker swarm flow contour voronoi helix mandala lattice truchet noise rings spectrum marble · testpattern interference biomech escher circuit panopticon penrose mobius hexdump lissajous ikedaglitch · barcode equalizer datamatrix (FFT-reactive) · tron butterfly lightning · mosaic (a colour-cell grid that lights up on your pattern — cells/fill/shift/react). <b>17 FX</b> (chain with <code>+</code>) — trails feedback blur bloom scan vignette glitch invert posterize droste fold hueshift dither pixelsort mirror edge pixelate. <b>7 blends</b> — mix add screen multiply difference wipe dissolve. <b>10 palettes</b> — fire ice neon sunset matrix mono blood cyber vhs acid (also by index: <code>pal=7</code>). <b>7 render modes</b> — smooth pixel shade blocks ascii dots bars via <code>vmode()</code>.')}
     `, 'vis-all');
 
     const celeste = section('Celeste — svdk', `
