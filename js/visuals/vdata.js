@@ -39,7 +39,8 @@ export const SCENE_PARAMS = {
     grid:      [{ n: 'divisions', d: 10 }],
     cells:     [{ n: 'cells',     d: 4  }],
     voronoi:   [{ n: 'cells',     d: 4  }],
-    mosaic:    [{ n: 'cells', d: 8 }, { n: 'fill', d: 0.5 }, { n: 'shift', d: 0 }, { n: 'react', d: 0.6 }],
+    mosaic:    [{ n: 'cells', d: 8 }, { n: 'rows', d: 0 }, { n: 'fill', d: 0.5 }, { n: 'shift', d: 0 },
+                { n: 'mode', d: 0 }, { n: 'seed', d: 0 }, { n: 'gap', d: 0.08 }, { n: 'react', d: 0.6 }],
 };
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any

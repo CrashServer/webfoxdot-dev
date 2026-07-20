@@ -5,7 +5,7 @@
 //   #define PI 3.141592653589793
 //   float hash1(float n){ return fract(sin(n)*43758.5453123); }
 //   float hash2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
-// Signature: float scene_<name>(vec2 uv, float t, float sp, float sc, vec4 aud)
+// Signature: float scene_<name>(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2)
 //   sp = resolved speed, sc = resolved scale, aud = vec4(bass, mid, treble, level).
 
 export const SCENE_GLSL_ORDER = [
@@ -20,7 +20,7 @@ export const SCENE_GLSL_ORDER = [
 ];
 
 export const SCENE_GLSL = {
-    plasma: `float scene_plasma(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    plasma: `float scene_plasma(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = sc * 8.0;
     float tt = t * sp + aud.w * 1.5;
@@ -32,7 +32,7 @@ export const SCENE_GLSL = {
     return val / 8.0 + 0.5;
 }`,
 
-    tunnel: `float scene_tunnel(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    tunnel: `float scene_tunnel(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float hasA = step(0.0001, aud.x + aud.y + aud.z + aud.w);
     float dx = u - 0.5, dy = v - 0.5;
@@ -43,7 +43,7 @@ export const SCENE_GLSL = {
     return depth * 0.7 + sectors * 0.3 * mix(1.0, 0.5 + aud.x, hasA);
 }`,
 
-    wave: `float scene_wave(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    wave: `float scene_wave(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float hasA = step(0.0001, aud.x + aud.y + aud.z + aud.w);
     float k = sc * 10.0;
@@ -52,7 +52,7 @@ export const SCENE_GLSL = {
     return max(0.0, 1.0 - abs(v - y) * pp.x);
 }`,
 
-    rain: `float scene_rain(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    rain: `float scene_rain(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float cols = 40.0 * sc;
     float col = floor(u * cols);
@@ -63,7 +63,7 @@ export const SCENE_GLSL = {
     return max(0.0, 1.0 - d * 4.0);
 }`,
 
-    spiral: `float scene_spiral(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    spiral: `float scene_spiral(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float dx = u - 0.5, dy = v - 0.5;
     float r = length(vec2(dx, dy));
@@ -72,7 +72,7 @@ export const SCENE_GLSL = {
     return sin(ang * arms + r * sc * 22.0 - t * sp * 2.0 - aud.y * 3.0) * 0.5 + 0.5;
 }`,
 
-    cells: `float scene_cells(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    cells: `float scene_cells(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     int n = int(max(2.0, floor(pp.x * sc + 0.5)));
     const int MAXN = 8;
@@ -87,7 +87,7 @@ export const SCENE_GLSL = {
     return max(0.0, 1.0 - best * float(n) * 0.9);
 }`,
 
-    starfield: `float scene_starfield(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    starfield: `float scene_starfield(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float n = max(6.0, floor(28.0 * sc + 0.5));
     float vv = mod(v + t * sp * 0.06, 1.0);
@@ -97,7 +97,7 @@ export const SCENE_GLSL = {
     return (sin(t * sp * 2.0 + hf * 30.0) * 0.5 + 0.5) * ((hf - 0.86) / 0.14);
 }`,
 
-    nebula: `float scene_nebula(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    nebula: `float scene_nebula(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = sc;
     float val = 0.0, amp = 0.5, f = 3.0 * k;
@@ -108,7 +108,7 @@ export const SCENE_GLSL = {
     return val * 0.6 + 0.5;
 }`,
 
-    moire: `float scene_moire(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    moire: `float scene_moire(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = sc * pp.x;
     float a1 = t * sp * 0.2, a2 = -t * sp * 0.13;
@@ -117,7 +117,7 @@ export const SCENE_GLSL = {
     return g1 * g2 * 0.5 + 0.5;
 }`,
 
-    bars: `float scene_bars(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    bars: `float scene_bars(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float hasA = step(0.0001, aud.x + aud.y + aud.z + aud.w);
     float n = pp.x;
@@ -133,7 +133,7 @@ export const SCENE_GLSL = {
     return v > (1.0 - h) ? 1.0 - (v - (1.0 - h)) * 0.3 : 0.0;
 }`,
 
-    grid: `float scene_grid(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    grid: `float scene_grid(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = floor(sc * pp.x + 0.5);
     float drift = t * sp * 0.05;
@@ -143,7 +143,7 @@ export const SCENE_GLSL = {
     return pow(line, 10.0) * (0.55 + 0.45 * sin(t * sp * 1.5));
 }`,
 
-    ripple: `float scene_ripple(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    ripple: `float scene_ripple(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float dx = u - 0.5, dy = v - 0.5;
     float r = length(vec2(dx, dy));
@@ -152,7 +152,7 @@ export const SCENE_GLSL = {
     return rings * (1.0 - r * 1.2);
 }`,
 
-    fire: `float scene_fire(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    fire: `float scene_fire(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float y = v - t * sp * 0.5;
     float n = 0.0, amp = 0.5, f = 6.0 * sc;
@@ -165,7 +165,7 @@ export const SCENE_GLSL = {
     return max(0.0, n * heat * (1.1 + aud.x * 0.6) - (1.0 - v) * 0.25);
 }`,
 
-    aurora: `float scene_aurora(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    aurora: `float scene_aurora(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float hasA = step(0.0001, aud.x + aud.y + aud.z + aud.w);
     float wave = sin(u * 6.0 * sc + t * sp) + sin(u * 11.0 * sc - t * sp * 0.7) * 0.5;
@@ -175,7 +175,7 @@ export const SCENE_GLSL = {
     return curtain * shimmer * (0.7 + mix(0.2, aud.y * 0.5, hasA));
 }`,
 
-    kaleido: `float scene_kaleido(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    kaleido: `float scene_kaleido(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float seg = pp.x;
     float dx = u - 0.5, dy = v - 0.5;
@@ -189,14 +189,14 @@ export const SCENE_GLSL = {
     return va * vb;
 }`,
 
-    warp: `float scene_warp(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    warp: `float scene_warp(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float n1 = sin(u * 10.0 * sc + t * sp) + cos(v * 10.0 * sc - t * sp);
     float n2 = sin((u + n1 * 0.12) * 10.0 * sc + t * sp * 0.5) + cos((v - n1 * 0.12) * 10.0 * sc);
     return n2 * 0.25 + 0.5;
 }`,
 
-    metaballs: `float scene_metaballs(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    metaballs: `float scene_metaballs(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float hasA = step(0.0001, aud.x + aud.y + aud.z + aud.w);
     int k = int(max(2.0, pp.x));
@@ -211,7 +211,7 @@ export const SCENE_GLSL = {
     return min(1.0, sum * (0.7 + mix(0.2, aud.x * 0.5, hasA)));
 }`,
 
-    hexgrid: `float scene_hexgrid(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    hexgrid: `float scene_hexgrid(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = sc * pp.x;
     float x = u * k, y = v * k * 1.1547;
@@ -222,7 +222,7 @@ export const SCENE_GLSL = {
     return pow(cell, 3.0) * (0.7 + 0.3 * sin(t * sp));
 }`,
 
-    checker: `float scene_checker(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    checker: `float scene_checker(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = max(2.0, floor(sc * 8.0 + 0.5));
     float wu = u + sin(v * 4.0 + t * sp) * 0.05;
@@ -231,7 +231,7 @@ export const SCENE_GLSL = {
     return c == 1 ? 1.0 : 0.06;
 }`,
 
-    swarm: `float scene_swarm(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    swarm: `float scene_swarm(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     int n = int(pp.x);
     const int MAXN = 12;
@@ -246,14 +246,14 @@ export const SCENE_GLSL = {
     return min(1.0, sum);
 }`,
 
-    flow: `float scene_flow(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    flow: `float scene_flow(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float ang = sin(u * 5.0 * sc + t * sp * 0.3) + cos(v * 5.0 * sc - t * sp * 0.2);
     float stream = sin((u * cos(ang) + v * sin(ang)) * 22.0 - t * sp * 2.0);
     return stream * 0.5 + 0.5;
 }`,
 
-    contour: `float scene_contour(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    contour: `float scene_contour(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float h = sin(u * 6.0 * sc + t * sp * 0.3)
             + cos(v * 6.0 * sc - t * sp * 0.2)
@@ -262,7 +262,7 @@ export const SCENE_GLSL = {
     return pow(lines, 6.0);
 }`,
 
-    voronoi: `float scene_voronoi(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    voronoi: `float scene_voronoi(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     int n = int(max(2.0, floor(pp.x * sc + 0.5)));
     const int MAXN = 8;
@@ -277,7 +277,7 @@ export const SCENE_GLSL = {
     return max(0.0, 1.0 - (d2 - d1) * float(n) * 2.5);
 }`,
 
-    helix: `float scene_helix(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    helix: `float scene_helix(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float phase = v * 8.0 * sc - t * sp * 2.0;
     float x1 = 0.5 + sin(phase) * 0.3;
@@ -286,7 +286,7 @@ export const SCENE_GLSL = {
     return max(0.0, 1.0 - d * 12.0) * (0.6 + 0.4 * cos(phase));
 }`,
 
-    mandala: `float scene_mandala(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    mandala: `float scene_mandala(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float pet = pp.x;
     float dx = u - 0.5, dy = v - 0.5;
@@ -297,7 +297,7 @@ export const SCENE_GLSL = {
     return max(0.0, petals * rings * (1.0 - r * 1.3));
 }`,
 
-    lattice: `float scene_lattice(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    lattice: `float scene_lattice(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = sc * 11.0;
     float rot = t * sp * 0.2, c = cos(rot), si = sin(rot);
@@ -306,7 +306,7 @@ export const SCENE_GLSL = {
     return pow(max(gx, gy), 8.0);
 }`,
 
-    truchet: `float scene_truchet(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    truchet: `float scene_truchet(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = max(2.0, floor(sc * 6.0 + 0.5));
     float cx = floor(u * k), cy = floor(v * k);
@@ -317,14 +317,14 @@ export const SCENE_GLSL = {
     return max(0.0, 1.0 - d * 8.0);
 }`,
 
-    noise: `float scene_noise(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    noise: `float scene_noise(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float k = max(4.0, floor(sc * 60.0 + 0.5));
     float cx = floor(u * k), cy = floor(v * k), frame = floor(t * sp * 12.0);
     return hash1(cx * 127.1 + cy * 311.7 + frame * 13.73);
 }`,
 
-    rings: `float scene_rings(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    rings: `float scene_rings(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float dx = u - 0.5, dy = v - 0.5, r = length(vec2(dx, dy));
     float ph = r * sc * pp.x - t * sp * 1.5 - aud.x * 2.0;
@@ -332,7 +332,7 @@ export const SCENE_GLSL = {
     return ph < 0.16 ? 1.0 - ph / 0.16 * 0.5 : 0.0;
 }`,
 
-    spectrum: `float scene_spectrum(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    spectrum: `float scene_spectrum(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float hasA = step(0.0001, aud.x + aud.y + aud.z + aud.w);
     float dx = u - 0.5, dy = v - 0.5;
@@ -344,7 +344,7 @@ export const SCENE_GLSL = {
     return (r < lvl * 1.1 ? 1.0 : 0.0) * (0.4 + 0.6 * spokes);
 }`,
 
-    marble: `float scene_marble(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    marble: `float scene_marble(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float turb = 0.0, amp = 0.5, f = 4.0 * sc;
     for (int i = 0; i < 4; i++){
@@ -354,7 +354,7 @@ export const SCENE_GLSL = {
     return sin((u + v) * 8.0 * sc + turb * 6.0) * 0.5 + 0.5;
 }`,
 
-    testpattern: `float scene_testpattern(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    testpattern: `float scene_testpattern(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x;
     float grating = 0.5 + 0.5 * sin(u * 40.0 * sc * 6.28318 + t * sp * 2.0 + bass * 8.0);
@@ -367,7 +367,7 @@ export const SCENE_GLSL = {
     return min(1.0, max(max(pow(grating, 2.0) * block, block * 0.9), scan));
 }`,
 
-    interference: `float scene_interference(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    interference: `float scene_interference(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     vec2 p = (vec2(u, v) - 0.5) * 2.0;
     float freq = 8.0 * sc, contrast = 1.5, audioReact = 1.0;
@@ -384,7 +384,7 @@ export const SCENE_GLSL = {
     return clamp(n, 0.0, 1.0);
 }`,
 
-    biomech: `float scene_biomech(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    biomech: `float scene_biomech(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x, mid = aud.y, beat = aud.x;
     float tt = t * sp;
@@ -408,7 +408,7 @@ export const SCENE_GLSL = {
     return clamp(val, 0.0, 1.0);
 }`,
 
-    escher: `float scene_escher(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    escher: `float scene_escher(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x, beat = aud.x;
     float tt = t * sp;
@@ -436,7 +436,7 @@ export const SCENE_GLSL = {
     return clamp(val, 0.0, 1.0);
 }`,
 
-    circuit: `float scene_circuit(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    circuit: `float scene_circuit(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float tt = t * sp;
     float grid = max(6.0, floor(12.0 * sc + 0.5));
@@ -479,7 +479,7 @@ export const SCENE_GLSL = {
     return clamp(val, 0.0, 1.0);
 }`,
 
-    panopticon: `float scene_panopticon(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    panopticon: `float scene_panopticon(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float cu = u - 0.5, cv = v - 0.5;
     float r = length(vec2(cu, cv)) * 2.0;
@@ -521,7 +521,7 @@ export const SCENE_GLSL = {
     vec2 q = A + d * tp;
     return length(pp - q);
 }
-float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x;
     float tt = t * sp;
@@ -556,7 +556,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(val, 0.0, 1.0);
 }`,
 
-    mobius: `float scene_mobius(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    mobius: `float scene_mobius(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float tt = t * sp;
     float emRotSpeed = 0.2, emTwists = 1.0, emThickness = 0.03;
@@ -588,7 +588,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(val, 0.0, 1.0);
 }`,
 
-    hexdump: `float scene_hexdump(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    hexdump: `float scene_hexdump(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float tt = t * sp;
     float hdColumnDensity = 24.0, hdFallSpeed = 0.5, hdTrailLength = 0.4, hdCharChange = 8.0;
@@ -612,7 +612,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(val, 0.0, 1.0);
 }`,
 
-    lissajous: `float scene_lissajous(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    lissajous: `float scene_lissajous(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x, mid = aud.y, treble = aud.z;
     float tt = t * sp;
@@ -638,7 +638,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(val, 0.0, 1.0);
 }`,
 
-    ikedaglitch: `float scene_ikedaglitch(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    ikedaglitch: `float scene_ikedaglitch(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x, volume = aud.w;
     float beatDetected = step(0.5, bass);
@@ -669,7 +669,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(val, 0.0, 1.0);
 }`,
 
-    barcode: `float scene_barcode(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    barcode: `float scene_barcode(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float x = fract(u * 0.5 + t * sp * 0.08);
     float e = spec(x);
@@ -677,7 +677,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return e > 0.4 ? (0.4 + 0.6 * lines) * (0.5 + e * 0.5) : 0.0;
 }`,
 
-    equalizer: `float scene_equalizer(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    equalizer: `float scene_equalizer(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float h = spec(u) * 0.95;
     float bar = step(1.0 - h, v);
@@ -685,7 +685,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return bar * gap;
 }`,
 
-    datamatrix: `float scene_datamatrix(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    datamatrix: `float scene_datamatrix(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float cu = floor(u * 128.0 * sc), cv = floor(v * 64.0 * sc);
     float th = 0.3 + 0.14 * hash2(vec2(cu, cv));
@@ -697,7 +697,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(val, 0.0, 1.0);
 }`,
 
-    tron: `float scene_tron(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    tron: `float scene_tron(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x;
     float cx = (u - 0.5) * 2.0, cy = (0.5 - v) * 2.0;
@@ -719,7 +719,7 @@ float scene_penrose(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(grid + glow * (1.0 + bass), 0.0, 1.0);
 }`,
 
-    butterfly: `float scene_butterfly(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+    butterfly: `float scene_butterfly(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float bass = aud.x, treble = aud.z;
     float cx = (u - 0.5) * 2.0, cy = (0.5 - v) * 2.0;
@@ -751,7 +751,7 @@ float fbm(vec2 p){
     for (int i = 0; i < 5; i++){ val += amp * vnoise(p * f); f *= 2.07; amp *= 0.5; }
     return val;
 }
-float scene_lightning(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
+float scene_lightning(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
     float u = uv.x, v = uv.y;
     float sky = fbm(vec2(u * 3.0 + t * sp * 0.1, v * 3.0)) * 0.15;
     float rate = 0.7 * sp;
@@ -788,20 +788,35 @@ float scene_lightning(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
     return clamp(sky + boltI + skyFlash, 0.0, 1.0);
 }`,
 
-    // mosaic — a cheap grid of colour cells that light up on the pattern you choose.
-    // pp.x cells (resolution) · pp.y fill (0..1 lit) · pp.z shift (slide the pattern) · pp.w react (audio).
-    mosaic: `float scene_mosaic(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp){
-    float n = clamp(floor(pp.x * sc + 0.5), 1.0, 64.0);
-    vec2 cell = floor(uv * n);
-    vec2 f = fract(uv * n);
-    float r = hash2(cell + 0.5);                            // stable per-cell 0..1
-    float fill = clamp(pp.y, 0.0, 1.0);
-    float phase = fract(r + pp.z + t * sp * 0.08);          // shift + slow time slide the lit set
-    float on = step(phase, fill);
-    float bin = mod(cell.x + cell.y * n, 32.0);
-    float a = spec((bin + 0.5) / 32.0) * clamp(pp.w, 0.0, 1.0);   // per-cell spectrum pulse
-    float g = 0.08;                                          // gap between cells
+    // mosaic — the TEMPLATE video synth: a fully-parametric, DETERMINISTIC grid of colour
+    // cells that light up on the pattern you choose. Nothing is random beyond your control —
+    // the per-cell layout is a seedable hash, not Math.random, so the same params always give
+    // the same picture. Cheap: no loops, a handful of fract/step + one mode branch per pixel.
+    //   pp.x cells (cols) · pp.y rows (0 = square) · pp.z fill (0..1 lit) · pp.w shift (slide)
+    //   pp2.x mode (0 scatter·1 cols·2 rows·3 checker·4 radial·5 diagonal) · pp2.y seed
+    //   pp2.z gap (0..0.5 cell inset) · pp2.w react (audio pulse 0..1)     hue/pal recolour it.
+    mosaic: `float scene_mosaic(vec2 uv, float t, float sp, float sc, vec4 aud, vec4 pp, vec4 pp2){
+    float nx = clamp(floor(pp.x * sc + 0.5), 1.0, 96.0);
+    float ny = pp.y < 1.0 ? nx : clamp(floor(pp.y * sc + 0.5), 1.0, 96.0);
+    vec2 gridN = vec2(nx, ny);
+    vec2 cell = floor(uv * gridN);
+    vec2 f = fract(uv * gridN);
+    float r = hash2(cell + pp2.y * 7.3 + 1.7);              // deterministic per-cell 0..1 (seeded)
+    float fill = clamp(pp.z, 0.0, 1.0);
+    float drift = pp.w + t * sp * 0.08;                     // shift knob + slow time slide
+    int mode = int(pp2.x + 0.5);
+    float key;                                              // 0..1 activation key, compared to fill
+    if      (mode == 1) key = fract(cell.x / nx + drift);                        // columns sweep
+    else if (mode == 2) key = fract(cell.y / ny + drift);                        // rows sweep
+    else if (mode == 3) key = mod(cell.x + cell.y + floor(drift * 2.0), 2.0) < 1.0 ? 0.0 : 1.0;   // checker
+    else if (mode == 4) key = fract(length((cell + 0.5) / gridN - 0.5) * 2.0 - drift);            // radial rings
+    else if (mode == 5) key = fract((cell.x + cell.y) / (nx + ny) + drift);      // diagonal wipe
+    else                key = fract(r + drift);                                  // scatter (seeded hash)
+    float on = step(key, fill);
+    float bin = mod(cell.x + cell.y * nx, 32.0);
+    float a = spec((bin + 0.5) / 32.0) * clamp(pp2.w, 0.0, 1.0);   // per-cell spectrum pulse
+    float g = clamp(pp2.z, 0.0, 0.49);                     // cell gap/inset
     float ins = step(g, f.x) * step(f.x, 1.0 - g) * step(g, f.y) * step(f.y, 1.0 - g);
-    return on * ins * (0.15 + 0.8 * r) * (0.6 + 0.4 * a);    // per-cell palette colour × brightness
+    return on * ins * (0.15 + 0.8 * r) * (0.6 + 0.4 * a);  // per-cell palette colour × brightness
 }`,
 };
