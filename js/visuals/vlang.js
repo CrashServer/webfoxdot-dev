@@ -48,6 +48,12 @@ class MixSpec {
 // ── Value resolution — number | array | Pattern | TimeVar, on the beat ────────
 // Patterns advance one step every `dur` beats; TimeVars (linvar/sinvar/var) are
 // continuous and sampled at the (dur-quantised) beat — matching the audio engine.
+// Cache the last-sampled value of each pattern object per step, so a NON-deterministic
+// pattern (PRand/PWhite/PxRand …) whose .get() re-rolls every call is sampled ONCE per
+// step — not every frame. Without this, mosaic(cells=PRand(8), dur=2) would re-roll at
+// the frame rate instead of every 2 beats; with it, a video pattern advances one step
+// per dur, like a player. Deterministic patterns/arrays/TimeVars are unaffected.
+const _visMemo = new WeakMap();   // pattern object → { step, dur, value }
 function resolveVisual(v, beat, dur) {
     if (v == null || typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') return v;
     dur = dur || 1;
@@ -56,7 +62,15 @@ function resolveVisual(v, beat, dur) {
         try { return v.get(b); } catch (_) { return 0; }
     }
     if (typeof v.get === 'function' || Array.isArray(v)) {
-        try { return patGet(v, Math.floor(beat / dur)); } catch (_) { return 0; }
+        const step = Math.floor(beat / dur);
+        if (typeof v === 'object') {                       // memoise per (object, step, dur)
+            const m = _visMemo.get(v);
+            if (m && m.step === step && m.dur === dur) return m.value;
+            let value; try { value = patGet(v, step); } catch (_) { value = 0; }
+            _visMemo.set(v, { step, dur, value });
+            return value;
+        }
+        try { return patGet(v, step); } catch (_) { return 0; }
     }
     return v;
 }
