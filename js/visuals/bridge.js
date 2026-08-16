@@ -56,6 +56,8 @@ function _openWin() {
 export function initVisuals(clock) {
     if (clock) _clock = _clock || clock;
     setOpenHook(ensureVisualsOpen);          // a vN >> line auto-opens the window
+    // Start the workshop tick even without audio so patterns animate over WS
+    if (!_timer) _timer = setInterval(_tick, 33);
     if (_vTimer) return;
     let wasContent = false;
     _vTimer = setInterval(() => {
@@ -118,7 +120,6 @@ function _bands() {
 }
 
 function _tick() {
-    if (!_chan) return;                     // nobody listening yet
     const now = _clock?.now?.() ?? 0;
     let meta = {};
     try { meta = _getMeta ? (_getMeta() || {}) : {}; } catch (_) {}
@@ -131,12 +132,16 @@ function _tick() {
         section: meta.section || '',
         autoplay: !!meta.autoplay,
     };
-    chan().postMessage(audioMsg);
-    chan().postMessage({ t: 'players', list: _snapshotPlayers() });
 
-    // Forward audio + player data to VJ Workshop
+    // Workshop always gets audio + player data (no _chan dependency)
     workshopSend(audioMsg);
     workshopSend({ t: 'players', list: _snapshotPlayers() });
+
+    // Local visuals BC only when someone is listening
+    if (_chan) {
+        chan().postMessage(audioMsg);
+        chan().postMessage({ t: 'players', list: _snapshotPlayers() });
+    }
 
     // Forward resolved workshop layer params (handles linvar/P[] patterns)
     const ws = wsSnapshot(now);
