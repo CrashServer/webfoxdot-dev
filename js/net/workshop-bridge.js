@@ -8,11 +8,12 @@
 //   workshopRecv(msg => { if (msg.t === 'ws_state') ... });
 //   initWorkshopWS('ws://192.168.1.10:8766/foxdot');   // cross-machine only
 
-const BC_NAME   = 'crashdot-workshop';
-const _cbs      = [];
-let   _bc       = null;
-let   _ws       = null;
-let   _wsUrl    = null;
+const BC_NAME    = 'crashdot-workshop';
+const RELAY_URL  = 'ws://127.0.0.1:8766';
+const _cbs       = [];
+let   _bc        = null;
+let   _ws        = null;
+let   _wsUrl     = null;
 
 function bc() {
     if (!_bc) {
@@ -33,11 +34,14 @@ export function workshopRecv(fn) {
     return () => { const i = _cbs.indexOf(fn); if (i !== -1) _cbs.splice(i, 1); };
 }
 
-export function initWorkshopWS(url) {
+export function initWorkshopWS(url = RELAY_URL) {
     if (_wsUrl === url && _ws) return;
     _wsUrl = url;
     _connectWS();
 }
+
+// Auto-connect to relay on module load
+initWorkshopWS();
 
 function _connectWS() {
     if (!_wsUrl) return;

@@ -15,7 +15,7 @@
 // vocabulary works in visuals identically to audio.
 
 import { patGet } from '../patterns/sequences.js';
-import { SCENES, blendIndex, WS_SET } from './vdata.js';
+import { SCENES, blendIndex, WS_SET, WS_SCENES } from './vdata.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);
@@ -99,6 +99,7 @@ const VFX = { trails: 0.7, feedback: 0.8, blur: 0.5, bloom: 0.6, scan: 0.5, vign
 export function visualBuilders() {
     const out = {};
     for (const s of SCENES) out[s] = sceneBuilder(s);
+    for (const s of WS_SCENES) if (!out[s]) out[s] = sceneBuilder(s);
     for (const [k, d] of Object.entries(VFX)) out[k] = fxBuilder(k, d);
     // mix(value, dur=, blend=) — the A↔B crossfader (value 0=chan0 … 1=chan1)
     out.mix = (value = 0, opts = {}) => new MixSpec(value, opts);
@@ -112,13 +113,59 @@ export function visualBuilders() {
     // buffer, a full reset ([c] in the visuals window does the same).
     out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };
 
-    // ── Workshop control builders (video1 >> wspreset("name") etc.) ───────
-    // wspreset("name") — recall a workshop preset by name
-    out.wspreset  = (name) => ({ _wsPreset: String(name ?? '') });
-    // wblackout() — toggle workshop master blackout
-    out.wblackout = (on = true) => ({ _wsCmd: { cmd: 'blackout', value: !!on } });
-    // wstutter(rate) — stutter at rate Hz (0=freeze)
+    // ── Workshop control builders ─────────────────────────────────────────
+    // These fire immediately (no video1 >> needed). Return a log string.
+    const _ws = (msg) => { workshopSend({ t: 'workshop', ...msg }); };
+
+    // Presets
+    // wpreset("name") — recall by name/prefix · wpreset(2) — recall by index
+    out.wspreset  = (name) => ({ _wsPreset: String(name ?? '') });   // video1 >> form
+    out.wpreset   = (v) => {
+        if (typeof v === 'number') _ws({ cmd: 'preset', index: Math.round(v) });
+        else _ws({ cmd: 'preset', name: String(v ?? '') });
+        return `wpreset(${v})`;
+    };
+
+    // Transport
+    out.wblackout = (on = true) => ({ _wsCmd: { cmd: 'blackout', value: !!on } });  // video1 >> form
     out.wstutter  = (rate = 0, on = true) => ({ _wsCmd: { cmd: 'stutter', value: !!on, rate: Number(rate) } });
+    out.wbpm      = (v) => { _ws({ cmd: 'bpm', value: Number(v) }); return `wbpm(${v})`; };
+    out.wblackout = (on = true) => { _ws({ cmd: 'blackout', value: !!on }); return `wblackout(${on})`; };
+    out.wstutter  = (rate = 0, on = true) => { _ws({ cmd: 'stutter', value: !!on, rate: Number(rate) }); return `wstutter(${rate})`; };
+
+    // Per-channel
+    // wop(ch, 0.5)              — opacity
+    // wblend(ch, "add")         — blend mode: normal/add/screen/multiply/overlay/difference/lighten/darken
+    // wmute(ch)                 — toggle mute · wmute(ch, true/false) — explicit
+    // wsolo(ch)                 — solo this channel (mutes all others)
+    // wfx(ch, "bloom", 0.4)     — add/set per-channel FX (sets primary param, e.g. amount)
+    // wsnap(ch, "name")         — apply a named channel snapshot
+    // wsave(ch, "name")         — save channel state as a named snapshot
+    out.wop    = (ch, v)        => { _ws({ cmd: 'ch_opacity', ch: Number(ch), value: Number(v) }); return `wop(${ch},${v})`; };
+    out.wblend = (ch, mode)     => { _ws({ cmd: 'ch_blend', ch: Number(ch), mode: String(mode) }); return `wblend(${ch},"${mode}")`; };
+    out.wmute  = (ch, on)       => { _ws({ cmd: 'ch_mute', ch: Number(ch), value: on == null ? null : !!on }); return `wmute(${ch})`; };
+    out.wsolo  = (ch)           => { _ws({ cmd: 'ch_solo', ch: Number(ch) }); return `wsolo(${ch})`; };
+    out.wfx    = (ch, type, v)  => { _ws({ cmd: 'ch_fx', ch: Number(ch), type: String(type), value: Number(v ?? 0.5) }); return `wfx(${ch},"${type}",${v})`; };
+    out.wsnap  = (ch, name)     => { _ws({ cmd: 'ch_snap', ch: Number(ch), name: String(name ?? '') }); return `wsnap(${ch},"${name}")`; };
+    out.wsave  = (ch, name)     => { _ws({ cmd: 'ch_save', ch: Number(ch), name: String(name ?? `fd-ch${ch}`) }); return `wsave(${ch},"${name}")`; };
+
+    // Channel management
+    // wadd("starfield")  — add a new channel with this layer kind
+    // wdel(2)            — remove channel at index 2
+    out.wadd   = (kind = 'grid') => { _ws({ cmd: 'ch_add', kind: String(kind) }); return `wadd("${kind}")`; };
+    out.wdel   = (ch)            => { _ws({ cmd: 'ch_remove', ch: Number(ch) }); return `wdel(${ch})`; };
+
+    // Master FX
+    // wmfx("bloom", 0.6)    — set/add a master FX by type + primary param value
+    // wlimit(0.8)           — master limiter level
+    out.wmfx   = (type, v)  => { _ws({ cmd: 'master_fx', type: String(type), value: Number(v ?? 0.5) }); return `wmfx("${type}",${v})`; };
+    out.wlimit = (v)         => { _ws({ cmd: 'limiter', value: Number(v ?? 1) }); return `wlimit(${v})`; };
+
+    // Sequencer
+    // wseq(true/false)          — enable/disable
+    // wstep(step, ch)           — toggle step · wstep(step, ch, true/false) — set explicit
+    out.wseq   = (on)            => { _ws({ cmd: 'seq_enable', value: !!on }); return `wseq(${on})`; };
+    out.wstep  = (step, ch, on)  => { _ws({ cmd: 'seq_step', step: Number(step), ch: Number(ch), on: on == null ? null : !!on }); return `wstep(${step},${ch})`; };
 
     return out;
 }
@@ -138,13 +185,25 @@ class VisualPlayer {
             return this;
         }
 
+        // ── Workshop routing: WS scenes go to workshop only, skip local renderer ──
+        const _spec = spec instanceof VSpec ? spec : new VSpec();
+        if (_spec.scene && WS_SET.has(_spec.scene)) {
+            const cur = (!reset && layers.get(this.name)) || null;
+            const p = { ...(cur ? cur.params : {}), ..._spec.params };
+            delete p.ch;
+            layers.set(this.name, { scene: _spec.scene, ch: 0, params: p, fx: {}, born: _now(), _ws: true });
+            workshopSend({ t: 'workshop', cmd: 'layer', ch: _wsChannel(this.name),
+                           layer: _spec.scene, params: resolveMap(p, 0, 1) });
+            return this;
+        }
+
         _open();
         if (spec && spec.isMix) {                       // become THE crossfader (singleton)
             mixer = { owner: this.name, value: spec.value, dur: Number(spec.dur) || 1, blend: spec.blend };
             layers.delete(this.name);                   // a name is a mixer OR a layer, not both
             return this;
         }
-        const s = spec instanceof VSpec ? spec : new VSpec();
+        const s = _spec;
         const cur = (!reset && layers.get(this.name)) || null;
         const p = { ...(cur ? cur.params : {}), ...s.params };
         const ch = Math.max(0, Math.min(1, Math.round(Number(p.ch) || 0)));
@@ -152,13 +211,6 @@ class VisualPlayer {
         layers.set(this.name, { scene: s.scene || (cur && cur.scene) || null, ch, params: p,
                                 fx: { ...(cur ? cur.fx : {}), ...s.fx }, born: _now() });
         if (mixer && mixer.owner === this.name) mixer = null;   // reused a mixer name as a layer
-
-        // ── Workshop routing: videoN >> wsScene(...) → channel N-1 ───────
-        if (s.scene && WS_SET.has(s.scene)) {
-            const wsCh = _wsChannel(this.name);
-            workshopSend({ t: 'workshop', cmd: 'layer', ch: wsCh, layer: s.scene,
-                           params: resolveMap(p, 0, 1) });
-        }
         return this;
     }
     stop() {
@@ -209,13 +261,13 @@ export function wsSnapshot(beat) {
 // Stop one video player by name (its layer or the crossfader it owns) — used by Alt+X /
 // .stop() so video stops like any other player.
 export function stopVisual(name) { layers.delete(name); if (mixer && mixer.owner === name) mixer = null; }
-export function hasContent() { return layers.size > 0 || !!mixer; }
+export function hasContent() { for (const l of layers.values()) if (!l._ws) return true; return !!mixer; }
 
 // The resolved, serialisable state for the renderer (called on the clock tick).
 export function snapshot(beat) {
     const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq };
     for (const [name, l] of layers) {
-        if (!l.scene) continue;
+        if (!l.scene || l._ws) continue;   // skip WS-only layers
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;
         out.layers.push({ name, ch: l.ch, scene: l.scene, params: resolveMap(l.params, beat, dur), fx: resolveMap(l.fx, beat, dur) });
     }
