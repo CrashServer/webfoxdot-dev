@@ -25,9 +25,12 @@ const layers = new Map();          // name → { scene, ch, params(raw), fx(raw)
 let   mixer  = null;               // { owner, value(raw), dur, blend } — SINGLETON crossfader
 const master = { palette: null, mode: null, res: null };   // res = GPU render-scale (null → default)
 let   clearSeq = 0;                 // bumped by clear() → renderer wipes its feedback buffer
-let   _openHook = null;            // () => ensure the visuals window is open (set by index.html)
-export function setOpenHook(fn) { _openHook = fn; }
-const _open = () => { try { _openHook && _openHook(); } catch (_) {} }
+let   _openHook   = null;   // () => ensure visuals.html is open
+let   _wsOpenHook = null;   // () => ensure /workshop/ is open
+export function setOpenHook(fn)   { _openHook   = fn; }
+export function setWsOpenHook(fn) { _wsOpenHook = fn; }
+const _open   = () => { try { _openHook   && _openHook();   } catch (_) {} }
+const _wsOpen = () => { try { _wsOpenHook && _wsOpenHook(); } catch (_) {} }
 const _now  = () => { try { return performance.now(); } catch (_) { return 0; } };
 
 // ── Spec objects ─────────────────────────────────────────────────────────────
@@ -188,6 +191,7 @@ class VisualPlayer {
         // ── Workshop routing: WS scenes go to workshop only, skip local renderer ──
         const _spec = spec instanceof VSpec ? spec : new VSpec();
         if (_spec.scene && WS_SET.has(_spec.scene)) {
+            _wsOpen();
             const cur = (!reset && layers.get(this.name)) || null;
             const p = { ...(cur ? cur.params : {}), ..._spec.params };
             delete p.ch;

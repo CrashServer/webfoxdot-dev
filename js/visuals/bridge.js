@@ -13,7 +13,7 @@
 
 import { patGet, isGroup } from '../patterns/sequences.js';
 import { FX_KEYS }         from '../fx/registry.js';
-import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook, wsSnapshot } from './vlang.js';
+import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook, setWsOpenHook, wsSnapshot } from './vlang.js';
 import { workshopSend }    from '../net/workshop-bridge.js';
 
 let _chan  = null;
@@ -33,16 +33,33 @@ function chan() {
 
 export function openVisuals() {
     if (_win && !_win.closed) { _win.focus(); return _win; }
-    return _openWin();
+    return _openWin('visuals.html');
+}
+
+// Open the VJ Workshop popup (same origin via /workshop/ route in serve.py).
+// BroadcastChannel works natively — no relay needed when both are on port 8765.
+let _wsWin = null;
+export function openWorkshop() {
+    if (_wsWin && !_wsWin.closed) { _wsWin.focus(); return _wsWin; }
+    _wsWin = window.open('/workshop/', 'crashdot-workshop',
+                         'width=1280,height=800,menubar=no,toolbar=no,location=no');
+    return _wsWin;
 }
 
 // Open without stealing focus — used when a `vN >>` line auto-launches the window.
 export function ensureVisualsOpen() {
     if (_win && !_win.closed) return _win;
-    return _openWin();
+    return _openWin('visuals.html');
 }
-function _openWin() {
-    _win = window.open('visuals.html', 'crashdot-visuals',
+
+// Auto-open workshop when a WS scene is assigned.
+export function ensureWorkshopOpen() {
+    if (_wsWin && !_wsWin.closed) return _wsWin;
+    return openWorkshop();
+}
+
+function _openWin(url) {
+    _win = window.open(url, 'crashdot-visuals',
                        'width=960,height=600,menubar=no,toolbar=no,location=no');
     chan();   // ensure the channel exists so posts reach the new window
     return _win;
@@ -55,7 +72,8 @@ function _openWin() {
 // off a clock reference means visual code works even before audio boots (beat = 0).
 export function initVisuals(clock) {
     if (clock) _clock = _clock || clock;
-    setOpenHook(ensureVisualsOpen);          // a vN >> line auto-opens the window
+    setOpenHook(ensureVisualsOpen);           // local scenes auto-open visuals.html
+    setWsOpenHook(ensureWorkshopOpen);        // WS scenes auto-open /workshop/
     // Start the workshop tick even without audio so patterns animate over WS
     if (!_timer) _timer = setInterval(_tick, 33);
     if (_vTimer) return;
