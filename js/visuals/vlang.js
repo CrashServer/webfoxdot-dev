@@ -15,7 +15,8 @@
 // vocabulary works in visuals identically to audio.
 
 import { patGet } from '../patterns/sequences.js';
-import { SCENES, blendIndex } from './vdata.js';
+import { SCENES, blendIndex, WS_SET } from './vdata.js';
+import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);
 
@@ -110,6 +111,15 @@ export function visualBuilders() {
     // clear() — blank the video: stop every layer + the crossfader and wipe the feedback
     // buffer, a full reset ([c] in the visuals window does the same).
     out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };
+
+    // ── Workshop control builders (video1 >> wspreset("name") etc.) ───────
+    // wspreset("name") — recall a workshop preset by name
+    out.wspreset  = (name) => ({ _wsPreset: String(name ?? '') });
+    // wblackout() — toggle workshop master blackout
+    out.wblackout = (on = true) => ({ _wsCmd: { cmd: 'blackout', value: !!on } });
+    // wstutter(rate) — stutter at rate Hz (0=freeze)
+    out.wstutter  = (rate = 0, on = true) => ({ _wsCmd: { cmd: 'stutter', value: !!on, rate: Number(rate) } });
+
     return out;
 }
 
@@ -117,6 +127,17 @@ export function visualBuilders() {
 class VisualPlayer {
     constructor(name) { this.name = name; }
     __rshift__(spec, reset) {
+        // ── Workshop preset command: video1 >> wspreset("name") ──────────
+        if (spec && spec._wsPreset != null) {
+            workshopSend({ t: 'workshop', cmd: 'preset', name: spec._wsPreset });
+            return this;
+        }
+        // ── Workshop global commands ──────────────────────────────────────
+        if (spec && spec._wsCmd) {
+            workshopSend({ t: 'workshop', ...spec._wsCmd });
+            return this;
+        }
+
         _open();
         if (spec && spec.isMix) {                       // become THE crossfader (singleton)
             mixer = { owner: this.name, value: spec.value, dur: Number(spec.dur) || 1, blend: spec.blend };
@@ -131,15 +152,33 @@ class VisualPlayer {
         layers.set(this.name, { scene: s.scene || (cur && cur.scene) || null, ch, params: p,
                                 fx: { ...(cur ? cur.fx : {}), ...s.fx }, born: _now() });
         if (mixer && mixer.owner === this.name) mixer = null;   // reused a mixer name as a layer
+
+        // ── Workshop routing: videoN >> wsScene(...) → channel N-1 ───────
+        if (s.scene && WS_SET.has(s.scene)) {
+            const wsCh = _wsChannel(this.name);
+            workshopSend({ t: 'workshop', cmd: 'layer', ch: wsCh, layer: s.scene,
+                           params: resolveMap(p, 0, 1) });
+        }
         return this;
     }
     stop() {
+        // Clear workshop channel if this player was a WS layer
+        const entry = layers.get(this.name);
+        if (entry?.scene && WS_SET.has(entry.scene)) {
+            workshopSend({ t: 'workshop', cmd: 'ch_clear', ch: _wsChannel(this.name) });
+        }
         layers.delete(this.name);
         if (mixer && mixer.owner === this.name) mixer = null;
         return this;
     }
     every() { return this; }
     setAttr() { return this; }
+}
+
+// Extract channel index from videoN name: video1→0, video2→1, video→0
+function _wsChannel(name) {
+    const m = String(name).match(/(\d+)$/);
+    return m ? Math.max(0, parseInt(m[1]) - 1) : 0;
 }
 
 const _players = new Map();
@@ -155,6 +194,18 @@ export function isScene(name) { return SCENE_SET.has(name); }
 export function isVideoLayer(name) { return layers.has(name) || (!!mixer && mixer.owner === name); }
 
 export function clearAll() { layers.clear(); mixer = null; }   // shutup()/panic
+
+// Snapshot of all active workshop layers with resolved params (for bridge tick).
+// Returns null when no WS layers are active.
+export function wsSnapshot(beat) {
+    const channels = [];
+    for (const [name, entry] of layers) {
+        if (!entry.scene || !WS_SET.has(entry.scene)) continue;
+        const dur = entry.params?.dur ? resolveVisual(entry.params.dur, beat, 1) : 1;
+        channels.push({ ch: _wsChannel(name), layer: entry.scene, params: resolveMap(entry.params, beat, dur) });
+    }
+    return channels.length ? { channels } : null;
+}
 // Stop one video player by name (its layer or the crossfader it owns) — used by Alt+X /
 // .stop() so video stops like any other player.
 export function stopVisual(name) { layers.delete(name); if (mixer && mixer.owner === name) mixer = null; }

@@ -93,6 +93,38 @@ export const RENDER_MODES = {
 };
 export const RENDER_MODE_NAMES = ['smooth', 'pixel', ...Object.keys(RENDER_MODES)];
 
+// ── Workshop (VJ) layer vocabulary ───────────────────────────────────────
+// These scene names are routed to the VJ Workshop (stars/workshop) instead
+// of visuals.html. video1 >> mandelbulb(...) → workshop channel 0.
+// Names map to LAYER_KINDS keys in workshop/src/channel.js (lowercased).
+export const WS_SCENES = [
+    'mandelbulb', 'mandelbox', 'volume', 'starfield', 'plasma', 'tunnel',
+    'noise', 'voronoi', 'rings', 'constellation', 'boids', 'attractor',
+    'clifford', 'lorenz', 'reaction', 'clift', 'sphere3d', 'splineweave',
+    'starburst', 'mycelium', 'neoncity', 'mazecity', 'neuralnet',
+    'crystalgrowth', 'fractaltree', 'phyllotaxis', 'cyclicca', 'gameoflife',
+    'ifsfractal', 'slimemold', 'rhizome', 'swarm', 'dnahelix', 'hypnoscope',
+    'wireframe3d', 'spectrum', 'freqtower', 'shapes', 'grid', 'apollonian',
+    'fpvdrone', 'circuitscanner', 'ikedabarcode', 'ikedacircuit',
+    'ikedamatrix', 'ikedaoscillo', 'ikedascan', 'stringart', 'codedisplay',
+];
+export const WS_SET = new Set(WS_SCENES);
+
+// Key params per workshop scene (for autocomplete hints)
+export const WS_SCENE_PARAMS = {
+    mandelbulb:  [{ n: 'power',   d: 2    }, { n: 'detail', d: 0.5  }, { n: 'glow',    d: 0.5  }],
+    mandelbox:   [{ n: 'scale',   d: 2    }, { n: 'fold',   d: 1    }, { n: 'detail',  d: 0.5  }],
+    volume:      [{ n: 'density', d: 0.5  }, { n: 'speed',  d: 1    }, { n: 'octaves', d: 4    }],
+    starfield:   [{ n: 'density', d: 0.5  }, { n: 'speed',  d: 1    }, { n: 'size',    d: 1    }],
+    plasma:      [{ n: 'speed',   d: 1    }, { n: 'scale',  d: 1    }, { n: 'hue',     d: 0    }],
+    tunnel:      [{ n: 'speed',   d: 1    }, { n: 'twist',  d: 0    }, { n: 'rings',   d: 8    }],
+    noise:       [{ n: 'scale',   d: 1    }, { n: 'speed',  d: 1    }, { n: 'octaves', d: 4    }],
+    boids:       [{ n: 'count',   d: 120  }, { n: 'speed',  d: 1    }, { n: 'trail',   d: 0.5  }],
+    reaction:    [{ n: 'feed',    d: 0.055}, { n: 'kill',   d: 0.062}, { n: 'diffA',   d: 1    }],
+    freqtower:   [{ n: 'height',  d: 0.8  }, { n: 'glow',   d: 0.5  }, { n: 'speed',   d: 1    }],
+    codedisplay: [{ n: 'style',   d: 0    }, { n: 'fontSize',d: 15  }, { n: 'fadeTime',d: 8    }],
+};
+
 // Parse "#rrggbb" → [r,g,b] 0..255.
 function hex(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
 

@@ -13,7 +13,8 @@
 
 import { patGet, isGroup } from '../patterns/sequences.js';
 import { FX_KEYS }         from '../fx/registry.js';
-import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook } from './vlang.js';
+import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook, wsSnapshot } from './vlang.js';
+import { workshopSend }    from '../net/workshop-bridge.js';
 
 let _chan  = null;
 let _win   = null;
@@ -121,7 +122,7 @@ function _tick() {
     const now = _clock?.now?.() ?? 0;
     let meta = {};
     try { meta = _getMeta ? (_getMeta() || {}) : {}; } catch (_) {}
-    chan().postMessage({
+    const audioMsg = {
         t: 'audio',
         ..._bands(),
         bpm: _clock?.bpm ?? 120,
@@ -129,8 +130,17 @@ function _tick() {
         bar: Math.floor(now / 4),
         section: meta.section || '',
         autoplay: !!meta.autoplay,
-    });
+    };
+    chan().postMessage(audioMsg);
     chan().postMessage({ t: 'players', list: _snapshotPlayers() });
+
+    // Forward audio + player data to VJ Workshop
+    workshopSend(audioMsg);
+    workshopSend({ t: 'players', list: _snapshotPlayers() });
+
+    // Forward resolved workshop layer params (handles linvar/P[] patterns)
+    const ws = wsSnapshot(now);
+    if (ws) workshopSend({ t: 'workshop_state', ...ws });
 }
 
 // A live descriptor of every active player — for the code-truthful mode.
