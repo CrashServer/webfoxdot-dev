@@ -832,26 +832,84 @@ export function PFDur(...pairs) {
     return cyc(result);
 }
 
-// PLife(chaos, low, high, steps) — elementary cellular-automaton values in [low,high]
-export function PLife(chaos = 0, low = 0, high = 1, steps = 16) {
+// PLife(chaos, low, high, steps, seed) — elementary cellular-automaton values in [low,high]
+// chaos 0..1 walks a gradient of Wolfram rules (fixed/periodic -> edge-of-chaos ->
+// fully chaotic); two rules interfere (XOR) increasingly as chaos rises, seed points
+// and sampling window both widen with chaos, and each step's value is read as a raw
+// bit-pattern (not a density average, which is a low-pass filter that collapses
+// everything toward the mean) so the full [low,high] range is actually used.
+const _PLIFE_RULE_CURVE = [
+    [0.00, 0,   0],
+    [0.08, 250, 250],
+    [0.16, 108, 232],
+    [0.24, 232, 178],
+    [0.32, 178, 122],
+    [0.40, 122, 110],
+    [0.48, 110, 54],
+    [0.56, 54,  126],
+    [0.64, 126, 90],
+    [0.72, 90,  60],
+    [0.80, 60,  45],
+    [0.88, 45,  150],
+    [0.94, 150, 182],
+    [1.00, 30,  105],
+];
+function _plifeMakeRulemap(rule) {
+    const m = {};
+    for (let i = 0; i < 8; i++) m[`${(i>>2)&1}${(i>>1)&1}${i&1}`] = (rule >> i) & 1;
+    return m;
+}
+function _plifeRng(seed) {
+    // small deterministic PRNG (mulberry32) so a given seed always replays identically
+    let s = (seed >>> 0) || (Math.random() * 0xffffffff) >>> 0;
+    return () => {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+export function PLife(chaos = 0, low = 0, high = 1, steps = 16, seed = null) {
+    chaos = Math.max(0, Math.min(1, chaos));
+    steps = Math.max(1, steps | 0);
     const useInt = Number.isInteger(low) && Number.isInteger(high);
-    const rule = (() => {
-        const r = [[0,0],[0.15,254],[0.3,90],[0.5,110],[0.7,150],[0.85,30],[1,30]];
-        for (let i = 0; i < r.length - 1; i++) {
-            if (chaos <= r[i+1][0]) { const mid = (r[i][0] + r[i+1][0]) / 2; return chaos <= mid ? r[i][1] : r[i+1][1]; }
+    const rng = _plifeRng(seed);
+
+    let rule, rule2, blend;
+    {
+        const curve = _PLIFE_RULE_CURVE;
+        rule = curve[curve.length - 1][1]; rule2 = curve[curve.length - 1][2]; blend = chaos;
+        for (let i = 0; i < curve.length - 1; i++) {
+            const [x0, r0, r0b] = curve[i], [x1, r1, r1b] = curve[i+1];
+            if (chaos <= x1) {
+                const span = (x1 - x0) || 1;
+                const t = (chaos - x0) / span;
+                [rule, rule2] = t < 0.5 ? [r0, r0b] : [r1, r1b];
+                blend = chaos * t;
+                break;
+            }
         }
-        return 30;
-    })();
-    const ruleMap = {};
-    for (let i = 0; i < 8; i++) ruleMap[`${(i>>2)&1}${(i>>1)&1}${i&1}`] = (rule >> i) & 1;
-    let row = Array(steps).fill(0); row[steps >> 1] = 1;
-    const grid = [row.slice()];
+    }
+    const radius = 1 + Math.round(chaos * 3);
+    const ruleMap1 = _plifeMakeRulemap(rule);
+    const ruleMap2 = _plifeMakeRulemap(rule2);
+
+    const seedRow = () => {
+        const row = Array(steps).fill(0);
+        row[steps >> 1] = 1;
+        const nExtra = Math.round(chaos * (steps / 3));
+        for (let i = 0; i < nExtra; i++) row[Math.floor(rng() * steps)] = 1;
+        return row;
+    };
+    const grid = [seedRow()];
     const grow = (n) => {
         while (grid.length < n) {
             const last = grid[grid.length - 1], nr = Array(steps).fill(0);
             for (let j = 0; j < steps; j++) {
                 const l = last[(j-1+steps)%steps], c = last[j], rt = last[(j+1)%steps];
-                nr[j] = ruleMap[`${l}${c}${rt}`];
+                const key = `${l}${c}${rt}`;
+                const v1 = ruleMap1[key], v2 = ruleMap2[key];
+                nr[j] = rng() < blend ? (v1 ^ v2) : v1;
             }
             grid.push(nr);
         }
@@ -861,16 +919,13 @@ export function PLife(chaos = 0, low = 0, high = 1, steps = 16) {
         index = index | 0;
         const r = Math.floor(index / steps), c = ((index % steps) + steps) % steps;
         if (chaos <= 0) return high;
-        const radius = 2;
-        if (r + radius + 1 >= grid.length) grow(r + radius + 256);
-        let total = 0, count = 0;
-        for (let dr = -radius; dr <= radius; dr++) {
-            const ri = r + dr; if (ri < 0) continue;
-            for (let dc = -radius; dc <= radius; dc++) { total += grid[ri][((c+dc)%steps+steps)%steps]; count++; }
-        }
-        const density = total / count;
-        const floor = low + (high - low) * (1 - chaos);
-        const val = floor + (high - floor) * density;
+        if (r + 1 >= grid.length) grow(r + 256);
+        // read a window of the current row as a raw binary number
+        let raw = 0;
+        for (let dc = -radius; dc <= radius; dc++) raw = (raw << 1) | grid[r][((c+dc)%steps+steps)%steps];
+        const maxraw = (1 << (2 * radius + 1)) - 1;
+        const frac = maxraw ? raw / maxraw : 0;
+        const val = low + (high - low) * frac;
         return useInt ? Math.round(val) : val;
     }};
 }
