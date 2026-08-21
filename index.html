@@ -893,6 +893,7 @@
         'fd_tekno', 'fd_dirt', 'fd_doom', 'fd_industrialdrone', 'fd_glitchbass', 'fd_hardstab',
         'fd_industrialsnare', 'fd_crunch', 'fd_lbass', 'fd_wob', 'fd_acidline', 'fd_superbass',
         'fd_darklead', 'fd_virus', 'fd_gaze', 'fd_waves',   // industrial / techno / gritty
+        'fd_fbass', 'fd_sawbass', 'fd_marimba', 'fd_hiss',   // CrashServer-rig ports batch
         'fd_sampler', 'fd_loop', 'fd_master',
         ...FX_SYNTHDEFS,   // fd_fx_out + per-effect fd_fx_* nodes (approach A)
     ];
@@ -1550,10 +1551,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const onDoc = (e) => { if (!pop.contains(e.target) && e.target !== btn) close(); };
         function open()  {
             const r = btn.getBoundingClientRect();
+            pop.hidden = false;   // unhide first — offsetWidth needs it in flow to measure
             pop.style.top   = (r.bottom + 4) + 'px';
-            pop.style.left  = 'auto';
-            pop.style.right = Math.max(4, window.innerWidth - r.right) + 'px';
-            pop.hidden = false;
+            // Anchor to the button's right edge, but clamp to BOTH viewport sides — a
+            // wrapped/narrow toolbar can put the button near the left edge, where
+            // right-anchoring alone (the old `right: innerWidth - r.right`) pushed the
+            // fixed-width popup's left edge off-screen with nothing pulling it back.
+            const popW = pop.offsetWidth || 468;
+            const left = Math.max(4, Math.min(r.right - popW, window.innerWidth - popW - 4));
+            pop.style.left  = left + 'px';
+            pop.style.right = 'auto';
             if (activeCat) showCat(activeCat);           // restore last-opened category
             else if (catRows.size) showCat(catRows.keys().next().value);
             setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);

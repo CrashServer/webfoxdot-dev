@@ -285,6 +285,32 @@ SynthDef(\fd_fx_tube, {|in_bus=64, tube=0, tubegain=1.5, tubewarm=0.6, tubebias=
     ReplaceOut.ar(in_bus, XFade2.ar(dry, sat * 0.8, tube.clip(0, 1) * 2 - 1));
 }).writeDefFile(~outDir);
 
+// ── tape — tape saturation: compand, drive+wobble, cubic warmth, wow/flutter ─
+SynthDef(\fd_fx_tape, {|in_bus=64, tape=0, tapedrive=2, tapewarm=0.5, tapewobble=0.3|
+    var sig = In.ar(in_bus, 2), dry, sat, wobble;
+    dry     = sig;
+    sat     = Compander.ar(sig, sig, 0.25, 1, 0.4, 0.002, 0.08, 1.4);
+    wobble  = SinOsc.kr(LFNoise1.kr(0.5).range(0.3, 1.5)).range(0.98, 1.02);
+    sat     = sat * tapedrive.clip(0.5, 8) * wobble;
+    sat     = sat + (sat.squared * tapewarm * 0.5);
+    sat     = sat + (sat.cubed * 0.08);
+    sat     = sat.softclip;
+    sat     = sat + DelayC.ar(sat * 0.15, 0.01, LFNoise2.kr(3).range(0.0001, 0.001 + (tapewobble.clip(0, 1) * 0.003)));
+    sat     = LPF.ar(sat, 10000 - (tapewarm * 4000));
+    sat     = BLowShelf.ar(sat, 120, 0.7, tapewarm * 2.5);
+    sat     = BHiShelf.ar(sat, 6000, 0.8, tapewarm * -2);
+    sat     = LeakDC.ar(sat);
+    ReplaceOut.ar(in_bus, XFade2.ar(dry, sat * 0.85, tape.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
+// ── bitcrush — true Decimator-based bit/sample-rate reduction (distinct
+// algorithm/character from `crush`'s Latch-based quantizer) ──────────────────
+SynthDef(\fd_fx_bitcrush, {|in_bus=64, bitcrush=0, bcbits=8, bcrate=10|
+    var sig = In.ar(in_bus, 2), wet;
+    wet = Decimator.ar(sig, (44100 / bcrate.clip(1, 100)).clip(500, 44100), bcbits.clip(1, 24));
+    ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, bitcrush.clip(0, 1) * 2 - 1));
+}).writeDefFile(~outDir);
+
 // ── drcomp — drum-bus compressor + shelves ──────────────────────────────────
 SynthDef(\fd_fx_drcomp, {|in_bus=64, drcomp=0|
     var sig = In.ar(in_bus, 2), wet;

@@ -451,6 +451,37 @@ export const SYNTH_DEFS = {
                     hhat: 0.1, sn: 0.1, harm: 0, fmod: 0, vib: 0 },
         extraParams: ['density', 'glitch', 'noise', 'bass', 'tone', 'bright', 'hhat', 'sn', 'harm', 'fmod', 'vib'],
     },
+    // fbass — Karplus-Strong comb-filter exciter bass, credit Josh Mitchell (CrashServer port)
+    fbass: {
+        scName: 'fd_fbass',
+        defaults: { oct: 3, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 0.2,
+                    decay: 1, cutoff: 250, rq: 0.35 },
+        extraParams: ['decay', 'cutoff', 'rq'],
+    },
+    // sawbass — detuned saw stack, filter-envelope RLPF sweep + Padé waveshaper (CrashServer port)
+    sawbass: {
+        scName: 'fd_sawbass',
+        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.05,
+                    cutoff: 1000, rq: 0.5 },
+        extraParams: ['cutoff', 'rq'],
+    },
+    // marimba — Klank resonator (fixed harmonic ratios) over a PinkNoise exciter (CrashServer port)
+    marimba: {
+        scName: 'fd_marimba',
+        defaults: { oct: 5, amp: 0.8, dur: 1, pan: 0, attack: 0.001, release: 1 },
+        extraParams: [],
+    },
+    // hiss — one unified noise generator; type picks the color (string or int):
+    // white/pink/brown/gray/crackle/dust/lfnoise. e.g. hiss(type="pink", cutoff=4000)
+    // Named `hiss` (not `noise`) — `noise` is already taken by the video scene of
+    // the same name (SYNTHS and visualBuilders() share one eval-context namespace).
+    hiss: {
+        scName: 'fd_hiss',
+        defaults: { oct: 5, amp: 0.6, dur: 1, pan: 0, attack: 0.01, release: 0.1,
+                    type: 0, cutoff: 12000, rq: 0.7, chaos: 0.5, density: 500, rate: 1000 },
+        extraParams: ['type', 'cutoff', 'rq', 'chaos', 'density', 'rate'],
+        enums: { type: ['white', 'pink', 'brown', 'gray', 'crackle', 'dust', 'lfnoise'] },
+    },
 };
 
 // Normalise shared defaults across every synth: amp 1, pan 0, oct 5 (FoxDot-style
@@ -462,7 +493,7 @@ for (const def of Object.values(SYNTH_DEFS)) {
     def.defaults.oct = 5;
 }
 
-import { attachModifiers, isGroup, _group, unisonSpread } from '../patterns/sequences.js';
+import { attachModifiers, isGroup, _group, unisonSpread, optName } from '../patterns/sequences.js';
 
 export class SynthCall {
     constructor(name, args) {
@@ -551,7 +582,18 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     if (r.slide != null || r.slidefrom != null || r.slidedelay != null) {
         base.push('slide', r.slide ?? 0, 'slidefrom', r.slidefrom ?? 1, 'slidedelay', r.slidedelay ?? 1);
     }
-    const extras = (def.extraParams ?? []).flatMap(p => [p, r[p] ?? def.defaults[p] ?? 0]);
+    // Enum-typed params (declared via def.enums.<param> = [names...]) accept a
+    // string ("pink"), an int index, or a var/pattern of either — resolved here
+    // to the numeric index the SynthDef's Select.ar switch expects.
+    const extras = (def.extraParams ?? []).flatMap(p => {
+        let v = r[p] ?? def.defaults[p] ?? 0;
+        const names = def.enums?.[p];
+        if (names && typeof v === 'string') {
+            const i = names.indexOf(optName(v, names));
+            v = i < 0 ? 0 : i;
+        }
+        return [p, v];
+    });
     return { scName: def.scName, params: [...base, ...extras] };
 }
 

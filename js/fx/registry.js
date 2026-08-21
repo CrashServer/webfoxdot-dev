@@ -227,6 +227,18 @@ export const FX_REGISTRY = {
     tubewarm: { scParam: 'tubewarm', default: 0.6, desc: 'Even-harmonic warmth' },
     tubebias: { scParam: 'tubebias', default: 0.1, desc: 'Asymmetry bias' },
 
+    // tape — tape saturation (compand + drive/wobble + cubic warmth + wow/flutter), CrashServer port
+    tape:      { scParam: 'tape',      default: 0,   desc: 'Tape-saturation mix (0=off)' },
+    tapedrive: { scParam: 'tapedrive', default: 2,   desc: 'Drive into saturation (0.5–8)' },
+    tapewarm:  { scParam: 'tapewarm',  default: 0.5, desc: 'Even-harmonic warmth + shelving' },
+    tapewobble:{ scParam: 'tapewobble',default: 0.3, desc: 'Wow/flutter delay-line depth' },
+
+    // bitcrush — true Decimator bit/sample-rate reduction (distinct character from
+    // `crush`'s Latch-based quantizer), CrashServer port
+    bitcrush: { scParam: 'bitcrush', default: 0,  desc: 'Bitcrush mix (0=off) — see also crush' },
+    bcbits:   { scParam: 'bcbits',   default: 8,  desc: 'Bit depth (lower=grittier, e.g. 4)' },
+    bcrate:   { scParam: 'bcrate',   default: 10, desc: 'Sample-rate divisor (higher=more aliasing)' },
+
     // drcomp — drum-bus compressor + shelves (techno glue), CrashServer port
     drcomp:   { scParam: 'drcomp',   default: 0, desc: 'Drum compressor mix (0=off)' },
 
@@ -311,6 +323,8 @@ export const FX_EFFECTS = [
     { scName: 'fd_fx_csweep',     keys: ['csweep', 'cswfreq', 'cswdepth', 'cswrate', 'cswdecay'], trig: ['csweep'] },
     { scName: 'fd_fx_eb',         keys: ['eb', 'ebmix', 'ebfeed', 'ebmode', 'ebwow', 'ebflutter', 'ebsat'], trig: ['ebmix'] },
     { scName: 'fd_fx_tube',       keys: ['tube', 'tubedrive', 'tubegain', 'tubewarm', 'tubebias'], trig: ['tube', 'tubedrive'] },
+    { scName: 'fd_fx_tape',       keys: ['tape', 'tapedrive', 'tapewarm', 'tapewobble'], trig: ['tape'] },
+    { scName: 'fd_fx_bitcrush',   keys: ['bitcrush', 'bcbits', 'bcrate'], trig: ['bitcrush'] },
     { scName: 'fd_fx_drcomp',     keys: ['drcomp'], trig: ['drcomp'] },
     { scName: 'fd_fx_lofi',       keys: ['lofi', 'lofiwow', 'lofiamp'], trig: ['lofi'] },
     { scName: 'fd_fx_vowel',      keys: ['vowel', 'vowelf', 'vowelq'], trig: ['vowel'] },

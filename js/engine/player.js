@@ -334,6 +334,10 @@ export class Player {
     // active player INHERITS its previous params and only overrides what's given.
     __rshift__(synthCall, reset = false) {
         if (synthCall === null || synthCall === undefined) { this.stop(); return this; }
+        // Every audio-producing call (sample/loop/synth — not MIDI out) silently no-ops
+        // until _sc exists (see the `if (!_sc) return;` guards in _fire*). Without this,
+        // a first-time visitor who skips "boot" hears nothing and sees no clue why.
+        if (!_sc && _warn && !(synthCall instanceof MidiOutCall)) _warn(`${this.name} >>: boot audio first (top-left)`);
         if (this._bus == null) this._bus = allocBus();   // re-acquire after a stop
 
         // ~player >> … — clear accumulated state so the reset is total, not just
