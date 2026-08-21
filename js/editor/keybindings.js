@@ -54,7 +54,7 @@ function playerNameFromLine(line) {
 // whole block). The stop is quantised: the line is commented immediately, but the
 // audio stops on the next bar boundary so it ends in time, not instantly.
 const STOP_GRID = 4;   // beats — one bar
-export function stopPlayerAtCursor(cm, clock, runLineFn) {
+export function stopPlayerAtCursor(cm, clock, runLineFn, recCapture) {
     const cursor  = cm.getCursor();
     const lineNo  = cursor.line;
     const line    = cm.getLine(lineNo);
@@ -68,14 +68,23 @@ export function stopPlayerAtCursor(cm, clock, runLineFn) {
         cm.replaceRange(uncommented,
             { line: lineNo, ch: 0 },
             { line: lineNo, ch: line.length });
-        if (runLineFn) runLineFn();   // restart just this player's line, not the block
+        if (runLineFn) runLineFn();   // restart just this player's line, not the block (also recCaptures)
     } else {
         // Comment out + stop
         cm.replaceRange(indent + '# ' + trimmed,
             { line: lineNo, ch: 0 },
             { line: lineNo, ch: line.length });
         const name = playerNameFromLine(line);
-        if (name) { clock._players.get(name)?.stop(STOP_GRID); stopVisual(name); }   // audio (quantised) + video
+        if (name) {
+            clock._players.get(name)?.stop(STOP_GRID); stopVisual(name);   // audio (quantised) + video
+            // This bypasses runCode() (a direct player call, not eval'd source), so
+            // without this the recorder (index.html's recCapture) never sees the stop —
+            // a recorded composition would replay this player straight through the
+            // point it was actually silenced live. `name.stop()` is valid typed syntax
+            // (js/editor/transpiler.js's RE_METHOD rewrites it to __p(name).stop()),
+            // so it replays correctly when the section is re-run.
+            if (recCapture) recCapture(`${name}.stop()`);
+        }
     }
 }
 

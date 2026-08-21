@@ -1227,7 +1227,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Shift-Alt-Down': (cm) => { incrementValue(cm, -10, runLineAtCursor); autoRec.capture(cm, autoRecCtx()); },
             'Alt-T':          (cm) => autoRec.toggle(cm, autoRecCtx()),
             'Esc':            (cm) => autoRec.cancelIfArmed(cm, autoRecCtx()) ? undefined : CodeMirror.Pass,
-            'Alt-X':          (cm) => stopPlayerAtCursor(cm, clock, runLineAtCursor),
+            'Alt-X':          (cm) => stopPlayerAtCursor(cm, clock, runLineAtCursor, recCapture),
             'Alt-S':          (cm) => { const n = soloPlayerAtCursor(cm, clock); if (n) broadcastAction('solo', { name: n }); },
             'Ctrl-Alt-S':     ()   => { _unsoloFn(clock); broadcastAction('unsolo'); },
             'Alt-O':          (cm) => { const n = soloDropAtCursor(cm, clock, 8); if (n) broadcastAction('soloDrop', { name: n, beats: 8 }); },
