@@ -333,48 +333,48 @@ function renderPalette() {
 
 // ── Knob roles — tag an unwired knob (or the Number block's value) with a
 // semantic name so the generated param reads e.g. `freq=` instead of the
-// auto `n2_freq=`. Compact click-to-cycle badge instead of a dropdown so it
-// fits the fixed-height row layout without touching portPos()'s row math.
+// auto `n2_freq=`. A real <select> (not a cycle-button — that read as
+// decoration, not a control) with a "custom…" option that prompts for a name.
 const ROLE_PRESETS = ['freq', 'amp', 'rate'];
-function roleLabel(node, key) {
-    const r = node.roles && node.roles[key];
-    if (!r) return '·';
-    return r.length > 6 ? r.slice(0, 6) : r;
+function roleTitle(role) {
+    return role
+        ? `role: ${role} — used as p1 >> patch(${role}=…); naming it out/note/amp/sus/pan/attack/release reuses that built-in control instead of adding a new one`
+        : 'auto-named — pick a role so this knob gets a mnemonic param name (freq/amp/rate/custom)';
 }
-function roleTitle(node, key) {
-    const r = node.roles && node.roles[key];
-    return r
-        ? `role: ${r} — click to change (used as p1 >> patch(${r}=…); naming it out/note/amp/sus/pan/attack/release reuses that built-in control instead of adding a new one)`
-        : 'auto-named — click to tag this knob\'s role (freq/amp/rate/custom)';
-}
-function cycleRole(node, key, btn) {
-    const cur = node.roles && node.roles[key];
-    const presetIdx = ROLE_PRESETS.indexOf(cur);
-    let next;
-    if (!cur) next = ROLE_PRESETS[0];
-    else if (presetIdx >= 0 && presetIdx < ROLE_PRESETS.length - 1) next = ROLE_PRESETS[presetIdx + 1];
-    else if (presetIdx === ROLE_PRESETS.length - 1) next = 'custom';
-    else next = null;   // was a custom name -> back to auto
-    if (next === 'custom') {
-        const name = prompt('param name for this knob (used as p1 >> patch(name=…)):', cur && presetIdx < 0 ? cur : '');
-        if (name === null) return;   // cancelled — leave role unchanged
-        next = name.trim() || null;
-    }
-    if (!node.roles) node.roles = {};
-    if (next) node.roles[key] = next; else delete node.roles[key];
-    btn.textContent = roleLabel(node, key);
-    btn.title = roleTitle(node, key);
-    btn.classList.toggle('tagged', !!next);
-    afterParamChange();
-}
-function roleButton(node, key) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'modular-role-btn' + (node.roles && node.roles[key] ? ' tagged' : '');
-    btn.textContent = roleLabel(node, key);
-    btn.title = roleTitle(node, key);
-    btn.onclick = () => cycleRole(node, key, btn);
-    return btn;
+function roleSelect(node, key) {
+    const sel = document.createElement('select');
+    sel.className = 'modular-role-sel';
+
+    const build = () => {
+        const cur = node.roles && node.roles[key];
+        const isPreset = ROLE_PRESETS.includes(cur);
+        sel.innerHTML = '';
+        const opts = [['', 'auto'], ...ROLE_PRESETS.map(r => [r, r]), ['custom', (cur && !isPreset) ? cur : 'custom…']];
+        for (const [val, label] of opts) {
+            const o = document.createElement('option');
+            o.value = val; o.textContent = label.length > 9 ? label.slice(0, 9) : label;
+            if (val === (cur ? (isPreset ? cur : 'custom') : '')) o.selected = true;
+            sel.appendChild(o);
+        }
+        sel.className = 'modular-role-sel' + (cur ? ' tagged' : '');
+        sel.title = roleTitle(cur);
+    };
+    build();
+
+    sel.onchange = () => {
+        const cur = node.roles && node.roles[key];
+        let next = sel.value;
+        if (next === 'custom') {
+            const name = prompt('param name for this knob (used as p1 >> patch(name=…)):', cur && !ROLE_PRESETS.includes(cur) ? cur : '');
+            if (name === null) { build(); return; }   // cancelled — revert the <select> to its prior state
+            next = name.trim();
+        }
+        if (!node.roles) node.roles = {};
+        if (next) node.roles[key] = next; else delete node.roles[key];
+        build();
+        afterParamChange();
+    };
+    return sel;
 }
 
 // ── Blocks ───────────────────────────────────────────────────────────────
@@ -423,7 +423,7 @@ function renderBlocks() {
                 inp.value = node.params[param.name];
                 inp.oninput = () => { node.params[param.name] = parseFloat(inp.value) || 0; afterParamChange(); };
                 row.appendChild(inp);
-                row.appendChild(roleButton(node, param.name));
+                row.appendChild(roleSelect(node, param.name));
             }
             el.appendChild(row);
         }
@@ -450,7 +450,7 @@ function renderBlocks() {
                 inp.value = node.params[port.name] ?? port.default;
                 inp.oninput = () => { node.params[port.name] = parseFloat(inp.value) || 0; afterParamChange(); };
                 row.appendChild(inp);
-                row.appendChild(roleButton(node, port.name));
+                row.appendChild(roleSelect(node, port.name));
             }
             el.appendChild(row);
         }
@@ -527,6 +527,20 @@ function drawCable(p1, p2, onClick, ghost) {
 }
 
 // ── Code preview + Define ───────────────────────────────────────────────────
+// True if some unwired knob (input port, or Number's value) has no role tag
+// yet — used to keep nudging toward the "tag" button until it's been tried,
+// since a tiny per-knob control is easy to miss otherwise.
+function hasUntaggedKnob(graph) {
+    for (const n of graph.nodes) {
+        const def = blockDef(n.type);
+        for (const port of def.inputs) {
+            if (!edgeInto(graph, n.id, port.name) && !(n.roles && n.roles[port.name])) return true;
+        }
+        if (n.type === 'number' && !(n.roles && n.roles.value)) return true;
+    }
+    return false;
+}
+
 function updateCodePreview() {
     const { source, error, warnings } = generateSource(_graph);
     _codeEl.value = error ? `// ${error}` : source;
@@ -536,6 +550,9 @@ function updateCodePreview() {
     } else if (warnings && warnings.length) {
         _hintEl.textContent = '⚠ ' + warnings.join('  ·  ');
         _hintEl.className = 'modular-hint warn';
+    } else if (hasUntaggedKnob(_graph)) {
+        _hintEl.textContent = 'tip: pick a role from a knob\'s dropdown (freq/amp/rate/custom) to name it — so it generates as p1 >> patch(freq=…) instead of the auto n2_cutoff name.';
+        _hintEl.className = 'modular-hint';
     } else {
         _hintEl.textContent = '';
         _hintEl.className = 'modular-hint';
