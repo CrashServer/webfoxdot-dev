@@ -32,6 +32,7 @@
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
+      <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🧩<span class="tb-label"> modular</span></button>
       <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">⊞<span class="tb-label"> perform</span></button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴<span class="tb-label"> share</span></button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥<span class="tb-label"> go live</span></button>
@@ -243,6 +244,7 @@
     import { autoRec }                   from './js/editor/autorec.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMixer, toggleMixer, onSectionActive } from './js/ui/mixer.js';
+    import { initModular, toggleModular, savePatch as savePatchImpl, loadPatch as loadPatchImpl } from './js/ui/modular.js';
     import { initPerform, togglePerform } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
@@ -560,6 +562,12 @@
                 .then(n => update(n ? `loadpack: ${n} chars loaded ✓` : 'loadpack: 0 chars loaded (all failed)', n ? 'ok' : 'error'))
                 .catch(e => update(`loadpack: ${e.message}`, 'error'));
             },
+            // Modular synth builder (🧩 toolbar button) — savePatch() downloads the
+            // current patch as .json, loadPatch(url) fetches one in and opens the panel.
+            savePatch: () => savePatchImpl(),
+            loadPatch: (url) => loadPatchImpl(url)
+                .then(() => log('loadPatch: patch loaded ✓', 'ok'))
+                .catch(e => log(`loadPatch: ${e.message}`, 'error')),
             print:  (...a) => log(a.join(' ')),
             drop:   (playTime = 14, dropTime = 2, nbloop = 1) => _dropFn(clock, playTime, dropTime, nbloop, (m) => log(m, 'info')),
             // chaos(n=4, type) — generate n random players (synth/drum/mix) into
@@ -1417,6 +1425,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-stop').onclick  = () => stopAll();
     document.getElementById('btn-reload').onclick = softReload;
     document.getElementById('btn-mixer').onclick  = () => toggleMixer();
+    document.getElementById('btn-modular').onclick = () => toggleModular();
     document.getElementById('btn-perform').onclick = () => togglePerform();
 
     // Mobile: the side panel is a slide-up drawer (styled in a @media block). The ☰
@@ -1798,6 +1807,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _progressRAF = requestAnimationFrame(progressLoop);
     initMixer(clock, editor, runCode);
+    initModular((msg, kind) => log(msg, kind));
     initPerform(clock);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
         // Record the active section's player lines so the live highlight lands on

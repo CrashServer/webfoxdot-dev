@@ -1807,6 +1807,99 @@ body.is-offline #btn-galaxy {
     .mixer-chan-stop, .mixer-chan-midi { width: 34px; height: 26px; }
 }
 
+/* ── Modular synth builder — drag blocks, wire ports, watch the code appear ──── */
+#modular-panel {
+    position: fixed; left: 12px; bottom: 46px; z-index: 120;
+    width: 900px; max-width: 96vw; height: 560px; max-height: 88vh;
+    background: var(--bg-2); border: 1px solid var(--border-2);
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5);
+    font-family: monospace;
+    display: flex; flex-direction: column;
+}
+#modular-panel.hidden { display: none; }
+.modular-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--border-1); cursor: move; }
+.modular-title { color: var(--green); font-weight: bold; font-size: 12px; }
+.modular-name {
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-1);
+    font-family: monospace; font-size: 11px; padding: 3px 6px; width: 110px;
+}
+.modular-define, .modular-save, .modular-loadbtn, .modular-clearbtn {
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-2);
+    font-size: 10px; font-weight: bold; padding: 3px 7px; border-radius: 4px; cursor: pointer; line-height: 1.4;
+}
+.modular-define { color: var(--green); border-color: var(--green); }
+.modular-define:hover, .modular-save:hover, .modular-loadbtn:hover, .modular-clearbtn:hover { background: var(--bg-2); color: var(--text-1); }
+.modular-define:hover { color: var(--green); }
+.modular-drag { flex: 1; align-self: stretch; }
+.modular-close { background: none; border: none; color: var(--text-2); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 3px; }
+.modular-close:hover { color: var(--red); }
+
+.modular-body { display: flex; flex: 1; min-height: 0; }
+
+.modular-palette {
+    flex: 0 0 108px; display: flex; flex-direction: column; gap: 4px;
+    padding: 8px 6px; overflow-y: auto; border-right: 1px solid var(--border-1);
+}
+.modular-palette-btn {
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-1);
+    font-size: 10px; padding: 6px 5px; border-radius: 4px; cursor: pointer; text-align: left;
+}
+.modular-palette-btn:hover { background: var(--bg-2); color: var(--blue); border-color: var(--blue); }
+
+.modular-canvas-wrap { flex: 1; overflow: auto; position: relative; background: var(--bg-1); }
+.modular-canvas { position: relative; width: 2400px; height: 1400px; }
+.modular-cables { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.modular-cable { fill: none; stroke: var(--blue); stroke-width: 2; opacity: 0.85; }
+.modular-cable.ghost { stroke: var(--yellow); stroke-dasharray: 4 3; opacity: 0.7; }
+.modular-cable:hover { stroke: var(--red); }
+
+.modular-block {
+    position: absolute; background: var(--bg-2); border: 1px solid var(--border-2);
+    border-radius: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); font-size: 10px; user-select: none;
+}
+.modular-block-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 4px;
+    height: 26px; padding: 0 6px; border-bottom: 1px solid var(--border-1);
+    cursor: move; position: relative; border-radius: 4px 4px 0 0; background: var(--bg-3);
+}
+.modular-block-label { color: var(--text-1); font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modular-block-del { background: none; border: none; color: var(--text-2); font-size: 13px; cursor: pointer; line-height: 1; padding: 0 2px; }
+.modular-block-del:hover { color: var(--red); }
+.modular-block-row {
+    display: flex; align-items: center; gap: 5px; height: 22px; padding: 0 6px;
+    border-bottom: 1px solid var(--border-1);
+}
+.modular-block-row:last-child { border-bottom: none; }
+.modular-block-row select, .modular-num {
+    flex: 1; min-width: 0; background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-1);
+    font-family: monospace; font-size: 9px; padding: 1px 3px;
+}
+.modular-port-label { color: var(--text-2); flex: 0 0 auto; }
+.modular-port-val { max-width: 52px; }
+
+.modular-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; cursor: pointer;
+    border: 1px solid var(--border-2); background: var(--bg-1);
+}
+.modular-dot-out { position: absolute; right: -6px; top: 8px; background: var(--blue); border-color: var(--blue); }
+.modular-dot-out.ctrl { background: var(--green); border-color: var(--green); }
+.modular-dot-in { margin-left: -11px; }
+.modular-dot-in.wired { background: var(--blue); border-color: var(--blue); }
+.modular-dot:hover { box-shadow: 0 0 6px var(--blue); }
+
+.modular-side { flex: 0 0 260px; display: flex; flex-direction: column; border-left: 1px solid var(--border-1); min-width: 0; }
+.modular-status { padding: 6px 8px; font-size: 10px; color: var(--text-2); border-bottom: 1px solid var(--border-1); min-height: 14px; }
+.modular-status.ok { color: var(--green); }
+.modular-status.error { color: var(--red); }
+.modular-code {
+    flex: 1; resize: none; border: none; outline: none; background: var(--bg-1); color: var(--text-1);
+    font-family: monospace; font-size: 10px; padding: 8px; line-height: 1.5;
+}
+@media (max-width: 900px) {
+    #modular-panel { width: 96vw; }
+    .modular-side { flex-basis: 200px; }
+}
+
 /* ── Mobile / touch (Tier 1) ──────────────────────────────────────────────────
    Placed LAST so these overrides beat the base rules above (equal specificity →
    later wins). Full-width editor + the side panel as a slide-up DRAWER: the panel
@@ -1915,7 +2008,7 @@ body.is-offline #btn-galaxy {
     #toolbar { gap: 4px; row-gap: 4px; padding: 4px 6px; }
     #toolbar button, #toolbar #examples-btn { min-height: 36px; padding: 5px 9px; font-size: 14px; }
     /* glyph-only buttons: keep them square-ish and readable */
-    #btn-loadkit, #btn-mixer, #btn-perform, #btn-share, #btn-multiplayer, #cp-toggle, #btn-galaxy,
+    #btn-loadkit, #btn-mixer, #btn-modular, #btn-perform, #btn-share, #btn-multiplayer, #cp-toggle, #btn-galaxy,
     #btn-run, #btn-stop, #docs-toggle-btn { font-size: 16px; padding: 5px 8px; }
 }
 
