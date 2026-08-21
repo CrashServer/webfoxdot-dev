@@ -3266,9 +3266,44 @@ function go(n) {
     return '';
 }
 
+// ▶-prefixed lines (any language's arrow bullet) introduce a runnable example —
+// mark that line and the code line(s) right after it (until blank/next comment)
+// so they visually pop out of the surrounding prose instead of reading as more text.
+const EXAMPLE_RE = /^#\s*▶/;
+
+function decorate(text) {
+    // setValue() throws away the previous doc, so old line-classes are already
+    // gone — nothing to clear before applying this lesson's.
+    const lines = text.split('\n');
+    // Header — lines 0/1/2 are always the ═══ rule / 🎓 title / ═══ rule built by
+    // lesson() above. Banner the title, dim the rules so they read as its edges.
+    // 'wrap' (not 'background') on the title so the class can style the text too
+    // (bold/color), not just a backdrop — CodeMirror's background layer has no text.
+    editor.addLineClass(0, 'background', 'tour-header-rule');
+    editor.addLineClass(1, 'wrap',       'tour-header-title');
+    editor.addLineClass(2, 'background', 'tour-header-rule');
+    for (let i = 3; i < lines.length; i++) {
+        if (!EXAMPLE_RE.test(lines[i])) continue;
+        // The footer nav line ("▶ evaluate next() …") uses the same ▶ bullet but
+        // introduces no code — it's always followed by a #─── divider, never a
+        // runnable line. Only decorate real examples: collect first, apply only
+        // if at least one code line actually follows.
+        const codeLines = [];
+        for (let j = i + 1; j < lines.length; j++) {
+            const t = lines[j].trim();
+            if (!t || t.startsWith('#')) break;
+            codeLines.push(j);
+        }
+        if (!codeLines.length) continue;
+        editor.addLineClass(i, 'wrap', 'tour-example-label');
+        for (const j of codeLines) editor.addLineClass(j, 'background', 'tour-example-code');
+    }
+}
+
 function show() {
     const text = lessons()[idx].text;
     editor.setValue(text);
+    decorate(text);
     // Drop the cursor on the first runnable line (the ▶ example) so Ctrl+Enter works
     // right away; if the lesson has no example, land on next()/back().
     const lines = text.split('\n');

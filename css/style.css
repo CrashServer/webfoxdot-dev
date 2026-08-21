@@ -634,6 +634,35 @@ body.viz-bg .CodeMirror-gutters { background: rgba(8,10,14,0.32); background: co
 /* Flash highlight on eval */
 .flash-highlight { background-color: var(--flash-col) !important; transition: background-color 0.4s ease; }
 
+/* Run feedback — a brief green pulse layered on top of flash-highlight so
+   evaluating a line reads as a small reward, not just a color blip. */
+.flash-run-pulse { box-shadow: inset 3px 0 0 var(--green); animation: flash-run-anim 0.5s ease; }
+@keyframes flash-run-anim {
+    0%   { box-shadow: inset 3px 0 0 var(--green), inset 0 0 14px var(--glow); }
+    100% { box-shadow: inset 3px 0 0 transparent; }
+}
+
+/* ── Tour (guided tutorial) — header banner + example callouts ──────────────
+   The tour lives entirely as text in the editor (see js/ui/tour.js); these
+   give the lesson header and the ▶ example blocks real visual weight instead
+   of reading as one flat wall of commented monospace. */
+.tour-header-rule  { background-color: color-mix(in srgb, var(--blue) 10%, transparent) !important; }
+.tour-header-title {
+    background-color: color-mix(in srgb, var(--blue) 20%, transparent) !important;
+    font-weight: bold;
+    box-shadow: inset 0 2px 0 color-mix(in srgb, var(--blue) 55%, transparent),
+                inset 0 -2px 0 color-mix(in srgb, var(--blue) 55%, transparent);
+}
+.tour-example-label {
+    font-weight: bold;
+    box-shadow: inset 3px 0 0 var(--blue);
+    background-color: color-mix(in srgb, var(--blue) 8%, transparent) !important;
+}
+.tour-example-code {
+    background-color: color-mix(in srgb, var(--blue) 8%, transparent) !important;
+    box-shadow: inset 3px 0 0 var(--blue);
+}
+
 /* ── Log resize handle ────────────────────────────────────────────────────── */
 #log-handle {
     height: 4px;

@@ -876,8 +876,13 @@
         const marks = [];
         for (let i = from; i <= to; i++) {
             marks.push(editor.addLineClass(i, 'background', 'flash-highlight'));
+            editor.addLineClass(i, 'background', 'flash-run-pulse');
         }
         setTimeout(() => marks.forEach((_, i) => editor.removeLineClass(from + i, 'background', 'flash-highlight')), 350);
+        // Separate, slightly longer timeout — flash-run-pulse drives its own CSS
+        // animation (0.5s) rather than a plain transition, so it needs to outlive
+        // flash-highlight's fade instead of being cut off with it.
+        setTimeout(() => marks.forEach((_, i) => editor.removeLineClass(from + i, 'background', 'flash-run-pulse')), 500);
     }
 
     // ── Boot ─────────────────────────────────────────────────────────────────
