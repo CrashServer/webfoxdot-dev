@@ -65,7 +65,18 @@ export function generateSource(graph) {
         `}`,
     ].join('\n');
 
-    return { source, extraParams };
+    // Every built-in synth's node frees itself via an EnvGen(..., doneAction: 2) —
+    // the engine never separately sends /n_free for a note (js/engine/player.js).
+    // A patch with no Envelope block has no doneAction, so each triggered note's
+    // synth node runs forever: it never stops sounding and never gets freed, so
+    // node count (and CPU) climbs with every note played. Not a compile error —
+    // a deliberately-sustained drone is legitimate — just flagged.
+    const warnings = [];
+    if (!graph.nodes.some(n => n.type === 'env')) {
+        warnings.push('no Envelope block — notes will sustain forever and their synth nodes will never free (leaks a node per note). Add an Envelope between your sound source and Output, or wire it in deliberately if you want a held drone.');
+    }
+
+    return { source, extraParams, warnings };
 }
 
 // UGen factories the generated source is allowed to reference by bare name —
@@ -89,9 +100,9 @@ export function compileToFunction(source) {
 // graph → registered, playable synth (via the real defsynth() — no changes
 // to js/scsynth/* needed). Returns what was generated, for the preview pane.
 export async function compileAndDefine(name, graph) {
-    const { source, extraParams, error } = generateSource(graph);
+    const { source, extraParams, error, warnings } = generateSource(graph);
     if (error) throw new Error(error);
     const buildFn = compileToFunction(source);
     await defsynth(name, extraParams, buildFn);
-    return { source, extraParams };
+    return { source, extraParams, warnings };
 }

@@ -1807,7 +1807,19 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _progressRAF = requestAnimationFrame(progressLoop);
     initMixer(clock, editor, runCode);
-    initModular((msg, kind) => log(msg, kind));
+    // The modular panel's "use it" button pastes a p1 >> line for the just-Defined
+    // synth — same paste-don't-run convention as chaos() above (review, then run).
+    initModular((msg, kind) => log(msg, kind), (text) => {
+        const last  = editor.lastLine();
+        const atEnd = editor.getValue().trim() === '';
+        const pre   = atEnd ? '' : '\n\n';
+        const startLine = atEnd ? 0 : last + 2;
+        editor.replaceRange(pre + text + '\n', { line: last, ch: editor.getLine(last).length });
+        editor.setCursor({ line: startLine, ch: 0 });
+        editor.scrollIntoView({ line: startLine, ch: 0 });
+        editor.focus();
+        log('modular: pasted a player line — review, then run (Ctrl+Enter)', 'info');
+    });
     initPerform(clock);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
         // Record the active section's player lines so the live highlight lands on
