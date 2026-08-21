@@ -705,7 +705,10 @@ export class Player {
     }
 
     // Recursively render one play() token over a beat slot [offset, offset+slot].
-    // Brackets nest: (sim) layers · [sub] subdivides · {rand}/<alt> pick one child.
+    // Brackets nest: (sim) layers · <sub> subdivides · {rand} picks one child ·
+    // [alt] cycles one child per outer loop. (Token types are assigned by
+    // sampler.js's OPENERS map: '[' → alt, '<' → sub — matches the case labels
+    // below, not the bracket shape you'd guess from them.)
     _renderToken(token, beatOffset, slotBeats, p, onsetNTP) {
         if (!token || token.rest) return;
 
@@ -719,7 +722,7 @@ export class Player {
 
         const kids = token.children;
         switch (token.type) {
-            case 'sub': {                       // [..] subdivide the slot
+            case 'sub': {                       // <..> subdivide the slot
                 const subD = slotBeats / kids.length;
                 kids.forEach((k, i) => this._renderToken(k, beatOffset + i * subD, subD, p, onsetNTP));
                 break;
@@ -730,7 +733,7 @@ export class Player {
             case 'rand':                         // {..} pick one at random
                 this._renderToken(kids[Math.floor(Math.random() * kids.length)], beatOffset, slotBeats, p, onsetNTP);
                 break;
-            case 'alt':                          // <..> cycle on successive hits
+            case 'alt':                          // [..] cycle one child per outer loop
                 this._renderToken(kids[token._idx++ % kids.length], beatOffset, slotBeats, p, onsetNTP);
                 break;
         }

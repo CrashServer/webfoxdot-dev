@@ -100,3 +100,39 @@ export function soloDropAtCursor(cm, clock, beats = 8) {
     }
     return null;
 }
+
+// Alt+M — turn the number under/near the cursor into a MIDI-learnable knob.
+// `cutoff=800` → `cutoff=mlearn(0, 3200)`, then re-runs the line so it's armed:
+// wiggle any knob/fader on your controller next and it latches onto that CC.
+// Bounds are guessed from the current value, never hidden — the text is the
+// truth, so a bad guess is just as visible (and editable) as a hand-typed one:
+//   0..1        → mlearn(0, 1)             normalised params (amp, rq, mix…)
+//   negative n  → mlearn(-hi, hi)          signed params (pan…), symmetric
+//   otherwise   → mlearn(0, round(|n|*4))  headroom for cutoff/freq-like params
+export function midiLearnAtCursor(cm, runFn) {
+    const cursor = cm.getCursor();
+    const line   = cm.getLine(cursor.line);
+    const re = /([a-zA-Z_]\w*)\s*=\s*(-?\d+\.?\d*)/g;
+    let m, hit = null;
+    while ((m = re.exec(line)) !== null) {
+        const start = m.index, end = m.index + m[0].length;
+        if (cursor.ch >= start && cursor.ch <= end) {
+            hit = { end, num: m[2], valStart: end - m[2].length };
+            break;
+        }
+    }
+    if (!hit) return false;
+
+    const n = parseFloat(hit.num);
+    const hi = Number.isFinite(n) && Math.abs(n) <= 1 ? 1 : Math.max(1, Math.round(Math.abs(n) * 4));
+    const lo = n < 0 ? -hi : 0;
+
+    const replacement = `mlearn(${lo}, ${hi})`;
+    cm.replaceRange(replacement,
+        { line: cursor.line, ch: hit.valStart },
+        { line: cursor.line, ch: hit.end });
+    cm.setCursor({ line: cursor.line, ch: hit.valStart + replacement.length });
+
+    if (runFn) runFn();
+    return true;
+}

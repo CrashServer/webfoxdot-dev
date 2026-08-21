@@ -239,7 +239,7 @@
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { inspect, initInspect }      from './js/editor/inspect.js';
     import { incrementValue, stopPlayerAtCursor,
-             soloPlayerAtCursor, soloDropAtCursor } from './js/editor/keybindings.js';
+             soloPlayerAtCursor, soloDropAtCursor, midiLearnAtCursor } from './js/editor/keybindings.js';
     import { autoRec }                   from './js/editor/autorec.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMixer, toggleMixer, onSectionActive } from './js/ui/mixer.js';
@@ -1218,6 +1218,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Alt-S':          (cm) => { const n = soloPlayerAtCursor(cm, clock); if (n) broadcastAction('solo', { name: n }); },
             'Ctrl-Alt-S':     ()   => { _unsoloFn(clock); broadcastAction('unsolo'); },
             'Alt-O':          (cm) => { const n = soloDropAtCursor(cm, clock, 8); if (n) broadcastAction('soloDrop', { name: n, beats: 8 }); },
+            'Alt-M':          (cm) => { if (!midiLearnAtCursor(cm, runLineAtCursor)) log('put the cursor on a param=number to MIDI-learn it', 'info'); },
             'Ctrl-;':         ()   => stopAll(),
             'Ctrl-,':         ()   => stopAll(),
             'Ctrl-Alt-;':     ()   => stopAutoplay(),

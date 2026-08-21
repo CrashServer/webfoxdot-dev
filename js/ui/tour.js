@@ -133,7 +133,11 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 d1 >> play("x-o-")
 #
 # ▶ Busier — run it to swap the pattern live, no gap:
-d1 >> play("x.x.o.<xx>")`),
+d1 >> play("x.x.o.<xx>")
+#
+# ▶ [a b] in action — the 2nd step flips x → o → x → o … once each time the
+#   WHOLE pattern loops back (not every step — <x o> would be a fast roll instead):
+d1 >> play("x[xo]")`),
 
     lesson(7, 'Patterns — lists, chords, subdivision',
 `# The list in [ … ] is a PATTERN: one value per step, looping. Brackets mean the
@@ -396,8 +400,21 @@ d1 >> play("X", dur=1/4, amp=0.9)
 # controller. Turn it on with the MIDI button (right panel), then:
 #
 #   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   send notes out
-#   midiin()      play the built-in synths FROM a keyboard
-#   mlearn()      wiggle a knob to map it to a param (MIDI CC)
+#   midiin()                                              play the built-in synths FROM a keyboard
+#
+# ▶ Assigning a param to MIDI is an ASSIGNMENT, same as any other var — mlearn()
+#   just fills in the CC for you. Evaluate this, then wiggle any knob/fader on
+#   your controller; it latches onto whichever CC it saw move:
+p1 >> pluck([0, 4, 7], dur=1/2)
+p1.lpf = mlearn(200, 8000)
+#
+# Already know the CC number? Skip the wiggle — midi(cc, lo, hi) binds straight
+# to it: p1.lpf = midi(74, 200, 8000).
+#
+# ▶ Faster still: put the cursor ON a number (like the 800 below) and press
+#   Alt+M. It rewrites that number into mlearn(…) itself (bounds guessed from
+#   the value) and runs the line for you — no retyping:
+p1 >> pluck([0, 4, 7], cutoff=800, dur=1/2)
 #
 # (Needs a MIDI device + the browser's permission — nothing to run without one.)`),
 
@@ -439,6 +456,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`),
 #   Alt+Up / Down   nudge the number under the cursor, live
 #   Alt+X           comment out + stop this player   Ctrl+;   stop everything
 #   Alt+I           explain the function at the cursor
+#   Alt+M           MIDI-learn the number under the cursor (lesson 25)
 #   Ctrl+Space      autocomplete                     Ctrl+/   toggle comment
 #   Alt+T           record a knob move as automation
 #   Ctrl+Alt+P      JUMP to the ACTIVE section — where the running set is right now
@@ -754,7 +772,11 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 d1 >> play("x-o-")
 #
 # ▶ Plus dense — lance-le pour changer le pattern en direct :
-d1 >> play("x.x.o.<xx>")`, 'fr'),
+d1 >> play("x.x.o.<xx>")
+#
+# ▶ [a b] en action — le 2e pas passe de x à o à x à o… une fois à chaque
+#   boucle COMPLÈTE du pattern (pas à chaque pas — <x o> serait un roulement rapide) :
+d1 >> play("x[xo]")`, 'fr'),
 
     lesson(7, 'Les patterns — listes, accords, subdivision',
 `# La liste dans [ … ] est un PATTERN : une valeur par pas, en boucle. Les crochets
@@ -1015,8 +1037,21 @@ d1 >> play("X", dur=1/4, amp=0.9)
 # un contrôleur. Active-le avec le bouton MIDI (panneau de droite), puis :
 #
 #   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   envoie des notes en sortie
-#   midiin()      joue les synthés intégrés DEPUIS un clavier
-#   mlearn()      bouge un réglage pour l'associer à un param (MIDI CC)
+#   midiin()                                              joue les synthés intégrés DEPUIS un clavier
+#
+# ▶ Assigner un param au MIDI est une AFFECTATION, comme pour n'importe quelle
+#   var — mlearn() se contente de trouver le CC pour toi. Évalue ceci, puis
+#   bouge n'importe quel bouton/fader de ton contrôleur ; il se fixe sur le CC détecté :
+p1 >> pluck([0, 4, 7], dur=1/2)
+p1.lpf = mlearn(200, 8000)
+#
+# Tu connais déjà le numéro de CC ? Pas besoin de bouger un bouton — midi(cc, lo, hi)
+# s'y associe directement : p1.lpf = midi(74, 200, 8000).
+#
+# ▶ Encore plus rapide : place le curseur SUR un nombre (comme le 800 ci-dessous)
+#   et appuie sur Alt+M. Ça le transforme en mlearn(…) (bornes devinées à partir
+#   de la valeur) et lance la ligne pour toi — rien à retaper :
+p1 >> pluck([0, 4, 7], cutoff=800, dur=1/2)
 #
 # (Nécessite un appareil MIDI + l'autorisation du navigateur — rien à lancer sans ça.)`, 'fr'),
 
@@ -1058,6 +1093,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'fr'),
 #   Alt+Haut / Bas  ajuste le nombre au curseur, en direct
 #   Alt+X           commente + arrête ce player     Ctrl+;   arrête tout
 #   Alt+I           explique la fonction au curseur
+#   Alt+M           MIDI-learn sur le nombre au curseur (leçon 25)
 #   Ctrl+Espace     autocomplétion                  Ctrl+/   commente/décommente
 #   Alt+T           enregistre un mouvement de réglage en automation
 #   Ctrl+Alt+P      SAUTE à la section ACTIVE — là où le set en cours joue
@@ -1374,7 +1410,11 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 d1 >> play("x-o-")
 #
 # ▶ Dichter — führe es aus, um das Pattern live zu tauschen:
-d1 >> play("x.x.o.<xx>")`, 'de'),
+d1 >> play("x.x.o.<xx>")
+#
+# ▶ [a b] in Aktion — der 2. Schritt wechselt x → o → x → o … einmal pro
+#   komplettem Durchlauf des Patterns (nicht pro Schritt — <x o> wäre ein schneller Wirbel):
+d1 >> play("x[xo]")`, 'de'),
 
     lesson(7, 'Patterns — Listen, Akkorde, Subdivision',
 `# Die Liste in [ … ] ist ein PATTERN: ein Wert pro Schritt, in der Schleife. Klammern
@@ -1632,8 +1672,21 @@ d1 >> play("X", dur=1/4, amp=0.9)
 # Controller. Schalte es mit dem MIDI-Button ein (rechtes Panel), dann:
 #
 #   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   sende Noten hinaus
-#   midiin()      spiele die eingebauten Synths VON einer Tastatur
-#   mlearn()      bewege einen Regler, um ihn einem Param zuzuordnen (MIDI CC)
+#   midiin()                                              spiele die eingebauten Synths VON einer Tastatur
+#
+# ▶ Einen Param MIDI zuzuordnen ist eine ZUWEISUNG, wie bei jeder anderen var —
+#   mlearn() trägt nur die CC-Nummer für dich ein. Werte das aus, bewege dann
+#   irgendeinen Regler/Fader deines Controllers; er koppelt sich an die zuletzt bewegte CC:
+p1 >> pluck([0, 4, 7], dur=1/2)
+p1.lpf = mlearn(200, 8000)
+#
+# Kennst du die CC-Nummer schon? Dann brauchst du nicht zu drehen — midi(cc, lo, hi)
+# bindet direkt daran: p1.lpf = midi(74, 200, 8000).
+#
+# ▶ Noch schneller: Cursor AUF eine Zahl setzen (wie die 800 unten) und Alt+M
+#   drücken. Das verwandelt sie in mlearn(…) (Grenzen aus dem Wert geschätzt)
+#   und führt die Zeile für dich aus — nichts neu tippen:
+p1 >> pluck([0, 4, 7], cutoff=800, dur=1/2)
 #
 # (Braucht ein MIDI-Gerät + die Erlaubnis des Browsers — ohne das nichts auszuführen.)`, 'de'),
 
@@ -1675,6 +1728,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'de'),
 #   Alt+Hoch/Runter verstellt die Zahl am Cursor, live
 #   Alt+X           kommentiert aus + stoppt Player   Strg+;   stoppt alles
 #   Alt+I           erklärt die Funktion am Cursor
+#   Alt+M           MIDI-Learn für die Zahl am Cursor (Lektion 25)
 #   Strg+Leertaste  Autovervollständigung             Strg+/   Kommentar umschalten
 #   Alt+T           nimmt eine Reglerbewegung als Automation auf
 #   Strg+Alt+P      SPRINGT zur AKTIVEN Section — dorthin, wo das Set gerade ist
@@ -1990,7 +2044,11 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 d1 >> play("x-o-")
 #
 # ▶ Más denso — ejecútalo para cambiar el pattern en vivo:
-d1 >> play("x.x.o.<xx>")`, 'es'),
+d1 >> play("x.x.o.<xx>")
+#
+# ▶ [a b] en acción — el 2º paso cambia x → o → x → o… una vez cada vez que
+#   el pattern COMPLETO da la vuelta (no cada paso — <x o> sería un redoble rápido):
+d1 >> play("x[xo]")`, 'es'),
 
     lesson(7, 'Patterns — listas, acordes, subdivisión',
 `# La lista en [ … ] es un PATTERN: un valor por paso, en bucle. Los corchetes
@@ -2248,8 +2306,21 @@ d1 >> play("X", dur=1/4, amp=0.9)
 # controlador. Actívalo con el botón MIDI (panel derecho), luego:
 #
 #   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   envía notas fuera
-#   midiin()      toca los synths incluidos DESDE un teclado
-#   mlearn()      mueve una perilla para asignarla a un param (MIDI CC)
+#   midiin()                                              toca los synths incluidos DESDE un teclado
+#
+# ▶ Asignar un param a MIDI es una ASIGNACIÓN, igual que cualquier otra var —
+#   mlearn() solo rellena el CC por ti. Evalúa esto, luego mueve cualquier
+#   perilla/fader de tu controlador; se fija al CC que acaba de detectar:
+p1 >> pluck([0, 4, 7], dur=1/2)
+p1.lpf = mlearn(200, 8000)
+#
+# ¿Ya conoces el número de CC? Sáltate el movimiento — midi(cc, lo, hi) se
+# asigna directo: p1.lpf = midi(74, 200, 8000).
+#
+# ▶ Aún más rápido: pon el cursor SOBRE un número (como el 800 de abajo) y
+#   pulsa Alt+M. Lo convierte en mlearn(…) (límites adivinados a partir del
+#   valor) y ejecuta la línea por ti — sin volver a escribir:
+p1 >> pluck([0, 4, 7], cutoff=800, dur=1/2)
 #
 # (Necesita un equipo MIDI + permiso del navegador — sin eso, nada que ejecutar.)`, 'es'),
 
@@ -2291,6 +2362,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'es'),
 #   Alt+Arriba/Abajo ajusta el número del cursor, en vivo
 #   Alt+X            comenta + detiene player          Ctrl+;   detiene todo
 #   Alt+I            explica la función del cursor
+#   Alt+M            MIDI-learn del número bajo el cursor (lección 25)
 #   Ctrl+Espacio     autocompletado                    Ctrl+/   alterna comentario
 #   Alt+T            graba un movimiento de perilla como automatización
 #   Ctrl+Alt+P       SALTA a la section ACTIVA — donde va el set ahora mismo
@@ -2606,7 +2678,11 @@ loadpack("https://cdn.jsdelivr.net/gh/CrashServer/webfoxdot-kit@v1/pack.json")
 d1 >> play("x-o-")
 #
 # ▶ もっと密に — 実行するとパターンをライブで差し替え：
-d1 >> play("x.x.o.<xx>")`, 'ja'),
+d1 >> play("x.x.o.<xx>")
+#
+# ▶ [a b] の実例 — 2番目のステップが x → o → x → o … とパターン全体が
+#   一周するたびに切り替わる（1ステップごとではない — <x o> なら高速ロールになる）：
+d1 >> play("x[xo]")`, 'ja'),
 
     lesson(7, 'パターン — リスト・和音・サブディビジョン',
 `# [ … ] の中のリストが「パターン」：1ステップに1値、ループする。括弧の意味は
@@ -2863,8 +2939,21 @@ d1 >> play("X", dur=1/4, amp=0.9)
 # 弾いたり。MIDIボタン（右パネル）でオンにして：
 #
 #   m1 >> midiout([0, 4, 7], channel=0, oct=5, dur=1/2)   音符を外へ送る
-#   midiin()      キーボード「から」内蔵シンセを弾く
-#   mlearn()      つまみを動かしてパラメータに割り当て（MIDI CC）
+#   midiin()                                              キーボード「から」内蔵シンセを弾く
+#
+# ▶ パラメータをMIDIに割り当てるのは、他のvarと同じ「代入」。mlearn() は
+#   CC番号を自動で埋めてくれるだけ。これを評価してから、コントローラーの
+#   つまみ/フェーダーを何か動かすと、動かしたCCに紐づく：
+p1 >> pluck([0, 4, 7], dur=1/2)
+p1.lpf = mlearn(200, 8000)
+#
+# CC番号が分かっているなら、動かす手間は不要 — midi(cc, lo, hi) で直接割り当て：
+# p1.lpf = midi(74, 200, 8000)
+#
+# ▶ もっと速く：カーソルを数値の上に置いて（下の 800 など）Alt+M を押す。
+#   その場で mlearn(…) に書き換え（範囲は値から推測）、行も実行してくれる —
+#   打ち直し不要：
+p1 >> pluck([0, 4, 7], cutoff=800, dur=1/2)
 #
 # （MIDI機器 + ブラウザの許可が必要 — なければ実行するものはない。）`, 'ja'),
 
@@ -2906,6 +2995,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'ja'),
 #   Alt+上/下       カーソルの数字をライブで増減
 #   Alt+X           コメント化 + プレイヤー停止   Ctrl+;   すべて停止
 #   Alt+I           カーソルの関数を説明
+#   Alt+M           カーソルの数値をMIDI-learn（レッスン25）
 #   Ctrl+スペース   オートコンプリート          Ctrl+/   コメント切り替え
 #   Alt+T           つまみの動きをオートメーションとして記録
 #   Ctrl+Alt+P      「アクティブ」なセクションへジャンプ — 今セットが進んでいる場所
