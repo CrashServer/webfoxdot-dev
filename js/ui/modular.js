@@ -11,8 +11,9 @@
 import { makeGraph, addNode, removeNode, connect, disconnect, edgeInto, toJSON, fromJSON } from '../modular/graph.js';
 import { BLOCKS, blockDef, defaultParams } from '../modular/blocks.js';
 import { generateSource, compileAndDefine } from '../modular/codegen.js';
+import { TEMPLATES } from '../modular/templates.js';
 
-const BLOCK_W = 160, HEADER_H = 26, ROW_H = 22;
+const BLOCK_W = 180, HEADER_H = 26, ROW_H = 22;
 const CANVAS_W = 2400, CANVAS_H = 1400;
 const STORAGE_KEY = 'wfd-modular-patch';
 
@@ -176,7 +177,12 @@ function build() {
             <button class="modular-close" title="close">×</button>
         </div>
         <div class="modular-body">
-            <div class="modular-palette"></div>
+            <div class="modular-palette">
+                <select class="modular-templates" title="load a starter patch — replaces the current one">
+                    <option value="">templates ▾</option>
+                </select>
+                <div class="modular-palette-blocks"></div>
+            </div>
             <div class="modular-canvas-wrap">
                 <div class="modular-canvas-sizer">
                     <div class="modular-canvas">
@@ -225,6 +231,24 @@ function build() {
     }, { passive: false });
     _panel.querySelector('.modular-save').onclick = savePatch;
     _panel.querySelector('.modular-loadbtn').onclick = () => _fileInput.click();
+    const templatesSel = _panel.querySelector('.modular-templates');
+    for (const tpl of TEMPLATES) {
+        const o = document.createElement('option');
+        o.value = tpl.key; o.textContent = tpl.label; o.title = tpl.desc;
+        templatesSel.appendChild(o);
+    }
+    templatesSel.onchange = () => {
+        const key = templatesSel.value;
+        templatesSel.value = '';
+        if (!key) return;
+        const tpl = TEMPLATES.find(t => t.key === key);
+        if (!tpl) return;
+        if (_graph.nodes.length && !confirm(`Replace the current patch with "${tpl.label}"?`)) return;
+        _graph = makeGraph();
+        tpl.build(_graph);
+        afterStructuralChange();
+        centerView();
+    };
     _panel.querySelector('.modular-clearbtn').onclick = () => {
         if (!confirm('clear the patch?')) return;
         _graph = makeGraph();
@@ -286,7 +310,7 @@ function initDrag(handle) {
 }
 
 function renderPalette() {
-    const paletteEl = _panel.querySelector('.modular-palette');
+    const paletteEl = _panel.querySelector('.modular-palette-blocks');
     paletteEl.innerHTML = '';
     for (const [type, def] of Object.entries(BLOCKS)) {
         const btn = document.createElement('button');
@@ -305,6 +329,52 @@ function renderPalette() {
         };
         paletteEl.appendChild(btn);
     }
+}
+
+// ── Knob roles — tag an unwired knob (or the Number block's value) with a
+// semantic name so the generated param reads e.g. `freq=` instead of the
+// auto `n2_freq=`. Compact click-to-cycle badge instead of a dropdown so it
+// fits the fixed-height row layout without touching portPos()'s row math.
+const ROLE_PRESETS = ['freq', 'amp', 'rate'];
+function roleLabel(node, key) {
+    const r = node.roles && node.roles[key];
+    if (!r) return '·';
+    return r.length > 6 ? r.slice(0, 6) : r;
+}
+function roleTitle(node, key) {
+    const r = node.roles && node.roles[key];
+    return r
+        ? `role: ${r} — click to change (used as p1 >> patch(${r}=…); naming it out/note/amp/sus/pan/attack/release reuses that built-in control instead of adding a new one)`
+        : 'auto-named — click to tag this knob\'s role (freq/amp/rate/custom)';
+}
+function cycleRole(node, key, btn) {
+    const cur = node.roles && node.roles[key];
+    const presetIdx = ROLE_PRESETS.indexOf(cur);
+    let next;
+    if (!cur) next = ROLE_PRESETS[0];
+    else if (presetIdx >= 0 && presetIdx < ROLE_PRESETS.length - 1) next = ROLE_PRESETS[presetIdx + 1];
+    else if (presetIdx === ROLE_PRESETS.length - 1) next = 'custom';
+    else next = null;   // was a custom name -> back to auto
+    if (next === 'custom') {
+        const name = prompt('param name for this knob (used as p1 >> patch(name=…)):', cur && presetIdx < 0 ? cur : '');
+        if (name === null) return;   // cancelled — leave role unchanged
+        next = name.trim() || null;
+    }
+    if (!node.roles) node.roles = {};
+    if (next) node.roles[key] = next; else delete node.roles[key];
+    btn.textContent = roleLabel(node, key);
+    btn.title = roleTitle(node, key);
+    btn.classList.toggle('tagged', !!next);
+    afterParamChange();
+}
+function roleButton(node, key) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'modular-role-btn' + (node.roles && node.roles[key] ? ' tagged' : '');
+    btn.textContent = roleLabel(node, key);
+    btn.title = roleTitle(node, key);
+    btn.onclick = () => cycleRole(node, key, btn);
+    return btn;
 }
 
 // ── Blocks ───────────────────────────────────────────────────────────────
@@ -353,6 +423,7 @@ function renderBlocks() {
                 inp.value = node.params[param.name];
                 inp.oninput = () => { node.params[param.name] = parseFloat(inp.value) || 0; afterParamChange(); };
                 row.appendChild(inp);
+                row.appendChild(roleButton(node, param.name));
             }
             el.appendChild(row);
         }
@@ -379,6 +450,7 @@ function renderBlocks() {
                 inp.value = node.params[port.name] ?? port.default;
                 inp.oninput = () => { node.params[port.name] = parseFloat(inp.value) || 0; afterParamChange(); };
                 row.appendChild(inp);
+                row.appendChild(roleButton(node, port.name));
             }
             el.appendChild(row);
         }

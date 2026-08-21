@@ -21,6 +21,32 @@ import { defsynth } from '../scsynth/defsynth.js';
 export function add(a, b) { return binaryOp('+', a, b); }
 export function mul(a, b) { return binaryOp('*', a, b); }
 
+// The generated buildFn's own top-level params — tagging a knob's role with
+// one of these EXACT names reuses that control directly (a bare reference,
+// e.g. `amp`) instead of adding a redundant new extraParam.
+const STD_NAMES = new Set(['out', 'note', 'amp', 'sus', 'pan', 'attack', 'release']);
+
+// A role/custom name → valid JS identifier, or null if nothing usable is left.
+function sanitizeIdent(s) {
+    const id = String(s).trim().replace(/[^a-zA-Z0-9_]/g, '_').replace(/^[^a-zA-Z_]+/, '');
+    return id || null;
+}
+
+// Resolves one knob (an unwired input port, or a param-less block's own
+// value, e.g. Number) to a source expression: a bare STD control name if the
+// knob's role matches one exactly, else `knobs.<name>` — <name> being the
+// role (sanitized) if tagged, or the auto nodeId_key fallback. Two knobs
+// tagged with the SAME role deliberately collapse onto the same extraParam
+// (that's the point of tagging — "these are the same logical control").
+function resolveKnob(node, key, defaultVal, extraParams) {
+    const role = node.roles && node.roles[key];
+    const roleIdent = role ? sanitizeIdent(role) : null;
+    if (roleIdent && STD_NAMES.has(roleIdent)) return roleIdent;
+    const paramName = roleIdent || `${node.id}_${key}`;
+    if (!(paramName in extraParams)) extraParams[paramName] = defaultVal;
+    return `knobs.${paramName}`;
+}
+
 // graph → { source, extraParams } | { error }
 export function generateSource(graph) {
     const sorted = topoSort(graph);
@@ -45,13 +71,12 @@ export function generateSource(graph) {
             if (edge && varName.has(edge.from.node)) {
                 ins[port.name] = varName.get(edge.from.node);
             } else {
-                const paramName = `${id}_${port.name}`;
-                extraParams[paramName] = node.params?.[port.name] ?? port.default;
-                ins[port.name] = `knobs.${paramName}`;
+                ins[port.name] = resolveKnob(node, port.name, node.params?.[port.name] ?? port.default, extraParams);
             }
         }
+        const knobRef = (key, defaultVal) => resolveKnob(node, key, defaultVal, extraParams);
 
-        const expr = def.codegen(node, ins);
+        const expr = def.codegen(node, ins, knobRef);
         if (def.isTerminal) outputLine = expr + ';';
         else lines.push(`  const ${v} = ${expr};`);
     }

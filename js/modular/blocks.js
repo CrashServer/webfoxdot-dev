@@ -7,11 +7,20 @@
 //             numeric default; wired, the upstream node's value overrides it.
 //             An unwired input becomes a live extraParam on the compiled
 //             synth (p1 >> mypatch(n2_cutoff=2000)), so nothing is silently
-//             fixed at compile time.
+//             fixed at compile time. A knob can be tagged with a semantic
+//             role (freq/amp/rate/custom, via node.roles[portName] — set by
+//             the UI's role button) so it generates as a mnemonic param name
+//             (p1 >> mypatch(freq=880)) instead of the auto nodeId_port one;
+//             tagging a knob with a STD control name (out/note/amp/sus/pan/
+//             attack/release) reuses that control directly instead of adding
+//             a new one (see js/modular/codegen.js's resolveKnob()).
 //   output  — 'audio' | 'control', just for cosmetic wire colouring in the UI.
-//   codegen(node, ins) — ins is { portName: 'jsExprString' } already resolved
-//             (wired → upstream var name, unwired → the knob's live-param
-//             expression). Returns the source line(s) for this node.
+//   codegen(node, ins, knobRef) — ins is { portName: 'jsExprString' } already
+//             resolved (wired → upstream var name, unwired → the knob's
+//             live-param expression, role-aware). knobRef(key, default) is
+//             the same role-aware resolver for a block with no input ports
+//             of its own (the Number block uses it for its `value`).
+//             Returns the source line(s) for this node.
 //
 // codegen never calls .add()/.mul() directly on an input expression, because
 // an unwired input's expression is a bare param reference that MIGHT resolve
@@ -115,7 +124,10 @@ export const BLOCKS = {
         output: 'control',
         params: [{ name: 'value', kind: 'number', default: 220 }],
         inputs: [],
-        codegen(node) { return String(node.params.value); },
+        // Goes through knobRef (same live-param mechanism as an unwired input)
+        // instead of inlining a literal, so a Number block's value is always
+        // tweakable at play time — p1 >> mypatch(freq=880) — not baked in.
+        codegen(node, ins, knobRef) { return knobRef('value', node.params.value); },
     },
 
     output: {
