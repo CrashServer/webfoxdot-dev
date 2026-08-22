@@ -22,6 +22,7 @@ let _logFn = null, _insertFn = null;
 let _panel = null, _wrapEl = null, _sizerEl = null, _canvasEl = null, _svgEl = null, _codeEl = null, _statusEl = null, _hintEl = null, _nameInput = null, _fileInput = null, _zoomValEl = null;
 let _open = false;
 let _wireDrag = null;   // { fromNode, fromPort, x, y } — clientX/Y of an in-progress cable drag
+let _nodeDrag = null;   // { node, sx, sy, ox, oy } — in-progress block drag
 let _lastDefined = null; // { name, extraParams } from the most recent successful Define
 let _zoom = 1;
 const ZOOM_MIN = 0.4, ZOOM_MAX = 2;
@@ -267,6 +268,7 @@ function build() {
 
     initDrag(_panel.querySelector('.modular-head'));
     initCanvasPan();
+    initNodeDragShared();
     renderPalette();
     applyZoom();
 }
@@ -393,7 +395,7 @@ function renderBlocks() {
         header.className = 'modular-block-head';
         header.innerHTML = `<span class="modular-block-label">${def.label}</span><button class="modular-block-del" title="remove">×</button>`;
         header.querySelector('.modular-block-del').onclick = () => { removeNode(_graph, node.id); afterStructuralChange(); };
-        initNodeDrag(header, node);
+        initNodeDragHandle(header, node);
         el.appendChild(header);
 
         if (def.output) {
@@ -459,22 +461,33 @@ function renderBlocks() {
     }
 }
 
-function initNodeDrag(handle, node) {
-    let sx = 0, sy = 0, ox = 0, oy = 0, on = false;
+// renderBlocks() destroys + recreates every block's header on EVERY structural
+// change, so calling initNodeDrag() per-node-per-render used to attach a fresh
+// pair of window pointermove/pointerup listeners each time WITHOUT removing
+// the old ones — those never get GC'd (window holds the reference forever),
+// so a long editing session leaked more and more listeners that keep firing
+// on every mouse move anywhere on the page, even with the panel closed. Fixed
+// by registering exactly ONE shared pair (in build()) driven by _nodeDrag,
+// the same pattern _wireDrag already uses. Only the pointerdown stays
+// per-header — that one's harmless, it's GC'd along with its (removed) element.
+function initNodeDragHandle(handle, node) {
     handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button') || e.target.classList.contains('modular-dot')) return;
-        on = true; sx = e.clientX; sy = e.clientY; ox = node.x; oy = node.y;
+        if (e.target.closest('button, select') || e.target.classList.contains('modular-dot')) return;
+        _nodeDrag = { node, sx: e.clientX, sy: e.clientY, ox: node.x, oy: node.y };
         e.preventDefault(); e.stopPropagation();
     });
+}
+function initNodeDragShared() {
     window.addEventListener('pointermove', (e) => {
-        if (!on) return;
+        if (!_nodeDrag) return;
+        const { node, sx, sy, ox, oy } = _nodeDrag;
         node.x = Math.max(0, ox + (e.clientX - sx) / _zoom);
         node.y = Math.max(0, oy + (e.clientY - sy) / _zoom);
         const el = _canvasEl.querySelector(`.modular-block[data-id="${node.id}"]`);
         if (el) { el.style.left = node.x + 'px'; el.style.top = node.y + 'px'; }
         renderCables();
     });
-    window.addEventListener('pointerup', () => { if (on) { on = false; persist(); } });
+    window.addEventListener('pointerup', () => { if (_nodeDrag) { _nodeDrag = null; persist(); } });
 }
 
 // ── Wiring — drag from an output dot, drop on an input dot ─────────────────

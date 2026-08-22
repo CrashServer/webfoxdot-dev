@@ -1,4 +1,4 @@
-// Modular-synth block palette v1 — 10 block types wrapping the real UGen
+// Modular-synth block palette — 13 block types wrapping the real UGen
 // factories in js/scsynth/ugens.js. Each block declares:
 //   params  — compile-time choices (waveform, filter type…) picked via a
 //             dropdown; baked into which factory codegen() emits, not
@@ -32,11 +32,25 @@ export const BLOCKS = {
     osc: {
         label: 'Oscillator',
         output: 'audio',
-        params: [{ name: 'wave', kind: 'select', options: ['sine', 'saw', 'pulse', 'triangle'], default: 'sine' }],
+        params: [{ name: 'wave', kind: 'select', options: ['sine', 'saw', 'pulse', 'triangle', 'varsaw', 'blip'], default: 'sine' }],
         inputs: [{ name: 'freq', default: 440 }],
         codegen(node, ins) {
-            const factory = { sine: 'SinOsc', saw: 'Saw', pulse: 'Pulse', triangle: 'LFTri' }[node.params.wave] || 'SinOsc';
+            const factory = { sine: 'SinOsc', saw: 'Saw', pulse: 'Pulse', triangle: 'LFTri', varsaw: 'VarSaw', blip: 'Blip' }[node.params.wave] || 'SinOsc';
             return `${factory}.ar(${ins.freq})`;
+        },
+    },
+
+    impulse: {
+        label: 'Impulse',
+        output: 'audio',
+        params: [],
+        inputs: [{ name: 'freq', default: 1 }],
+        // A train of clicks at `freq` Hz (DC between them) — an excitation
+        // source for percussive hits (through a resonant Filter + short
+        // Envelope) or a trigger-rate clock; freq=0 is a single unit impulse
+        // at t=0, matching SC's Impulse UGen.
+        codegen(node, ins) {
+            return `Impulse.ar(${ins.freq})`;
         },
     },
 
@@ -53,13 +67,26 @@ export const BLOCKS = {
     filter: {
         label: 'Filter',
         output: 'audio',
-        params: [{ name: 'mode', kind: 'select', options: ['resonant', 'lowpass', 'highpass', 'bandpass'], default: 'resonant' }],
+        params: [{ name: 'mode', kind: 'select', options: ['resonant', 'resonant-hp', 'lowpass', 'highpass', 'bandpass'], default: 'resonant' }],
         inputs: [{ name: 'in', default: 0 }, { name: 'cutoff', default: 800 }, { name: 'rq', default: 0.5 }],
         codegen(node, ins) {
             // LPF/HPF ignore a 3rd (rq) argument harmlessly — ugens.js's make()
             // only maps over its OWN defaults array, extra args are dropped.
-            const factory = { resonant: 'RLPF', lowpass: 'LPF', highpass: 'HPF', bandpass: 'BPF' }[node.params.mode] || 'RLPF';
+            const factory = { resonant: 'RLPF', 'resonant-hp': 'RHPF', lowpass: 'LPF', highpass: 'HPF', bandpass: 'BPF' }[node.params.mode] || 'RLPF';
             return `${factory}.ar(${ins.in}, ${ins.cutoff}, ${ins.rq})`;
+        },
+    },
+
+    clip: {
+        label: 'Clip',
+        output: 'audio',
+        params: [],
+        inputs: [{ name: 'in', default: 0 }, { name: 'lo', default: -1 }, { name: 'hi', default: 1 }],
+        // Soft-limits a signal to [lo, hi] — basic waveshaping/distortion (feed
+        // it an over-driven signal and clip tight), or a safety limiter after
+        // a Mix that could otherwise sum past ±1.
+        codegen(node, ins) {
+            return `clip(${ins.in}, ${ins.lo}, ${ins.hi})`;
         },
     },
 
@@ -83,10 +110,31 @@ export const BLOCKS = {
     lfo: {
         label: 'LFO',
         output: 'control',
-        params: [{ name: 'shape', kind: 'select', options: ['sine', 'noise'], default: 'sine' }],
+        // noise = LFNoise1 (smoothly interpolated random), stepped = LFNoise0
+        // (sample-and-hold, zippery), smooth = LFNoise2 (quadratic-interpolated,
+        // rounder than noise).
+        params: [{ name: 'shape', kind: 'select', options: ['sine', 'noise', 'stepped', 'smooth'], default: 'sine' }],
         inputs: [{ name: 'rate', default: 4 }],
         codegen(node, ins) {
-            return node.params.shape === 'noise' ? `LFNoise1.kr(${ins.rate})` : `SinOsc.kr(${ins.rate})`;
+            const factory = { noise: 'LFNoise1', stepped: 'LFNoise0', smooth: 'LFNoise2' }[node.params.shape];
+            return factory ? `${factory}.kr(${ins.rate})` : `SinOsc.kr(${ins.rate})`;
+        },
+    },
+
+    ramp: {
+        label: 'Ramp',
+        output: 'control',
+        // linear (Line) glides start→end with no restriction; exponential
+        // (XLine) needs same-sign, nonzero start/end (it's log-spaced) — a
+        // sweep that crosses zero will glitch, that's an XLine/SC constraint,
+        // not this block's.
+        params: [{ name: 'shape', kind: 'select', options: ['linear', 'exponential'], default: 'linear' }],
+        inputs: [{ name: 'start', default: 1 }, { name: 'end', default: 0 }, { name: 'dur', default: 1 }],
+        codegen(node, ins) {
+            const factory = node.params.shape === 'exponential' ? 'XLine' : 'Line';
+            // doneAction 0 — only the Envelope block frees the voice, so a
+            // Ramp finishing early never fights the note's own release.
+            return `${factory}.kr(${ins.start}, ${ins.end}, ${ins.dur}, 0)`;
         },
     },
 

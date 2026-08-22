@@ -85,6 +85,32 @@ export const TEMPLATES = [
             connect(g, e, 'out', out, 'in');
         },
     },
+    {
+        key: 'zap', label: 'Zap',
+        desc: 'an impulse train excites a tight resonant filter through a fast envelope — a classic electronic blip/zap',
+        build(g) {
+            const imp = node(g, 'impulse', 30, 30, { freq: 1 });
+            const f = node(g, 'filter', 220, 30, { mode: 'resonant', cutoff: 2400, rq: 0.08 });
+            const e = node(g, 'env', 410, 30, { shape: 'perc' });
+            const out = node(g, 'output', 600, 30);
+            connect(g, imp, 'out', f, 'in');
+            connect(g, f, 'out', e, 'in');
+            connect(g, e, 'out', out, 'in');
+        },
+    },
+    {
+        key: 'kick', label: 'Kick drum',
+        desc: 'a Ramp sweeps the oscillator pitch down fast (the classic 808-style drop) through a punchy envelope',
+        build(g) {
+            const ramp = node(g, 'ramp', 30, 30, { shape: 'exponential', start: 180, end: 45, dur: 0.09 });
+            const osc = node(g, 'osc', 30, 220, { wave: 'sine' });
+            const e = node(g, 'env', 220, 100, { shape: 'perc' });
+            const out = node(g, 'output', 410, 100);
+            connect(g, ramp, 'out', osc, 'freq');
+            connect(g, osc, 'out', e, 'in');
+            connect(g, e, 'out', out, 'in');
+        },
+    },
 ];
 
 export function templateByKey(key) {

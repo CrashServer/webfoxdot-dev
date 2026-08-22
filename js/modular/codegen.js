@@ -20,6 +20,12 @@ import { defsynth } from '../scsynth/defsynth.js';
 // don't have `.add()`/`.mul()` methods, only UGenOut does.
 export function add(a, b) { return binaryOp('+', a, b); }
 export function mul(a, b) { return binaryOp('*', a, b); }
+// min()/max() back the Clip block (soft-limit a signal between lo/hi) — the
+// same possibly-a-plain-number concern as add/mul applies, so it goes through
+// binaryOp too rather than a UGenOut method (there isn't one for min/max).
+export function min(a, b) { return binaryOp('min', a, b); }
+export function max(a, b) { return binaryOp('max', a, b); }
+export function clip(x, lo, hi) { return min(max(x, lo), hi); }
 
 // The generated buildFn's own top-level params — tagging a knob's role with
 // one of these EXACT names reuses that control directly (a bare reference,
@@ -57,7 +63,7 @@ export function generateSource(graph) {
     const varName = new Map();      // nodeId → js var name
     const extraParams = {};         // knob param name → default value
     const lines = [];
-    let outputLine = null;
+    const outputLines = [];         // every terminal (Output) node's line — see below
 
     for (const id of sorted.order) {
         const node = byId.get(id);
@@ -77,16 +83,21 @@ export function generateSource(graph) {
         const knobRef = (key, defaultVal) => resolveKnob(node, key, defaultVal, extraParams);
 
         const expr = def.codegen(node, ins, knobRef);
-        if (def.isTerminal) outputLine = expr + ';';
+        // A previous version kept only the LAST terminal node's line (each new
+        // one silently overwrote outputLine) — a second Output block's audio
+        // vanished from the generated source with no error and no trace. Every
+        // terminal node emits its own Out.ar line now; SC sums same-bus writes,
+        // so two Output blocks correctly mix together instead of one going mute.
+        if (def.isTerminal) outputLines.push('  ' + expr + ';');
         else lines.push(`  const ${v} = ${expr};`);
     }
 
-    if (!outputLine) return { error: 'patch has no Output block — nothing would play' };
+    if (!outputLines.length) return { error: 'patch has no Output block — nothing would play' };
 
     const source = [
         `({ out, note, amp, sus, pan, attack, release, ...knobs }) => {`,
         ...lines,
-        `  ${outputLine}`,
+        ...outputLines,
         `}`,
     ].join('\n');
 
@@ -100,6 +111,9 @@ export function generateSource(graph) {
     if (!graph.nodes.some(n => n.type === 'env')) {
         warnings.push('no Envelope block — notes will sustain forever and their synth nodes will never free (leaks a node per note). Add an Envelope between your sound source and Output, or wire it in deliberately if you want a held drone.');
     }
+    if (outputLines.length > 1) {
+        warnings.push(`${outputLines.length} Output blocks — their signals all sum onto the same output bus (that's usually what you want, but can clip if it's not).`);
+    }
 
     return { source, extraParams, warnings };
 }
@@ -108,16 +122,17 @@ export function generateSource(graph) {
 // exactly what a hand-written defsynth() build function can already use
 // (js/scsynth/ugens.js), plus the add/mul helpers above.
 const UGEN_NAMES = [
-    'SinOsc', 'Saw', 'Pulse', 'LFTri', 'WhiteNoise', 'PinkNoise', 'LFNoise1',
-    'RLPF', 'LPF', 'HPF', 'BPF', 'EnvGen', 'Env', 'Pan2', 'Out',
+    'SinOsc', 'Saw', 'VarSaw', 'Blip', 'Pulse', 'LFTri', 'Impulse', 'Line', 'XLine',
+    'WhiteNoise', 'PinkNoise', 'LFNoise0', 'LFNoise1', 'LFNoise2',
+    'RLPF', 'RHPF', 'LPF', 'HPF', 'BPF', 'EnvGen', 'Env', 'Pan2', 'Out',
 ];
 
 // source text → callable ({out,note,amp,...}) => {...}. Binds the UGen
 // factories as named arguments so the generated body can call them bare,
 // same as a human typing a defsynth() build function.
 export function compileToFunction(source) {
-    const argNames  = [...UGEN_NAMES, 'add', 'mul'];
-    const argValues = [...UGEN_NAMES.map(n => UGENS[n]), add, mul];
+    const argNames  = [...UGEN_NAMES, 'add', 'mul', 'clip'];
+    const argValues = [...UGEN_NAMES.map(n => UGENS[n]), add, mul, clip];
     const factory = new Function(...argNames, `return (${source});`);
     return factory(...argValues);
 }
