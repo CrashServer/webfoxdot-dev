@@ -44,6 +44,7 @@ export const RHPF = ugen('RHPF', [0, 440, 1]);
 export const LPF  = ugen('LPF',  [0, 440]);
 export const HPF  = ugen('HPF',  [0, 440]);
 export const BPF  = ugen('BPF',  [0, 440, 1]);
+export const LeakDC = ugen('LeakDC', [0, 0.995]);   // DC-blocker — cheap safety net after heavy distortion/waveshaping
 
 // ── Lines / ranges ─────────────────────────────────────────────────────────────
 export const Line  = ugen('Line',  [0, 1, 1, 0]);   // start, end, dur, doneAction
@@ -74,6 +75,15 @@ export const Env = {
     // triangle(dur, level) — symmetric up/down
     triangle(dur = 1, level = 1) {
         return [0, 2, -99, -99, level, dur / 2, 1, 0, 0, dur / 2, 1, 0];
+    },
+    // adsr(attack, decay, sustainLevel, sustain, release, level, curve) — unlike
+    // SC's real (gate-held) Env.adsr, this stays self-contained/duration-based
+    // like perc/linen above: attack up to level, decay down to level*sustainLevel,
+    // HOLD there for `sustain` seconds, then release to 0 — no gate needed.
+    adsr(atk = 0.01, dec = 0.3, susLevel = 0.5, sus = 1, rel = 1, level = 1, curve = 'lin') {
+        const [t, v] = curvePair(curve);
+        const sl = level * susLevel;
+        return [0, 4, -99, -99, level, atk, t, v, sl, dec, t, v, sl, sus, t, v, 0, rel, t, v];
     },
 };
 

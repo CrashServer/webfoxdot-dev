@@ -108,6 +108,9 @@ export class UGenOut {
     midiratio(){ return unaryOp('midiratio', this); }
     abs()      { return unaryOp('abs', this); }
     neg()      { return unaryOp('neg', this); }
+    tanh()     { return unaryOp('tanh', this); }
+    squared()  { return unaryOp('squared', this); }
+    cubed()    { return unaryOp('cubed', this); }
 }
 
 export class SynthGraph {
@@ -136,7 +139,7 @@ export function binaryOp(op, a, b) {
 }
 
 // SC unary-operator selector indices (validated against sclang)
-const UNOP = { neg: 0, abs: 5, recip: 16, midicps: 17, cpsmidi: 18, midiratio: 19 };
+const UNOP = { neg: 0, abs: 5, squared: 12, cubed: 13, recip: 16, midicps: 17, cpsmidi: 18, midiratio: 19, tanh: 36 };
 
 export function unaryOp(op, a) {
     const ia = asInput(a);

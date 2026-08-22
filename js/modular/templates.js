@@ -137,6 +137,72 @@ export const TEMPLATES = [
             connect(g, width, 'out', out, 'pan');
         },
     },
+    {
+        // Ported from synthdefs/src/synths/war.scd (the real hand-written "war"
+        // voice) — 3 detuned saws -> tanh Distortion -> resonant Filter. The
+        // original also mixes in a sub-octave Pulse and sweeps the filter
+        // cutoff BY its own envelope (`cutoff * (0.5 + env)`) — skipped here:
+        // Mix is 2-input (chaining N-1 of them for an N-way sum is fine, just
+        // more nodes — not done here for clarity) and the Envelope block fuses
+        // EnvGen with the final multiply, so there's no separate raw envelope
+        // signal to tap for modulating something else at the same time.
+        key: 'war', label: 'War (ported)',
+        desc: '3 detuned saws through tanh drive into a resonant filter — approximates the hand-written "war" power-chord voice; play chords like [0,-5,-7]',
+        build(g) {
+            const n2p = node(g, 'note2freq', 30, 100);
+            const detuneDn = node(g, 'scale', 30, 30, { mul: 0.994, add: 0 });
+            const detuneUp = node(g, 'scale', 30, 220, { mul: 1.006, add: 0 });
+            const o1 = node(g, 'osc', 220, 30, { wave: 'saw' });
+            const o2 = node(g, 'osc', 220, 100, { wave: 'saw' });
+            const o3 = node(g, 'osc', 220, 220, { wave: 'saw' });
+            const mix1 = node(g, 'mix', 410, 60, { mode: 'add' });
+            const mix2 = node(g, 'mix', 600, 100, { mode: 'add' });
+            const dist = node(g, 'distortion', 790, 100, { dist: 8 });
+            const f = node(g, 'filter', 980, 100, { mode: 'resonant', cutoff: 1200, rq: 0.4 });
+            const e = node(g, 'env', 1170, 100, { shape: 'perc' });
+            const out = node(g, 'output', 1360, 100);
+            connect(g, n2p, 'out', detuneDn, 'in'); connect(g, detuneDn, 'out', o1, 'freq');
+            connect(g, n2p, 'out', o2, 'freq');
+            connect(g, n2p, 'out', detuneUp, 'in'); connect(g, detuneUp, 'out', o3, 'freq');
+            connect(g, o1, 'out', mix1, 'a'); connect(g, o2, 'out', mix1, 'b');
+            connect(g, mix1, 'out', mix2, 'a'); connect(g, o3, 'out', mix2, 'b');
+            connect(g, mix2, 'out', dist, 'in');
+            connect(g, dist, 'out', f, 'in');
+            connect(g, f, 'out', e, 'in');
+            connect(g, e, 'out', out, 'in');
+        },
+    },
+    {
+        // Ported from synthdefs/src/synths/growl.scd — a note-pitched sine
+        // vibrato'd by a slow LFO, ring-modulated by a fast ranged saw (the
+        // "talking" character), tanh-driven, filtered. Faithful — every stage
+        // in the original has a direct block equivalent here.
+        key: 'growl', label: 'Growl (ported)',
+        desc: 'a talking ring-mod growl bass-lead — approximates the hand-written "growl" voice; vibrato + fast ring-mod give it a vocal wah',
+        build(g) {
+            const n2p = node(g, 'note2freq', 30, 30);
+            const lfo = node(g, 'lfo', 30, 220, { shape: 'sine', rate: 0.5 });
+            const vibDepth = node(g, 'scale', 220, 220, { mul: 10, add: 0 });
+            const freqSum = node(g, 'mix', 410, 100, { mode: 'add' });
+            const osc = node(g, 'osc', 600, 100, { wave: 'sine' });
+            const ringLfo = node(g, 'osc', 30, 380, { wave: 'saw', freq: 28 });
+            const ringRange = node(g, 'scale', 220, 380, { mul: 0.4, add: 0.6 });
+            const ringMod = node(g, 'mix', 790, 220, { mode: 'multiply' });
+            const dist = node(g, 'distortion', 980, 220, { dist: 3 });
+            const f = node(g, 'filter', 1170, 220, { mode: 'resonant', cutoff: 3000, rq: 0.5 });
+            const e = node(g, 'env', 1360, 220, { shape: 'perc' });
+            const out = node(g, 'output', 1550, 220);
+            connect(g, n2p, 'out', freqSum, 'a');
+            connect(g, lfo, 'out', vibDepth, 'in'); connect(g, vibDepth, 'out', freqSum, 'b');
+            connect(g, freqSum, 'out', osc, 'freq');
+            connect(g, ringLfo, 'out', ringRange, 'in');
+            connect(g, osc, 'out', ringMod, 'a'); connect(g, ringRange, 'out', ringMod, 'b');
+            connect(g, ringMod, 'out', dist, 'in');
+            connect(g, dist, 'out', f, 'in');
+            connect(g, f, 'out', e, 'in');
+            connect(g, e, 'out', out, 'in');
+        },
+    },
 ];
 
 export function templateByKey(key) {

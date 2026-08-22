@@ -7,7 +7,7 @@
 
 import { topoSort, edgeInto } from './graph.js';
 import { blockDef } from './blocks.js';
-import { binaryOp } from '../scsynth/synthdef.js';
+import { binaryOp, unaryOp } from '../scsynth/synthdef.js';
 import * as UGENS from '../scsynth/ugens.js';
 import { defsynth } from '../scsynth/defsynth.js';
 
@@ -26,6 +26,11 @@ export function mul(a, b) { return binaryOp('*', a, b); }
 export function min(a, b) { return binaryOp('min', a, b); }
 export function max(a, b) { return binaryOp('max', a, b); }
 export function clip(x, lo, hi) { return min(max(x, lo), hi); }
+// tanh() backs the Distortion block — soft-saturation drive, the single most
+// common technique in the hand-written synth set (war/dab/growl/tekno/guitar
+// all end their drive stage in `.tanh`). Goes through unaryOp for the same
+// plain-number reason as above.
+export function tanh(x) { return unaryOp('tanh', x); }
 
 // The generated buildFn's own top-level params — tagging a knob's role with
 // one of these EXACT names reuses that control directly (a bare reference,
@@ -152,15 +157,15 @@ export function generateSource(graph) {
 const UGEN_NAMES = [
     'SinOsc', 'Saw', 'VarSaw', 'Blip', 'Pulse', 'LFTri', 'Impulse', 'Line', 'XLine',
     'WhiteNoise', 'PinkNoise', 'LFNoise0', 'LFNoise1', 'LFNoise2',
-    'RLPF', 'RHPF', 'LPF', 'HPF', 'BPF', 'EnvGen', 'Env', 'Pan2', 'Out',
+    'RLPF', 'RHPF', 'LPF', 'HPF', 'BPF', 'LeakDC', 'EnvGen', 'Env', 'Pan2', 'Out',
 ];
 
 // source text → callable ({out,note,amp,...}) => {...}. Binds the UGen
 // factories as named arguments so the generated body can call them bare,
 // same as a human typing a defsynth() build function.
 export function compileToFunction(source) {
-    const argNames  = [...UGEN_NAMES, 'add', 'mul', 'clip'];
-    const argValues = [...UGEN_NAMES.map(n => UGENS[n]), add, mul, clip];
+    const argNames  = [...UGEN_NAMES, 'add', 'mul', 'clip', 'tanh'];
+    const argValues = [...UGEN_NAMES.map(n => UGENS[n]), add, mul, clip, tanh];
     const factory = new Function(...argNames, `return (${source});`);
     return factory(...argValues);
 }

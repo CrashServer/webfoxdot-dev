@@ -1,4 +1,4 @@
-// Modular-synth block palette — 13 block types wrapping the real UGen
+// Modular-synth block palette — 14 block types wrapping the real UGen
 // factories in js/scsynth/ugens.js. Each block declares:
 //   params  — compile-time choices (waveform, filter type…) picked via a
 //             dropdown; baked into which factory codegen() emits, not
@@ -86,18 +86,42 @@ export const BLOCKS = {
         output: 'audio',
         params: [],
         inputs: [{ name: 'in', default: 0 }, { name: 'lo', default: -1 }, { name: 'hi', default: 1 }],
-        // Soft-limits a signal to [lo, hi] — basic waveshaping/distortion (feed
-        // it an over-driven signal and clip tight), or a safety limiter after
-        // a Mix that could otherwise sum past ±1.
+        // Soft-limits a signal to [lo, hi] — a HARD ceiling (feed it an
+        // over-driven signal and it flattens dead at lo/hi), or a safety
+        // limiter after a Mix that could otherwise sum past ±1. For actual
+        // distortion character, the Distortion block's tanh curve sounds far
+        // less harsh — this is closer to a brick-wall limiter.
         codegen(node, ins) {
             return `clip(${ins.in}, ${ins.lo}, ${ins.hi})`;
+        },
+    },
+
+    distortion: {
+        label: 'Distortion',
+        output: 'audio',
+        params: [],
+        // Matches the "dist" convention used by every gritty hand-written synth
+        // (war/dab/growl/tekno/guitar all end their drive stage in `(sig *
+        // dist).tanh`) — a soft-saturation curve, louder drive rounds off
+        // instead of hard-clipping flat.
+        inputs: [{ name: 'in', default: 0 }, { name: 'dist', default: 1 }],
+        codegen(node, ins) {
+            return `tanh(mul(${ins.in}, ${ins.dist}))`;
         },
     },
 
     env: {
         label: 'Envelope',
         output: 'audio',
-        params: [{ name: 'shape', kind: 'select', options: ['perc', 'linen'], default: 'perc' }],
+        params: [
+            { name: 'shape', kind: 'select', options: ['perc', 'linen', 'adsr'], default: 'perc' },
+            // Only meaningful for the adsr shape — plain number PARAMS (not
+            // wireable ports) rather than always-present inputs, so a perc/
+            // linen Envelope doesn't carry two dead, unused extraParams (see
+            // the conditional knobRef() calls below).
+            { name: 'decay', kind: 'number', default: 0.1 },
+            { name: 'sustainLevel', kind: 'number', default: 0.5 },
+        ],
         // attack/release default to the STD attack/release controls when left
         // unwired and untagged (resolveKnob reuses them bare — same behavior
         // as every built-in synth, no wiring needed for the common case), but
@@ -107,10 +131,17 @@ export const BLOCKS = {
         // sus stays unexposed (bare STD only) — it's the note's own duration,
         // not really a per-voice "character" knob the way attack/release are.
         inputs: [{ name: 'in', default: 0 }, { name: 'attack', default: 0.01 }, { name: 'release', default: 0.1 }],
-        codegen(node, ins) {
-            const env = node.params.shape === 'linen'
-                ? `Env.linen(${ins.attack}, sus, ${ins.release}, 1)`
-                : `Env.perc(${ins.attack}, sus, 1, -4)`;
+        codegen(node, ins, knobRef) {
+            let env;
+            if (node.params.shape === 'adsr') {
+                const decay = knobRef('decay', node.params.decay);
+                const susLevel = knobRef('sustainLevel', node.params.sustainLevel);
+                env = `Env.adsr(${ins.attack}, ${decay}, ${susLevel}, sus, ${ins.release}, 1)`;
+            } else if (node.params.shape === 'linen') {
+                env = `Env.linen(${ins.attack}, sus, ${ins.release}, 1)`;
+            } else {
+                env = `Env.perc(${ins.attack}, sus, 1, -4)`;
+            }
             return `mul(EnvGen.ar(${env}, { doneAction: 2 }), ${ins.in})`;
         },
     },
