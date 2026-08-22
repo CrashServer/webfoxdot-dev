@@ -19,11 +19,14 @@ const STORAGE_KEY = 'wfd-modular-patch';
 
 let _graph = makeGraph();
 let _logFn = null, _insertFn = null;
-let _panel = null, _wrapEl = null, _sizerEl = null, _canvasEl = null, _svgEl = null, _codeEl = null, _statusEl = null, _hintEl = null, _nameInput = null, _fileInput = null, _zoomValEl = null;
+let _panel = null, _wrapEl = null, _sizerEl = null, _canvasEl = null, _svgEl = null, _codeEl = null, _statusEl = null, _hintEl = null, _nameInput = null, _fileInput = null, _zoomValEl = null, _liveBadge = null;
 let _open = false;
 let _wireDrag = null;   // { fromNode, fromPort, x, y } — clientX/Y of an in-progress cable drag
 let _nodeDrag = null;   // { node, sx, sy, ox, oy } — in-progress block drag
 let _lastDefined = null; // { name, extraParams } from the most recent successful Define
+let _liveMode = false;   // once true, every graph edit re-Defines _lastDefined.name automatically
+let _liveTimer = null;   // debounce handle for scheduleLiveRedefine()
+const LIVE_REDEFINE_MS = 200;
 let _zoom = 1;
 const ZOOM_MIN = 0.4, ZOOM_MAX = 2;
 
@@ -42,12 +45,55 @@ function persist() { try { localStorage.setItem(STORAGE_KEY, toJSON(_graph)); } 
 
 function afterStructuralChange() {
     persist();
-    _lastDefined = null;   // patch changed — the last Define no longer matches it
     if (_panel) { renderBlocks(); renderCables(); updateCodePreview(); }
+    scheduleLiveRedefine();
 }
 function afterParamChange() {
     persist();
     if (_panel) updateCodePreview();
+    scheduleLiveRedefine();
+}
+
+// Once live mode is on (flipped by a successful Define — see onDefine()),
+// every subsequent graph edit re-compiles and re-registers the SAME synth
+// name automatically: defsynth() is the app's normal live-redefinition path
+// already (editing a hand-typed defsynth() and re-running it does exactly
+// this), so nothing new is needed engine-side — just call it again here.
+// Debounced since afterParamChange() fires on every number-input keystroke.
+// Already-sounding notes keep their original definition (standard SC
+// synth-redefinition semantics); the NEXT triggered note picks up the edit.
+function scheduleLiveRedefine() {
+    if (!_liveMode || !_lastDefined) return;
+    clearTimeout(_liveTimer);
+    _liveTimer = setTimeout(async () => {
+        const name = _lastDefined.name;
+        try {
+            const { extraParams, warnings } = await compileAndDefine(name, _graph);
+            _lastDefined = { name, extraParams };
+            const warn = warnings && warnings.length ? '  ⚠ ' + warnings.join('  ·  ') : '';
+            setStatus(`✓ "${name}" live-updated${warn}`, warn ? 'warn' : 'ok');
+        } catch (e) {
+            setStatus(`✗ live update: ${e.message}`, 'error');
+        }
+    }, LIVE_REDEFINE_MS);
+}
+
+// A template load / clear / file load replaces the patch with something
+// unrelated to whatever was last Defined — keep auto-redefining the OLD
+// name across that would silently rewrite a synth that might still be
+// sounding elsewhere in the composition under its old identity.
+function endLiveMode() {
+    clearTimeout(_liveTimer);
+    _liveMode = false;
+    _lastDefined = null;
+    updateLiveBadge();
+}
+function updateLiveBadge() {
+    if (!_liveBadge) return;
+    _liveBadge.classList.toggle('on', _liveMode);
+    _liveBadge.title = _liveMode
+        ? 'live: graph edits auto-redefine "' + (_lastDefined ? _lastDefined.name : '') + '" as you go — click to pause'
+        : 'live is off — Define (or ▸ use it) to turn it on';
 }
 
 // ── Port geometry — deterministic from node position + block layout ────────
@@ -166,10 +212,11 @@ function build() {
     _panel.className = 'hidden';
     _panel.innerHTML = `
         <div class="modular-head">
-            <span class="modular-title">🧩 modular</span>
+            <span class="modular-title">🎛 modular</span>
             <input type="text" class="modular-name" value="mypatch" spellcheck="false" title="synth name — used as  p1 &gt;&gt; name(...)">
             <button class="modular-define" title="compile this patch into a playable synth">Define ▸</button>
-            <button class="modular-insert" title="paste a p1 &gt;&gt; line into the editor with every unwired knob spelled out — proof they're already live params, no Number block needed">▸ use it</button>
+            <button class="modular-insert" title="paste AND run a p1 &gt;&gt; line for this synth, every unwired knob spelled out — turns on live editing (see the ⚡ badge)">▸ use it</button>
+            <button class="modular-live" title="live is off — Define (or ▸ use it) to turn it on">⚡</button>
             <button class="modular-center" title="center the view on the patch">⌖</button>
             <button class="modular-save" title="save patch to a .json file">⇩</button>
             <button class="modular-loadbtn" title="load a patch .json file">⇧</button>
@@ -216,10 +263,17 @@ function build() {
     _nameInput = _panel.querySelector('.modular-name');
     _fileInput = _panel.querySelector('.modular-file-input');
     _zoomValEl = _panel.querySelector('.modular-zoom-val');
+    _liveBadge = _panel.querySelector('.modular-live');
 
     _panel.querySelector('.modular-close').onclick = closeModular;
     _panel.querySelector('.modular-define').onclick = onDefine;
     _panel.querySelector('.modular-insert').onclick = onInsert;
+    _liveBadge.onclick = () => {
+        if (!_lastDefined) return;   // nothing live to pause/resume yet
+        _liveMode = !_liveMode;
+        if (_liveMode) scheduleLiveRedefine();
+        updateLiveBadge();
+    };
     _panel.querySelector('.modular-center').onclick = centerView;
     _panel.querySelector('.modular-zoom-in').onclick = () => zoomStep(1.2);
     _panel.querySelector('.modular-zoom-out').onclick = () => zoomStep(1 / 1.2);
@@ -233,10 +287,14 @@ function build() {
     _panel.querySelector('.modular-save').onclick = savePatch;
     _panel.querySelector('.modular-loadbtn').onclick = () => _fileInput.click();
     const templatesSel = _panel.querySelector('.modular-templates');
+    const groups = new Map();   // category -> <optgroup> — insertion order = first-seen order in TEMPLATES
     for (const tpl of TEMPLATES) {
+        const cat = tpl.category || 'Other';
+        let grp = groups.get(cat);
+        if (!grp) { grp = document.createElement('optgroup'); grp.label = cat; templatesSel.appendChild(grp); groups.set(cat, grp); }
         const o = document.createElement('option');
         o.value = tpl.key; o.textContent = tpl.label; o.title = tpl.desc;
-        templatesSel.appendChild(o);
+        grp.appendChild(o);
     }
     templatesSel.onchange = () => {
         const key = templatesSel.value;
@@ -245,6 +303,7 @@ function build() {
         const tpl = TEMPLATES.find(t => t.key === key);
         if (!tpl) return;
         if (_graph.nodes.length && !confirm(`Replace the current patch with "${tpl.label}"?`)) return;
+        endLiveMode();   // a template is an unrelated patch — stop auto-redefining whatever was live
         _graph = makeGraph();
         tpl.build(_graph);
         afterStructuralChange();
@@ -252,6 +311,7 @@ function build() {
     };
     _panel.querySelector('.modular-clearbtn').onclick = () => {
         if (!confirm('clear the patch?')) return;
+        endLiveMode();
         _graph = makeGraph();
         afterStructuralChange();
     };
@@ -259,7 +319,7 @@ function build() {
         const f = _fileInput.files[0]; if (!f) return;
         const reader = new FileReader();
         reader.onload = () => {
-            try { _graph = fromJSON(reader.result); afterStructuralChange(); }
+            try { endLiveMode(); _graph = fromJSON(reader.result); afterStructuralChange(); }
             catch (e) { setStatus('✗ bad patch file: ' + e.message, 'error'); }
         };
         reader.readAsText(f);
@@ -575,6 +635,8 @@ async function onDefine() {
     try {
         const { extraParams, warnings } = await compileAndDefine(name, _graph);
         _lastDefined = { name, extraParams };
+        _liveMode = true;   // from here on, graph edits auto-redefine this name — see scheduleLiveRedefine()
+        updateLiveBadge();
         const warn = warnings && warnings.length ? '  ⚠ ' + warnings.join('  ·  ') : '';
         setStatus(`✓ "${name}" defined — try:  p1 >> ${name}([0,4,7])${warn}`, warn ? 'warn' : 'ok');
         if (_logFn) _logFn(`modular: "${name}" defined ✓${warn}`, warn ? 'info' : 'ok');
@@ -629,6 +691,7 @@ export function savePatch() {
 export async function loadPatch(url) {
     const res = await fetch(url);
     const text = await res.text();
+    endLiveMode();
     _graph = fromJSON(text);
     openModular();
     centerView();

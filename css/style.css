@@ -1832,6 +1832,12 @@ body.is-offline #btn-galaxy {
 .modular-define:hover, .modular-insert:hover, .modular-center:hover, .modular-save:hover, .modular-loadbtn:hover, .modular-clearbtn:hover { background: var(--bg-2); color: var(--text-1); }
 .modular-define:hover { color: var(--green); }
 .modular-insert:hover { color: var(--blue); }
+.modular-live {
+    background: var(--bg-3); border: 1px solid var(--border-1); color: var(--text-2);
+    font-size: 11px; padding: 3px 6px; border-radius: 4px; cursor: pointer; line-height: 1.4; opacity: 0.5;
+}
+.modular-live.on { color: var(--yellow); border-color: var(--yellow); opacity: 1; animation: modularLivePulse 1.6s ease-in-out infinite; }
+@keyframes modularLivePulse { 0%, 100% { box-shadow: 0 0 2px var(--yellow); } 50% { box-shadow: 0 0 7px var(--yellow); } }
 .modular-drag { flex: 1; align-self: stretch; }
 .modular-close { background: none; border: none; color: var(--text-2); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 3px; }
 .modular-close:hover { color: var(--red); }

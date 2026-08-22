@@ -7,13 +7,15 @@
 import { addNode, connect } from './graph.js';
 import { defaultParams } from './blocks.js';
 
-function node(g, type, x, y, overrides) {
-    return addNode(g, type, x, y, { ...defaultParams(type), ...overrides });
+function node(g, type, x, y, overrides, roles) {
+    const id = addNode(g, type, x, y, { ...defaultParams(type), ...overrides });
+    if (roles) g.nodes[g.nodes.length - 1].roles = roles;   // addNode always appends
+    return id;
 }
 
 export const TEMPLATES = [
     {
-        key: 'beep', label: 'Beep',
+        key: 'beep', label: 'Beep', category: 'Basics',
         desc: 'note-pitched sine → envelope → output — the minimal starting patch',
         build(g) {
             const n2p = node(g, 'note2freq', 30, 30);
@@ -26,7 +28,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'buzz', label: 'Buzz lead',
+        key: 'buzz', label: 'Buzz lead', category: 'Basics',
         desc: 'note-pitched saw → resonant filter → envelope (mirrors tour lesson 17\'s hand-written buzz)',
         build(g) {
             const n2p = node(g, 'note2freq', 30, 30);
@@ -41,7 +43,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'wobble', label: 'Wobble bass',
+        key: 'wobble', label: 'Wobble bass', category: 'Bass & Percussion',
         desc: 'an LFO scaled into a cutoff sweep, modulating a saw through a lowpass filter',
         build(g) {
             const lfo = node(g, 'lfo', 30, 30, { shape: 'sine', rate: 5 });
@@ -58,7 +60,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'pad', label: 'Detuned pad',
+        key: 'pad', label: 'Detuned pad', category: 'Leads & Pads',
         desc: 'two note-pitched saws (one slightly detuned) mixed through a filter — a wide, chorus-y, chord-capable sustain',
         build(g) {
             const n2p = node(g, 'note2freq', 30, 100);
@@ -80,7 +82,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'click', label: 'Noise click',
+        key: 'click', label: 'Noise click', category: 'Bass & Percussion',
         desc: 'white noise through a narrow bandpass and a short percussive envelope',
         build(g) {
             const n = node(g, 'noise', 30, 30, { color: 'white' });
@@ -93,7 +95,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'zap', label: 'Zap',
+        key: 'zap', label: 'Zap', category: 'Bass & Percussion',
         desc: 'an impulse train excites a tight resonant filter through a fast envelope — a classic electronic blip/zap',
         build(g) {
             const imp = node(g, 'impulse', 30, 30, { freq: 1 });
@@ -106,7 +108,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'kick', label: 'Kick drum',
+        key: 'kick', label: 'Kick drum', category: 'Bass & Percussion',
         desc: 'a Ramp sweeps the oscillator pitch down fast (the classic 808-style drop) through a punchy envelope',
         build(g) {
             const ramp = node(g, 'ramp', 30, 30, { shape: 'exponential', start: 180, end: 45, dur: 0.09 });
@@ -119,7 +121,7 @@ export const TEMPLATES = [
         },
     },
     {
-        key: 'autopan', label: 'Auto-pan lead',
+        key: 'autopan', label: 'Auto-pan lead', category: 'Leads & Pads',
         desc: 'a note-pitched saw lead that sweeps left-right on its own — an LFO scaled down and wired straight into Output\'s pan',
         build(g) {
             const n2p = node(g, 'note2freq', 30, 30);
@@ -146,7 +148,7 @@ export const TEMPLATES = [
         // more nodes — not done here for clarity) and the Envelope block fuses
         // EnvGen with the final multiply, so there's no separate raw envelope
         // signal to tap for modulating something else at the same time.
-        key: 'war', label: 'War (ported)',
+        key: 'war', label: 'War (ported)', category: 'Ported synths',
         desc: '3 detuned saws through tanh drive into a resonant filter — approximates the hand-written "war" power-chord voice; play chords like [0,-5,-7]',
         build(g) {
             const n2p = node(g, 'note2freq', 30, 100);
@@ -177,7 +179,7 @@ export const TEMPLATES = [
         // vibrato'd by a slow LFO, ring-modulated by a fast ranged saw (the
         // "talking" character), tanh-driven, filtered. Faithful — every stage
         // in the original has a direct block equivalent here.
-        key: 'growl', label: 'Growl (ported)',
+        key: 'growl', label: 'Growl (ported)', category: 'Ported synths',
         desc: 'a talking ring-mod growl bass-lead — approximates the hand-written "growl" voice; vibrato + fast ring-mod give it a vocal wah',
         build(g) {
             const n2p = node(g, 'note2freq', 30, 30);
@@ -201,6 +203,87 @@ export const TEMPLATES = [
             connect(g, dist, 'out', f, 'in');
             connect(g, f, 'out', e, 'in');
             connect(g, e, 'out', out, 'in');
+        },
+    },
+    {
+        // An "authentic, all parameters" attempt at the Minimoog Model D
+        // architecture, built entirely from the current block palette:
+        //   - 3 oscillators, individually tuned (OSC2/OSC3 default to the
+        //     classic +10-cents-thick / -1-octave settings) AND individually
+        //     leveled in the mixer, plus a noise source (off by default,
+        //     matching the real hardware) — the real mixer panel exactly.
+        //   - Glide (portamento) shared by all 3 oscillators.
+        //   - The filter's cutoff is the SUM of three independent knobs —
+        //     a manual base Cutoff, a dedicated filter EG's Amount of
+        //     Contour, and Keyboard tracking — same 3-way summing the real
+        //     hardware's filter section does. Emphasis (rq) is the filter's
+        //     own resonance port.
+        //   - A separate amplitude ADSR shapes loudness and frees the voice.
+        // Filter is RLPF (2-pole/12dB), the closest available stand-in — the
+        // real Model D's ladder filter is a 4-pole/24dB nonlinear circuit
+        // (MoogFF in real SC) not in js/scsynth/ugens.js; see beta11's
+        // changelog entry on porting real synths for why that wasn't added
+        // speculatively (unverified whether it's even compiled into this
+        // app's WASM scsynth build).
+        key: 'moog', label: 'Mini Moog', category: 'Ported synths',
+        desc: 'authentic-spirit Minimoog: 3 tuned+leveled oscillators, glide, a filter with its own contour EG + keyboard tracking on top of the cutoff knob, separate amp ADSR — every classic front-panel parameter is a knob here',
+        build(g) {
+            // pitch + glide
+            const n2p = node(g, 'note2freq', 30, 30);
+            const glide = node(g, 'glide', 220, 30, { time: 0.03 }, { time: 'glideTime' });
+
+            // 3 oscillators — each its own tune ratio, then its own mixer level
+            const o1Tune = node(g, 'scale', 410, 30, { mul: 1, add: 0 }, { mul: 'osc1Tune' });
+            const o2Tune = node(g, 'scale', 410, 220, { mul: 1.0059, add: 0 }, { mul: 'osc2Tune' });
+            const o3Tune = node(g, 'scale', 410, 410, { mul: 0.5, add: 0 }, { mul: 'osc3Range' });
+            const o1 = node(g, 'osc', 600, 30, { wave: 'saw' });
+            const o2 = node(g, 'osc', 600, 220, { wave: 'saw' });
+            const o3 = node(g, 'osc', 600, 410, { wave: 'triangle' });
+            const noiseSrc = node(g, 'noise', 600, 600, { color: 'white' });
+            const o1Lvl = node(g, 'scale', 790, 30, { mul: 1, add: 0 }, { mul: 'osc1Vol' });
+            const o2Lvl = node(g, 'scale', 790, 220, { mul: 0.8, add: 0 }, { mul: 'osc2Vol' });
+            const o3Lvl = node(g, 'scale', 790, 410, { mul: 0.6, add: 0 }, { mul: 'osc3Vol' });
+            const noiseLvl = node(g, 'scale', 790, 600, { mul: 0, add: 0 }, { mul: 'noiseVol' });
+
+            // mixer sum (2-input Mix chained for the 4-way total)
+            const mix1 = node(g, 'mix', 980, 120, { mode: 'add' });
+            const mix2 = node(g, 'mix', 1170, 220, { mode: 'add' });
+            const mix3 = node(g, 'mix', 1360, 320, { mode: 'add' });
+
+            // filter cutoff = base knob + (contour EG * amount) + (pitch * tracking)
+            const cutoffBase = node(g, 'number', 30, 700, { value: 500 }, { value: 'cutoff' });
+            const filterEnv = node(g, 'envgen', 220, 780, { shape: 'adsr', decay: 0.4, sustainLevel: 0.3 });
+            const contourAmt = node(g, 'scale', 410, 780, { mul: 3000, add: 0 }, { mul: 'filterContour' });
+            const trackAmt = node(g, 'scale', 220, 960, { mul: 0.3, add: 0 }, { mul: 'filterTracking' });
+            const cutoffSum1 = node(g, 'mix', 600, 820, { mode: 'add' });
+            const cutoffSum2 = node(g, 'mix', 790, 860, { mode: 'add' });
+            const filt = node(g, 'filter', 1550, 320, { mode: 'resonant', rq: 0.3 }, { rq: 'emphasis' });
+
+            // amp envelope + output
+            const ampEnv = node(g, 'env', 1740, 320, { shape: 'adsr', decay: 0.2, sustainLevel: 0.7 });
+            const out = node(g, 'output', 1930, 320);
+
+            connect(g, n2p, 'out', glide, 'in');
+            connect(g, glide, 'out', o1Tune, 'in'); connect(g, o1Tune, 'out', o1, 'freq');
+            connect(g, glide, 'out', o2Tune, 'in'); connect(g, o2Tune, 'out', o2, 'freq');
+            connect(g, glide, 'out', o3Tune, 'in'); connect(g, o3Tune, 'out', o3, 'freq');
+            connect(g, o1, 'out', o1Lvl, 'in');
+            connect(g, o2, 'out', o2Lvl, 'in');
+            connect(g, o3, 'out', o3Lvl, 'in');
+            connect(g, noiseSrc, 'out', noiseLvl, 'in');
+            connect(g, o1Lvl, 'out', mix1, 'a'); connect(g, o2Lvl, 'out', mix1, 'b');
+            connect(g, mix1, 'out', mix2, 'a'); connect(g, o3Lvl, 'out', mix2, 'b');
+            connect(g, mix2, 'out', mix3, 'a'); connect(g, noiseLvl, 'out', mix3, 'b');
+
+            connect(g, filterEnv, 'out', contourAmt, 'in');
+            connect(g, glide, 'out', trackAmt, 'in');
+            connect(g, cutoffBase, 'out', cutoffSum1, 'a'); connect(g, contourAmt, 'out', cutoffSum1, 'b');
+            connect(g, cutoffSum1, 'out', cutoffSum2, 'a'); connect(g, trackAmt, 'out', cutoffSum2, 'b');
+            connect(g, cutoffSum2, 'out', filt, 'cutoff');
+            connect(g, mix3, 'out', filt, 'in');
+
+            connect(g, filt, 'out', ampEnv, 'in');
+            connect(g, ampEnv, 'out', out, 'in');
         },
     },
 ];

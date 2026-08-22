@@ -47,6 +47,7 @@ export const BPF  = ugen('BPF',  [0, 440, 1]);
 export const LeakDC = ugen('LeakDC', [0, 0.995]);   // DC-blocker — cheap safety net after heavy distortion/waveshaping
 
 // ── Lines / ranges ─────────────────────────────────────────────────────────────
+export const Lag   = ugen('Lag',   [0, 0.1]);       // in, lagTime — exponential glide/portamento
 export const Line  = ugen('Line',  [0, 1, 1, 0]);   // start, end, dur, doneAction
 export const XLine = ugen('XLine', [1, 2, 1, 0]);
 

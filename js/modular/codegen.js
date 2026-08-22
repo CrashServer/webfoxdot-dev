@@ -155,7 +155,7 @@ export function generateSource(graph) {
 // exactly what a hand-written defsynth() build function can already use
 // (js/scsynth/ugens.js), plus the add/mul helpers above.
 const UGEN_NAMES = [
-    'SinOsc', 'Saw', 'VarSaw', 'Blip', 'Pulse', 'LFTri', 'Impulse', 'Line', 'XLine',
+    'SinOsc', 'Saw', 'VarSaw', 'Blip', 'Pulse', 'LFTri', 'Impulse', 'Lag', 'Line', 'XLine',
     'WhiteNoise', 'PinkNoise', 'LFNoise0', 'LFNoise1', 'LFNoise2',
     'RLPF', 'RHPF', 'LPF', 'HPF', 'BPF', 'LeakDC', 'EnvGen', 'Env', 'Pan2', 'Out',
 ];

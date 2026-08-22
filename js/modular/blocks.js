@@ -1,4 +1,4 @@
-// Modular-synth block palette — 14 block types wrapping the real UGen
+// Modular-synth block palette — 16 block types wrapping the real UGen
 // factories in js/scsynth/ugens.js. Each block declares:
 //   params  — compile-time choices (waveform, filter type…) picked via a
 //             dropdown; baked into which factory codegen() emits, not
@@ -146,6 +146,40 @@ export const BLOCKS = {
         },
     },
 
+    envgen: {
+        label: 'Env Gen',
+        output: 'control',
+        // A RAW envelope signal — unlike Envelope (audio-rate, fused with the
+        // signal it shapes, and the one block responsible for freeing the
+        // voice), this has no signal of its own: wire it into a Filter's
+        // cutoff (through a Scale for "how much"), an Oscillator's freq,
+        // anything that wants its OWN envelope shape distinct from the
+        // amplitude envelope (the classic synth move: a separate filter EG
+        // sweeping cutoff while the amp EG shapes loudness). doneAction is
+        // always 0 — it never frees the voice; the patch's Envelope block is
+        // responsible for that, and a patch with only Env Gen blocks (no
+        // Envelope) still correctly triggers the "notes never stop" warning.
+        params: [
+            { name: 'shape', kind: 'select', options: ['perc', 'linen', 'adsr'], default: 'adsr' },
+            { name: 'decay', kind: 'number', default: 0.3 },
+            { name: 'sustainLevel', kind: 'number', default: 0.5 },
+        ],
+        inputs: [{ name: 'attack', default: 0.01 }, { name: 'release', default: 0.5 }],
+        codegen(node, ins, knobRef) {
+            let env;
+            if (node.params.shape === 'adsr') {
+                const decay = knobRef('decay', node.params.decay);
+                const susLevel = knobRef('sustainLevel', node.params.sustainLevel);
+                env = `Env.adsr(${ins.attack}, ${decay}, ${susLevel}, sus, ${ins.release}, 1)`;
+            } else if (node.params.shape === 'linen') {
+                env = `Env.linen(${ins.attack}, sus, ${ins.release}, 1)`;
+            } else {
+                env = `Env.perc(${ins.attack}, sus, 1, -4)`;
+            }
+            return `EnvGen.kr(${env}, { doneAction: 0 })`;
+        },
+    },
+
     lfo: {
         label: 'LFO',
         output: 'control',
@@ -174,6 +208,20 @@ export const BLOCKS = {
             // doneAction 0 — only the Envelope block frees the voice, so a
             // Ramp finishing early never fights the note's own release.
             return `${factory}.kr(${ins.start}, ${ins.end}, ${ins.dur}, 0)`;
+        },
+    },
+
+    glide: {
+        label: 'Glide',
+        output: 'control',
+        // Portamento — exponentially chases a target (e.g. note.midicps()
+        // wired in) over `time` seconds instead of jumping instantly. The
+        // classic synth "glide"/"portamento" knob; wire it between a Note →
+        // Pitch and every oscillator's freq so pitch changes slide.
+        params: [],
+        inputs: [{ name: 'in', default: 0 }, { name: 'time', default: 0.1 }],
+        codegen(node, ins) {
+            return `Lag.kr(${ins.in}, ${ins.time})`;
         },
     },
 

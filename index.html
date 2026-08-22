@@ -32,7 +32,7 @@
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
-      <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🧩<span class="tb-label"> modular</span></button>
+      <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🎛<span class="tb-label"> modular</span></button>
       <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">⊞<span class="tb-label"> perform</span></button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴<span class="tb-label"> share</span></button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥<span class="tb-label"> go live</span></button>
@@ -562,7 +562,7 @@
                 .then(n => update(n ? `loadpack: ${n} chars loaded ✓` : 'loadpack: 0 chars loaded (all failed)', n ? 'ok' : 'error'))
                 .catch(e => update(`loadpack: ${e.message}`, 'error'));
             },
-            // Modular synth builder (🧩 toolbar button) — savePatch() downloads the
+            // Modular synth builder (🎛 toolbar button) — savePatch() downloads the
             // current patch as .json, loadPatch(url) fetches one in and opens the panel.
             savePatch: () => savePatchImpl(),
             loadPatch: (url) => loadPatchImpl(url)
@@ -1807,8 +1807,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _progressRAF = requestAnimationFrame(progressLoop);
     initMixer(clock, editor, runCode);
-    // The modular panel's "use it" button pastes a p1 >> line for the just-Defined
-    // synth — same paste-don't-run convention as chaos() above (review, then run).
+    // The modular panel's "use it" button pastes AND runs a p1 >> line for the
+    // just-Defined synth (unlike chaos()'s paste-don't-run — this is a single
+    // synth the user just built and asked to hear, not a batch to review
+    // first). From here the panel's live mode keeps redefining that synth as
+    // the graph is edited, so the running player picks up each change.
     initModular((msg, kind) => log(msg, kind), (text) => {
         const last  = editor.lastLine();
         const atEnd = editor.getValue().trim() === '';
@@ -1818,7 +1821,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         editor.setCursor({ line: startLine, ch: 0 });
         editor.scrollIntoView({ line: startLine, ch: 0 });
         editor.focus();
-        log('modular: pasted a player line — review, then run (Ctrl+Enter)', 'info');
+        runCode(text);
+        recCapture(text);
+        log('modular: ran ' + text + ' — the graph now updates it live as you edit (⚡)', 'ok');
     });
     initPerform(clock);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
