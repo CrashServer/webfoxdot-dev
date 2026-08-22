@@ -14,11 +14,13 @@ function node(g, type, x, y, overrides) {
 export const TEMPLATES = [
     {
         key: 'beep', label: 'Beep',
-        desc: 'sine → envelope → output — the minimal starting patch',
+        desc: 'note-pitched sine → envelope → output — the minimal starting patch',
         build(g) {
-            const o = node(g, 'osc', 30, 30);
-            const e = node(g, 'env', 220, 30);
-            const out = node(g, 'output', 410, 30);
+            const n2p = node(g, 'note2freq', 30, 30);
+            const o = node(g, 'osc', 220, 30);
+            const e = node(g, 'env', 410, 30);
+            const out = node(g, 'output', 600, 30);
+            connect(g, n2p, 'out', o, 'freq');
             connect(g, o, 'out', e, 'in');
             connect(g, e, 'out', out, 'in');
         },
@@ -57,14 +59,19 @@ export const TEMPLATES = [
     },
     {
         key: 'pad', label: 'Detuned pad',
-        desc: 'two slightly-detuned saws mixed through a filter — a wide, chorus-y sustain',
+        desc: 'two note-pitched saws (one slightly detuned) mixed through a filter — a wide, chorus-y, chord-capable sustain',
         build(g) {
-            const o1 = node(g, 'osc', 30, 30, { wave: 'saw', freq: 220 });
-            const o2 = node(g, 'osc', 30, 220, { wave: 'saw', freq: 221.5 });
-            const mix = node(g, 'mix', 220, 100, { mode: 'add' });
-            const f = node(g, 'filter', 410, 100, { mode: 'lowpass', cutoff: 2000 });
-            const e = node(g, 'env', 600, 100, { shape: 'linen' });
-            const out = node(g, 'output', 790, 100);
+            const n2p = node(g, 'note2freq', 30, 100);
+            const detune = node(g, 'scale', 30, 220, { mul: 1.003, add: 0 });
+            const o1 = node(g, 'osc', 220, 30, { wave: 'saw' });
+            const o2 = node(g, 'osc', 220, 220, { wave: 'saw' });
+            const mix = node(g, 'mix', 410, 100, { mode: 'add' });
+            const f = node(g, 'filter', 600, 100, { mode: 'lowpass', cutoff: 2000 });
+            const e = node(g, 'env', 790, 100, { shape: 'linen' });
+            const out = node(g, 'output', 980, 100);
+            connect(g, n2p, 'out', o1, 'freq');
+            connect(g, n2p, 'out', detune, 'in');
+            connect(g, detune, 'out', o2, 'freq');
             connect(g, o1, 'out', mix, 'a');
             connect(g, o2, 'out', mix, 'b');
             connect(g, mix, 'out', f, 'in');
@@ -109,6 +116,25 @@ export const TEMPLATES = [
             connect(g, ramp, 'out', osc, 'freq');
             connect(g, osc, 'out', e, 'in');
             connect(g, e, 'out', out, 'in');
+        },
+    },
+    {
+        key: 'autopan', label: 'Auto-pan lead',
+        desc: 'a note-pitched saw lead that sweeps left-right on its own — an LFO scaled down and wired straight into Output\'s pan',
+        build(g) {
+            const n2p = node(g, 'note2freq', 30, 30);
+            const o = node(g, 'osc', 220, 30, { wave: 'saw' });
+            const f = node(g, 'filter', 410, 30, { mode: 'resonant', cutoff: 2000, rq: 0.4 });
+            const e = node(g, 'env', 600, 30, { shape: 'linen' });
+            const lfo = node(g, 'lfo', 30, 220, { shape: 'sine', rate: 0.5 });
+            const width = node(g, 'scale', 220, 220, { mul: 0.8, add: 0 });
+            const out = node(g, 'output', 790, 30);
+            connect(g, n2p, 'out', o, 'freq');
+            connect(g, o, 'out', f, 'in');
+            connect(g, f, 'out', e, 'in');
+            connect(g, e, 'out', out, 'in');
+            connect(g, lfo, 'out', width, 'in');
+            connect(g, width, 'out', out, 'pan');
         },
     },
 ];

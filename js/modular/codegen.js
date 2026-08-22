@@ -39,18 +39,45 @@ function sanitizeIdent(s) {
 }
 
 // Resolves one knob (an unwired input port, or a param-less block's own
-// value, e.g. Number) to a source expression: a bare STD control name if the
-// knob's role matches one exactly, else `knobs.<name>` — <name> being the
-// role (sanitized) if tagged, or the auto nodeId_key fallback. Two knobs
-// tagged with the SAME role deliberately collapse onto the same extraParam
-// (that's the point of tagging — "these are the same logical control").
-function resolveKnob(node, key, defaultVal, extraParams) {
+// value, e.g. Number) to a source expression.
+//
+// Untagged, a knob's OWN port name is already the house convention every
+// hand-written synth in js/synths/registry.js uses — cutoff, rq, rate, dist…
+// — so it's used directly (p1 >> mypatch(cutoff=2000)) rather than an opaque
+// n2_cutoff. Two DIFFERENT untagged knobs that happen to share a port name
+// (two Filter blocks both have 'cutoff') are NOT silently merged — that
+// would mean turning one knob secretly retunes the other block too — they
+// auto-disambiguate instead (cutoff, cutoff2, cutoff3…).
+//
+// Explicitly tagging a role (the UI's per-knob dropdown) always wins over
+// the port name, and — unlike the untagged case — two knobs deliberately
+// tagged with the SAME role DO collapse onto one shared extraParam; that's
+// the point of tagging by hand, an intentional "these are the same logical
+// control" the auto-disambiguation can't infer on its own.
+//
+// Either way, if the resolved name matches a STD control exactly (out/note/
+// amp/sus/pan/attack/release) it reuses that control directly — a bare
+// reference, e.g. `attack` — instead of adding a redundant new extraParam.
+function resolveKnob(node, key, defaultVal, extraParams, usedDefaultNames) {
     const role = node.roles && node.roles[key];
     const roleIdent = role ? sanitizeIdent(role) : null;
-    if (roleIdent && STD_NAMES.has(roleIdent)) return roleIdent;
-    const paramName = roleIdent || `${node.id}_${key}`;
-    if (!(paramName in extraParams)) extraParams[paramName] = defaultVal;
-    return `knobs.${paramName}`;
+
+    if (roleIdent) {
+        if (STD_NAMES.has(roleIdent)) return roleIdent;
+        if (!(roleIdent in extraParams)) extraParams[roleIdent] = defaultVal;
+        return `knobs.${roleIdent}`;
+    }
+
+    if (STD_NAMES.has(key)) return key;
+    let name = key;
+    if (usedDefaultNames.has(name)) {
+        let n = 2;
+        while (usedDefaultNames.has(name + n)) n++;
+        name = name + n;
+    }
+    usedDefaultNames.add(name);
+    extraParams[name] = defaultVal;
+    return `knobs.${name}`;
 }
 
 // graph → { source, extraParams } | { error }
@@ -62,6 +89,7 @@ export function generateSource(graph) {
     const byId = new Map(graph.nodes.map(n => [n.id, n]));
     const varName = new Map();      // nodeId → js var name
     const extraParams = {};         // knob param name → default value
+    const usedDefaultNames = new Set(); // port names already claimed by an untagged knob — see resolveKnob
     const lines = [];
     const outputLines = [];         // every terminal (Output) node's line — see below
 
@@ -77,10 +105,10 @@ export function generateSource(graph) {
             if (edge && varName.has(edge.from.node)) {
                 ins[port.name] = varName.get(edge.from.node);
             } else {
-                ins[port.name] = resolveKnob(node, port.name, node.params?.[port.name] ?? port.default, extraParams);
+                ins[port.name] = resolveKnob(node, port.name, node.params?.[port.name] ?? port.default, extraParams, usedDefaultNames);
             }
         }
-        const knobRef = (key, defaultVal) => resolveKnob(node, key, defaultVal, extraParams);
+        const knobRef = (key, defaultVal) => resolveKnob(node, key, defaultVal, extraParams, usedDefaultNames);
 
         const expr = def.codegen(node, ins, knobRef);
         // A previous version kept only the LAST terminal node's line (each new

@@ -540,22 +540,18 @@ function drawCable(p1, p2, onClick, ghost) {
 }
 
 // ── Code preview + Define ───────────────────────────────────────────────────
-// True if some unwired knob (input port, or Number's value) has no role tag
-// yet — used to keep nudging toward the "tag" button until it's been tried,
-// since a tiny per-knob control is easy to miss otherwise.
-function hasUntaggedKnob(graph) {
-    for (const n of graph.nodes) {
-        const def = blockDef(n.type);
-        for (const port of def.inputs) {
-            if (!edgeInto(graph, n.id, port.name) && !(n.roles && n.roles[port.name])) return true;
-        }
-        if (n.type === 'number' && !(n.roles && n.roles.value)) return true;
-    }
-    return false;
+// True if the compiled extraParams contain a name ending in a disambiguating
+// digit (cutoff2, rq3…) — the tell that two DIFFERENT untagged knobs landed
+// on the same port name and codegen auto-numbered them apart (see
+// resolveKnob() in codegen.js) rather than silently sharing one control.
+// Worth a nudge toward the rename/share dropdown; not worth nagging about
+// otherwise, since untagged knobs are already well-named by default now.
+function hasDisambiguatedName(extraParams) {
+    return Object.keys(extraParams).some(k => /\d$/.test(k));
 }
 
 function updateCodePreview() {
-    const { source, error, warnings } = generateSource(_graph);
+    const { source, error, warnings, extraParams } = generateSource(_graph);
     _codeEl.value = error ? `// ${error}` : source;
     if (!_graph.nodes.length) {
         _hintEl.textContent = 'tip: drag blocks in from the palette, finish the chain with an Output. Add an Envelope somewhere before it — without one, a note never stops (Env.perc reads the standard attack/sus/release controls automatically, no wiring needed).';
@@ -563,11 +559,11 @@ function updateCodePreview() {
     } else if (warnings && warnings.length) {
         _hintEl.textContent = '⚠ ' + warnings.join('  ·  ');
         _hintEl.className = 'modular-hint warn';
-    } else if (hasUntaggedKnob(_graph)) {
-        _hintEl.textContent = 'tip: pick a role from a knob\'s dropdown (freq/amp/rate/custom) to name it — so it generates as p1 >> patch(freq=…) instead of the auto n2_cutoff name.';
+    } else if (extraParams && hasDisambiguatedName(extraParams)) {
+        _hintEl.textContent = 'tip: two knobs share a port name (like cutoff/cutoff2) so they stayed independent — use a knob\'s dropdown to rename one, or to deliberately unify them under one shared name.';
         _hintEl.className = 'modular-hint';
     } else {
-        _hintEl.textContent = '';
+        _hintEl.textContent = 'knobs are named after their port (cutoff, rq, rate…) by default — same as the built-in synths. Use a knob\'s dropdown to rename one or share it with another.';
         _hintEl.className = 'modular-hint';
     }
 }

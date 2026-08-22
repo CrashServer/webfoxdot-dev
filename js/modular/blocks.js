@@ -6,14 +6,18 @@
 //   inputs  — named sockets. Each is ALSO a knob: unwired, it uses its own
 //             numeric default; wired, the upstream node's value overrides it.
 //             An unwired input becomes a live extraParam on the compiled
-//             synth (p1 >> mypatch(n2_cutoff=2000)), so nothing is silently
-//             fixed at compile time. A knob can be tagged with a semantic
-//             role (freq/amp/rate/custom, via node.roles[portName] — set by
-//             the UI's role button) so it generates as a mnemonic param name
-//             (p1 >> mypatch(freq=880)) instead of the auto nodeId_port one;
-//             tagging a knob with a STD control name (out/note/amp/sus/pan/
-//             attack/release) reuses that control directly instead of adding
-//             a new one (see js/modular/codegen.js's resolveKnob()).
+//             synth, named after the PORT ITSELF by default — a Filter's
+//             cutoff/rq ports generate p1 >> mypatch(cutoff=2000, rq=0.3),
+//             matching the exact convention every hand-written synth in
+//             js/synths/registry.js already uses (cutoff/rq/rate/dist…), so
+//             nothing manual is needed to get a coherent, mnemonic param.
+//             A knob can still be tagged a different name (or the same name
+//             as ANOTHER knob, to deliberately share one control between
+//             them) via the UI's per-knob role dropdown — see
+//             js/modular/codegen.js's resolveKnob() for the exact resolution
+//             order and the STD-control-reuse rule (a knob named exactly
+//             out/note/amp/sus/pan/attack/release reuses that control
+//             directly, bare, instead of adding a redundant new one).
 //   output  — 'audio' | 'control', just for cosmetic wire colouring in the UI.
 //   codegen(node, ins, knobRef) — ins is { portName: 'jsExprString' } already
 //             resolved (wired → upstream var name, unwired → the knob's
@@ -94,15 +98,19 @@ export const BLOCKS = {
         label: 'Envelope',
         output: 'audio',
         params: [{ name: 'shape', kind: 'select', options: ['perc', 'linen'], default: 'perc' }],
-        inputs: [{ name: 'in', default: 0 }],
-        // Reads the standard attack/sus/release controls automatically — no
-        // manual wiring needed, same convention as every built-in synth.
-        // (Env.perc has no separate sustain phase, so — matching tour lesson
-        // 17's hand-written buzz example exactly — `sus` doubles as its release.)
+        // attack/release default to the STD attack/release controls when left
+        // unwired and untagged (resolveKnob reuses them bare — same behavior
+        // as every built-in synth, no wiring needed for the common case), but
+        // are real ports now: wire in a Number/Ramp, or tag with a different
+        // role, to give ONE Envelope instance its own attack/release distinct
+        // from the note's — useful once a patch has more than one voice/stage.
+        // sus stays unexposed (bare STD only) — it's the note's own duration,
+        // not really a per-voice "character" knob the way attack/release are.
+        inputs: [{ name: 'in', default: 0 }, { name: 'attack', default: 0.01 }, { name: 'release', default: 0.1 }],
         codegen(node, ins) {
             const env = node.params.shape === 'linen'
-                ? 'Env.linen(attack, sus, release, 1)'
-                : 'Env.perc(attack, sus, 1, -4)';
+                ? `Env.linen(${ins.attack}, sus, ${ins.release}, 1)`
+                : `Env.perc(${ins.attack}, sus, 1, -4)`;
             return `mul(EnvGen.ar(${env}, { doneAction: 2 }), ${ins.in})`;
         },
     },
@@ -183,9 +191,15 @@ export const BLOCKS = {
         output: null,           // terminal — no output port
         isTerminal: true,
         params: [],
-        inputs: [{ name: 'in', default: 0 }],
+        // pan defaults to the STD pan control when unwired (identical to the
+        // old hardcoded behavior) — but wire an LFO (through a Scale to set
+        // the sweep width) into it for automatic panning, a whole new trick
+        // the old hardcoded `pan` couldn't do. amp deliberately stays
+        // hardcoded, not a port: every note's own amp/velocity should always
+        // scale the voice, never be silently replaceable by a wire.
+        inputs: [{ name: 'in', default: 0 }, { name: 'pan', default: 0 }],
         codegen(node, ins) {
-            return `Out.ar(out, Pan2.ar(mul(${ins.in}, amp), pan))`;
+            return `Out.ar(out, Pan2.ar(mul(${ins.in}, amp), ${ins.pan}))`;
         },
     },
 };
