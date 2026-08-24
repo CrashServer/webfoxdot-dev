@@ -121,6 +121,53 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.005, release: 0.15, cutoff: 800, rq: 1.8, fenv: 3, fatk: 0.01, fdec: 0.3, fsus: 0.4, frel: 0.3, detune: 0.008, sub: 0.4, glide: 0 },
         extraParams: ['cutoff', 'rq', 'fenv', 'fatk', 'fdec', 'fsus', 'frel', 'detune', 'sub', 'glide'],
     },
+    // opl2 — OPL2/AdLib-style 2-op FM: true self-feedback modulator (SinOscFB)
+    // through FM or additive (alg blends), its own brightness envelope,
+    // key-scaling — the classic AdLib timbral engine for leads/basses
+    opl2: {
+        scName: 'fd_opl2',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.01, release: 0.2, ratio: 2, index: 4, feedback: 0, alg: 0, mdec: 0.4, msus: 0.4, vib: 0, vibrate: 5.5, keyscale: 0.3 },
+        extraParams: ['ratio', 'index', 'feedback', 'alg', 'mdec', 'msus', 'vib', 'vibrate', 'keyscale'],
+    },
+    // oplbell — FM bell/mallet: inharmonic ratio + fast-decaying modulator
+    // brightness + percussive envelope — melodic percussion, Dune-esque runs
+    oplbell: {
+        scName: 'fd_oplbell',
+        defaults: { oct: 5, amp: 0.7, dur: 1, pan: 0, attack: 0.001, release: 0.3, ratio: 3.5, index: 6, feedback: 0.2, decay: 0.25, keyscale: 0.5 },
+        extraParams: ['ratio', 'index', 'feedback', 'decay', 'keyscale'],
+    },
+    // opldrone — 3-voice detuned FM pad/drone with a sine sub: the atmospheric
+    // "sand and wind" bed under a lead — high feedback, slow vibrato drift
+    opldrone: {
+        scName: 'fd_opldrone',
+        defaults: { oct: 3, amp: 0.7, dur: 2, pan: 0, attack: 1.2, release: 1.5, ratio: 1.5, index: 3, feedback: 0.6, detune: 0.006, vib: 0.4, vibrate: 0.15, sub: 0.35 },
+        extraParams: ['ratio', 'index', 'feedback', 'detune', 'vib', 'vibrate', 'sub'],
+    },
+    // ── "spice" voices — Berlin-School analog for the Dune / Picq palette ───────
+    // spicebass — deep warm TD-style bass (detuned saws + sub, MoogFF ladder, drift)
+    spicebass: {
+        scName: 'fd_spicebass',
+        defaults: { oct: 3, amp: 0.9, dur: 1, pan: 0, attack: 0.008, release: 0.1, cutoff: 550, rq: 1.1, sub: 0.7, detune: 0.007, drift: 0.3, fenv: 1.6, glide: 0 },
+        extraParams: ['cutoff', 'rq', 'sub', 'detune', 'drift', 'fenv', 'glide'],
+    },
+    // spiceseq — the signature Berlin sequencer voice (snappy resonant ladder ping)
+    spiceseq: {
+        scName: 'fd_spiceseq',
+        defaults: { oct: 4, amp: 0.8, dur: 1, sus: 0.25, pan: 0, attack: 0.004, release: 0.06, cutoff: 700, rq: 2.6, fdec: 0.18, fenv: 4, detune: 0.005, sub: 0.3, accent: 0, drift: 0.2 },
+        extraParams: ['cutoff', 'rq', 'fdec', 'fenv', 'detune', 'sub', 'accent', 'drift'],
+    },
+    // spicepad — lush evolving pad (6 drifting saws + PWM + airy grain, slow filter LFO)
+    spicepad: {
+        scName: 'fd_spicepad',
+        defaults: { oct: 4, amp: 0.7, dur: 4, sus: 4, pan: 0, attack: 1.5, release: 2, cutoff: 1700, rq: 0.5, detune: 0.008, spread: 0.5, rate: 0.1, sub: 0.3, air: 0.15 },
+        extraParams: ['cutoff', 'rq', 'detune', 'spread', 'rate', 'sub', 'air'],
+    },
+    // spicelead — expressive breathy oriental lead (vibrato + glide + breath-noise reed)
+    spicelead: {
+        scName: 'fd_spicelead',
+        defaults: { oct: 4, amp: 0.7, dur: 1, pan: 0, attack: 0.06, release: 0.2, cutoff: 1500, rq: 0.4, vib: 0.5, vibrate: 5.5, glide: 0.06, breath: 0.1, tone: 0.35 },
+        extraParams: ['cutoff', 'rq', 'vib', 'vibrate', 'glide', 'breath', 'tone'],
+    },
     // wob — dub wobble bass (morphable LFO through 24dB MoogFF ladder)
     wob: {
         scName: 'fd_wob',
