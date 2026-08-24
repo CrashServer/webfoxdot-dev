@@ -114,6 +114,13 @@ export const SYNTH_DEFS = {
         defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.01, release: 0.05, cutoff: 4500, rq: 0.5, tone: 0.16, detune: 0.3, oscmix: 0.5, submix: 0.5 },
         extraParams: ['cutoff', 'rq', 'tone', 'detune', 'oscmix', 'submix'],
     },
+    // moog — classic Minimoog-style lead/bass: 2 detuned saws + sub-osc through
+    // a self-resonant 4-pole Moog ladder filter with its own envelope + glide
+    moog: {
+        scName: 'fd_moog',
+        defaults: { oct: 4, amp: 0.9, dur: 1, pan: 0, attack: 0.005, release: 0.15, cutoff: 800, rq: 1.8, fenv: 3, fatk: 0.01, fdec: 0.3, fsus: 0.4, frel: 0.3, detune: 0.008, sub: 0.4, glide: 0 },
+        extraParams: ['cutoff', 'rq', 'fenv', 'fatk', 'fdec', 'fsus', 'frel', 'detune', 'sub', 'glide'],
+    },
     // wob — dub wobble bass (morphable LFO through 24dB MoogFF ladder)
     wob: {
         scName: 'fd_wob',
