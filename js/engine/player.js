@@ -18,7 +18,7 @@ import { REST } from '../patterns/rest.js';
 export { REST };
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
-const COMMON_PARAMS = new Set(['degree', 'oct', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);
+const COMMON_PARAMS = new Set(['degree', 'oct', 'freq', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);
 const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify', 'delay']);
 let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
@@ -583,9 +583,16 @@ export class Player {
                 if (va.degree === REST) continue;   // `_` / rest → silence (no note)
                 const deg = va.degree ?? 0;         // `.` → null → 0 (still plays)
                 const oct = va.oct ?? 5;
-                let midi = toMidi(deg, oct, this._scale, this._root);
-                if (midi === null || !Number.isFinite(midi) || midi < 0 || midi > 127) continue;
+                let midi;
+                if (va.freq != null) {
+                    // explicit freq bypasses degree/oct/scale entirely, like FoxDot
+                    midi = 69 + 12 * Math.log2(va.freq / 440);
+                } else {
+                    midi = toMidi(deg, oct, this._scale, this._root);
+                    if (midi === null || !Number.isFinite(midi) || midi < 0 || midi > 127) continue;
+                }
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
+                if (!Number.isFinite(midi)) continue;
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
                 const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel * _masterMix;
                 // Silent (amp≤0 — e.g. muted by a drop/solo, _amplify=0) → spawn NO
