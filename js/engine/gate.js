@@ -5,6 +5,8 @@
 // .solo()/unsolo() route through here too, so a drop can't silently un-mute a track
 // and an eval-time solo shows up in both UIs.
 
+import { share } from '../collab/actions.js';
+
 let _clock = null;
 const _muted  = new Set();   // player names the user muted
 const _soloed = new Set();   // player names the user soloed
@@ -14,8 +16,13 @@ export function initGate(clock) { _clock = clock; }
 export function isMuted(n)  { return _muted.has(n); }
 export function isSoloed(n) { return _soloed.has(n); }
 
-export function toggleMute(n) { _muted.has(n) ? _muted.delete(n) : _muted.add(n); apply(); }
-export function toggleSolo(n) { _soloed.has(n) ? _soloed.delete(n) : _soloed.add(n); apply(); }
+// Multiplayer: the toggles share the RESULTING state, never the verb — two peers
+// hitting M on the same track at once both land on muted, instead of toggling each
+// other back and forth. setMuted/setSoloed are what a peer's message replays into.
+export function toggleMute(n) { setMuted(n, !_muted.has(n)); }
+export function toggleSolo(n) { setSoloed(n, !_soloed.has(n)); }
+export function setMuted(n, on)  { on ? _muted.add(n)  : _muted.delete(n);  apply(); share('gateMute', { name: n, on: !!on }); }
+export function setSoloed(n, on) { on ? _soloed.add(n) : _soloed.delete(n); apply(); share('gateSolo', { name: n, on: !!on }); }
 export function soloOnly(n)   { _soloed.clear(); if (n) _soloed.add(n); apply(); }   // eval `.solo()`
 export function clearSolo()   { _soloed.clear(); apply(); }
 export function forget(n)     { _muted.delete(n); _soloed.delete(n); }               // on stop

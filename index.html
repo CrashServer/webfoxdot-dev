@@ -239,11 +239,11 @@
     import { transpile, applyRenames, transpileExpr }   from './js/editor/transpiler.js';
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { inspect, initInspect }      from './js/editor/inspect.js';
-    import { incrementValue, stopPlayerAtCursor,
+    import { incrementValue, stopPlayerAtCursor, silence,
              soloPlayerAtCursor, soloDropAtCursor, midiLearnAtCursor } from './js/editor/keybindings.js';
     import { autoRec }                   from './js/editor/autorec.js';
     import { initCrashPanel }            from './js/ui/crashpanel.js';
-    import { initMixer, toggleMixer, onSectionActive } from './js/ui/mixer.js';
+    import { initMixer, toggleMixer, onSectionActive, setLevel as setMixLevel, stopPlayer as mixStopPlayer } from './js/ui/mixer.js';
     import { initModular, toggleModular, savePatch as savePatchImpl, loadPatch as loadPatchImpl } from './js/ui/modular.js';
     import { initPerform, togglePerform } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
@@ -260,6 +260,7 @@
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
+    import { setActionSender, applying as applyingRemote, isApplying } from './js/collab/actions.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
@@ -355,26 +356,37 @@
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;
     let _soloPresence = null;   // solo presence handle → forwards solo evals to the monitor
-    let _applyingRemote = false; // while replaying a peer action, suppress re-broadcast
 
-    // Broadcast a non-eval action (solo / composition state) to peers, if in a session.
+    // Broadcast a non-eval action (solo / composition state / the mix) to peers, if in
+    // a session. isApplying() is the echo guard — see js/collab/actions.js.
     function broadcastAction(action, data = {}) {
-        if (_collab && !_applyingRemote) _collab.broadcastAction(action, data);
+        if (_collab && !isApplying()) _collab.broadcastAction(action, data);
     }
+    // Deep modules (gate.js's mute/solo, mixer.js's faders, Alt+X) share through the
+    // action bus rather than importing collab, so every entry path — click, MIDI,
+    // perform-mode tile, keystroke — reaches the room through this one sender.
+    setActionSender(broadcastAction);
 
     // Replay an action received from a peer. Guarded so any UI hooks it triggers
     // (e.g. the section-active notifier) don't echo the action back out.
     function applyAction(msg) {
-        _applyingRemote = true;
-        try {
+        applyingRemote(() => {
             switch (msg.action) {
                 case 'solo':     clock._players.get(msg.name)?.solo();             break;
                 case 'unsolo':   _unsoloFn(clock);                                 break;
                 case 'soloDrop': clock._players.get(msg.name)?.soloDrop(msg.beats); break;
                 case 'section':  applyRemoteSection(msg.line, msg.autoplay);       break;
                 case 'cancel':   cancelSection();                                  break;
+                // Performance actions — the mix and the hands-on stops. Each replays
+                // through the SAME function the local control calls, so a peer's fader
+                // and yours end up in identical state (see js/collab/actions.js).
+                case 'stopLine': silence(clock, msg.name);                         break;
+                case 'level':    setMixLevel(msg.name, msg.v);                     break;
+                case 'mixStop':  mixStopPlayer(msg.name);                          break;
+                case 'gateMute': gate.setMuted(msg.name, msg.on);                  break;
+                case 'gateSolo': gate.setSoloed(msg.name, msg.on);                 break;
             }
-        } finally { _applyingRemote = false; }
+        });
     }
 
     // Stop the auto-composition advance everywhere (players keep running).

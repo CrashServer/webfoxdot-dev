@@ -1,6 +1,7 @@
 // Editor keybinding handlers.
 
 import { stopVisual } from '../visuals/vlang.js';
+import { share } from '../collab/actions.js';
 
 // Locate the numeric token straddling column `ch` → { start, end, str } (leading-zero
 // normalised, sign-aware) or null. Shared by drag-to-nudge and the automation recorder.
@@ -54,6 +55,14 @@ function playerNameFromLine(line) {
 // whole block). The stop is quantised: the line is commented immediately, but the
 // audio stops on the next bar boundary so it ends in time, not instantly.
 const STOP_GRID = 4;   // beats — one bar
+// Stop a player's audio AND its video on the standard Alt+X grid. Exported so a peer's
+// 'stopLine' replays through the exact same path (and the same STOP_GRID) as the local
+// keystroke — the shared beat clock puts both stops on the same bar line.
+export function silence(clock, name) {
+    clock._players.get(name)?.stop(STOP_GRID);   // audio (quantised)
+    stopVisual(name);                            // video
+}
+
 export function stopPlayerAtCursor(cm, clock, runLineFn, recCapture) {
     const cursor  = cm.getCursor();
     const lineNo  = cursor.line;
@@ -76,7 +85,11 @@ export function stopPlayerAtCursor(cm, clock, runLineFn, recCapture) {
             { line: lineNo, ch: line.length });
         const name = playerNameFromLine(line);
         if (name) {
-            clock._players.get(name)?.stop(STOP_GRID); stopVisual(name);   // audio (quantised) + video
+            silence(clock, name);
+            // Multiplayer: the COMMENT itself rides the Yjs text sync, but the stop it
+            // triggers doesn't — without this a peer watches the line grey out and
+            // keeps hearing the track until the next time that line is evaluated.
+            share('stopLine', { name });
             // This bypasses runCode() (a direct player call, not eval'd source), so
             // without this the recorder (index.html's recCapture) never sees the stop —
             // a recorded composition would replay this player straight through the
