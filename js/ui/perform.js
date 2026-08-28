@@ -13,6 +13,7 @@ import { tracks, parts, launchPlayer, stopPlayer, levelOf, setLevel } from './mi
 import { getSections, runSection } from '../engine/sections.js';
 import { setMasterMix } from '../engine/player.js';
 import { toggleSolo, isSoloed } from '../engine/gate.js';
+import { share, shareThrottled } from '../collab/actions.js';
 
 let _clock = null, _modal = null, _open = false, _timer = null, _beatRAF = null;
 let _tilesEl = null, _secsEl = null;
@@ -114,54 +115,31 @@ function build() {
     // XY pad: X = filter cutoff (right = open), Y = space / reverb (up = wetter). One
     // two-axis control replaces the old FILTER + SPACE sliders. Cheap: it applies on
     // pointer move (input rate) via the same setAttr the sliders used — no timers.
+    // The pointer handler only turns the event into normalised x/y; applyXY() itself
+    // lives at module scope so a peer's sweep replays through the identical path.
     const xy = _modal.querySelector('.perf-xy');
-    const dot = xy.querySelector('.perf-xy-dot');
     let xyOn = false;
-    const applyXY = (e) => {
+    const fromEvent = (e) => {
         const r = xy.getBoundingClientRect();
-        const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));   // 0 left … 1 right
-        const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));   // 0 top … 1 bottom
-        dot.style.left = (x * 100) + '%';
-        dot.style.top  = (y * 100) + '%';
-        const lpf   = x >= 0.98 ? 0 : Math.round(200 + x * 8000);             // right edge = filter off (open)
-        const space = 1 - y;                                                  // up = more reverb
-        if (_clock) _clock._players.forEach((p) => {
-            p.setAttr('lpf', lpf);
-            p.setAttr('reverb', space);
-            if (space > 0.001) p.setAttr('room', 0.85);
-        });
+        return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),    // 0 left … 1 right
+                Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))];   // 0 top … 1 bottom
     };
-    xy.addEventListener('pointerdown', (e) => { xyOn = true; try { xy.setPointerCapture(e.pointerId); } catch (_) {} applyXY(e); });
-    xy.addEventListener('pointermove', (e) => { if (xyOn) applyXY(e); });
+    const sweep = (e) => {
+        const [x, y] = fromEvent(e);
+        applyXY(x, y);
+        shareThrottled('perfXY', 'xy', { x, y });   // a sweep is ~60 events/s — coalesce
+    };
+    xy.addEventListener('pointerdown', (e) => { xyOn = true; try { xy.setPointerCapture(e.pointerId); } catch (_) {} sweep(e); });
+    xy.addEventListener('pointermove', (e) => { if (xyOn) sweep(e); });
     const xyEnd = () => { xyOn = false; };
     xy.addEventListener('pointerup', xyEnd);
     xy.addEventListener('pointercancel', xyEnd);
-    // start dot at the neutral corner (filter open, no reverb)
-    dot.style.left = '100%'; dot.style.top = '100%';
+    moveXYDot(_xy[0], _xy[1]);   // reflect current state (neutral, or a peer's sweep)
 
-    // Momentary FX — hold to engage, release to return. Set-while-held (no timers):
-    // DROP slams the filter shut on every player; STUTTER rolls every player (beat-
-    // repeat) by bumping _multiply. Cheap and self-restoring on release.
-    let stutSaved = null;
-    const fxEngage = (fx) => {
-        if (!_clock) return;
-        buzz(18);
-        if (fx === 'drop') _clock._players.forEach((p) => { p.setAttr('lpf', 180); p.setAttr('lpr', 0.2); });
-        else if (fx === 'stutter') { stutSaved = new Map(); _clock._players.forEach((p, n) => { stutSaved.set(n, p._multiply ?? 1); p._multiply = 4; }); }
-        else if (fx === 'gate') _clock._players.forEach((p) => { p.setAttr('rgate', 0.85); p.setAttr('rgaterate', 8); });
-        else if (fx === 'echo') _clock._players.forEach((p) => p.setAttr('echo', 0.6));
-    };
-    const fxRelease = (fx) => {
-        if (!_clock) return;
-        if (fx === 'drop') _clock._players.forEach((p) => p.setAttr('lpf', 0));   // slam open
-        else if (fx === 'stutter') { _clock._players.forEach((p, n) => { p._multiply = (stutSaved && stutSaved.get(n)) || 1; }); stutSaved = null; }
-        else if (fx === 'gate') _clock._players.forEach((p) => p.setAttr('rgate', 0));
-        else if (fx === 'echo') _clock._players.forEach((p) => p.setAttr('echo', 0));
-    };
     _modal.querySelectorAll('.perf-fxbtn').forEach((btn) => {
         const fx = btn.dataset.fx;
-        btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch (_) {} btn.classList.add('on'); fxEngage(fx); });
-        const rel = () => { if (!btn.classList.contains('on')) return; btn.classList.remove('on'); fxRelease(fx); };
+        btn.addEventListener('pointerdown', (e) => { try { btn.setPointerCapture(e.pointerId); } catch (_) {} fxSet(fx, true); });
+        const rel = () => { if (!btn.classList.contains('on')) return; fxSet(fx, false); };
         btn.addEventListener('pointerup', rel);
         btn.addEventListener('pointercancel', rel);
     });
@@ -177,6 +155,86 @@ function build() {
     });
     // Re-fit the tile grid on rotate / resize.
     window.addEventListener('resize', () => { if (_open) fitGrid(); });
+}
+
+// ── The macro engine: XY sweep + momentary FX ─────────────────────────────────
+// These live at MODULE scope, not inside build(), for two reasons: a peer's sweep or
+// DROP has to land even on someone who never opened perform mode (it's audio state,
+// not a panel), and it keeps one implementation for the local gesture and the replay.
+
+let _xy = [1, 1];          // last applied pad position — starts neutral (filter open, dry)
+let _fxOn = new Set();     // momentary FX currently engaged
+let _stutSaved = null;     // per-player _multiply saved across a STUTTER hold
+const _fxWatchdog = new Map();   // fx → timer that force-releases a stuck REMOTE hold
+
+// Move the pad dot without touching audio (used when reflecting a peer's sweep).
+function moveXYDot(x, y) {
+    const dot = _modal && _modal.querySelector('.perf-xy-dot');
+    if (!dot) return;
+    dot.style.left = (x * 100) + '%';
+    dot.style.top  = (y * 100) + '%';
+}
+
+// X = filter cutoff (right = open), Y = space / reverb (up = wetter).
+export function applyXY(x, y) {
+    _xy = [x, y];
+    moveXYDot(x, y);
+    const lpf   = x >= 0.98 ? 0 : Math.round(200 + x * 8000);   // right edge = filter off (open)
+    const space = 1 - y;                                        // up = more reverb
+    if (!_clock) return;
+    _clock._players.forEach((p) => {
+        p.setAttr('lpf', lpf);
+        p.setAttr('reverb', space);
+        if (space > 0.001) p.setAttr('room', 0.85);
+    });
+}
+
+// Hold to engage, release to return. Set-while-held (no timers): DROP slams the filter
+// shut on every player; STUTTER rolls every player (beat-repeat) by bumping _multiply.
+// Cheap and self-restoring on release.
+function fxEngage(fx) {
+    if (!_clock) return;
+    if (fx === 'drop') _clock._players.forEach((p) => { p.setAttr('lpf', 180); p.setAttr('lpr', 0.2); });
+    else if (fx === 'stutter') { _stutSaved = new Map(); _clock._players.forEach((p, n) => { _stutSaved.set(n, p._multiply ?? 1); p._multiply = 4; }); }
+    else if (fx === 'gate') _clock._players.forEach((p) => { p.setAttr('rgate', 0.85); p.setAttr('rgaterate', 8); });
+    else if (fx === 'echo') _clock._players.forEach((p) => p.setAttr('echo', 0.6));
+}
+function fxRelease(fx) {
+    if (!_clock) return;
+    if (fx === 'drop') _clock._players.forEach((p) => p.setAttr('lpf', 0));   // slam open
+    else if (fx === 'stutter') { _clock._players.forEach((p, n) => { p._multiply = (_stutSaved && _stutSaved.get(n)) || 1; }); _stutSaved = null; }
+    else if (fx === 'gate') _clock._players.forEach((p) => p.setAttr('rgate', 0));
+    else if (fx === 'echo') _clock._players.forEach((p) => p.setAttr('echo', 0));
+}
+
+// Engage/release an FX and mark its button. Idempotent, so a duplicated 'on' can't
+// stack (a second STUTTER engage would otherwise overwrite _stutSaved with the ALREADY
+// multiplied values and never restore the original rates).
+function fxApply(fx, on) {
+    if (on === _fxOn.has(fx)) return;
+    on ? _fxOn.add(fx) : _fxOn.delete(fx);
+    on ? fxEngage(fx) : fxRelease(fx);
+    const btn = _modal && _modal.querySelector(`.perf-fxbtn[data-fx="${fx}"]`);
+    if (btn) btn.classList.toggle('on', on);
+}
+
+// Local press/release: apply, buzz, tell the room.
+function fxSet(fx, on) {
+    if (on === _fxOn.has(fx)) return;
+    fxApply(fx, on);
+    if (on) buzz(18);
+    share('perfFX', { fx, on });
+}
+
+// A peer's press/release. These are MOMENTARY and the release is a separate message,
+// so a dropped frame or a peer that closes the tab mid-hold would strand everyone with
+// the filter slammed shut and no way back — the watchdog releases it for them.
+const FX_MAX_HOLD_MS = 8000;
+export function applyRemoteFX(fx, on) {
+    clearTimeout(_fxWatchdog.get(fx));
+    _fxWatchdog.delete(fx);
+    fxApply(fx, on);
+    if (on) _fxWatchdog.set(fx, setTimeout(() => { _fxWatchdog.delete(fx); fxApply(fx, false); }, FX_MAX_HOLD_MS));
 }
 
 // Size the tile grid so EVERY tile fits on screen (no scrolling) — pick the column

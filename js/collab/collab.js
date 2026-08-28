@@ -144,6 +144,13 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
 
     function handleBeatSync({ bpm, beat, wallTime }) {
         if (beatMaster) return; // masters ignore incoming sync
+        // Tempo repair. The explicit 'tempo' action is what actually carries a knob
+        // turn around the room; this is the safety net for a follower that missed one
+        // (joined late, dropped a frame) — it converges on the master's tempo instead
+        // of quietly playing the set at the wrong speed. Skipped while _bpmVar is set:
+        // assigning a sampled NUMBER over a tempo automation (Clock.bpm = linvar(…))
+        // would freeze it, and that var rides the eval broadcast anyway.
+        if (bpm && !clock._bpmVar && Math.abs(bpm - clock.bpm) > 0.01) clock.bpm = bpm;
         const drift = Math.abs(Date.now() - wallTime - clockOffset);
         if (drift > 5) {
             // Followers realign when drift exceeds 5 ms. Compensate for the one-way

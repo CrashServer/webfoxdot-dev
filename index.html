@@ -29,7 +29,7 @@
       <button id="btn-boot">boot</button>
       <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪<span class="tb-label"> load kit</span></button>
       <button id="btn-run"  disabled title="run  (Ctrl+↵)">▶</button>
-      <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)">■</button>
+      <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
       <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🎛<span class="tb-label"> modular</span></button>
@@ -245,7 +245,7 @@
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMixer, toggleMixer, onSectionActive, setLevel as setMixLevel, stopPlayer as mixStopPlayer } from './js/ui/mixer.js';
     import { initModular, toggleModular, savePatch as savePatchImpl, loadPatch as loadPatchImpl } from './js/ui/modular.js';
-    import { initPerform, togglePerform } from './js/ui/perform.js';
+    import { initPerform, togglePerform, applyXY, applyRemoteFX } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
@@ -260,7 +260,7 @@
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
-    import { setActionSender, applying as applyingRemote, isApplying } from './js/collab/actions.js';
+    import { setActionSender, applying as applyingRemote, isApplying, shareThrottled } from './js/collab/actions.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
@@ -385,6 +385,12 @@
                 case 'mixStop':  mixStopPlayer(msg.name);                          break;
                 case 'gateMute': gate.setMuted(msg.name, msg.on);                  break;
                 case 'gateSolo': gate.setSoloed(msg.name, msg.on);                 break;
+                case 'tempo':    clock.bpm = msg.bpm;                              break;
+                case 'scale':    Scale.default = msg.name;                         break;
+                case 'root':     Root.default = msg.root;                          break;
+                case 'perfXY':   applyXY(msg.x, msg.y);                            break;
+                case 'perfFX':   applyRemoteFX(msg.fx, msg.on);                    break;
+                case 'stopAll':  stopAll(); log('a peer stopped everything', 'warn'); break;
             }
         });
     }
@@ -405,6 +411,19 @@
         clock.clear();
         if (_jamBot) _jamBot.stop(true);        // stop son()/chaos jam-bot loop + its g* players
         clock.bpm = clock.bpm;                  // sampling a TimeVar → freeze at the current value
+    }
+
+    // PANIC — stopAll(), but for everyone in the room.
+    //
+    // Plain stop-all (the ■ button, Ctrl+; / Ctrl+, / Ctrl+.) stays deliberately LOCAL:
+    // it's your private escape hatch, and a jam where anyone can silence the room by
+    // reflex is worse than one where you have to mean it. So this is a separate,
+    // harder-to-hit gesture rather than a change to that one — Ctrl+Shift+. , shift-
+    // clicking ■ , or evaluating panic().
+    function panic() {
+        stopAll();
+        broadcastAction('stopAll');
+        log(_collab ? 'PANIC — stopped everything, for the whole room' : 'stopped all', 'warn');
     }
 
     // Soft reload — recover from a stuck engine without a page refresh.
@@ -537,6 +556,9 @@
             // modular()  opens/closes the modular synth builder panel — same as
             // clicking the toolbar's 🎛 button, for when your hands are on the keyboard.
             modular: () => toggleModular(),
+            // panic()  stops everything for EVERYONE in the room (plain stop-all —
+            // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
+            panic: () => panic(),
             __p,
             ...SYNTHS,
             ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players
@@ -1251,6 +1273,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Alt-M':          (cm) => { if (!midiLearnAtCursor(cm, runLineAtCursor)) log('put the cursor on a param=number to MIDI-learn it', 'info'); },
             'Ctrl-;':         ()   => stopAll(),
             'Ctrl-,':         ()   => stopAll(),
+            'Ctrl-Shift-.':   ()   => panic(),   // stop the whole ROOM, not just you
             'Ctrl-Alt-;':     ()   => stopAutoplay(),
             'Ctrl-Alt-P':     ()   => { if (!jumpToActive()) log('no active part', 'info'); },
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
@@ -1439,7 +1462,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         }
     } catch (_) {}
     document.getElementById('btn-run').onclick   = runSelected;
-    document.getElementById('btn-stop').onclick  = () => stopAll();
+    document.getElementById('btn-stop').onclick  = (e) => e.shiftKey ? panic() : stopAll();
     document.getElementById('btn-reload').onclick = softReload;
     document.getElementById('btn-mixer').onclick  = () => toggleMixer();
     document.getElementById('btn-modular').onclick = () => toggleModular();
@@ -1545,7 +1568,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     document.getElementById('btn-loadkit').onclick = () => loadKit(false);
 
-    document.getElementById('bpm-input').oninput = (e) => { clock.bpm = Number(e.target.value); };
+    document.getElementById('bpm-input').oninput = (e) => {
+        const bpm = Number(e.target.value);
+        clock.bpm = bpm;
+        // Tempo is the one piece of shared state the whole room MUST agree on —
+        // beat_sync keeps everyone phase-aligned, so without this peers stay locked
+        // to the same downbeat while running the set at different speeds. Throttled:
+        // holding the spinner fires per keystroke.
+        shareThrottled('tempo', 'clock', { bpm });
+    };
 
     // Replace the whole buffer as one undoable edit (Ctrl+Z restores).
     function setEditorContent(text) {
@@ -1717,9 +1748,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
     // Global stop-all — Ctrl/Cmd + . works regardless of focus (editor, panels, …)
     document.addEventListener('keydown', e => {
-        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === '.' || e.code === 'Period')) {
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '.' || e.code === 'Period')) {
             e.preventDefault();
-            stopAll();   // same as the "stop all" button (local, like the button)
+            // Shift makes it room-wide; without it this is the private escape hatch,
+            // same as the "stop all" button.
+            if (e.shiftKey) { panic(); return; }
+            stopAll();
             log('stopped all', 'info');
         }
     });

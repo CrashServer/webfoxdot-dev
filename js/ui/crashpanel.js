@@ -2,6 +2,7 @@
 
 import { Scale, Root } from '../engine/scale.js';
 import { toggleMute, toggleSolo, isMuted, isSoloed, forget as gateForget } from '../engine/gate.js';
+import { share } from '../collab/actions.js';
 
 let _clock = null;
 let _timer  = null;
@@ -176,6 +177,7 @@ function _initTap() {
                 const inp = document.getElementById('bpm-input');
                 if (inp) inp.value = bpm;
                 btn.textContent = `${bpm}`;
+                share('tempo', { bpm });   // tap the room into tempo, not just yourself
             }
         } else {
             btn.textContent = 'tap…';
@@ -199,7 +201,10 @@ function _initScaleRoot() {
             if (s === 'minor') o.selected = true;
             scaleEl.appendChild(o);
         });
-        scaleEl.onchange = () => { Scale.default = scaleEl.value; };
+        // Only the DROPDOWN shares — not Scale.default itself, unlike gate.js's mute.
+        // An eval that sets the scale already syncs as code, and a Scale.default =
+        // var([...]) would get frozen on peers if we broadcast the sampled name.
+        scaleEl.onchange = () => { Scale.default = scaleEl.value; share('scale', { name: scaleEl.value }); };
         // External changes (e.g. Scale.default="major" in the editor) reflected in
         // _update (folded in from a separate 500ms timer).
     }
@@ -211,7 +216,7 @@ function _initScaleRoot() {
             o.value = i; o.textContent = n;
             rootEl.appendChild(o);
         });
-        rootEl.onchange = () => { Root.default = Number(rootEl.value); };
+        rootEl.onchange = () => { Root.default = Number(rootEl.value); share('root', { root: Number(rootEl.value) }); };
     }
 }
 
