@@ -32,8 +32,7 @@
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
-      <!-- modular button hidden for the moment — still reachable via modular() -->
-      <button id="btn-modular" hidden title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🎛<span class="tb-label"> modular</span></button>
+      <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🎛<span class="tb-label"> modular</span></button>
       <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">⊞<span class="tb-label"> perform</span></button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴<span class="tb-label"> share</span></button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥<span class="tb-label"> go live</span></button>
@@ -523,8 +522,8 @@
                 log(`guided tour — ${items.length} lessons · evaluate  tour(n)  to jump to one:`, 'info');
                 items.forEach(l => log(`  ${String(l.n).padStart(2)}.  ${l.title}`, 'info'));
             },
-            // modular()  opens/closes the modular synth builder panel — no toolbar
-            // button for it right now (hidden, see btn-modular), reachable from here.
+            // modular()  opens/closes the modular synth builder panel — same as
+            // clicking the toolbar's 🎛 button, for when your hands are on the keyboard.
             modular: () => toggleModular(),
             __p,
             ...SYNTHS,
