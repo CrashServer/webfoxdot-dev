@@ -16,7 +16,7 @@ import { setMasterMix, getMasterMix } from '../engine/player.js';
 import { midiControl, clearMidiControl, enableMidi, midiSupported } from '../midi/midi.js';
 import { toggleMute, toggleSolo, isMuted, isSoloed } from '../engine/gate.js';
 import { getSections, runSection } from '../engine/sections.js';
-import { share, shareThrottled } from '../collab/actions.js';
+import { share, shareStateThrottled } from '../collab/actions.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
@@ -47,7 +47,7 @@ export function setLevel(name, v) {
     // Multiplayer: the mix is part of the performance, so peers follow the fader.
     // Throttled — a drag (mixer fader, perform-mode swipe, a MIDI fader) fires far
     // faster than the room needs, and the trailing send lands the released value.
-    shareThrottled('level', name, { name, v });
+    shareStateThrottled('level:' + name, v);
 }
 
 // Players a part (re)defines — the names on the uncommented `[~]name >>` lines of the

@@ -17,10 +17,12 @@ function randomColor() {
  * @param {object}   editor          - CodeMirror editor instance
  * @param {function} onEvalReceived  - Called with parsed eval message from peers
  * @param {function} [onAction]      - Called with parsed action message from peers
+ * @param {function} [onPerfState]   - Called (key, value) for shared performance state:
+ *                                     on every peer change AND once per key at join.
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing, onPerfState) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -144,10 +146,11 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
 
     function handleBeatSync({ bpm, beat, wallTime }) {
         if (beatMaster) return; // masters ignore incoming sync
-        // Tempo repair. The explicit 'tempo' action is what actually carries a knob
-        // turn around the room; this is the safety net for a follower that missed one
-        // (joined late, dropped a frame) — it converges on the master's tempo instead
-        // of quietly playing the set at the wrong speed. Skipped while _bpmVar is set:
+        // Tempo repair. The shared 'bpm' state key is what actually carries a knob turn
+        // around the room (and gives a late joiner the right tempo); this is the safety
+        // net for a follower whose doc hasn't caught up — it converges on the master's
+        // tempo instead of quietly playing the set at the wrong speed. Skipped while
+        // _bpmVar is set:
         // assigning a sampled NUMBER over a tempo automation (Clock.bpm = linvar(…))
         // would freeze it, and that var rides the eval broadcast anyway.
         if (bpm && !clock._bpmVar && Math.abs(bpm - clock.bpm) > 0.01) clock.bpm = bpm;
@@ -196,6 +199,31 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // reports the SYNCED value to the collab server, which filters unlisted rooms out
     // of the public /sessions feed. We only report once the doc has synced, so a fresh
     // joiner can't momentarily re-list a private room with the default `true`.
+    // ── Shared performance state — the mix, tempo, key, macros, modular synths ──
+    // Lives in the Yjs doc rather than riding fire-and-forget 'action' messages, so it
+    // survives and REPLAYS for a peer who joins mid-set: they'd otherwise get the text
+    // of the composition with everyone's default mix. Flat string keys ('bpm',
+    // 'level:d1', 'synth:mypatch') keep per-track state independently mergeable.
+    const yperf = ydoc.getMap('perf');
+    function setPerf(key, value) { yperf.set(key, value); }
+    // REMOTE changes only. Yjs fires this for our own writes too, and while re-applying
+    // an absolute value is harmless in itself, the local echo would make every modular
+    // Define recompile and re-upload the synth it just defined — on every debounced
+    // keystroke in live mode. We already applied our own change before sharing it.
+    yperf.observe((ev, tr) => {
+        if (tr.local) return;
+        ev.changes.keys.forEach((_chg, key) => onPerfState?.(key, yperf.get(key)));
+    });
+    // The join snapshot: replay everything already in the map once the doc has synced.
+    // Guarded, because 'sync' and 'synced' both fire and a second pass would redefine
+    // every shared modular synth for nothing.
+    let _perfReplayed = false;
+    function replayPerf() {
+        if (_perfReplayed) return;
+        _perfReplayed = true;
+        yperf.forEach((v, k) => onPerfState?.(k, v));
+    }
+
     let _docSynced = provider.synced || false;
     function reportListing() {
         if (_docSynced && ws.readyState === WebSocket.OPEN) {
@@ -203,7 +231,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         }
     }
     function setListed(v) { ymeta.set('listed', !!v); }   // syncs → observer reports + notifies UI
-    const _onSynced = () => { _docSynced = true; reportListing(); onListing?.(isListed()); };
+    const _onSynced = () => { _docSynced = true; reportListing(); onListing?.(isListed()); replayPerf(); };
     provider.on('sync', _onSynced);
     provider.on('synced', _onSynced);
     ymeta.observe(() => { reportListing(); onListing?.(isListed()); });
@@ -276,5 +304,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setUser, getPeers, sendChat, getClockOffset, isListed, setListed, destroy };
+    return { broadcastEval, broadcastAction, setPerf, setUser, getPeers, sendChat, getClockOffset, isListed, setListed, destroy };
 }

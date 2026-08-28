@@ -13,7 +13,7 @@ import { tracks, parts, launchPlayer, stopPlayer, levelOf, setLevel } from './mi
 import { getSections, runSection } from '../engine/sections.js';
 import { setMasterMix } from '../engine/player.js';
 import { toggleSolo, isSoloed } from '../engine/gate.js';
-import { share, shareThrottled } from '../collab/actions.js';
+import { share, shareStateThrottled } from '../collab/actions.js';
 
 let _clock = null, _modal = null, _open = false, _timer = null, _beatRAF = null;
 let _tilesEl = null, _secsEl = null;
@@ -127,7 +127,7 @@ function build() {
     const sweep = (e) => {
         const [x, y] = fromEvent(e);
         applyXY(x, y);
-        shareThrottled('perfXY', 'xy', { x, y });   // a sweep is ~60 events/s — coalesce
+        shareStateThrottled('xy', [x, y]);   // a sweep is ~60 events/s — coalesce
     };
     xy.addEventListener('pointerdown', (e) => { xyOn = true; try { xy.setPointerCapture(e.pointerId); } catch (_) {} sweep(e); });
     xy.addEventListener('pointermove', (e) => { if (xyOn) sweep(e); });

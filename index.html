@@ -245,6 +245,7 @@
     import { initCrashPanel }            from './js/ui/crashpanel.js';
     import { initMixer, toggleMixer, onSectionActive, setLevel as setMixLevel, stopPlayer as mixStopPlayer } from './js/ui/mixer.js';
     import { initModular, toggleModular, savePatch as savePatchImpl, loadPatch as loadPatchImpl } from './js/ui/modular.js';
+    import { defineFromSource } from './js/modular/codegen.js';
     import { initPerform, togglePerform, applyXY, applyRemoteFX } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
@@ -260,7 +261,7 @@
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
-    import { setActionSender, applying as applyingRemote, isApplying, shareThrottled } from './js/collab/actions.js';
+    import { setActionSender, setStateWriter, applying as applyingRemote, isApplying, shareState, shareStateThrottled } from './js/collab/actions.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
@@ -366,6 +367,10 @@
     // action bus rather than importing collab, so every entry path — click, MIDI,
     // perform-mode tile, keystroke — reaches the room through this one sender.
     setActionSender(broadcastAction);
+    // Sticky state goes into the room's Yjs map instead of a relayed message, so it
+    // also reaches whoever joins next. Same _collab null-check as the sender above —
+    // outside a session both are inert and everything stays purely local.
+    setStateWriter((key, value) => { if (_collab && !isApplying()) _collab.setPerf(key, value); });
 
     // Replay an action received from a peer. Guarded so any UI hooks it triggers
     // (e.g. the section-active notifier) don't echo the action back out.
@@ -380,17 +385,36 @@
                 // Performance actions — the mix and the hands-on stops. Each replays
                 // through the SAME function the local control calls, so a peer's fader
                 // and yours end up in identical state (see js/collab/actions.js).
+                // Momentary — things that HAPPEN. Anything that IS (the mix, tempo,
+                // key, pad position, modular synths) is sticky state instead, so it
+                // also reaches a late joiner — see applyPerfState below.
                 case 'stopLine': silence(clock, msg.name);                         break;
-                case 'level':    setMixLevel(msg.name, msg.v);                     break;
                 case 'mixStop':  mixStopPlayer(msg.name);                          break;
-                case 'gateMute': gate.setMuted(msg.name, msg.on);                  break;
-                case 'gateSolo': gate.setSoloed(msg.name, msg.on);                 break;
-                case 'tempo':    clock.bpm = msg.bpm;                              break;
-                case 'scale':    Scale.default = msg.name;                         break;
-                case 'root':     Root.default = msg.root;                          break;
-                case 'perfXY':   applyXY(msg.x, msg.y);                            break;
                 case 'perfFX':   applyRemoteFX(msg.fx, msg.on);                    break;
                 case 'stopAll':  stopAll(); log('a peer stopped everything', 'warn'); break;
+            }
+        });
+    }
+
+    // Apply one key of the room's shared performance state. Called for a peer's change
+    // AND once per key when we join, so this has to be safe in any order and before the
+    // composition has been run: setMixLevel/setMuted/setSoloed all record against a
+    // player NAME and take effect whenever that player next exists.
+    function applyPerfState(key, value) {
+        applyingRemote(() => {
+            if (key === 'bpm')        clock.bpm = value;
+            else if (key === 'scale') Scale.default = value;
+            else if (key === 'root')  Root.default = value;
+            else if (key === 'xy')    applyXY(value[0], value[1]);
+            else if (key.startsWith('level:')) setMixLevel(key.slice(6), value);
+            else if (key.startsWith('mute:'))  gate.setMuted(key.slice(5), value);
+            else if (key.startsWith('solo:'))  gate.setSoloed(key.slice(5), value);
+            else if (key.startsWith('synth:')) {
+                // A synth someone built in the modular panel. Async, and a peer may be
+                // on an older build without some UGen — warn, don't take the app down.
+                const name = key.slice(6);
+                defineFromSource(name, value.source, value.extraParams)
+                    .catch(e => log(`could not define peer synth "${name}": ${e.message}`, 'warn'));
             }
         });
     }
@@ -1575,7 +1599,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // beat_sync keeps everyone phase-aligned, so without this peers stay locked
         // to the same downbeat while running the set at different speeds. Throttled:
         // holding the spinner fires per keystroke.
-        shareThrottled('tempo', 'clock', { bpm });
+        shareStateThrottled('bpm', bpm);
     };
 
     // Replace the whole buffer as one undoable edit (Ctrl+Z restores).
@@ -2446,7 +2470,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
             runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color });
-        }, applyAction, renderPeers, appendChat, _seedText, renderListing).then(collab => {
+        }, applyAction, renderPeers, appendChat, _seedText, renderListing, applyPerfState).then(collab => {
             _collab = collab;
             renderListing(collab.isListed());
             log(`Session ready. Share: ${location.href}`, 'ok');

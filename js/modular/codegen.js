@@ -6,6 +6,7 @@
 // separate "build the graph directly" path that could drift from what's shown.
 
 import { topoSort, edgeInto } from './graph.js';
+import { shareState } from '../collab/actions.js';
 import { blockDef } from './blocks.js';
 import { binaryOp, unaryOp } from '../scsynth/synthdef.js';
 import * as UGENS from '../scsynth/ugens.js';
@@ -170,6 +171,15 @@ export function compileToFunction(source) {
     return factory(...argValues);
 }
 
+// Register a synth from ALREADY-generated source — the receiving half of a peer's
+// modular Define, and what a late joiner replays out of the shared doc. compileToFunction
+// closes over nothing but the UGen table, so {name, source, extraParams} is the whole
+// synth: no need to ship the block graph, and no dependency on the source surviving a
+// round trip through the editor's transpiler.
+export async function defineFromSource(name, source, extraParams) {
+    await defsynth(name, extraParams, compileToFunction(source));
+}
+
 // graph → registered, playable synth (via the real defsynth() — no changes
 // to js/scsynth/* needed). Returns what was generated, for the preview pane.
 export async function compileAndDefine(name, graph) {
@@ -177,5 +187,10 @@ export async function compileAndDefine(name, graph) {
     if (error) throw new Error(error);
     const buildFn = compileToFunction(source);
     await defsynth(name, extraParams, buildFn);
+    // Multiplayer: shared from HERE, not from the Define button, so live mode's
+    // debounced re-definitions carry too. A modular synth used to be defined locally
+    // only while the "▸ use it" line it generates DID broadcast — peers got a player
+    // line for a synth they didn't have.
+    shareState('synth:' + name, { source, extraParams });
     return { source, extraParams, warnings };
 }
