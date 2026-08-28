@@ -3,6 +3,8 @@
 import { Scale, Root } from '../engine/scale.js';
 import { toggleMute, toggleSolo, isMuted, isSoloed, forget as gateForget } from '../engine/gate.js';
 import { shareState } from '../collab/actions.js';
+import { levelOf, setLevel } from './mixer.js';
+import { heldByUser } from './controls.js';
 
 let _clock = null;
 let _timer  = null;
@@ -47,7 +49,7 @@ function _updateBpm() {
     // BPM now lives in the sidebar as an editable input — keep it in sync with the
     // clock, but don't clobber what the user is typing while the field is focused.
     const el = document.getElementById('bpm-input');
-    if (el && document.activeElement !== el) el.value = _clock.bpm;
+    if (el && !heldByUser(el)) el.value = _clock.bpm;
 }
 
 function _updateBeat() {
@@ -102,10 +104,15 @@ function _updatePlayers() {
             // Solo → shared gate (multi-solo; agrees with the mixer + eval .solo()).
             row.querySelector('.cp-player-solo').onclick = () => { toggleSolo(name); _update(); };
             row.querySelector('.cp-player-stop').onclick = () => { gateForget(name); p.stop(); };
-            // Mixer fader → persistent per-track level (_mixLevel), applied every note.
+            // Fader → the SHARED per-track level. This used to assign p._mixLevel
+            // directly, which made this panel a second source of truth: the mixer keeps
+            // its own _levels map (it has to — a level outlives the player it belongs
+            // to), so the two desks disagreed, launching a track re-applied the mixer's
+            // value over whatever was set here, and none of it reached the room.
+            // setLevel() owns both, and shares.
             const fader = row.querySelector('.cp-player-fader');
             const lvlEl = row.querySelector('.cp-player-lvl');
-            fader.oninput = () => { p._mixLevel = parseFloat(fader.value); lvlEl.textContent = p._mixLevel.toFixed(2); };
+            fader.oninput = () => { const v = parseFloat(fader.value); setLevel(name, v); lvlEl.textContent = v.toFixed(2); };
             container.appendChild(row);
         }
         // Reflect mute (amplify 0 — from a tap, a solo elsewhere, or a drop) and solo live.
@@ -114,8 +121,8 @@ function _updatePlayers() {
         // Keep the fader in sync if _mixLevel changed elsewhere (e.g. ~reset) — but not
         // while the user is dragging it.
         const fader = row.querySelector('.cp-player-fader');
-        if (fader && document.activeElement !== fader) {
-            const lv = p._mixLevel ?? 1;
+        if (fader && !heldByUser(fader)) {
+            const lv = levelOf(name);   // same source the mixer reads, so they agree
             fader.value = lv;
             row.querySelector('.cp-player-lvl').textContent = lv.toFixed(2);
         }

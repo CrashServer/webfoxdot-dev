@@ -17,6 +17,7 @@ import { midiControl, clearMidiControl, enableMidi, midiSupported } from '../mid
 import { toggleMute, toggleSolo, isMuted, isSoloed } from '../engine/gate.js';
 import { getSections, runSection } from '../engine/sections.js';
 import { share, shareStateThrottled } from '../collab/actions.js';
+import { heldByUser } from './controls.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
@@ -75,12 +76,12 @@ function midiApply(name, v) {
     const lvl = Math.round(v * 150) / 100;              // 0..1 CC → 0..1.5 fader
     if (name === '__master__') {
         setMasterMix(lvl);
-        if (_masterFader && document.activeElement !== _masterFader) { _masterFader.value = lvl; _masterLvl.textContent = lvl.toFixed(2); }
+        if (_masterFader && !heldByUser(_masterFader)) { _masterFader.value = lvl; _masterLvl.textContent = lvl.toFixed(2); }
     } else {
         setLevel(name, lvl);
         const row = _chansEl && _chansEl.querySelector(`.mixer-chan[data-name="${name}"]`);
         const f = row && row.querySelector('.mixer-chan-fader');
-        if (f && document.activeElement !== f) { f.value = lvl; row.querySelector('.mixer-chan-lvl').textContent = lvl.toFixed(2); }
+        if (f && !heldByUser(f)) { f.value = lvl; row.querySelector('.mixer-chan-lvl').textContent = lvl.toFixed(2); }
     }
 }
 async function midiLearn(name) {
@@ -420,7 +421,7 @@ function updateConsole() {
     const key = names.join(',');
     if (key !== _lastTracks) { rebuildChannels(names); _lastTracks = key; }
     _hintEl.textContent = 'tap a name ▸ to launch · source: ' + (_source ?? 'the part playing (or first)');
-    if (document.activeElement !== _masterFader) { const m = getMasterMix(); _masterFader.value = m; _masterLvl.textContent = m.toFixed(2); }
+    if (!heldByUser(_masterFader)) { const m = getMasterMix(); _masterFader.value = m; _masterLvl.textContent = m.toFixed(2); }
     updateMidiBtn('__master__');
     // Tracks the SELECTED source part (re)defines get highlighted — so you see which
     // channels a launch from that part would actually fire.
@@ -430,7 +431,7 @@ function updateConsole() {
         const name = row.dataset.name;
         const p = _clock && _clock._players.get(name);
         const fader = row.querySelector('.mixer-chan-fader');
-        if (document.activeElement !== fader) {
+        if (!heldByUser(fader)) {
             const lv = levelOf(name);
             fader.value = lv;
             row.querySelector('.mixer-chan-lvl').textContent = lv.toFixed(2);
