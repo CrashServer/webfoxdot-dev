@@ -2313,13 +2313,21 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (/^\s*~?\s*play\b/.test(lineText.slice(ge + 2))) {
             let i = op + 1; while (i < lineText.length && /\s/.test(lineText[i])) i++;
             let q = ''; if (lineText[i] === '"' || lineText[i] === "'") { q = lineText[i]; i++; }
-            if (!q) return null;                        // only quoted play strings
+            // UNQUOTED patterns count too — play(x.x.x.) is the documented house style
+            // and what every bundled example uses, so requiring quotes here meant drum
+            // lines never lit up while synth lines did. Without a quote the pattern
+            // runs to the first top-level comma (the start of the params) or to the
+            // closing paren.
+            const end = q ? -1 : matchBracket(lineText, op);
             // One span per top-level token (char / . / space = one step; a bracket
             // group (..) [..] {..} <..> = one step spanning the whole group) so the
             // highlight stays aligned even with brackets.
             const spans = [];
-            for (let k = i; k < lineText.length && lineText[k] !== q; k++) {
+            for (let k = i; k < lineText.length; k++) {
                 const c = lineText[k];
+                if (q) { if (c === q) break; }
+                else if (c === ',' || k === end) break;   // params start here
+                else if (/\s/.test(c) && !spans.length) continue;   // leading space
                 if ('([{<'.includes(c)) {
                     let depth = 0, j = k;
                     for (; j < lineText.length; j++) {
@@ -2452,10 +2460,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _setStepListener((name, step) => {
         highlightStep(name, step);
-        // TimeVar sliding bars are DISABLED for now — the overlay mis-tracks when a
-        // value is edited and can smear across the whole line. The implementation
-        // below (updateVarTargets/drawVarBars) is kept for a fix; just not wired in.
-        // if (step < 0) clearVarBars(name); else updateVarTargets(name);
+        // (TimeVar needles are not driven from here any more — they follow the
+        // viewport, so they show while you write a var as well as while it plays.)
         postStep(name, step);
     });
 
@@ -2537,14 +2543,30 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _setTriggerListener(flashTrigger);
 
-    // ── Live TimeVar sliding bars ─────────────────────────────────────────────
-    // sinvar/linvar/var/expvar glide continuously (pure functions of clock time), so
-    // a stepped highlight box can't show them. Instead rebuild the TimeVar from the
-    // code (reusing the engine's own math) and slide a thin bar across its [min…max]
-    // array at the live value, each frame — a spatial readout of where the value is.
+    // ── TimeVar needles ───────────────────────────────────────────────────────
+    // A needle sliding across a linvar / sinvar / expvar / var's [values] array,
+    // showing where its value is right now between its own lowest and highest. You can
+    // read a sweep's shape and speed off the line itself instead of inferring it from
+    // what you hear.
+    //
+    // This existed before and was switched off for smearing across the line. Three
+    // things caused that, all fixed here:
+    //
+    //   • It stored a line NUMBER. Insert a line above and every needle below drew on
+    //     the wrong line. Line HANDLES track edits — the same fix sections.js uses to
+    //     keep a scheduled advance pointing at the right section.
+    //   • lineWrapping is on. When a [values] array straddles a wrap, its start and end
+    //     coordinates land on different visual rows and interpolating between them
+    //     produces a bar stretched across the whole editor. Those are skipped now.
+    //   • It rebuilt only when a player fired a note, and was keyed by player NAME, so
+    //     two players on one line fought over one set of bars and an edit was not
+    //     noticed until the next note. It is driven by the VIEWPORT now: a var on a
+    //     visible line is drawn whether or not anything is playing, which is also what
+    //     you want while writing one.
     const _VARCTOR = { var: _var, linvar: _linvar, sinvar: _sinvar, expvar: _expvar };
-    const _varBars = new Map();          // name → { line, lineText, items:[{spanS,spanE,min,max,sampler,el}] }
-    let _varRaf = 0, _varLayer = null, _varLast = 0;
+
+    let _varItems = [];                    // [{ handle, spanS, spanE, min, max, sampler, el }]
+    let _varLayer = null, _varRaf = 0, _varLast = 0, _varScan = 0;
 
     function _ensureVarLayer() {
         if (_varLayer && _varLayer.isConnected) return _varLayer;
@@ -2559,6 +2581,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         for (const p of s.slice(1, -1).split(',')) { const t = p.trim(); if (!t) continue; const n = Number(t); if (!isFinite(n)) return null; out.push(n); }
         return out.length ? out : null;
     }
+    // Every var(...) on a line whose values are plain numbers — anything computed is
+    // skipped rather than guessed at.
     function parseVars(text) {
         const out = [];
         const re = /\b(sinvar|linvar|expvar|var)\s*\(/g;
@@ -2580,47 +2604,65 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 else { const n = Number(text.slice(k, close).trim()); if (isFinite(n)) durs = [n]; }
             }
             const min = Math.min(...vals), max = Math.max(...vals);
-            if (min === max) continue;
+            if (min === max) continue;                           // a flat var has nothing to show
             let tv; try { tv = _VARCTOR[fn](vals, durs); } catch (_) { continue; }
             out.push({ spanS: i, spanE: arrEnd + 1, min, max,
                        sampler: () => { const v = tv.get(0); return typeof v === 'number' && isFinite(v) ? v : min; } });
         }
         return out;
     }
-    function clearVarBars(name) {
-        const rec = _varBars.get(name);
-        if (rec) { rec.items.forEach(it => it.el && it.el.remove()); _varBars.delete(name); }
+
+    function clearVarBars() {
+        for (const it of _varItems) { try { it.el.remove(); } catch (_) {} }
+        _varItems = [];
     }
-    function updateVarTargets(name) {
-        const line = resolveLine(name);
-        if (line < 0 || line >= editor.lineCount()) { clearVarBars(name); return; }
-        const text = editor.getLine(line);
-        const cur = _varBars.get(name);
-        if (cur && cur.line === line && cur.lineText === text) return;   // line unchanged → keep bars
-        clearVarBars(name);
-        const items = parseVars(text);
-        if (!items.length) return;
+    // Rescan the visible lines. Cheap — the viewport is a screenful, and the regex only
+    // runs on lines that are actually on screen.
+    function scanVars() {
+        clearVarBars();
+        if (!editor.getViewport) return;
+        const vp = editor.getViewport();
+        const lo = Math.max(0, vp.from - 3), hi = Math.min(editor.lineCount(), vp.to + 3);
         const layer = _ensureVarLayer();
-        for (const it of items) { it.el = document.createElement('div'); it.el.className = 'wfd-var-bar'; layer.appendChild(it.el); }
-        _varBars.set(name, { line, lineText: text, items });
-        if (!_varRaf) _varRaf = requestAnimationFrame(drawVarBars);
-    }
-    function drawVarBars(t) {
-        _varRaf = _varBars.size ? requestAnimationFrame(drawVarBars) : 0;
-        if (!_varBars.size) return;
-        if (t - _varLast < 32) return;                          // ~30fps — smooth enough for a glide
-        _varLast = t;
-        for (const [, rec] of _varBars) {
-            for (const it of rec.items) {
-                const v = it.sampler();
-                const frac = Math.max(0, Math.min(1, (v - it.min) / (it.max - it.min)));
-                const l = editor.charCoords({ line: rec.line, ch: it.spanS }, 'local');
-                const r = editor.charCoords({ line: rec.line, ch: it.spanE }, 'local');
-                it.el.style.transform = `translate(${(l.left + frac * (r.left - l.left)).toFixed(1)}px, ${l.top.toFixed(1)}px)`;
-                it.el.style.height = Math.max(12, l.bottom - l.top) + 'px';
+        for (let i = lo; i < hi; i++) {
+            const text = editor.getLine(i);
+            if (!text || text.trimStart().startsWith('#')) continue;   // a commented line does not run
+            for (const v of parseVars(text)) {
+                const el = document.createElement('div');
+                el.className = 'wfd-var-bar';
+                layer.appendChild(el);
+                _varItems.push({ ...v, handle: editor.getLineHandle(i), el });
             }
         }
+        if (_varItems.length && !_varRaf) _varRaf = requestAnimationFrame(drawVarBars);
     }
+    function scheduleVarScan() { clearTimeout(_varScan); _varScan = setTimeout(scanVars, 160); }
+
+    function drawVarBars(t) {
+        _varRaf = _varItems.length ? requestAnimationFrame(drawVarBars) : 0;
+        if (!_varItems.length) return;
+        if (t - _varLast < 33) return;                          // ~30fps — smooth enough for a glide
+        _varLast = t;
+        for (const it of _varItems) {
+            const line = editor.getLineNumber(it.handle);       // follows edits above it
+            if (line == null || line < 0 || line >= editor.lineCount()) { it.el.style.display = 'none'; continue; }
+            const l = editor.charCoords({ line, ch: it.spanS }, 'local');
+            const r = editor.charCoords({ line, ch: it.spanE }, 'local');
+            // Wrapped line: the two ends are on different visual rows, so there is no
+            // meaningful distance to slide along. This was the smear.
+            if (Math.abs(r.top - l.top) > 1 || r.left <= l.left) { it.el.style.display = 'none'; continue; }
+            const v = it.sampler();
+            const frac = Math.max(0, Math.min(1, (v - it.min) / (it.max - it.min)));
+            it.el.style.display = '';
+            it.el.style.transform = `translate(${(l.left + frac * (r.left - l.left)).toFixed(1)}px, ${l.top.toFixed(1)}px)`;
+            it.el.style.height = Math.max(12, l.bottom - l.top) + 'px';
+        }
+    }
+
+    editor.on('changes',        scheduleVarScan);   // text edited → spans moved
+    editor.on('viewportChange', scheduleVarScan);   // scrolled a new screenful into view
+    editor.on('refresh',        scheduleVarScan);   // font/size change reflows everything
+    scanVars();
 
     // ── User identity (multiplayer) — name + cursor colour ────────────────────
     function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }
