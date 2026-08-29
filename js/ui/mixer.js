@@ -27,7 +27,15 @@ let _open = false;
 let _lastTracks = '';
 let _partsKey = '';
 
-export function initMixer(clock, editor, runCode) { _clock = clock; _editor = editor; _runCode = runCode; restoreMidi(); }
+// trackOwner(name) → '' when nobody owns it (or ownership is off), else a short label
+// for whoever does. Injected rather than imported so the mixer stays independent of the
+// permission model — with no room, it is simply always ''.
+let _trackOwner = () => '';
+export function initMixer(clock, editor, runCode, trackOwner) {
+    _clock = clock; _editor = editor; _runCode = runCode;
+    if (trackOwner) _trackOwner = trackOwner;
+    restoreMidi();
+}
 
 // The part playing now — only drives the ● marker. Volumes are shared per name, so a
 // section change never touches them.
@@ -400,7 +408,8 @@ function rebuildChannels(names) {
                 <button class="mixer-chan-mute" title="mute (shared with the panel)">M</button>
             </div>
             <button class="mixer-chan-stop" title="stop (quantised to the bar)">■</button>
-            <button class="mixer-chan-midi" title="MIDI-learn: click, then move a hardware fader">m</button>`;
+            <button class="mixer-chan-midi" title="MIDI-learn: click, then move a hardware fader">m</button>
+            <span class="mixer-chan-owner"></span>`;
         row.querySelector('.mixer-chan-name').onclick = () => actOrArm('launch:' + name, () => launchPlayer(name));
         row.querySelector('.mixer-chan-midi').onclick = () => midiLearn(name);
         row.querySelector('.mixer-chan-solo').onclick = () => actOrArm('solo:' + name, () => { toggleSolo(name); updateConsole(); });
@@ -436,6 +445,16 @@ function updateConsole() {
             fader.value = lv;
             row.querySelector('.mixer-chan-lvl').textContent = lv.toFixed(2);
         }
+        // Ownership, where the tracks actually are. A claim only visible in the rules
+        // panel is a claim nobody notices.
+        const own = _trackOwner(name);
+        const ownEl = row.querySelector('.mixer-chan-owner');
+        if (ownEl) {
+            ownEl.textContent = own ? own.label : '';
+            ownEl.title = own ? (own.mine ? 'yours' : own.name + ' owns this track') : '';
+            ownEl.style.color = own ? own.color : '';
+        }
+        row.classList.toggle('owned-by-other', !!(own && !own.mine));
         row.classList.toggle('inactive', !p || !p._active);
         row.classList.toggle('in-source', !!(defined && defined.has(name)));   // defined by the source part
         row.classList.toggle('not-source', !!(defined && !defined.has(name))); // not in the source part

@@ -101,16 +101,25 @@ function render() {
 
     // Track ownership. Release is offered for your own tracks, and for any of them if
     // you are the host — the model decides, this only hides buttons that would refuse.
+    // Say plainly when ownership is not in force. "no tracks claimed" while rules are
+    // off reads as "the feature is broken" rather than "the feature is switched off".
     const tracks = Object.keys(claims).sort();
-    const owned = tracks.map(t => {
-        const mine = perms.canPlay(t) && perms.ownerOf(t) !== '';
-        return `<div class="rules-track">
-            <span class="rules-tname">${esc(t)}</span>
-            <span class="rules-towner">${esc(_ctx.nameOf(claims[t]))}</span>
-            <button class="rules-release" data-track="${esc(t)}" ${mine ? '' : 'disabled'}
-                    title="hand this track back">release</button>
-        </div>`;
-    }).join('') || '<div class="rules-empty-row">no tracks claimed — playing one takes it</div>';
+    const owned = !on
+        ? '<div class="rules-empty-row">track ownership applies only while rules are on'
+          + (tracks.length ? ` — ${tracks.length} claim${tracks.length > 1 ? 's' : ''} remembered from earlier` : '')
+          + '</div>'
+        : tracks.map(t => {
+            // canPlay() on a CLAIMED track is true only for its owner or the host —
+            // exactly the people releaseTrack() will accept, so it doubles as the test
+            // for whether to offer the button.
+            const canRelease = perms.canPlay(t);
+            return `<div class="rules-track">
+                <span class="rules-tname">${esc(t)}</span>
+                <span class="rules-towner">${esc(_ctx.nameOf(claims[t]))}</span>
+                <button class="rules-release" data-track="${esc(t)}" ${canRelease ? '' : 'disabled'}
+                        title="hand this track back">release</button>
+            </div>`;
+          }).join('') || '<div class="rules-empty-row">no tracks claimed yet — play one and it is yours</div>';
 
     body.innerHTML = `
         ${master}
