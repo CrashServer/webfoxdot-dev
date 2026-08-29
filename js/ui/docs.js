@@ -214,6 +214,7 @@ export const VERSION = 'beta11';
 const CHANGELOG = [
     { v: 'beta11', title: 'Multiplayer performs together · hiss (unified noise) · 5 new voices + tape/bitcrush FX', items: [
         'Multiplayer syncs the whole PERFORMANCE now, not just the code — and you can join a jam already in progress. Until this release only text edits, evals, section jumps and eval-level solos crossed the wire; everything you did with your hands stayed on your own machine. Pull a fader down or Alt+X a line and your peers would watch the line grey out while still hearing the track at full level. Mute, solo, track volume, the mixer\'s ■ stop, Alt+X, tempo, the Scale and Root menus, perform mode\'s XY pad and its momentary DROP / STUTTER / GATE / ECHO holds all reach the room now — from whichever way you touch them: a mixer click, a bound MIDI control, a perform-mode tile, the crash panel\'s M/S buttons. Tempo was the sneakiest of them: the clock already told everyone the beat, so the room stayed locked to the same downbeat while running the set at different SPEEDS. Two things it deliberately does NOT share: master volume (that\'s your own monitoring level, not the mix) and plain stop-all (your private escape hatch). For stopping the room on purpose there\'s PANIC — Ctrl+Shift+. , shift-clicking ■ , or panic() — because a jam where anyone can silence everyone by reflex is worse than one where you have to mean it. The mix, tempo, key, pad position and any synth you build in the modular panel are now shared STATE rather than one-off messages, so someone arriving mid-set gets the faders where they actually are instead of the composition\'s text over everyone\'s default mix; per-track keys mean two people riding different faders merge cleanly instead of one clobbering the other. That also closes a real trap: a synth built in the modular panel used to be defined on YOUR machine only while the p1 >> line ▸ use it generates went out to everybody, so peers got a player line for a synth they didn\'t have. Its source travels with it now, live-mode redefinitions included. Still live-only, so still lost on a late join: which section is playing, and eval-level .solo() — both re-arrive the moment anyone runs something.',
+        { t: 'New Live set — Dresden Sunlight (svdk): driving techno arranged by SUBTRACTION rather than by chord changes. There is about one bar of material in it; everything that happens over the set is a filter opening, a layer arriving, or a layer leaving, so the linvar sweeps run over 32 bars instead of 4 and the whole thing lives on two notes. A hardstab lead with .unison(3), then re-stated with a CHORD as its octave (oct=(5, 4, 6)) to stack the same figure across three registers; a dbass sub running into its own ping-pong feedback; an industrialdrone felt more than heard under the peak; and the classic techno hole — b1.stop() pulls the kick while everything else keeps running. #@goto(peak, 0.6) keeps the back half from resolving the same way twice. In the examples dropdown, the Examples page and the galaxy.', ex: 'dresdensunlight' },
         'The players-panel faders join the mix — and a fader you have touched stops going deaf. The per-track sliders in the right-hand panel were assigning the player\'s level directly instead of going through the mixer, which made that panel a second source of truth: the two desks showed different numbers for one track, launching a track re-applied the mixer\'s value over whatever you had set in the panel, and none of it reached the room. They go through the same door as the mixer now. Separately, every live control (both sets of faders, the master, the BPM field) refreshed itself only when it was not the focused element — but a slider KEEPS focus after you let go of it, so the first fader you touched quietly stopped updating for the rest of the session. On your own that was a stale number after a ~reset; in a jam it read as \'the faders do not sync\', because the fader you are watching is the one you last touched and it is frozen while the audio follows the room perfectly. Controls now track whether you are actually holding them (pointer down, or a keystroke a moment ago) rather than whether they hold focus.',
         'The players panel\'s ■ stops the track for the room too — and un-soloing no longer leaves everything else silent. That button was the last unsynced control on the panel; it stays IMMEDIATE rather than bar-quantised like the mixer\'s ■, since that is the point of it. Fixing it turned up an older bug underneath: stopping a track drops its mute/solo, and that path deleted the flags without recomputing the gate — so hitting ■ on the only SOLOED track left every other player silenced until something unrelated happened to recompute. It also has to clear the shared flags now, or the room (and anyone joining later) would still believe a stopped track was muted.',
         'A session that drops now says so, reconnects, and stops hiding failures — the eval relay opened one WebSocket and never reopened it, while the document connection reconnects on its own — so after any blip (wifi, a sleeping laptop, a server restart) a jam went on LOOKING perfectly healthy, text still syncing and cursors still moving, while every eval, every beat sync and every action silently reached nobody in both directions. It reconnects with backoff now, and the peers panel goes red with ⚠ relay offline for as long as it is down, because the dangerous part was never the outage, it was not knowing. Nothing is queued while you are disconnected: replaying a backlog of evals minutes late is worse than not sending them. When a peer CANNOT run something you sent — a synth you built and they do not have, a sample kit they never loaded — the error used to land in their console and nowhere else, leaving you the only person in the room who thought it worked; it comes back to you now, named. And peers finally honour the beat an eval was made on: that timestamp has always been sent and always been discarded, so when a sender\'s clock ran ahead their changes landed EARLY on everyone else. A change that arrives late still runs at once (there is no going back), but the room now tells you when it is drifting instead of just sounding loose.',
@@ -1183,6 +1184,51 @@ p4 >> ebass([0, 0, 7, 4], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([
 # 6 — open the saw up an octave
 p3 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)`)}
     `, 'rise');
+
+    const dresdensunlight = section('Dresden Sunlight', `
+        ${note('Driving techno, arranged by SUBTRACTION rather than by chord changes — there is about one bar of material here and everything that happens is a filter opening, a layer arriving, or a layer leaving. Worth reading for how little the notes move: the whole set lives on two of them, with the interest in timbre, so the <code>linvar</code> sweeps run over 32 bars rather than 4. Shows <code>#@goto</code> branching, <code>.unison(3)</code> on the stab, a CHORD used as an octave (<code>oct=(5, 4, 6)</code> stacks the same stab across three registers), a <code>pong</code> feedback line on the sub, and the classic techno hole — <code>b1.stop()</code> takes the kick out while everything else keeps running. Boot + load the kit first.')}
+        ${code(`Clock.bpm = 134
+Root.default = 0
+Scale.default = "minor"
+
+#@#@ techno
+
+#@intro(32)
+b1 >> play(x, amp=1)
+h1 >> play(.-, dur=1/2, hpf=8000, amp=0.3)
+
+#@rumble(32)
+b1 >> play(x, amp=1)
+h1 >> play(.-, dur=1/2, hpf=8000, amp=0.32)
+n1 >> dbass([0], oct=4, dur=1, sus=0.9, lpf=180, tanh=0.8, amp=0.8, pong=0.5, pongtime=0.25, pongfeed=0.5)
+r1 >> play(..-., dur=1/2, hpf=4000, crush=0.3, amp=0.25)
+
+#@stab(32)
+b1 >> play(x, amp=1)
+h1 >> play(.-, dur=1/2, hpf=8000, amp=0.32)
+n1 >> dbass([0], oct=4, dur=1, sus=0.9, lpf=linvar([200, 1200], 32), tanh=0.3, amp=0.8, fbdelay=0.5)
+r1 >> play(..-., dur=1/2, hpf=4000, crush=0.3, amp=0.25)
+s1 >> hardstab([0, 0, 3, 0], oct=6, dur=[3/2, 1/2, 1, 1], sus=0.25, lpf=linvar([500, 4500], [32]), lpr=0.35, pong=0.35, pongtime=0.75, amp=0.5).unison(3)
+
+#@peak(32)
+b1 >> play(x, amp=1)
+h1 >> play(-, dur=1/4, hpf=9000, amp=0.28)    # sixteenth hats = lift
+n1 >> dbass([0], oct=4, dur=1, sus=0.9, lpf=220, tanh=0.45, drive=2, amp=0.85)
+r1 >> play(..-., dur=1/2, hpf=4000, crush=0.4, amp=0.3)
+s1 >> hardstab([0, 0, 3, 0], oct=4, dur=[3/2, 1/2, 1, 1], sus=0.25, lpf=sinvar([2000, 7000], [16]), lpr=0.4, pong=0.4, pongtime=0.75, amp=0.55)
+p1 >> industrialdrone([0], oct=4, dur=16, sus=16, attack=4, lpf=2500, reverb=0.6, room=0.9, amp=0.25)
+
+#@strip(16)
+# Kick out, everything else keeps running — the classic techno "hole".
+b1.stop()
+h1 >> play(-, dur=1/4, hpf=11000, amp=0.3)
+s1 >> hardstab([0, 0, 3, 0], oct=(5, 4, 6), dur=[3/2, 1/2, 1, 1], sus=0.25, lpf=linvar([7000, 900], [16]), lpr=0.4, pong=0.5, amp=0.5)
+n1 >> dbass([0], oct=4, dur=1, sus=0.9, lpf=180, tanh=0.8, amp=0.8, pong=0.5, pongtime=0.25, pongfeed=0.5)
+
+#@goto(peak, 0.6)
+
+#@end(16)`)}
+    `, 'dresdensunlight');
 
     const showcase = section('Full composition', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
@@ -2446,7 +2492,7 @@ pd >> darkpad(PProg("andalusian"), oct=4, dur=8)
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, dresdensunlight, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
