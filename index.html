@@ -2382,12 +2382,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 const j = matchBracket(lineText, k);
                 if (j > k) { out.push([[k, j + 1]]); k = j; }
             }
-            else if (pdepth === 1 && c === 'P' && /^P[A-Za-z]\w*\s*\(/.test(lineText.slice(k))) {
+            else if (pdepth === 1 && c === 'P' && /^P[A-Za-z]\w*\s*\(/.test(lineText.slice(k)) && !/^Pvar\s*\(/.test(lineText.slice(k))) {
                 // A P-generator as a direct argument — PRand, PContour, PEuclid, motif…
                 // Its values are COMPUTED, so no element of any array it contains is
                 // "the one playing" and boxing one would point at the wrong number.
                 // Box the generator instead: the same choice {a,b} gets, and the same
                 // honest statement — this is the source, but not which value.
+                //
+                // Pvar is excluded: it looks like a P-generator but IS pinnable, and the
+                // var overlay already boxes whichever of its patterns is live. Marking
+                // it here too drew two boxes on one call.
                 //
                 // Without this a line like  lapin(PContour([3,7,7],8,7), dur=[1/8,1])
                 // highlighted its DUR array and nothing else, drawing the eye to the
@@ -2612,16 +2616,18 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (s >= 0) out.push([s, close]);
         return out.length ? out : null;
     }
-    // Which element of a step-hold var is live at `beat` — the same walk normDurs/tpos
-    // do in js/patterns/timevars.js, kept local so the overlay never has to reach into
-    // a TimeVar's internals.
-    function stepIndex(durs, beat) {
+    // Which segment of a var is live at `beat`, and how far into it — the same walk
+    // normDurs/tpos do in js/patterns/timevars.js, kept local so the overlay never has
+    // to reach into a TimeVar's internals.
+    function varPos(durs, beat) {
         const total = durs.reduce((a, b) => a + b, 0);
-        if (!(total > 0)) return 0;
+        if (!(total > 0)) return { idx: 0, t: 0 };
         let t = ((beat % total) + total) % total, i = 0;
         while (i < durs.length - 1 && t >= durs[i]) { t -= durs[i]; i++; }
-        return i;
+        return { idx: i, t };
     }
+    function stepIndex(durs, beat) { return varPos(durs, beat).idx; }
+    const _mid = (c) => (c[0] + c[1]) / 2;
 
     // Every var(...) on a line we can draw honestly.
     //
@@ -2664,7 +2670,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             const min = Math.min(...vals), max = Math.max(...vals);
             if (min === max) continue;                           // a flat var has nothing to show
             let tv; try { tv = _VARCTOR[fn](vals, durs); } catch (_) { continue; }
+            // The needle rides between the VALUES as they are written, so it reaches
+            // "4000" exactly when the value does. Anchoring it to the brackets instead
+            // (which is what it used to do) left it visibly out of step with the
+            // numbers it was describing.
+            const nElems = elementSpans(text, i);
+            if (!nElems || nElems.length !== vals.length) continue;
+            const nDurs = vals.map((_, k) => durs[k % durs.length]);
             out.push({ kind: 'needle', spanS: i, spanE: arrEnd + 1, min, max,
+                       vals, elems: nElems, durs: nDurs,
                        sampler: () => { const v = tv.get(0); return typeof v === 'number' && isFinite(v) ? v : min; } });
         }
         return out;
@@ -2718,16 +2732,27 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 it.el.style.height = Math.max(12, a.bottom - a.top) + 'px';
                 continue;
             }
-            const l = editor.charCoords({ line, ch: it.spanS }, 'local');
-            const r = editor.charCoords({ line, ch: it.spanE }, 'local');
-            // Wrapped line: the two ends are on different visual rows, so there is no
+            // Which pair of written values is it travelling between right now, and how
+            // far along? Derived from the VALUE rather than from elapsed time, so the
+            // needle follows whatever easing the var uses — linear for linvar, the
+            // cosine curve for sinvar — without the overlay having to know which.
+            const { idx } = varPos(it.durs, clock.now());
+            const a = it.elems[idx], b = it.elems[(idx + 1) % it.elems.length];
+            const v0 = it.vals[idx], v1 = it.vals[(idx + 1) % it.vals.length];
+            const v  = it.sampler();
+            const f  = (v1 === v0) ? 0 : Math.max(0, Math.min(1, (v - v0) / (v1 - v0)));
+            const ca = editor.charCoords({ line, ch: a[0] }, 'local');
+            const cb = editor.charCoords({ line, ch: a[1] }, 'local');
+            const da = editor.charCoords({ line, ch: b[0] }, 'local');
+            const db = editor.charCoords({ line, ch: b[1] }, 'local');
+            // Wrapped line: the ends sit on different visual rows, so there is no
             // meaningful distance to slide along. This was the smear.
-            if (Math.abs(r.top - l.top) > 1 || r.left <= l.left) { it.el.style.display = 'none'; continue; }
-            const v = it.sampler();
-            const frac = Math.max(0, Math.min(1, (v - it.min) / (it.max - it.min)));
+            if (Math.abs(cb.top - ca.top) > 1 || Math.abs(db.top - da.top) > 1 ||
+                Math.abs(da.top - ca.top) > 1) { it.el.style.display = 'none'; continue; }
+            const from = _mid([ca.left, cb.left]), to = _mid([da.left, db.left]);
             it.el.style.display = '';
-            it.el.style.transform = `translate(${(l.left + frac * (r.left - l.left)).toFixed(1)}px, ${l.top.toFixed(1)}px)`;
-            it.el.style.height = Math.max(12, l.bottom - l.top) + 'px';
+            it.el.style.transform = `translate(${(from + f * (to - from)).toFixed(1)}px, ${ca.top.toFixed(1)}px)`;
+            it.el.style.height = Math.max(12, ca.bottom - ca.top) + 'px';
         }
     }
 
