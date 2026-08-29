@@ -1476,6 +1476,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         value:            _startValue,
         mode:             'foxdot',
         lineNumbers:      true,
+        // A second gutter marking which line each LIVE player is actually sounding
+        // from — see refreshLiveGutter().
+        gutters:          ['CodeMirror-linenumbers', 'wfd-live'],
         tabSize:          2,
         indentWithTabs:   false,
         lineWrapping:     true,   // wrap long lines so a big call stays on screen;
@@ -2455,6 +2458,64 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // if (step < 0) clearVarBars(name); else updateVarTargets(name);
         postStep(name, step);
     });
+
+    // ── Live gutter ───────────────────────────────────────────────────────────
+    // A marker beside every line that DEFINES a player, answering two questions a
+    // composition makes hard: which players are sounding right now, and — when the
+    // same name is defined on several lines, as it is in any #@ arrangement — which
+    // one of them is the version actually playing.
+    //
+    // resolveLine() already owns that second answer (it is what the degree highlight
+    // and .sometimes() flash use), so this is a rendering job, not a new source of
+    // truth: whatever the highlight considers live is what gets the solid marker.
+    //
+    //   ▶ solid   this line is what you are hearing
+    //   ▷ faint   this line defines a live player, but a DIFFERENT line is the one
+    //             sounding — the classic "why isn't my edit doing anything"
+    //   (none)    not a player line, or that player is not playing
+    const _gutterState = new Map();   // line → the marker character currently drawn
+
+    function refreshLiveGutter() {
+        if (!clock || !clock._players) return;
+        // Which line is each ACTIVE player actually sounding from?
+        const liveLines = new Map();      // line → player name
+        const liveNames = new Set();
+        clock._players.forEach((p, name) => {
+            if (!p || !p._active) return;
+            liveNames.add(name);
+            const ln = resolveLine(name);
+            if (ln >= 0) liveLines.set(ln, name);
+        });
+
+        const want = new Map();
+        for (let i = 0; i < editor.lineCount(); i++) {
+            const m = editor.getLine(i).match(_NAME_RE);
+            if (!m) continue;
+            if (liveLines.get(i) === m[1]) want.set(i, 'live');
+            else if (liveNames.has(m[1])) want.set(i, 'shadow');
+        }
+
+        // Only touch lines whose state actually changed — setGutterMarker forces a
+        // redraw, and this runs several times a second.
+        for (const [line, kind] of _gutterState) {
+            if (want.get(line) !== kind) {
+                try { editor.setGutterMarker(line, 'wfd-live', null); } catch (_) {}
+                _gutterState.delete(line);
+            }
+        }
+        for (const [line, kind] of want) {
+            if (_gutterState.get(line) === kind) continue;
+            const el = document.createElement('span');
+            el.className = 'wfd-live-mark ' + kind;
+            el.textContent = kind === 'live' ? '\u25B6' : '\u25B7';
+            el.title = kind === 'live'
+                ? 'playing — this is the version you hear'
+                : 'this player is playing, but from another line';
+            try { editor.setGutterMarker(line, 'wfd-live', el); } catch (_) { continue; }
+            _gutterState.set(line, kind);
+        }
+    }
+    setInterval(refreshLiveGutter, 220);
 
     // Briefly flash JUST the .sometimes(…) / .every(…) call on a player's line when
     // it fires, so you can see exactly which transform triggered.

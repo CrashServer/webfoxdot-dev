@@ -1730,6 +1730,14 @@ body.is-offline #btn-galaxy {
 #btn-install { color: var(--blue); border-color: var(--blue); }
 
 /* ── Mixer console — non-modal floating panel, vertical strips, square, compact ── */
+/* ── Live gutter — which line each sounding player is actually playing from ──
+   ▶ solid = you are hearing this line · ▷ faint = that player is live, but from a
+   different line (the usual reason an edit seems to do nothing in a #@ set). */
+.CodeMirror-gutter.wfd-live { width: 13px; }
+.wfd-live-mark { display: block; width: 13px; text-align: center; font-size: 9px; line-height: inherit; }
+.wfd-live-mark.live   { color: var(--green); text-shadow: 0 0 5px var(--green); }
+.wfd-live-mark.shadow { color: var(--text-2); opacity: .5; }
+
 /* Track ownership on a mixer channel — see js/collab/permissions.js */
 .mixer-chan-owner { display: block; text-align: center; font-size: 8px; line-height: 1.4; min-height: 11px; letter-spacing: .03em; }
 .mixer-chan.owned-by-other { opacity: .62; }
