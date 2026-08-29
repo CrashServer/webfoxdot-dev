@@ -7,6 +7,7 @@ import { FXChain }               from '../fx/chain.js';
 import { patGet, isGroup }        from '../patterns/sequences.js';
 import { isEnv, evalEnv, envValue } from '../patterns/timevars.js';
 import { LOOKAHEAD_S }            from './clock.js';
+import { sampleAtBeat, clearSampleBeat } from '../patterns/timevars.js';
 import { osc }                    from '../../lib/dist/supersonic.js';
 
 // Rest sentinel — a degree of REST fires no note (true silence). Emitted by the
@@ -113,6 +114,15 @@ export function setTriggerListener(fn) { _onTrigger = fn; }
 function emitTrigger(name, label) { if (_onTrigger) { try { _onTrigger(name, label); } catch (_) {} } }
 
 // Resolve all pattern args at the current step
+// `atBeat` is the beat this note actually lands on. Notes are dispatched LOOKAHEAD_S
+// early, so any TimeVar read here would otherwise resolve against a clock that has not
+// reached the note yet and return the previous value on a boundary. Scoped rather than
+// threaded through every call so nothing else has to know about it.
+function resolveArgsAt(args, step, atBeat) {
+    sampleAtBeat(atBeat);
+    try { return resolveArgs(args, step); } finally { clearSampleBeat(); }
+}
+
 function resolveArgs(args, step) {
     const out = {};
     for (const [k, v] of Object.entries(args)) out[k] = patGet(v, step, v);
@@ -471,6 +481,7 @@ export class Player {
         this._degreeAdds = null;
         this._modifiers  = null;
         this._unison     = null;
+        this._teardownGen = 0;   // supersedes a pending deferred teardown if we restart
         this._stutterN   = 0;
         this._strum      = 0;
         this._multiply   = 1;
@@ -505,7 +516,7 @@ export class Player {
         if (this._mode === 'midiout') { this._fireMidiOut(gen); return; }
 
         const step = this._step;
-        const r    = resolveArgs(this._args, step);
+        const r    = resolveArgsAt(this._args, step, this._nextBeat);
 
         // Player `+` transposition — add each addend to the degree.
         if (this._degreeAdds) {
@@ -824,7 +835,7 @@ export class Player {
     // scheduled MIDI messages (performance.now() timestamps) rather than /s_new.
     _fireMidiOut(gen = this._gen) {
         const step = this._step;
-        const r    = resolveArgs(this._midiOpts, step);
+        const r    = resolveArgsAt(this._midiOpts, step, this._nextBeat);
 
         if (this._degreeAdds) {
             for (const a of this._degreeAdds) r.degree = applyDegreeAdd(r.degree, a, step);
@@ -1021,12 +1032,34 @@ export class Player {
             this._midiChans.clear();
         }
         if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }
-        if (this._fxChain && _sc) {
-            this._fxChain.free(_sc);
-            this._fxChain = null;
-        }
-        freeBus(this._bus);   // recycle the private bus for the next player
+
+        // Let the tail ring out before tearing the chain down.
+        //
+        // Voices have no gate — every synthdef ends in Env([...], doneAction: 2) and
+        // frees ITSELF when its envelope completes. So freeing the FX chain and
+        // recycling the bus the instant stop() is called cuts a still-sounding note
+        // mid-waveform: the signal steps to zero and that DC step is the click you hear
+        // at #@end and on stop-all, loudest with pads (long release, still at full
+        // amplitude when the bus vanishes).
+        //
+        // Nothing new is scheduled (_active is already false), so waiting costs only a
+        // recycled bus for one note's tail. Capped, so a drone on sus=64 can't hold one
+        // indefinitely — past the cap it clicks as before, which needs a fade in
+        // fd_fx_out (a synthdef change + an sclang rebuild) rather than a client fix.
+        const chain = this._fxChain, bus = this._bus;
+        this._fxChain = null;
         this._bus = null;
+        const gen = ++this._teardownGen;
+        const secPerBeat = 60 / (this._clock?.bpm || 120);
+        const susBeats = Number(this._args?.sus ?? this._args?.dur ?? this._playOpts?.dur ?? 1) || 1;
+        const relSec   = Number(this._args?.release ?? 0.5) || 0.5;
+        const graceMs  = Math.min(8000, (susBeats * secPerBeat + relSec) * 1000 + 120);
+        const tearDown = () => {
+            if (gen !== this._teardownGen) return;   // re-started meanwhile — its chain is not ours to free
+            if (chain && _sc) chain.free(_sc);
+            freeBus(bus);                            // recycle the private bus for the next player
+        };
+        if (chain || bus != null) setTimeout(tearDown, graceMs);
     }
 
     // solo() — mute all others indefinitely. solo(beats) — restore at the next

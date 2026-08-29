@@ -19,9 +19,9 @@ export function currentBeat() { return _clock ? _clock.now() : 0; }
 // so var/linvar can hold patterns: var([PRand([4,16,32]), 1/4]).
 function rv(v) {
     if (v == null) return v;
-    if (typeof v.get === 'function') return v.get(_clock ? Math.floor(_clock.now()) : 0);
+    if (typeof v.get === 'function') return v.get(Math.floor(beatNow()));
     if (Array.isArray(v)) {
-        const step = _clock ? Math.floor(_clock.now()) : 0;
+        const step = Math.floor(beatNow());
         return rv(v[((step % v.length) + v.length) % v.length]);
     }
     return v;
@@ -39,8 +39,18 @@ function normDurs(vals, durs) {
     return { vals, durs: d, total: d.reduce((a, b) => a + b, 0) };
 }
 
+// Sample at a SPECIFIC beat rather than "now". The scheduler dispatches notes
+// LOOKAHEAD_S early, so a player reading a TimeVar at clock.now() reads it up to
+// ~120ms before the beat the note actually lands on — which returns the previous
+// value whenever a note sits on one of the var's own boundaries. The player sets this
+// to the note's own beat around the read; everything else still gets clock.now().
+let _atBeat = null;
+export function sampleAtBeat(b) { _atBeat = (typeof b === 'number' && isFinite(b)) ? b : null; }
+export function clearSampleBeat() { _atBeat = null; }
+function beatNow() { return _atBeat != null ? _atBeat : (_clock ? _clock.now() : 0); }
+
 function tpos(durs, total) {
-    const beat = _clock ? _clock.now() : 0;
+    const beat = beatNow();
     let t = ((beat % total) + total) % total;
     let idx = 0;
     while (idx < durs.length - 1 && t >= durs[idx]) { t -= durs[idx]; idx++; }
