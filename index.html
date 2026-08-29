@@ -262,6 +262,7 @@
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import { setActionSender, setStateWriter, applying as applyingRemote, isApplying, shareState, shareStateThrottled } from './js/collab/actions.js';
+    import * as perms from './js/collab/permissions.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
@@ -361,7 +362,30 @@
     // Broadcast a non-eval action (solo / composition state / the mix) to peers, if in
     // a session. isApplying() is the echo guard — see js/collab/actions.js.
     function broadcastAction(action, data = {}) {
-        if (_collab && !isApplying()) _collab.broadcastAction(action, data);
+        if (!_collab || isApplying()) return;
+        // Room rules (js/collab/permissions.js). Off by default — can() is permissive
+        // until a host turns permissions on, so a normal jam never reaches this branch.
+        const cap = perms.capForAction(action);
+        if (cap && !perms.can(cap)) return denied(cap);
+        _collab.broadcastAction(action, data);
+    }
+
+    // One place to say no, so the message is identical wherever a gate trips and the
+    // rate limit is shared (a fader drag would otherwise print sixty of them a second).
+    // A user id → their display name, for messages about who owns what.
+    function peerName(uid) {
+        if (!uid) return 'nobody';
+        if (_collab && uid === _collab.myId()) return 'you';
+        const p = _collab && _collab.getPeers().find(p => p.id === uid);
+        return p ? p.name : 'someone who has left';
+    }
+
+    let _deniedAt = 0;
+    function denied(cap) {
+        const now = Date.now();
+        if (now - _deniedAt < 4000) return;
+        _deniedAt = now;
+        log(`not yours to change: "${cap}" isn't granted to your role (${perms.myRole()}) in this room`, 'warn');
     }
     // Deep modules (gate.js's mute/solo, mixer.js's faders, Alt+X) share through the
     // action bus rather than importing collab, so every entry path — click, MIDI,
@@ -370,11 +394,21 @@
     // Sticky state goes into the room's Yjs map instead of a relayed message, so it
     // also reaches whoever joins next. Same _collab null-check as the sender above —
     // outside a session both are inert and everything stays purely local.
-    setStateWriter((key, value) => { if (_collab && !isApplying()) _collab.setPerf(key, value); });
+    setStateWriter((key, value) => {
+        if (!_collab || isApplying()) return;
+        const cap = perms.capForStateKey(key);
+        if (cap && !perms.can(cap)) return denied(cap);
+        _collab.setPerf(key, value);
+    });
 
     // Replay an action received from a peer. Guarded so any UI hooks it triggers
     // (e.g. the section-active notifier) don't echo the action back out.
     function applyAction(msg) {
+        // Check the SENDER against the room's rules before replaying. Send-side gates
+        // protect nobody from a patched client; this is what makes your machine honour
+        // the room regardless of what arrives on the wire.
+        const cap = perms.capForAction(msg.action);
+        if (cap && msg.fromId && !perms.can(cap, msg.fromId)) return;
         applyingRemote(() => {
             switch (msg.action) {
                 case 'solo':     clock._players.get(msg.name)?.solo();             break;
@@ -422,6 +456,93 @@
         if (el) el.classList.toggle('disconnected', !up);
         if (up) log(isRejoin ? 'reconnected — your changes are reaching the room again' : 'session relay connected', isRejoin ? 'ok' : 'info');
         else log('DISCONNECTED from the session relay — text still syncs, but nothing you play is reaching anyone. Retrying…', 'error');
+    }
+
+    // ── Room-rules console commands ───────────────────────────────────────────
+    // Deliberately eval-scope rather than a panel: in a workshop the host is already
+    // in the editor, and a line you can paste into the chat ("run rules(true)") is
+    // easier to talk someone through than a menu you have to describe.
+
+    function requireRoom() {
+        if (_collab) return true;
+        log('room rules only apply in a multiplayer session', 'info');
+        return false;
+    }
+    // Resolve a name OR a user id to an id, so the host can type what they can see.
+    function peerId(who) {
+        if (!who || !_collab) return '';
+        const ps = _collab.getPeers();
+        const byId = ps.find(p => p.id === who);
+        if (byId) return byId.id;
+        const byName = ps.filter(p => p.name.toLowerCase() === String(who).toLowerCase());
+        if (byName.length === 1) return byName[0].id;
+        if (byName.length > 1) { log(`"${who}" is ambiguous — ${byName.length} people share that name, use their id`, 'warn'); return ''; }
+        log(`no one here called "${who}"`, 'warn');
+        return '';
+    }
+
+    function rulesCmd(on) {
+        if (!requireRoom()) return;
+        if (on !== undefined) {
+            if (!perms.setEnabled(on)) return log('only the host can turn room rules on or off', 'warn');
+            log(on ? 'room rules ON — roles and track claims now apply' : 'room rules OFF — everyone can do everything again', 'ok');
+        }
+        const me = _collab.myId();
+        log(`room rules: ${perms.isEnabled() ? 'ON' : 'off'} · host: ${peerName(perms.hostId())} · you are "${perms.myRole()}"`, 'info');
+        const head = 'role'.padEnd(10) + perms.CAPS.map(c => c[0].slice(0, 9).padEnd(10)).join('');
+        log('  ' + head, 'info');
+        for (const r of perms.ROLES)
+            log('  ' + r.padEnd(10) + perms.CAPS.map(c => (perms.roleCan(r, c[0]) ? '  yes' : '  —').padEnd(10)).join(''), 'info');
+        for (const p of _collab.getPeers())
+            log(`  ${p.name}${p.isSelf ? ' (you)' : ''} — ${perms.roleOf(p.id)}`, 'info');
+        if (!perms.isEnabled()) log('  (nothing is enforced while rules are off — rules(true) to start)', 'info');
+    }
+
+    function roleCmd(who, r) {
+        if (!requireRoom()) return;
+        const id = peerId(who); if (!id) return;
+        if (!perms.setRole(id, r))
+            return log(`could not set that role — ${perms.isHost() ? 'the host\'s own role is fixed, and it must be one of: ' + perms.ROLES.join(', ') : 'only the host can change roles'}`, 'warn');
+        log(`${peerName(id)} is now "${r}"`, 'ok');
+    }
+
+    function grantCmd(r, cap, on = true) {
+        if (!requireRoom()) return;
+        if (!perms.setRoleCap(r, cap, on))
+            return log(`could not change that — ${perms.isHost() ? 'roles: ' + perms.ROLES.join(', ') + ' · capabilities: ' + perms.CAP_KEYS.join(', ') : 'only the host can edit the matrix'}`, 'warn');
+        log(`"${r}" ${on ? 'can now' : 'can no longer'} ${cap}`, 'ok');
+    }
+
+    function tracksCmd() {
+        if (!requireRoom()) return;
+        const c = perms.claims();
+        const names = Object.keys(c);
+        if (!names.length) return log('no tracks claimed yet — playing one takes it', 'info');
+        names.forEach(t => log(`  ${t.padEnd(10)} ${peerName(c[t])}`, 'info'));
+    }
+
+    function releaseCmd(t) {
+        if (!requireRoom()) return;
+        if (!perms.releaseTrack(t)) return log(`${t} isn't yours to release`, 'warn');
+        log(`${t} is free again`, 'ok');
+    }
+
+    // Reflect the current rules in the peers panel (each peer's role, and a marker on
+    // the session header while rules are on).
+    function renderPerms() {
+        const el = document.getElementById('cp-session');
+        if (el) el.classList.toggle('rules-on', !!_collab && perms.isEnabled());
+        renderPeers(_collab ? _collab.getPeers() : []);
+    }
+
+    // The room's rules changed (or the doc just synced). Claim the room if nobody
+    // holds it — first client in a fresh room becomes host, which in practice is
+    // whoever opened it. Two simultaneous joins both write; Yjs picks one and both
+    // converge, so the worst case is that the host is arbitrary rather than absent.
+    function onPermsChanged() {
+        if (!_collab) return;
+        perms.claimHostIfVacant();
+        renderPerms();
     }
 
     // Apply one key of the room's shared performance state. Called for a peer's change
@@ -611,6 +732,18 @@
             // panic()  stops everything for EVERYONE in the room (plain stop-all —
             // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
             panic: () => panic(),
+            // ── Room rules (multiplayer, host only) ────────────────────────────
+            // rules()            show who controls what
+            // rules(true/false)  turn permissions on / off  (off = a normal jam)
+            // role("ana", "listener")   set someone's role
+            // grant("listener", "macros", true)   edit one cell of the matrix
+            // tracks()           who owns which track
+            // release("d1")      hand a track back
+            rules:   (on) => rulesCmd(on),
+            role:    (who, r) => roleCmd(who, r),
+            grant:   (r, cap, on) => grantCmd(r, cap, on),
+            tracks:  () => tracksCmd(),
+            release: (t) => releaseCmd(t),
             __p,
             ...SYNTHS,
             ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players
@@ -780,6 +913,24 @@
     setRerollHandler(reroll);   // wire the chainable .reroll(beats) player method
 
     function runCode(raw, { fromRemote = false, author = '', color = '', authorId = '' } = {}) {
+        // Track claims. A line that defines someone else's instrument is dropped —
+        // whether it came off the wire or was just typed here, because running it
+        // locally would silently desync this machine from the room. Claims are only
+        // live once a host turns permissions on; canPlay() is permissive until then.
+        const who = fromRemote ? authorId : (_collab && _collab.myId());
+        const blocked = raw.split('\n')
+            .map(ln => perms.trackInLine(ln))
+            .filter(t => t && !perms.canPlay(t, who));
+        if (blocked.length) {
+            const owner = peerName(perms.ownerOf(blocked[0]));
+            if (!fromRemote) log(`${blocked[0]} belongs to ${owner} — ask them, or have the host release it`, 'warn');
+            return;
+        }
+        // Playing an unclaimed track takes it. First to sound it owns it.
+        if (!fromRemote) for (const ln of raw.split('\n')) {
+            const t = perms.trackInLine(ln);
+            if (t) perms.claimTrack(t);
+        }
         // Remember each player's source line so reroll() can re-evaluate it later.
         for (const ln of raw.split('\n')) {
             const mm = ln.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
@@ -819,6 +970,7 @@
         }
         // Broadcast to peers (skip if this eval came from a peer)
         if (!fromRemote && _collab) {
+            if (!perms.can('code')) return denied('code');   // it ran here; it just stays here
             const user = getUser();
             _collab.broadcastEval(raw, [], user.name, user.color, clock.now());
         } else if (!fromRemote && _soloPresence) {
@@ -2432,8 +2584,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             seen.add(u.id);
             const d = document.createElement('div');
             d.className = 'cp-peer';
+            // While room rules are on, each peer wears their role; the host gets a ★.
+            const showRoles = perms.isEnabled();
+            const role = showRoles ? perms.roleOf(u.id) : '';
             d.innerHTML = `<span class="cp-peer-dot" style="background:${u.color || '#888'}"></span>` +
-                `<span class="cp-peer-name">${u.name || 'anon'}${u.isSelf ? ' (you)' : ''}</span>`;
+                `<span class="cp-peer-name">${escapeHtml(u.name || 'anon')}${u.isSelf ? ' (you)' : ''}</span>` +
+                (role ? `<span class="cp-peer-role${role === 'host' ? ' is-host' : ''}">${role === 'host' ? '★ ' : ''}${role}</span>` : '');
             el.appendChild(d);
         }
     }
@@ -2526,8 +2682,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 run();
                 if (lag > LATE_EVAL_BEATS) warnLateEval(msg.author, lag);
             }
-        }, applyAction, renderPeers, appendChat, _seedText, renderListing, applyPerfState, onConnection).then(collab => {
+        }, applyAction, renderPeers, appendChat, _seedText, renderListing, applyPerfState, onConnection, onPermsChanged).then(collab => {
             _collab = collab;
+            // Room rules live in the shared doc; this module just reads and writes it.
+            perms.initPermissions({
+                get:  (k) => collab.getPerm(k),
+                set:  (k, v) => collab.setPerm(k, v),
+                myId: () => collab.myId(),
+            });
+            perms.initEntries(() => collab.permEntries());
             renderListing(collab.isListed());
             log(`Session ready. Share: ${location.href}`, 'ok');
         }).catch(err => {

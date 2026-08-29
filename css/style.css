@@ -1359,6 +1359,17 @@ body.zen #docs-panel { display: none !important; }
     font-size: 11px; color: var(--red);
 }
 #cp-peers { display: flex; flex-direction: column; gap: 3px; }
+/* Role badge, shown only while the room's rules are switched on. */
+.cp-peer-role {
+    margin-left: auto; padding: 0 5px; border-radius: 7px;
+    font-size: 9px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-2); border: 1px solid var(--text-2); opacity: .7;
+}
+.cp-peer-role.is-host { color: var(--yellow); border-color: currentColor; opacity: 1; }
+/* Marker on the session header while rules are being enforced. */
+#cp-session.rules-on > h3::after {
+    content: ' · rules on'; font-size: 9px; color: var(--yellow); opacity: .85;
+}
 .cp-peer { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-1); }
 .cp-peer-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px currentColor; }
 .cp-peer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

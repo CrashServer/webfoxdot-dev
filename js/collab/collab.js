@@ -21,10 +21,12 @@ function randomColor() {
  *                                     on every peer change AND once per key at join.
  * @param {function} [onConnection]  - Called (up, isRejoin) as the eval/action relay
  *                                     drops and comes back.
+ * @param {function} [onPerms]       - Called whenever the room's permission rules
+ *                                     change, and once the doc has synced.
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing, onPerfState, onConnection) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing, onPerfState, onConnection, onPerms) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -256,6 +258,18 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // 'level:d1', 'synth:mypatch') keep per-track state independently mergeable.
     const yperf = ydoc.getMap('perf');
     function setPerf(key, value) { yperf.set(key, value); }
+
+    // ── Room rules — who controls what (js/collab/permissions.js) ───────────────
+    // A SEPARATE map from perf: these are the room's constitution, not part of the
+    // performance, and keeping them apart means a future "reset the mix" can clear
+    // perf without dissolving the permissions with it.
+    const yperms = ydoc.getMap('perms');
+    function setPerm(key, value) { yperms.set(key, value); }
+    function getPerm(key) { return yperms.get(key); }
+    function permEntries() { return [...yperms.entries()]; }
+    // Unlike perf, this fires for LOCAL writes too: the host toggling a capability has
+    // to see their own switch move, and re-reading a map is free (no audio, no compile).
+    yperms.observe(() => onPerms?.());
     // REMOTE changes only. Yjs fires this for our own writes too, and while re-applying
     // an absolute value is harmless in itself, the local echo would make every modular
     // Define recompile and re-upload the synth it just defined — on every debounced
@@ -272,6 +286,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         if (_perfReplayed) return;
         _perfReplayed = true;
         yperf.forEach((v, k) => onPerfState?.(k, v));
+        onPerms?.();                       // the room's rules are in place from here on
     }
 
     let _docSynced = provider.synced || false;
@@ -336,7 +351,9 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
      * @param {object} data    - Action payload (merged into the message)
      */
     function broadcastAction(action, data = {}) {
-        return wsSend({ type: 'action', action, ...data });
+        // fromId lets the RECEIVER check the sender against the room's rules, rather
+        // than trusting that they checked themselves before sending.
+        return wsSend({ type: 'action', action, fromId: user.id, ...data });
     }
 
     /** Current clock offset vs. server (milliseconds). */
@@ -359,5 +376,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setPerf, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, destroy };
+    return { broadcastEval, broadcastAction, setPerf, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, destroy };
 }
