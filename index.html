@@ -138,6 +138,7 @@
         <input type="text" id="user-name" maxlength="24" placeholder="your name" spellcheck="false">
       </div>
       <div id="cp-peers"></div>
+      <button id="btn-rules" title="room rules — who controls what: roles, capabilities and track ownership (optional, off by default)">⚖ room rules</button>
       <div id="cp-chat-log"></div>
       <input id="cp-chat-input" type="text" placeholder="chat…  (Enter)" maxlength="280" spellcheck="false">
     </div>
@@ -263,6 +264,7 @@
     import { initCollab }                from './js/collab/collab.js';
     import { setActionSender, setStateWriter, applying as applyingRemote, isApplying, shareState, shareStateThrottled } from './js/collab/actions.js';
     import * as perms from './js/collab/permissions.js';
+    import { initRulesPanel, toggleRules, renderRulesPanel } from './js/ui/rulespanel.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
@@ -482,6 +484,7 @@
     }
 
     function rulesCmd(on) {
+        if (on === undefined) { toggleRules(); return; }   // bare rules() → the panel
         if (!requireRoom()) return;
         if (on !== undefined) {
             if (!perms.setEnabled(on)) return log('only the host can turn room rules on or off', 'warn');
@@ -533,6 +536,7 @@
         const el = document.getElementById('cp-session');
         if (el) el.classList.toggle('rules-on', !!_collab && perms.isEnabled());
         renderPeers(_collab ? _collab.getPeers() : []);
+        renderRulesPanel();   // a peer's change redraws the open panel, not just mine
     }
 
     // The room's rules changed (or the doc just synced). Claim the room if nobody
@@ -733,7 +737,7 @@
             // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
             panic: () => panic(),
             // ── Room rules (multiplayer, host only) ────────────────────────────
-            // rules()            show who controls what
+            // rules()            open the ⚖ room rules panel (also in the Session box)
             // rules(true/false)  turn permissions on / off  (off = a normal jam)
             // role("ana", "listener")   set someone's role
             // grant("listener", "macros", true)   edit one cell of the matrix
@@ -2074,6 +2078,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     _progressRAF = requestAnimationFrame(progressLoop);
     initMixer(clock, editor, runCode);
+    // The rules panel is a pure view over js/collab/permissions.js — it only needs to
+    // know who is in the room and how to name a user id.
+    initRulesPanel({
+        peers:  () => (_collab ? _collab.getPeers() : []),
+        nameOf: (uid) => peerName(uid),
+        inRoom: () => !!_collab,
+    });
+    document.getElementById('btn-rules').onclick = () => toggleRules();
     // The modular panel's "use it" button pastes AND runs a p1 >> line for the
     // just-Defined synth (unlike chaos()'s paste-don't-run — this is a single
     // synth the user just built and asked to hear, not a batch to review

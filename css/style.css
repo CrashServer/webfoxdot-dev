@@ -1730,6 +1730,68 @@ body.is-offline #btn-galaxy {
 #btn-install { color: var(--blue); border-color: var(--blue); }
 
 /* ── Mixer console — non-modal floating panel, vertical strips, square, compact ── */
+/* ── Room rules panel (js/ui/rulespanel.js) ────────────────────────────────── */
+#rules-modal {
+    position: fixed; right: 16px; top: 64px; z-index: 130;
+    background: var(--bg-2); border: 1px solid var(--border-2);
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5);
+    font-family: monospace; font-size: 11px;
+    display: flex; flex-direction: column;
+    width: 340px; max-width: 94vw; max-height: 80vh;
+}
+#rules-modal.hidden { display: none; }
+.rules-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--border-1); cursor: move; }
+.rules-title { color: var(--yellow); font-weight: bold; font-size: 12px; }
+.rules-drag { flex: 1; align-self: stretch; }
+.rules-close { background: none; border: none; color: var(--text-2); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 3px; }
+.rules-close:hover { color: var(--red); }
+.rules-body { padding: 8px; overflow-y: auto; }
+
+/* master switch — the whole panel is inert while this is off, and says so */
+.rules-master { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rules-toggle {
+    background: var(--bg-1); border: 1px solid var(--border-2); color: var(--text-2);
+    padding: 3px 9px; cursor: pointer; font-family: inherit; font-size: 11px; white-space: nowrap;
+}
+.rules-toggle:disabled { opacity: .45; cursor: default; }
+.rules-master.on .rules-toggle { color: var(--green); border-color: var(--green); }
+.rules-master-note { color: var(--text-2); font-size: 10px; line-height: 1.25; }
+
+/* the matrix */
+.rules-grid { border-collapse: collapse; width: 100%; margin-bottom: 4px; }
+.rules-grid th { font-weight: normal; color: var(--text-2); font-size: 9px; text-align: center; padding: 2px; }
+.rules-grid th[title] { cursor: help; }
+.rules-grid th.rules-role { text-align: left; color: var(--text-1); font-size: 11px; padding-right: 6px; white-space: nowrap; }
+.rules-count { color: var(--text-2); font-size: 9px; margin-left: 4px; }
+.rules-cell {
+    width: 100%; background: var(--bg-1); border: 1px solid var(--border-1);
+    color: var(--text-2); cursor: pointer; font-family: inherit; font-size: 11px; padding: 2px 0;
+}
+.rules-cell.yes { color: var(--green); border-color: var(--green); }
+.rules-cell:disabled { cursor: default; opacity: .5; }
+.rules-note { color: var(--text-2); font-size: 10px; margin: 4px 0 2px; font-style: italic; }
+
+.rules-sub { color: var(--text-2); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; margin: 9px 0 3px; border-bottom: 1px solid var(--border-1); }
+.rules-person { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.rules-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rules-name { flex: 1; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rules-rolesel { background: var(--bg-1); color: var(--text-1); border: 1px solid var(--border-1); font-family: inherit; font-size: 10px; }
+.rules-rolesel:disabled { opacity: .5; }
+.rules-track { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.rules-tname { color: var(--text-1); min-width: 60px; }
+.rules-towner { flex: 1; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rules-release { background: none; border: 1px solid var(--border-1); color: var(--text-2); font-family: inherit; font-size: 10px; cursor: pointer; padding: 0 5px; }
+.rules-release:hover:not(:disabled) { color: var(--red); border-color: var(--red); }
+.rules-release:disabled { opacity: .35; cursor: default; }
+.rules-empty, .rules-empty-row { color: var(--text-2); font-size: 10px; line-height: 1.5; padding: 4px 0; }
+
+/* the button that opens it, in the Session panel */
+#btn-rules {
+    width: 100%; margin-top: 6px; background: var(--bg-1); border: 1px solid var(--border-1);
+    color: var(--text-2); font-family: monospace; font-size: 10px; padding: 3px; cursor: pointer;
+}
+#btn-rules:hover { color: var(--yellow); border-color: var(--yellow); }
+
 #mixer-modal {
     position: fixed; left: 12px; bottom: 46px; z-index: 120;
     background: var(--bg-2); border: 1px solid var(--border-2);
