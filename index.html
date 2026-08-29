@@ -2382,6 +2382,20 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 const j = matchBracket(lineText, k);
                 if (j > k) { out.push([[k, j + 1]]); k = j; }
             }
+            else if (pdepth === 1 && c === 'P' && /^P[A-Za-z]\w*\s*\(/.test(lineText.slice(k))) {
+                // A P-generator as a direct argument — PRand, PContour, PEuclid, motif…
+                // Its values are COMPUTED, so no element of any array it contains is
+                // "the one playing" and boxing one would point at the wrong number.
+                // Box the generator instead: the same choice {a,b} gets, and the same
+                // honest statement — this is the source, but not which value.
+                //
+                // Without this a line like  lapin(PContour([3,7,7],8,7), dur=[1/8,1])
+                // highlighted its DUR array and nothing else, drawing the eye to the
+                // one argument that was not making the notes.
+                const o = lineText.indexOf('(', k);
+                const j = o > k ? matchBracket(lineText, o) : -1;
+                if (j > o) { out.push([[k, j + 1]]); k = j; }
+            }
         }
         return out.length ? out : null;
     }
@@ -2581,11 +2595,46 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         for (const p of s.slice(1, -1).split(',')) { const t = p.trim(); if (!t) continue; const n = Number(t); if (!isFinite(n)) return null; out.push(n); }
         return out.length ? out : null;
     }
-    // Every var(...) on a line whose values are plain numbers — anything computed is
-    // skipped rather than guessed at.
+    // Top-level elements of "[a, b, (c,d)]" → their [start,end) spans. Used to box the
+    // ACTIVE element of a step-hold var, where the values need not be numbers.
+    function elementSpans(text, open) {
+        const close = matchBracket(text, open);
+        if (close < 0) return null;
+        const out = [];
+        let depth = 0, s = -1;
+        for (let k = open + 1; k < close; k++) {
+            const c = text[k];
+            if ('([{<'.includes(c)) depth++;
+            else if (')]}>'.includes(c)) depth--;
+            if (depth === 0 && c === ',') { if (s >= 0) { out.push([s, k]); s = -1; } continue; }
+            if (s < 0 && !/\s/.test(c)) s = k;
+        }
+        if (s >= 0) out.push([s, close]);
+        return out.length ? out : null;
+    }
+    // Which element of a step-hold var is live at `beat` — the same walk normDurs/tpos
+    // do in js/patterns/timevars.js, kept local so the overlay never has to reach into
+    // a TimeVar's internals.
+    function stepIndex(durs, beat) {
+        const total = durs.reduce((a, b) => a + b, 0);
+        if (!(total > 0)) return 0;
+        let t = ((beat % total) + total) % total, i = 0;
+        while (i < durs.length - 1 && t >= durs[i]) { t -= durs[i]; i++; }
+        return i;
+    }
+
+    // Every var(...) on a line we can draw honestly.
+    //
+    //   linvar / sinvar / expvar  interpolate → a NEEDLE sliding across [values]
+    //   var / Pvar                step-hold   → a BOX around the value that is live
+    //
+    // The split matters: a needle on a var that jumps would imply a glide that is not
+    // happening, and a box on a linvar would sit still while the value moves. It also
+    // means a Pvar shows which of its whole patterns is currently in charge, and a
+    // var's values no longer have to be numbers.
     function parseVars(text) {
         const out = [];
-        const re = /\b(sinvar|linvar|expvar|var)\s*\(/g;
+        const re = /\b(sinvar|linvar|expvar|Pvar|var)\s*\(/g;
         let m;
         while ((m = re.exec(text))) {
             const fn = m[1], open = m.index + m[0].length - 1;
@@ -2595,18 +2644,27 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (text[i] !== '[') continue;                       // first arg must be a [vals] array
             const arrEnd = matchBracket(text, i);
             if (arrEnd < 0 || arrEnd > close) continue;
-            const vals = _numArray(text.slice(i, arrEnd + 1));
-            if (!vals || vals.length < 2) continue;              // need ≥2 numeric values
+            const stepHold = (fn === 'var' || fn === 'Pvar');
+            const vals = stepHold ? null : _numArray(text.slice(i, arrEnd + 1));
+            const elems = stepHold ? elementSpans(text, i) : null;
+            if (stepHold ? (!elems || elems.length < 2) : (!vals || vals.length < 2)) continue;
             let durs = [4], j = arrEnd + 1; while (j < close && /\s/.test(text[j])) j++;
             if (text[j] === ',') {                               // parse the durs arg for an accurate sampler
                 let k = j + 1; while (k < close && /\s/.test(text[k])) k++;
                 if (text[k] === '[') { const de = matchBracket(text, k); if (de > 0 && de <= close) durs = _numArray(text.slice(k, de + 1)) || durs; }
                 else { const n = Number(text.slice(k, close).trim()); if (isFinite(n)) durs = [n]; }
             }
+            if (stepHold) {
+                // Durs may be shorter than the value list; the walk wraps, so pad it out
+                // to match rather than dropping the tail elements.
+                const ds = elems.map((_, k) => durs[k % durs.length]);
+                out.push({ kind: 'step', spanS: i, spanE: arrEnd + 1, elems, durs: ds });
+                continue;
+            }
             const min = Math.min(...vals), max = Math.max(...vals);
             if (min === max) continue;                           // a flat var has nothing to show
             let tv; try { tv = _VARCTOR[fn](vals, durs); } catch (_) { continue; }
-            out.push({ spanS: i, spanE: arrEnd + 1, min, max,
+            out.push({ kind: 'needle', spanS: i, spanE: arrEnd + 1, min, max,
                        sampler: () => { const v = tv.get(0); return typeof v === 'number' && isFinite(v) ? v : min; } });
         }
         return out;
@@ -2629,7 +2687,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (!text || text.trimStart().startsWith('#')) continue;   // a commented line does not run
             for (const v of parseVars(text)) {
                 const el = document.createElement('div');
-                el.className = 'wfd-var-bar';
+                el.className = v.kind === 'step' ? 'wfd-var-box' : 'wfd-var-bar';
                 layer.appendChild(el);
                 _varItems.push({ ...v, handle: editor.getLineHandle(i), el });
             }
@@ -2646,6 +2704,20 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         for (const it of _varItems) {
             const line = editor.getLineNumber(it.handle);       // follows edits above it
             if (line == null || line < 0 || line >= editor.lineCount()) { it.el.style.display = 'none'; continue; }
+            if (it.kind === 'step') {
+                // Box the element that is live right now. Its own two ends must share a
+                // visual row for the box to mean anything — same wrap guard as below.
+                const [es, ee] = it.elems[stepIndex(it.durs, clock.now())] || [];
+                if (es == null) { it.el.style.display = 'none'; continue; }
+                const a = editor.charCoords({ line, ch: es }, 'local');
+                const b = editor.charCoords({ line, ch: ee }, 'local');
+                if (Math.abs(b.top - a.top) > 1 || b.left <= a.left) { it.el.style.display = 'none'; continue; }
+                it.el.style.display = '';
+                it.el.style.transform = `translate(${a.left.toFixed(1)}px, ${a.top.toFixed(1)}px)`;
+                it.el.style.width  = (b.left - a.left).toFixed(1) + 'px';
+                it.el.style.height = Math.max(12, a.bottom - a.top) + 'px';
+                continue;
+            }
             const l = editor.charCoords({ line, ch: it.spanS }, 'local');
             const r = editor.charCoords({ line, ch: it.spanE }, 'local');
             // Wrapped line: the two ends are on different visual rows, so there is no
