@@ -19,10 +19,12 @@ function randomColor() {
  * @param {function} [onAction]      - Called with parsed action message from peers
  * @param {function} [onPerfState]   - Called (key, value) for shared performance state:
  *                                     on every peer change AND once per key at join.
+ * @param {function} [onConnection]  - Called (up, isRejoin) as the eval/action relay
+ *                                     drops and comes back.
  *                                     (solo / unsolo / soloDrop / section / cancel)
  * @returns {object} collab API: { broadcastEval, broadcastAction, getClockOffset, destroy }
  */
-export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing, onPerfState) {
+export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onAction, onPeers, onChat, seedText, onListing, onPerfState, onConnection) {
     // ── Load vendored Yjs bundle (single shared instance, no CDN) ──────────
     // Rebuild the bundle with: cd server && npm run build-yjs
     const { Y, WebsocketProvider, CodemirrorBinding } = await import('../../lib/yjs/yjs-bundle.js');
@@ -91,17 +93,61 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // ── App-message WebSocket (eval relay + clock sync) ───────────────────
     // Distinct ?app=1 path so the server keeps this OFF the Yjs channel —
     // otherwise JSON frames reach the Yjs decoder ("Unexpected end of array").
-    const ws = new WebSocket(`${wsBase}/${sessionSlug}?app=1`);
+    //
+    // RECONNECTING. This used to be a single `new WebSocket(...)` with no close
+    // handler, and every send guarded by a bare `readyState !== OPEN → return`. The
+    // Yjs provider reconnects on its own, so after any blip — wifi, a sleeping laptop,
+    // a server restart — the session went on LOOKING connected (text still syncing,
+    // cursors still moving, peers still listed) while evals, beat sync and every
+    // action silently reached nobody, in both directions, with no way to notice.
+    const WS_URL = `${wsBase}/${sessionSlug}?app=1`;
+    const RECONNECT_MIN = 500, RECONNECT_MAX = 15000;
+    let ws = null;
+    let _wsBackoff = RECONNECT_MIN;
+    let _wsTimer = null;
+    let _destroyed = false;
+    let _wasConnected = false;
+    let _everConnected = false;   // distinguishes the first connect from a RE-connect
+
+    function wsConnect() {
+        if (_destroyed) return;
+        ws = new WebSocket(WS_URL);
+        ws.addEventListener('open', onWsOpen);
+        ws.addEventListener('message', onWsMessage);
+        ws.addEventListener('close', onWsDown);
+        // An error is always followed by close, so let close drive the retry.
+        ws.addEventListener('error', () => { try { ws.close(); } catch (_) {} });
+    }
+
+    function onWsDown() {
+        if (_destroyed) return;
+        if (_wasConnected) { _wasConnected = false; onConnection?.(false); }
+        clearTimeout(_wsTimer);
+        // Exponential backoff with jitter, so a server restart doesn't get a
+        // thundering herd of every peer in every room retrying on the same tick.
+        const wait = Math.min(RECONNECT_MAX, _wsBackoff) * (0.7 + Math.random() * 0.6);
+        _wsBackoff = Math.min(RECONNECT_MAX, _wsBackoff * 2);
+        _wsTimer = setTimeout(wsConnect, wait);
+    }
+
+    /** True while the eval/action relay is actually up. */
+    function isConnected() { return !!ws && ws.readyState === WebSocket.OPEN; }
+
+    // Sends are dropped, never queued: replaying a backlog of evals on reconnect
+    // would fire changes at the room minutes after they were meant, which is worse
+    // than not sending them. The caller is told instead (see onConnection).
+    function wsSend(obj) {
+        if (!isConnected()) return false;
+        ws.send(JSON.stringify(obj));
+        return true;
+    }
 
     let clockOffset = 0; // ms offset from server time
     let beatMaster  = false;
     let beatSyncInterval = null;
 
     // ── Clock sync (NTP-style single round-trip) ──────────────────────────
-    function syncClock() {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: 'ping', t1: Date.now() }));
-    }
+    function syncClock() { wsSend({ type: 'ping', t1: Date.now() }); }
 
     let lastRtt = 0;
     function handlePong({ t1, t2 }) {
@@ -134,13 +180,12 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         if (beatSyncInterval) return;
         // Broadcast clock state roughly every 8 beats
         beatSyncInterval = setInterval(() => {
-            if (ws.readyState !== WebSocket.OPEN) return;
-            ws.send(JSON.stringify({
+            wsSend({
                 type:     'beat_sync',
                 bpm:      clock.bpm,
                 beat:     clock.now(),
                 wallTime: Date.now(),
-            }));
+            });
         }, Math.round((60_000 / (clock.bpm || 120)) * 8));
     }
 
@@ -164,7 +209,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     }
 
     // ── Incoming message handler ──────────────────────────────────────────
-    ws.addEventListener('message', (event) => {
+    function onWsMessage(event) {
         let msg;
         try {
             msg = JSON.parse(event.data);
@@ -186,13 +231,18 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
                 handleBeatSync(msg);
                 break;
         }
-    });
+    }
 
-    ws.addEventListener('open', () => {
+    function onWsOpen() {
+        _wsBackoff = RECONNECT_MIN;              // a clean connect resets the backoff
+        const rejoin = _wasConnected === false && _everConnected;
+        _wasConnected = true; _everConnected = true;
+        onConnection?.(true, rejoin);
         syncClock();
+        reportListing();                          // the server forgot us while we were gone
         // Elect beat master once awareness has settled
         setTimeout(electBeatMaster, 500);
-    });
+    }
 
     // ── Galaxy listing (listed / unlisted) — a shared room setting ────────────
     // Stored in the Yjs doc so every peer agrees and it survives reloads; each client
@@ -226,16 +276,18 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
 
     let _docSynced = provider.synced || false;
     function reportListing() {
-        if (_docSynced && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'listing', listed: isListed() }));
-        }
+        if (_docSynced) wsSend({ type: 'listing', listed: isListed() });
     }
     function setListed(v) { ymeta.set('listed', !!v); }   // syncs → observer reports + notifies UI
     const _onSynced = () => { _docSynced = true; reportListing(); onListing?.(isListed()); replayPerf(); };
     provider.on('sync', _onSynced);
     provider.on('synced', _onSynced);
     ymeta.observe(() => { reportListing(); onListing?.(isListed()); });
-    ws.addEventListener('open', reportListing);
+
+    // Open the relay. Deliberately down here, after reportListing and the state
+    // observers exist: the socket's open handler touches them, and while the handshake
+    // is async anyway, starting it last keeps that from being a subtlety to remember.
+    wsConnect();
 
     // Re-elect if someone leaves
     provider.awareness.on('change', electBeatMaster);
@@ -272,8 +324,10 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
      * @param {number} beatTime  - Beat timestamp of evaluation
      */
     function broadcastEval(code, lines, author, color, beatTime) {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: 'eval', code, lines, author, color, beatTime }));
+        // authorId: added by the sender itself (it owns the identity), so a peer whose
+        // eval FAILS can report the failure back to the one person who needs to know.
+        // Names are user-chosen and collide; the id is stable.
+        return wsSend({ type: 'eval', code, lines, author, color, authorId: user.id, beatTime });
     }
 
     /**
@@ -282,8 +336,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
      * @param {object} data    - Action payload (merged into the message)
      */
     function broadcastAction(action, data = {}) {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: 'action', action, ...data }));
+        return wsSend({ type: 'action', action, ...data });
     }
 
     /** Current clock offset vs. server (milliseconds). */
@@ -293,16 +346,18 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
 
     /** Tear down all connections and intervals. */
     function destroy() {
+        _destroyed = true;              // stop the reconnect loop before closing
+        clearTimeout(_wsTimer);
         clearInterval(beatSyncInterval);
         window.removeEventListener('beforeunload', _onBeforeUnload);
         try { provider.awareness.off('change', electBeatMaster); } catch (_) {}
         try { provider.awareness.off('change', _onPeersChange); } catch (_) {}
         try { provider.off('sync', _onSynced); provider.off('synced', _onSynced); } catch (_) {}
-        ws.close();
+        try { ws && ws.close(); } catch (_) {}
         binding.destroy();
         provider.destroy();
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setPerf, setUser, getPeers, sendChat, getClockOffset, isListed, setListed, destroy };
+    return { broadcastEval, broadcastAction, setPerf, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, destroy };
 }

@@ -1349,6 +1349,15 @@ body.zen #docs-panel { display: none !important; }
 /* Session / peers panel (multiplayer only — revealed via .active) */
 #cp-session { display: none; }
 #cp-session.active { display: block; }
+/* The eval/action relay is down. Yjs keeps reconnecting on its own, so the peers list
+   and the cursors stay live and the session otherwise looks perfectly healthy — this
+   is the only thing saying that nothing you play is reaching anyone. */
+#cp-session.disconnected { outline: 1px solid var(--red); outline-offset: 3px; opacity: .75; }
+#cp-session.disconnected::before {
+    content: '⚠ relay offline — reconnecting…';
+    display: block; margin-bottom: 4px;
+    font-size: 11px; color: var(--red);
+}
 #cp-peers { display: flex; flex-direction: column; gap: 3px; }
 .cp-peer { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-1); }
 .cp-peer-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px currentColor; }

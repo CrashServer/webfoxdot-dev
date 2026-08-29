@@ -391,10 +391,37 @@
                 case 'stopLine': silence(clock, msg.name);                         break;
                 case 'mixStop':  mixStopPlayer(msg.name);                          break;
                 case 'panelStop': panelStop(msg.name);                             break;
+                // A peer couldn't run something WE sent. Only the author is told —
+                // everyone else already knows, it worked for them.
+                case 'evalError':
+                    if (_collab && msg.toId === _collab.myId())
+                        log(`failed on ${msg.from}: ${msg.message}  —  ${msg.line}`, 'error');
+                    break;
                 case 'perfFX':   applyRemoteFX(msg.fx, msg.on);                    break;
                 case 'stopAll':  stopAll(); log('a peer stopped everything', 'warn'); break;
             }
         });
+    }
+
+    // How late a peer's eval may land before it's worth saying so, in beats. Below
+    // this it's ordinary network jitter; above it the room has genuinely drifted.
+    const LATE_EVAL_BEATS = 0.25;
+    let _lateWarnAt = 0;
+    function warnLateEval(author, lag) {
+        const now = Date.now();
+        if (now - _lateWarnAt < 10000) return;   // one warning per 10s, not one per eval
+        _lateWarnAt = now;
+        log(`${author}'s changes are arriving ${lag.toFixed(2)} beats late — the room is drifting`, 'warn');
+    }
+
+    // The eval/action relay went down or came back. Yjs reconnects on its own, so
+    // without this the session looks perfectly healthy while nothing you play reaches
+    // anyone — the failure mode this is here to make impossible to miss.
+    function onConnection(up, isRejoin) {
+        const el = document.getElementById('cp-session');
+        if (el) el.classList.toggle('disconnected', !up);
+        if (up) log(isRejoin ? 'reconnected — your changes are reaching the room again' : 'session relay connected', isRejoin ? 'ok' : 'info');
+        else log('DISCONNECTED from the session relay — text still syncs, but nothing you play is reaching anyone. Retrying…', 'error');
     }
 
     // Apply one key of the room's shared performance state. Called for a peer's change
@@ -752,7 +779,7 @@
     }
     setRerollHandler(reroll);   // wire the chainable .reroll(beats) player method
 
-    function runCode(raw, { fromRemote = false, author = '', color = '' } = {}) {
+    function runCode(raw, { fromRemote = false, author = '', color = '', authorId = '' } = {}) {
         // Remember each player's source line so reroll() can re-evaluate it later.
         for (const ln of raw.split('\n')) {
             const mm = ln.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
@@ -777,6 +804,18 @@
         } catch (e) {
             log(`Error: ${e.message}`, 'error');
             console.error('transpiled:\n' + js, e);
+            // A PEER's line just failed on our machine — a synth they built and we
+            // don't have, a sample kit we never loaded, a name only they defined.
+            // Without this the author is the one person in the room who thinks it
+            // worked: the error lands in OUR console and nowhere else.
+            if (fromRemote && authorId && _collab) {
+                broadcastAction('evalError', {
+                    toId: authorId,
+                    from: getUser().name,
+                    message: e.message,
+                    line: raw.trim().split('\n')[0].slice(0, 70),
+                });
+            }
         }
         // Broadcast to peers (skip if this eval came from a peer)
         if (!fromRemote && _collab) {
@@ -2470,8 +2509,24 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
-            runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color });
-        }, applyAction, renderPeers, appendChat, _seedText, renderListing, applyPerfState).then(collab => {
+            const run = () => runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color, authorId: msg.authorId });
+            // Honour the beat the sender ran it ON. beatTime has always been sent and
+            // always been thrown away, so a peer applied every change the instant it
+            // arrived. Our beat clocks are aligned (beat_sync), so when the sender's
+            // beat is still ahead of ours the eval was landing EARLY — now it waits
+            // for the beat it was meant for.
+            //
+            // The common case is the other way round: the message is a few ms late, we
+            // can't go back, and it runs now exactly as before. What's new is that the
+            // lateness is measurable, so a room that has drifted badly says so instead
+            // of just sounding loose.
+            const lag = msg.beatTime != null ? clock.now() - msg.beatTime : 0;
+            if (msg.beatTime != null && lag < -0.001) clock._schedule(msg.beatTime, run);
+            else {
+                run();
+                if (lag > LATE_EVAL_BEATS) warnLateEval(msg.author, lag);
+            }
+        }, applyAction, renderPeers, appendChat, _seedText, renderListing, applyPerfState, onConnection).then(collab => {
             _collab = collab;
             renderListing(collab.isListed());
             log(`Session ready. Share: ${location.href}`, 'ok');
