@@ -242,7 +242,7 @@
     import { incrementValue, stopPlayerAtCursor, silence,
              soloPlayerAtCursor, soloDropAtCursor, midiLearnAtCursor } from './js/editor/keybindings.js';
     import { autoRec }                   from './js/editor/autorec.js';
-    import { initCrashPanel }            from './js/ui/crashpanel.js';
+    import { initCrashPanel, panelStop } from './js/ui/crashpanel.js';
     import { initMixer, toggleMixer, onSectionActive, setLevel as setMixLevel, stopPlayer as mixStopPlayer } from './js/ui/mixer.js';
     import { initModular, toggleModular, savePatch as savePatchImpl, loadPatch as loadPatchImpl } from './js/ui/modular.js';
     import { defineFromSource } from './js/modular/codegen.js';
@@ -390,6 +390,7 @@
                 // also reaches a late joiner — see applyPerfState below.
                 case 'stopLine': silence(clock, msg.name);                         break;
                 case 'mixStop':  mixStopPlayer(msg.name);                          break;
+                case 'panelStop': panelStop(msg.name);                             break;
                 case 'perfFX':   applyRemoteFX(msg.fx, msg.on);                    break;
                 case 'stopAll':  stopAll(); log('a peer stopped everything', 'warn'); break;
             }

@@ -2,7 +2,7 @@
 
 import { Scale, Root } from '../engine/scale.js';
 import { toggleMute, toggleSolo, isMuted, isSoloed, forget as gateForget } from '../engine/gate.js';
-import { shareState } from '../collab/actions.js';
+import { share, shareState } from '../collab/actions.js';
 import { levelOf, setLevel } from './mixer.js';
 import { heldByUser } from './controls.js';
 
@@ -22,6 +22,14 @@ export function initCrashPanel(clock) {
     _timer = setInterval(_update, 250);
     _update();
     requestAnimationFrame(_beatLoop);   // smooth beat/subdivision display (~25fps)
+}
+
+// The panel's stop: immediate, NOT bar-quantised like the mixer's ■ — that difference
+// is deliberate, this is the "get it off me now" button. Exported so a peer's
+// 'panelStop' replays through the identical path instead of a near-copy.
+export function panelStop(name) {
+    gateForget(name);                                   // clears mute/solo, locally + for the room
+    if (_clock) _clock._players.get(name)?.stop();       // no grid — stop on the spot
 }
 
 // The beat sub-counter (▪◦) and phrase bars need a faster refresh than the 250ms
@@ -103,7 +111,7 @@ function _updatePlayers() {
             row.querySelector('.cp-player-name').onclick = () => { toggleMute(name); _update(); };
             // Solo → shared gate (multi-solo; agrees with the mixer + eval .solo()).
             row.querySelector('.cp-player-solo').onclick = () => { toggleSolo(name); _update(); };
-            row.querySelector('.cp-player-stop').onclick = () => { gateForget(name); p.stop(); };
+            row.querySelector('.cp-player-stop').onclick = () => { panelStop(name); share('panelStop', { name }); };
             // Fader → the SHARED per-track level. This used to assign p._mixLevel
             // directly, which made this panel a second source of truth: the mixer keeps
             // its own _levels map (it has to — a level outlives the player it belongs

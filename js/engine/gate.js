@@ -25,7 +25,12 @@ export function setMuted(n, on)  { on ? _muted.add(n)  : _muted.delete(n);  appl
 export function setSoloed(n, on) { on ? _soloed.add(n) : _soloed.delete(n); apply(); shareState('solo:' + n, !!on); }
 export function soloOnly(n)   { _soloed.clear(); if (n) _soloed.add(n); apply(); }   // eval `.solo()`
 export function clearSolo()   { _soloed.clear(); apply(); }
-export function forget(n)     { _muted.delete(n); _soloed.delete(n); }               // on stop
+// On stop: drop the track's mute/solo. Routed through the setters rather than poking
+// the sets, for two reasons — it has to clear the SHARED keys too (or the room, and
+// anyone joining later, would still think the track is muted), and the old version
+// never called apply(), so un-soloing the last soloed track left every OTHER player
+// silenced until something unrelated happened to recompute.
+export function forget(n)     { setMuted(n, false); setSoloed(n, false); }
 
 // Recompute every active player's _amplify from mute + solo. Also serves as drop()'s
 // "restore" so a breakdown returns to the CURRENT mute/solo state, not blanket unity.
