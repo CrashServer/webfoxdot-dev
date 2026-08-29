@@ -215,6 +215,7 @@ const CHANGELOG = [
     { v: 'beta11', title: 'Multiplayer performs together · hiss (unified noise) · 5 new voices + tape/bitcrush FX', items: [
         'Multiplayer syncs the whole PERFORMANCE now, not just the code — and you can join a jam already in progress. Until this release only text edits, evals, section jumps and eval-level solos crossed the wire; everything you did with your hands stayed on your own machine. Pull a fader down or Alt+X a line and your peers would watch the line grey out while still hearing the track at full level. Mute, solo, track volume, the mixer\'s ■ stop, Alt+X, tempo, the Scale and Root menus, perform mode\'s XY pad and its momentary DROP / STUTTER / GATE / ECHO holds all reach the room now — from whichever way you touch them: a mixer click, a bound MIDI control, a perform-mode tile, the crash panel\'s M/S buttons. Tempo was the sneakiest of them: the clock already told everyone the beat, so the room stayed locked to the same downbeat while running the set at different SPEEDS. Two things it deliberately does NOT share: master volume (that\'s your own monitoring level, not the mix) and plain stop-all (your private escape hatch). For stopping the room on purpose there\'s PANIC — Ctrl+Shift+. , shift-clicking ■ , or panic() — because a jam where anyone can silence everyone by reflex is worse than one where you have to mean it. The mix, tempo, key, pad position and any synth you build in the modular panel are now shared STATE rather than one-off messages, so someone arriving mid-set gets the faders where they actually are instead of the composition\'s text over everyone\'s default mix; per-track keys mean two people riding different faders merge cleanly instead of one clobbering the other. That also closes a real trap: a synth built in the modular panel used to be defined on YOUR machine only while the p1 >> line ▸ use it generates went out to everybody, so peers got a player line for a synth they didn\'t have. Its source travels with it now, live-mode redefinitions included. Still live-only, so still lost on a late join: which section is playing, and eval-level .solo() — both re-arrive the moment anyone runs something.',
         { t: 'New Live set — Dresden Sunlight (svdk): driving techno arranged by SUBTRACTION rather than by chord changes. There is about one bar of material in it; everything that happens over the set is a filter opening, a layer arriving, or a layer leaving, so the linvar sweeps run over 32 bars instead of 4 and the whole thing lives on two notes. A hardstab lead with .unison(3), then re-stated with a CHORD as its octave (oct=(5, 4, 6)) to stack the same figure across three registers; a dbass sub running into its own ping-pong feedback; an industrialdrone felt more than heard under the peak; and the classic techno hole — b1.stop() pulls the kick while everything else keeps running. #@goto(peak, 0.6) keeps the back half from resolving the same way twice. In the examples dropdown, the Examples page and the galaxy.', ex: 'dresdensunlight' },
+        { t: 'New Live set — Sunset Dribble (svdk): 80s synthpop, and a study in the two things that date that sound instantly — both arrangement choices rather than particular synths. The GATED snare (heavy room, short sus, so the hit is enormous but the reverb is cut off dead instead of blooming) and the sixteenth arpeggio running under everything, doing the job a rhythm guitar does in a rock band: it never stops, it only changes register and opens up. Its sus is a PATTERN in the verse, so the run breathes unevenly instead of machine-gunning. The bass picks up octclean sub/octave doubling, then multiband drive and .unison(3) for the chorus. And the pop instinct throughout is SUBTRACTION — the middle eight is the sparsest section of the song and also the highest, the arp jumping an octave and turning around on updown. In the examples dropdown, the Examples page and the galaxy.', ex: 'sunsetdribble' },
         'The players-panel faders join the mix — and a fader you have touched stops going deaf. The per-track sliders in the right-hand panel were assigning the player\'s level directly instead of going through the mixer, which made that panel a second source of truth: the two desks showed different numbers for one track, launching a track re-applied the mixer\'s value over whatever you had set in the panel, and none of it reached the room. They go through the same door as the mixer now. Separately, every live control (both sets of faders, the master, the BPM field) refreshed itself only when it was not the focused element — but a slider KEEPS focus after you let go of it, so the first fader you touched quietly stopped updating for the rest of the session. On your own that was a stale number after a ~reset; in a jam it read as \'the faders do not sync\', because the fader you are watching is the one you last touched and it is frozen while the audio follows the room perfectly. Controls now track whether you are actually holding them (pointer down, or a keystroke a moment ago) rather than whether they hold focus.',
         'The players panel\'s ■ stops the track for the room too — and un-soloing no longer leaves everything else silent. That button was the last unsynced control on the panel; it stays IMMEDIATE rather than bar-quantised like the mixer\'s ■, since that is the point of it. Fixing it turned up an older bug underneath: stopping a track drops its mute/solo, and that path deleted the flags without recomputing the gate — so hitting ■ on the only SOLOED track left every other player silenced until something unrelated happened to recompute. It also has to clear the shared flags now, or the room (and anyone joining later) would still believe a stopped track was muted.',
         'A session that drops now says so, reconnects, and stops hiding failures — the eval relay opened one WebSocket and never reopened it, while the document connection reconnects on its own — so after any blip (wifi, a sleeping laptop, a server restart) a jam went on LOOKING perfectly healthy, text still syncing and cursors still moving, while every eval, every beat sync and every action silently reached nobody in both directions. It reconnects with backoff now, and the peers panel goes red with ⚠ relay offline for as long as it is down, because the dangerous part was never the outage, it was not knowing. Nothing is queued while you are disconnected: replaying a backlog of evals minutes late is worse than not sending them. When a peer CANNOT run something you sent — a synth you built and they do not have, a sample kit they never loaded — the error used to land in their console and nowhere else, leaving you the only person in the room who thought it worked; it comes back to you now, named. And peers finally honour the beat an eval was made on: that timestamp has always been sent and always been discarded, so when a sender\'s clock ran ahead their changes landed EARLY on everyone else. A change that arrives late still runs at once (there is no going back), but the room now tells you when it is drifting instead of just sounding loose.',
@@ -1229,6 +1230,52 @@ n1 >> dbass([0], oct=4, dur=1, sus=0.9, lpf=180, tanh=0.8, amp=0.8, pong=0.5, po
 
 #@end(16)`)}
     `, 'dresdensunlight');
+
+    const sunsetdribble = section('Sunset Dribble', `
+        ${note('80s synthpop, and two things date that sound instantly — both arrangement choices rather than particular synths. The GATED snare: heavy room with a short <code>sus</code>, so the hit is enormous but the reverb is cut off dead instead of blooming. And the sixteenth-note ARPEGGIO running underneath everything, doing the job a rhythm guitar does in a rock band — it never stops, it just changes register and opens up. Also shows <code>octclean</code> sub/octave doubling and a multiband-driven <code>.unison(3)</code> bass, and the pop instinct of building by SUBTRACTION: the middle eight is the sparsest part of the song. Boot + load the kit first.')}
+        ${code(`Clock.bpm = 112
+Root.default = 4
+Scale.default = "minor"
+
+#@#@ sunsetdribble
+
+#@intro(16)
+# The arp alone, filter opening across the whole 16 bars.
+a1 >> pluck(arp([0, 3, 7, 10], "up", 2), oct=5, dur=1/2, sus=0.2, lpf=linvar([800, 5000], [16]), pong=0.3, pongtime=0.375, amp=0.35)
+
+#@verse(32)
+# Same arp at double speed, its sus now a pattern so the run breathes unevenly.
+a1 >> pluck(arp([0, 3, 7, 10], "up", 2), oct=5, dur=1/4, sus=[0.2, 0.1, 0.2, 0.1, 0.1, 0.3], lpf=3500, pong=0.1, pongtime=0.25, amp=0.25, lpr=0.4)
+b1 >> play(x...vx.., dur=1/2, amp=0.9)
+# The gated snare: heavy room, short sus so the reverb is cut off dead.
+d1 >> play(..o., sus=0.25, reverb=0.7, room=0.9, damp=0.8, amp=0.9)
+n1 >> synthbass([0, 0, 0, 0, 5, 5, 3, 3], oct=3, dur=1/2, sus=[0.35, 0.35, 0.7, 0.35], lpf=1100, amp=0.9, lpr=0.2, octclean=0.6, ocsub=0.5, ocup=0.3)
+
+#@chorus(32)
+# Arp drops an octave to make room up top; the bass gets multiband drive and
+# three detuned voices; pad and lead open the song out.
+a1 >> pluck(arp([0, 3, 7, 10], "up", 2), oct=4, dur=1/4, sus=0.2, lpf=2500, pong=0.3, pongtime=0.5, amp=0.4)
+b1 >> play(x...x, dur=1/2, amp=0.95)
+d1 >> play(..o., sus=0.25, reverb=0.7, room=0.9, damp=0.8, amp=1)
+n1 >> synthbass([0, 0, 0, 0, 5, 5, 3, 3], oct=3, dur=1/2, sus=1, lpf=1400, amp=0.75, multicrush=0.6, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500).unison(3)
+p1 >> prophet([(0,3,7), (5,8,12), (3,7,10), (10,14,17)], oct=5, dur=4, sus=4, attack=0.15, chorus=0.7, reverb=0.45, room=0.8, stereowidth=1.4, amp=0.6)
+l1 >> supersaw([7, 12, 10, 14], oct=5, dur=4, sus=3, attack=0.05, vibrato=0.3, reverb=0.4, amp=0.28)
+
+#@middle8(16)
+# Everything out but the arp and the pad — pop arranges by SUBTRACTION, and the
+# arp goes UP an octave and turns around ("updown") so the thinnest section is
+# also the highest.
+a1 >> pluck(arp([0, 3, 7, 10], "updown", 2), oct=6, dur=1/2, sus=0.2, lpf=linvar([1000, 6000], [16]), pong=0.45, pongtime=0.375, amp=0.35)
+p1 >> prophet([(0,3,7), (10,14,17)], oct=4, dur=8, sus=8, attack=0.5, chorus=0.7, reverb=0.6, room=0.9, amp=0.35)
+b1.stop()
+d1.stop()
+n1.stop()
+l1.stop()
+
+#@goto(chorus, 0.6)
+
+#@end(8)`)}
+    `, 'sunsetdribble');
 
     const showcase = section('Full composition', `
         ${note('A complete live set wired as a <code>#@</code> arrangement. Run <code>#@intro</code> and let it auto-advance. The drop is split into layered parts (<code>dropA/B/C</code>) joined by <b><code>#@goto</code> routers</b>: <code>#@goto(dropA, 0.5)</code> is a zero-length node that, when reached, has a 50% chance to jump back to <code>dropA</code> and 50% to fall through to the next section — so the drop loops a random number of times and the set never plays the same way twice. It also uses chords &amp; groups, FX chains, <code>linvar/sinvar</code>, P-patterns, probability, accents and <code>~</code>reset. Boot audio first. (Keep part names unique — jumps resolve to the first match.)')}
@@ -2492,7 +2539,7 @@ pd >> darkpad(PProg("andalusian"), oct=4, dur=8)
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, dresdensunlight, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, dresdensunlight, sunsetdribble, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
