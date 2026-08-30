@@ -2,21 +2,26 @@
 // out of other people's material without typing attack() by hand.
 //
 // Two columns: every block on the left, its #@ parts on the right. Clicking a part
-// writes it into your buffer (and plays it, if ▶ is armed) through exactly the same
-// attack() path the console uses — this panel is a way of CALLING that, never a
-// second implementation of it. Anything true of attack() is true here: the material
-// lands under your cursor's section, it is written in once, and it becomes your copy.
+// writes a SECTION and the attack() line that fills it —
+//
+//     #@stab(16)
+//     attack("dresdensunlight", "stab", 1)
+//
+// — and not the borrowed code itself. That is the difference between a clipboard and
+// a composition tool: click four parts and you have a four-section arrangement you
+// can read, reorder and set beat counts on, with the material still living in the
+// tracks it came from until you run it.
 //
 // Same floating, draggable, non-modal shape as the mixer and the rules panel, so it
 // can sit open while you keep coding.
 
 let _modal = null, _open = false;
-let _ctx = { list: () => [], partsOf: () => [], fire: () => {} };
+let _ctx = { list: () => [], partsOf: () => [], insert: () => {} };
 let _sel = null;      // the block whose parts are showing
-let _play = false;    // ▶ armed → clicking a part plays it as well as writing it in
+let _play = false;    // ▶ armed → the new section is run as well as written
 let _filter = '';
 
-/** ctx: { list(), partsOf(id), fire(id, part, play) } — supplied by index.html. */
+/** ctx: { list(), partsOf(id), insert(id, part, play) } — supplied by index.html. */
 export function initPartsPanel(ctx) { _ctx = { ..._ctx, ...ctx }; }
 
 export function isPartsOpen() { return _open; }
@@ -32,9 +37,9 @@ function build() {
     _modal.className = 'hidden';
     _modal.innerHTML = `
         <div class="parts-head">
-            <span class="parts-title">🧩 parts</span>
+            <span class="parts-title">parts</span>
             <input class="parts-search" type="text" placeholder="filter…" spellcheck="false">
-            <button class="parts-play" title="when armed, clicking a part PLAYS it as well as writing it in">▶ play</button>
+            <button class="parts-play" title="when armed, the section is RUN as soon as it is written — otherwise it just lands in your buffer">▶ play</button>
             <div class="parts-drag"></div>
             <button class="parts-close" title="close">×</button>
         </div>
@@ -92,14 +97,14 @@ function render(keepFocus) {
         partsEl.innerHTML = p;
         partsEl.querySelectorAll('.parts-part').forEach(b => {
             b.onclick = () => {
-                _ctx.fire(_sel, b.dataset.part || undefined, _play);
+                _ctx.insert(_sel, b.dataset.part || undefined, _play);
                 render(true);
             };
         });
     }
 
     footEl.textContent = _sel
-        ? (_play ? `clicking a part writes it in and plays it` : `clicking a part writes it in — arm ▶ to play too`)
+        ? (_play ? `click a part → #@section + attack(), and run it` : `click a part → #@section + attack() — arm ▶ to run it too`)
         : `${shown.length} of ${items.length} blocks`;
 
     if (keepFocus) {
