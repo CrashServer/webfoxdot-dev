@@ -463,10 +463,34 @@
         else log('DISCONNECTED from the session relay — text still syncs, but nothing you play is reaching anyone. Retrying…', 'error');
     }
 
-    // ── ascii_gen() / audiviz() — things to look at in the log ─────────────────
+    // ── ascii_gen() / audiviz() — things to look at, IN THE CODE ──────────
+    //
+    // Both draw into the BUFFER rather than the log, because both are part of the
+    // piece rather than a report about it: a title card marks where you are in a long
+    // scroll, and a meter you watch while you play belongs where your eyes already
+    // are. They land as `#` comments, so they stay inert — a #@ section can hold one
+    // and come round to it forever without the drawing ever being evaluated.
 
-    // ascii_gen("word", style) — the word, large, in the log. One line per row so it
-    // scrolls like anything else rather than needing its own surface.
+    const reEsc = (t) => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Find the line that called us, so the drawing lands under it rather than at the
+    // far end of the buffer. Comment lines are skipped — a previous drawing is itself
+    // comments, and would otherwise match before the real call does.
+    function drawSite(re) {
+        for (let i = 0; i < editor.lineCount(); i++) {
+            const t = editor.getLine(i);
+            if (t.trim().startsWith('#')) continue;
+            if (re.test(t)) return i;
+        }
+        return -1;
+    }
+
+    // ascii_gen("word", style) — the word, large, written in as comments.
+    //
+    // Redrawn only if it is not already sitting in the buffer: a #@ section runs again
+    // on every pass of the arrangement, and without this the card would be pasted
+    // again each time and grow the file without limit. Delete it and it comes back.
+    const _drawn = new Map();
     function ascii_gen(word, style) {
         if (word == null) {
             log(`ascii_gen("word", style) — styles: ${ASCII_STYLES.join(' · ')}`, 'info');
@@ -474,35 +498,102 @@
         }
         const rows = asciiWord(word, style);
         if (!rows.length) { log('ascii_gen: nothing to draw', 'warn'); return; }
-        for (const r of rows) log(r, 'ok');
+        const text = rows.map(r => ('# ' + r).replace(/\s+$/, '')).join('\n');
+        const key  = `ascii:${word}:${style || ''}`;
+        const prev = _drawn.get(key);
+        if (prev && editor.getValue().includes(prev)) {
+            log(`ascii_gen: "${word}" — already in the code`, 'info');
+            return;
+        }
+        _drawn.set(key, text);
+        const at = drawSite(new RegExp('ascii_gen\\s*\\(\\s*["\']' + reEsc(word) + '["\']'));
+        if (at >= 0) {
+            const end = { line: at, ch: editor.getLine(at).length };
+            editor.replaceRange('\n' + text, end, end);
+            editor.scrollIntoView({ line: at + rows.length, ch: 0 });
+        } else {
+            insertCode(text, { quiet: true, run: false });   // from the console — append
+        }
+        log(`ascii_gen: "${word}" — drawn in the code`, 'ok');
     }
 
-    // audiviz(band) — a live level meter in the log, redrawn in place.
+    // audiviz(band) — a live level meter on a comment line in the code.
     //
     // Reads the SAME analyser the visuals use (bridge.js taps scsynth's output), so
-    // the bar and the picture always agree, and nothing extra is connected to the
-    // audio graph. It needs audio booted; before that the analyser does not exist and
-    // every band reads zero, which would look like silence rather than like "not
+    // the bar and the picture can never disagree, and nothing extra is connected to
+    // the audio graph. It needs audio booted; before that the analyser does not exist
+    // and every band reads zero, which would look like silence rather than like "not
     // running", so that is said out loud instead.
+    //
+    // The anchor `# audiviz bass` is real text; the BAR is a widget pinned to the end
+    // of it. That split is the whole design. Redrawing forty characters twenty times a
+    // second into the document would put twenty changes a second through the undo
+    // history — one Ctrl+Z would step back a fiftieth of a second — and, in a room,
+    // twenty updates a second through the shared document, for a meter that is only
+    // meaningful on the machine whose audio it measures. So the part that MOVES never
+    // touches the text: peers see the comment, and meter their own sound if they want.
     const AUDIVIZ_BANDS = ['level', 'bass', 'mid', 'treble'];
     const AUDIVIZ_WIDTH = 48;
     let _audiviz = null;
+    function audivizAnchor() {
+        for (let i = 0; i < editor.lineCount(); i++)
+            if (/^#\s*audiviz\b/.test(editor.getLine(i).trim())) return i;
+        return -1;
+    }
+    function stopAudiviz(dropAnchor) {
+        if (_audiviz) {
+            clearInterval(_audiviz.timer);
+            try { _audiviz.mark.clear(); } catch (_) {}
+            _audiviz = null;
+        }
+        // Only on an explicit stop: an anchor with no bar on it reads as a meter that
+        // has broken rather than one that was switched off. Switching BANDS keeps it.
+        if (dropAnchor) {
+            const ln = audivizAnchor();
+            if (ln < 0) return;
+            // Take the newline with the line, or the buffer keeps a blank where the
+            // meter was. On the LAST line there is no newline after it to remove, so
+            // reach back and take the one before instead.
+            if (ln < editor.lastLine())      editor.replaceRange('', { line: ln, ch: 0 }, { line: ln + 1, ch: 0 });
+            else if (ln > 0)                 editor.replaceRange('', { line: ln - 1, ch: editor.getLine(ln - 1).length }, { line: ln, ch: editor.getLine(ln).length });
+            else                             editor.replaceRange('', { line: 0, ch: 0 }, { line: 0, ch: editor.getLine(0).length });
+        }
+    }
     function audiviz(band = 0) {
-        if (_audiviz) { clearInterval(_audiviz.timer); _audiviz.update('audiviz: off', 'info'); _audiviz = null; }
-        if (band === false || band < 0) return;                 // audiviz(false) / audiviz(-1) stops
+        if (band === false || band < 0) { stopAudiviz(true); log('audiviz: off', 'info'); return; }
+        stopAudiviz(false);
         const i = Math.max(0, Math.min(3, Math.round(Number(band) || 0)));
         const name = AUDIVIZ_BANDS[i];
         if (document.getElementById('status-dot')?.className !== 'ready')
             log('audiviz: boot audio first (top-left) — the analyser only exists once the engine is running', 'warn');
-        const update = logLive(`audiviz ${name}`, 'ok');
+
+        const anchor = `# audiviz ${name}`;
+        let ln = audivizAnchor();
+        if (ln >= 0) {
+            editor.replaceRange(anchor, { line: ln, ch: 0 }, { line: ln, ch: editor.getLine(ln).length });
+        } else {
+            const at = drawSite(/\baudi?o?viz\s*\(/);
+            if (at >= 0) {
+                const end = { line: at, ch: editor.getLine(at).length };
+                editor.replaceRange('\n' + anchor, end, end);
+            } else {
+                insertCode(anchor, { quiet: true, run: false });
+            }
+            ln = audivizAnchor();
+        }
+        if (ln < 0) { log('audiviz: could not place the meter in the code', 'warn'); return; }
+
+        const el = document.createElement('span');
+        el.className = 'audiviz-bar';
+        const mark = editor.setBookmark({ line: ln, ch: editor.getLine(ln).length }, { widget: el });
         const timer = setInterval(() => {
             const a = getVisualAudio();
             const v = Math.max(0, Math.min(1, a[name] ?? 0));
             const n = Math.round(v * AUDIVIZ_WIDTH);
-            update(`${name.padEnd(6)} ${'|'.repeat(n)}${'·'.repeat(AUDIVIZ_WIDTH - n)} ${v.toFixed(2)}`, 'ok');
+            el.textContent = `  ${'|'.repeat(n)}${'·'.repeat(AUDIVIZ_WIDTH - n)} ${v.toFixed(2)}`;
         }, 50);
-        _audiviz = { timer, update };
-        log(`audiviz: ${name} (band ${i} of 0 level · 1 bass · 2 mid · 3 treble) — audiviz(false) stops it`, 'info');
+        _audiviz = { timer, mark };
+        log(`audiviz: ${name} (0 level · 1 bass · 2 mid · 3 treble) — on the # line in your code; audiviz(false) stops it`, 'ok');
     }
 
     // ── attack() — drop a prepared block into the set ──────────────────────────
@@ -820,7 +911,7 @@
         clearVisuals();
         // A live audiviz meter is a timer, not a player, so nothing above reaches it
         // either. "Stop everything" should mean everything.
-        if (_audiviz) { clearInterval(_audiviz.timer); _audiviz.update('audiviz: off', 'info'); _audiviz = null; }
+        stopAudiviz(true);
         clock.bpm = clock.bpm;                  // sampling a TimeVar → freeze at the current value
     }
 

@@ -2346,3 +2346,18 @@ body.is-offline #btn-galaxy {
 .perf-tile.soloed { border-color: var(--yellow); box-shadow: 0 0 12px rgba(210, 153, 34, .5); }
 .perf-tile.soloed .perf-tile-solo { opacity: 1; }
 .perf-tile.soloed .perf-tile-name { color: var(--yellow); }
+
+/* audiviz() — the live level meter, pinned to the end of its `# audiviz` comment
+   line as a widget rather than written into the document. It has to read as a
+   continuation of that comment, so it takes the comment colour; `pre` keeps the
+   bar's trailing dots, which is what makes the level legible as a fixed-width
+   gauge rather than a string that grows and shrinks. `user-select: none` so
+   selecting the line and copying it gives you the comment, not a frozen bar. */
+.audiviz-bar {
+    color: var(--text-2);
+    font-style: italic;
+    white-space: pre;
+    opacity: 0.85;
+    user-select: none;
+    pointer-events: none;
+}

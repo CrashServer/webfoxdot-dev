@@ -272,6 +272,13 @@ const GLOBALS = [
     'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(',
     'say(','darker()','lighter()','shutup()','swap(','melody(',
     'midi(','midiin(','mlearn(','midiout(','link(',
+    // The app's OWN commands. These were reachable only by knowing they existed:
+    // every one is documented and several take an argument the menu can complete,
+    // but none of them was offered, so the completion never fired because you had
+    // to type the whole name to get to it.
+    'ascii_gen(','audiviz(','audioviz(','theme(','language(','attack(','modular()','panic()',
+    'softReload()','savePatch(','loadPatch(','tour()','vbg(','cancelSection()',
+    'rules(','role(','grant(','tracks()','release(',
 ];
 
 // ── Player name generation ───────────────────────────────────────────────────
