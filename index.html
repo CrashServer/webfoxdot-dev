@@ -2372,8 +2372,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 if (r && r.spans.length) { out.push(r.spans); k = r.end; }
             }
             else if (c === '<' && pdepth === 1) {
-                // <a b c> alternation cycles per step → track its elements so the
-                // highlight moves through them (like a [...] sequence).
+                // <a b c> is SUBDIVISION — it crams its items into one step (a ratchet).
+                // Track its items so the mark moves through them within that step.
+                // (ALTERNATION is nested [ ]: [0, [4, 7]] → 0,4,0,7. The two were
+                // swapped in beta07 and these comments still said "alternation", which
+                // is how a wrong example ended up in the docs.)
                 const r = altSpans(lineText, k);
                 if (r && r.spans.length) { out.push(r.spans); k = r.end; }
             }
@@ -2454,8 +2457,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             }
             const sp = spans[idx];
             picks.push(sp[0], sp[1]); sig += sp[0] + '-' + sp[1];
-            // Nested <a b …> alternation (e.g. the (<4, 8>, 2) chord) — the item it's
-            // on advances once per full cycle of this array, so index = ⌊step/len⌋.
+            // A nested <a b …> subdivision inside an element — the item it's on advances
+            // once per full cycle of this array, so index = ⌊step/len⌋.
             if (sp.alt && sp.alt.length) {
                 const ai = (Math.floor(step / spans.length) % sp.alt.length + sp.alt.length) % sp.alt.length;
                 const [as, ae] = sp.alt[ai];
