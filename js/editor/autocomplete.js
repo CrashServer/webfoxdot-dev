@@ -364,12 +364,31 @@ function attackPartItems(id) {
     ]);
 }
 
+// theme() / language() — small closed sets of names, worth offering rather than
+// remembering. The themes are read from the Settings ▸ Theme <select> at call time
+// rather than copied into a list here: that element is what the app itself switches
+// on, so the menu cannot drift out of step with the skins that actually exist, and it
+// carries the pretty labels ("Paper & Ink") for free.
+function themeItems() {
+    const sel = typeof document !== 'undefined' && document.getElementById('theme-select');
+    if (!sel) return [];
+    return [...sel.options].map(o => item(`"${o.value}"`, 'hint-keyword', `${o.value}  ${o.textContent.trim()}`));
+}
+const LANGUAGES = [['en', 'English'], ['fr', 'Français']];
+function languageItems() {
+    return LANGUAGES.map(([c, label]) => item(`"${c}"`, 'hint-keyword', `${c}  ${label}`));
+}
+
 function getContext(cm) {
     const cursor = cm.getCursor();
     const line   = cm.getLine(cursor.line);
     const before = line.slice(0, cursor.ch);
     const wordM  = before.match(/([a-zA-Z_][\w.]*)$/);
     const word   = wordM ? wordM[1].replace(/\.$/, '') : '';
+
+    // Inside theme( … ) / language( … ) — a fixed set of names.
+    if (/\btheme\(\s*["']?[\w-]*$/.test(before))    return { type: 'theme', word };
+    if (/\blanguage\(\s*["']?[\w-]*$/.test(before)) return { type: 'language', word };
 
     // Inside attack( … ) — the prepared-block library. Second argument first, so
     // attack("dubplate", …  offers THAT block's sections rather than the whole list.
@@ -542,7 +561,11 @@ function hintFn(cm) {
 
     let list = [];
 
-    if (ctx.type === 'attack') {
+    if (ctx.type === 'theme') {
+        list = themeItems();
+    } else if (ctx.type === 'language') {
+        list = languageItems();
+    } else if (ctx.type === 'attack') {
         list = attackItems();
     } else if (ctx.type === 'attackpart') {
         list = attackPartItems(ctx.id);
