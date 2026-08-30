@@ -460,6 +460,83 @@
         else log('DISCONNECTED from the session relay — text still syncs, but nothing you play is reaching anyone. Retrying…', 'error');
     }
 
+    // ── attack() — drop a prepared block into the set ──────────────────────────
+    // The move webTroop's attack() makes: mid-performance you call up a piece of
+    // material you prepared earlier instead of typing it. There it fetches from the
+    // FoxDot server; here the library is the bundled examples and live sets, which are
+    // already runnable buffers.
+    //
+    //   attack()                 list what is available
+    //   attack("dubplate")       run the whole set
+    //   attack("showcase", "drop")   run just its #@drop part
+    //
+    // It RUNS rather than pasting. Pasting into a shared buffer mid-set moves everyone
+    // else's cursor and lines; running touches only the sound. The code still reaches
+    // peers, because runCode broadcasts.
+    const _SEC_RE = /^#@\s*([a-zA-Z_]\w*)/;
+
+    // The lines of one #@ part: from its header to the next #@ (or the end).
+    function partOf(code, part) {
+        const lines = code.split('\n');
+        const want = String(part).toLowerCase();
+        let from = -1;
+        for (let i = 0; i < lines.length; i++) {
+            const t = lines[i].trim();
+            if (t.startsWith('#@#@')) continue;                 // track header, not a part
+            const m = t.match(_SEC_RE);
+            if (!m) continue;
+            if (from < 0 && m[1].toLowerCase() === want) { from = i; continue; }
+            if (from >= 0) return lines.slice(from + 1, i).join('\n');
+        }
+        return from >= 0 ? lines.slice(from + 1).join('\n') : null;
+    }
+    function partsIn(code) {
+        return code.split('\n')
+            .map(l => l.trim())
+            .filter(t => !t.startsWith('#@#@'))
+            .map(t => (t.match(_SEC_RE) || [])[1])
+            .filter(n => n && !/^(goto|end|endfade|clear)$/i.test(n));
+    }
+
+    function attack(name, part) {
+        const items = exampleList();
+        if (name === undefined) {
+            log(`attack — ${items.length} prepared blocks · attack("name") to fire one, attack("name", "part") for one section:`, 'info');
+            let cat = null;
+            for (const it of items) {
+                if (it.cat !== cat) { cat = it.cat; log(`  ${cat}`, 'info'); }
+                log(`    ${it.id}${it.title ? '   — ' + it.title : ''}`, 'info');
+            }
+            return;
+        }
+        const id = String(name).toLowerCase();
+        const hit = items.find(i => i.id.toLowerCase() === id)
+                 || items.find(i => i.id.toLowerCase().startsWith(id));
+        if (!hit) {
+            const near = items.filter(i => i.id.toLowerCase().includes(id)).map(i => i.id);
+            log(`attack: no block called "${name}"${near.length ? ' — did you mean ' + near.join(', ') + '?' : ' (attack() lists them)'}`, 'warn');
+            return;
+        }
+        const code = exampleCode(hit.id);
+        if (!code) { log(`attack: "${hit.id}" has no runnable code`, 'warn'); return; }
+
+        if (part === undefined) {
+            runCode(code);
+            const ps = partsIn(code);
+            log(`attack: ${hit.id}${ps.length ? ` — parts: ${ps.join(' · ')}` : ''}`, 'ok');
+            return;
+        }
+        const body = partOf(code, part);
+        if (body === null) {
+            const ps = partsIn(code);
+            log(`attack: "${hit.id}" has no part "${part}"${ps.length ? ' — it has: ' + ps.join(' · ') : ' (it is not a #@ composition)'}`, 'warn');
+            return;
+        }
+        if (!body.trim()) { log(`attack: part "${part}" of ${hit.id} is empty`, 'warn'); return; }
+        runCode(body);
+        log(`attack: ${hit.id} · ${part}`, 'ok');
+    }
+
     // ── Room-rules console commands ───────────────────────────────────────────
     // Deliberately eval-scope rather than a panel: in a workshop the host is already
     // in the editor, and a line you can paste into the chat ("run rules(true)") is
@@ -742,6 +819,10 @@
             // modular()  opens/closes the modular synth builder panel — same as
             // clicking the toolbar's 🎛 button, for when your hands are on the keyboard.
             modular: () => toggleModular(),
+            // attack()  fire a prepared block from the examples library —
+            // attack() lists · attack("dubplate") runs it · attack("showcase", "drop")
+            // runs one #@ part of it.
+            attack,
             // panic()  stops everything for EVERYONE in the room (plain stop-all —
             // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
             panic: () => panic(),
