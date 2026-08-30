@@ -2644,7 +2644,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         return { idx: i, t };
     }
     function stepIndex(durs, beat) { return varPos(durs, beat).idx; }
-    const _mid = (c) => (c[0] + c[1]) / 2;
 
     // Every var(...) on a line we can draw honestly.
     //
@@ -2758,15 +2757,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             const v0 = it.vals[idx], v1 = it.vals[(idx + 1) % it.vals.length];
             const v  = it.sampler();
             const f  = (v1 === v0) ? 0 : Math.max(0, Math.min(1, (v - v0) / (v1 - v0)));
+            // Anchored to each value's FIRST character, not its middle: at 400 the
+            // needle should sit where "400" begins, so the sweep visibly starts at the
+            // start of the first value rather than part-way into it.
             const ca = editor.charCoords({ line, ch: a[0] }, 'local');
-            const cb = editor.charCoords({ line, ch: a[1] }, 'local');
             const da = editor.charCoords({ line, ch: b[0] }, 'local');
-            const db = editor.charCoords({ line, ch: b[1] }, 'local');
             // Wrapped line: the ends sit on different visual rows, so there is no
             // meaningful distance to slide along. This was the smear.
-            if (Math.abs(cb.top - ca.top) > 1 || Math.abs(db.top - da.top) > 1 ||
-                Math.abs(da.top - ca.top) > 1) { it.el.style.display = 'none'; continue; }
-            const from = _mid([ca.left, cb.left]), to = _mid([da.left, db.left]);
+            if (Math.abs(da.top - ca.top) > 1) { it.el.style.display = 'none'; continue; }
+            const from = ca.left, to = da.left;
             it.el.style.display = '';
             it.el.style.transform = `translate(${(from + f * (to - from)).toFixed(1)}px, ${ca.top.toFixed(1)}px)`;
             it.el.style.height = Math.max(12, ca.bottom - ca.top) + 'px';
