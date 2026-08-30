@@ -4,7 +4,7 @@
 
 import { SYNTH_DEFS }  from '../synths/registry.js';
 import { FX_REGISTRY } from '../fx/registry.js';
-import { PATTERNS, TIMEVARS, FUNCTIONS, PLAYER_PARAMS } from '../ui/docs.js';
+import { PATTERNS, TIMEVARS, FUNCTIONS, PLAYER_PARAMS, METHODS } from '../ui/docs.js';
 
 // Build a name → { kind, sig, desc } lookup once.
 let _defs = null;
@@ -32,6 +32,11 @@ function defs() {
     add(TIMEVARS, 'timevar');
     add(FUNCTIONS, 'function');
     add(PLAYER_PARAMS, 'param');
+    // Chained player methods (.unison, .every, .sometimes…). Added last so a name
+    // that is also a synth or FX keeps its own entry — `solo` and `stop` exist in
+    // both worlds, and the eval-scope meaning is the one you are more likely to be
+    // looking at when the cursor is on a bare word.
+    add(METHODS, 'method');
     _defs = d;
     return d;
 }

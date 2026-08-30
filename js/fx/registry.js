@@ -23,7 +23,7 @@ export const FX_REGISTRY = {
     bpr:    { scParam: 'bpr',  default: 0.5, desc: 'BPF bandwidth (0.05=narrow/resonant, 1=wide)' },
 
     // 3-band EQ — eq3 = dry→wet mix (0 = off); low/mid/high gains in dB (±24)
-    eq3:       { scParam: 'eq3',     default: 0,    desc: '3-band EQ mix (0=off)' },
+    eq3:       { scParam: 'eq3',     default: 0,    desc: '3-band EQ mix (0=off). ON ITS OWN IT DOES NOTHING — every band is 0 dB (flat) by default, so also set eqlow / eqmid / eqhigh, e.g. eq3=1, eqhigh=-12' },
     eqlow:     { scParam: 'eqlow',   default: 0,    desc: 'Low-shelf gain dB (±24)' },
     eqmid:     { scParam: 'eqmid',   default: 0,    desc: 'Mid peak gain dB (±24)' },
     eqhigh:    { scParam: 'eqhigh',  default: 0,    desc: 'High-shelf gain dB (±24)' },
