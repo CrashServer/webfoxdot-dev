@@ -122,8 +122,27 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return os.path.normpath(WORKSHOP + rel)
         return super().translate_path(path)
 
+    # Blanket no-store is right for the code you are editing — index.html, js/, css/
+    # should never come from cache while live-coding the app itself. It is wrong for
+    # the BUILT assets: the 141 compiled synthdefs (~620K), the WASM engine and the
+    # sample bank change only when a build script runs, and no-store forbids the
+    # browser from keeping them AT ALL — not even from revalidating — so every
+    # refresh re-downloads the lot before a note can sound.
+    #
+    # Those get a short max-age with must-revalidate instead: the browser keeps the
+    # bytes and asks "still current?", which this server answers with a 304 and no
+    # body. Rebuild a synthdef and the mtime changes, so the next ask returns the new
+    # one. Nothing goes stale, nothing re-downloads.
+    CACHEABLE = ('/synthdefs/', '/samples/', '/lib/')
+
+    def _cache_header(self):
+        path = self.path.split('?', 1)[0]
+        if any(seg in path for seg in self.CACHEABLE):
+            return 'public, max-age=60, must-revalidate'
+        return 'no-store, no-cache, must-revalidate'
+
     def end_headers(self):
-        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+        self.send_header('Cache-Control', self._cache_header())
         self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         super().end_headers()
