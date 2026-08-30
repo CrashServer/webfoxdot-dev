@@ -1003,6 +1003,7 @@ body.zen #docs-panel { display: none !important; }
 .hint-synth    { color: var(--synth-col); }
 .hint-fx       { color: var(--purple); }
 .hint-pattern  { color: var(--pattern-col); }
+.hint-attack   { color: var(--yellow); }   /* attack() — prepared blocks + their #@ parts */
 .hint-timevar  { color: var(--timevar-col); }
 .hint-method   { color: var(--blue); }
 .hint-param    { color: var(--text-1); }

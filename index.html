@@ -2838,11 +2838,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             const v0 = it.vals[idx], v1 = it.vals[(idx + 1) % it.vals.length];
             const v  = it.sampler();
             const f  = (v1 === v0) ? 0 : Math.max(0, Math.min(1, (v - v0) / (v1 - v0)));
-            // Anchored to each value's FIRST character, not its middle: at 400 the
-            // needle should sit where "400" begins, so the sweep visibly starts at the
-            // start of the first value rather than part-way into it.
-            const ca = editor.charCoords({ line, ch: a[0] }, 'local');
-            const da = editor.charCoords({ line, ch: b[0] }, 'local');
+            // Where a value's anchor sits: the FIRST character of the number, except
+            // for the last value, which anchors to its END. That makes the sweep run
+            // from the start of the first number to the end of the last one — it
+            // begins on the "4" of 400 and finishes past the final "0" of 4000, rather
+            // than starting mid-number (centre anchoring) or stopping short of the end
+            // (start anchoring everywhere).
+            const last = it.elems.length - 1;
+            const anchor = (sp, i) => editor.charCoords({ line, ch: i === last ? sp[1] : sp[0] }, 'local');
+            const ca = anchor(a, idx), da = anchor(b, (idx + 1) % it.elems.length);
             // Wrapped line: the ends sit on different visual rows, so there is no
             // meaningful distance to slide along. This was the smear.
             if (Math.abs(da.top - ca.top) > 1) { it.el.style.display = 'none'; continue; }

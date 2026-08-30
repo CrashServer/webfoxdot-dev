@@ -5,6 +5,7 @@
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
 import { SCENES as VSCENES, SCENE_PARAMS, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
+import { exampleList, exampleCode } from '../ui/docs.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
@@ -300,12 +301,70 @@ function nextPlayerName(cm) {
 
 // ── Context detection ────────────────────────────────────────────────────────
 
+// ── attack() — the prepared-block library, as a menu ──────────────────────────
+// attack("id") fires a whole example; attack("id", "part") fires one of its #@
+// sections. Both are offered here, nested category → block → part, so the sections
+// are reachable without knowing they exist.
+//
+// Built once and cached: exampleCode() re-parses the whole examples document on every
+// call, so asking ~40 examples for their parts is not something to do per keystroke.
+let _attackLib = null;
+function attackLib() {
+    if (_attackLib) return _attackLib;
+    const SEC = /^#@\s*([a-zA-Z_]\w*)/;
+    _attackLib = exampleList().map(e => {
+        let parts = [];
+        try {
+            parts = (exampleCode(e.id) || '').split('\n')
+                .map(l => l.trim())
+                .filter(t => !t.startsWith('#@#@'))
+                .map(t => (t.match(SEC) || [])[1])
+                .filter(n => n && !/^(goto|end|endfade|clear)$/i.test(n));
+        } catch (_) {}
+        return { ...e, parts: [...new Set(parts)] };
+    });
+    return _attackLib;
+}
+
+function attackItems() {
+    const out = [];
+    let cat = null;
+    for (const e of attackLib()) {
+        if (e.cat !== cat) { cat = e.cat; out.push(item(`— ${cat} —`, 'hint-sep')); }
+        // The whole block, then each of its parts. `grp` nests them one level deeper
+        // (see groupByKey in toTree) so a block with sections becomes its own submenu.
+        const whole = item(`"${e.id}"`, 'hint-attack', e.parts.length ? `${e.id} — whole set` : e.id);
+        whole.grp = e.id; whole.detail = e.title || '';
+        out.push(whole);
+        for (const p of e.parts) {
+            const it = item(`"${e.id}", "${p}"`, 'hint-attack', p);
+            it.grp = e.id;
+            out.push(it);
+        }
+    }
+    return out;
+}
+
+// Sections of ONE block — used once an id is already typed: attack("dubplate", …
+function attackPartItems(id) {
+    const e = attackLib().find(x => x.id.toLowerCase() === String(id).toLowerCase());
+    if (!e) return [];
+    return e.parts.map(p => item(`"${p}"`, 'hint-attack', p));
+}
+
 function getContext(cm) {
     const cursor = cm.getCursor();
     const line   = cm.getLine(cursor.line);
     const before = line.slice(0, cursor.ch);
     const wordM  = before.match(/([a-zA-Z_][\w.]*)$/);
     const word   = wordM ? wordM[1].replace(/\.$/, '') : '';
+
+    // Inside attack( … ) — the prepared-block library. Second argument first, so
+    // attack("dubplate", …  offers THAT block's sections rather than the whole list.
+    const atkPart = before.match(/\battack\(\s*["']([^"']+)["']\s*,\s*["']?([\w-]*)$/);
+    if (atkPart) return { type: 'attackpart', id: atkPart[1], word: atkPart[2] };
+    const atk = before.match(/\battack\(\s*["']?([\w-]*)$/);
+    if (atk) return { type: 'attack', word: atk[1] };
 
     // Empty line → player name suggestion
     if (line.trim() === '') return { type: 'newplayer' };
@@ -471,7 +530,11 @@ function hintFn(cm) {
 
     let list = [];
 
-    if (ctx.type === 'method') {
+    if (ctx.type === 'attack') {
+        list = attackItems();
+    } else if (ctx.type === 'attackpart') {
+        list = attackPartItems(ctx.id);
+    } else if (ctx.type === 'method') {
         list = filter(PLAYER_METHODS.map(m => item(m, 'hint-method')));
     } else if (ctx.type === 'synth') {
         // Picking a synth inserts the full call (all params); play() opens parens.
@@ -595,6 +658,23 @@ function cleanLabel(s) { return String(s).replace(/—/g, '').replace(/…/g, ''
 const wrap = (i, n) => ((i % n) + n) % n;
 const leaf = (item) => ({ kind: 'leaf', item });
 
+// Group items by an arbitrary key carried on the item (`grp`). Used by attack(),
+// where each prepared block becomes its own submenu holding "whole set" plus one row
+// per #@ part. A block with no parts is a single leaf rather than a submenu of one.
+function groupByKey(items) {
+    const order = [], byKey = new Map();
+    for (const it of items) {
+        const k = it.grp ?? it.displayText;
+        if (!byKey.has(k)) { byKey.set(k, []); order.push(k); }
+        byKey.get(k).push(it);
+    }
+    return order.map(k => {
+        const kids = byKey.get(k);
+        return kids.length === 1 ? leaf(kids[0])
+                                 : { kind: 'cat', label: k, children: kids.map(leaf) };
+    });
+}
+
 // Split a list of items into family sub-categories (by displayText) + an "other"
 // bucket. Used for both fx (FX_SUBCATS) and synths (SYNTH_SUBCATS).
 function groupByFamily(items, families) {
@@ -639,7 +719,9 @@ function toTree(list, subgroup) {
         // are already small — don't re-group those into families-of-one.
         const allSynth = node.items.length > 10 && node.items.every(i => i.className === 'hint-synth');
         const allPat   = node.items.length > 10 && node.items.every(i => i.className === 'hint-pattern');
-        const children = (subgroup && allFx)    ? groupByFamily(node.items, FX_SUBCATS)
+        const allAttack = node.items.length > 0 && node.items.every(i => i.className === 'hint-attack');
+        const children = (subgroup && allAttack) ? groupByKey(node.items)
+                       : (subgroup && allFx)    ? groupByFamily(node.items, FX_SUBCATS)
                        : (subgroup && allSynth) ? groupByFamily(node.items, SYNTH_SUBCATS)
                        : (subgroup && allPat)   ? groupByFamily(node.items, PATTERN_SUBCATS)
                        : node.items.map(leaf);
