@@ -6,6 +6,7 @@ import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
 import { SCENES as VSCENES, SCENE_PARAMS, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 import { exampleList, exampleCode } from '../ui/docs.js';
+import { ASCII_STYLES } from '../ui/ascii.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
@@ -364,6 +365,17 @@ function attackPartItems(id) {
     ]);
 }
 
+// ascii_gen() second argument — the style names, from the module that owns them so
+// the menu cannot list a style the renderer does not have.
+function asciiStyleItems() {
+    return ASCII_STYLES.map(s => item(`"${s}"`, 'hint-keyword', s));
+}
+// audiviz() band — four fixed bands, named so you do not have to remember the order.
+const AUDIVIZ = [['0', 'level  everything'], ['1', 'bass'], ['2', 'mid'], ['3', 'treble'], ['false', 'stop']];
+function audivizItems() {
+    return AUDIVIZ.map(([v, label]) => item(v, 'hint-keyword', `${v}  ${label}`));
+}
+
 // theme() / language() — small closed sets of names, worth offering rather than
 // remembering. The themes are read from the Settings ▸ Theme <select> at call time
 // rather than copied into a list here: that element is what the app itself switches
@@ -385,6 +397,11 @@ function getContext(cm) {
     const before = line.slice(0, cursor.ch);
     const wordM  = before.match(/([a-zA-Z_][\w.]*)$/);
     const word   = wordM ? wordM[1].replace(/\.$/, '') : '';
+
+    // ascii_gen("word", …) — the SECOND argument is the style.
+    if (/\bascii_gen\(\s*["'][^"']*["']\s*,\s*["']?[\w-]*$/.test(before)) return { type: 'asciistyle', word };
+    // audiviz( … ) — the band number.
+    if (/\baudi?o?viz\(\s*[\w]*$/.test(before)) return { type: 'audiviz', word };
 
     // Inside theme( … ) / language( … ) — a fixed set of names.
     if (/\btheme\(\s*["']?[\w-]*$/.test(before))    return { type: 'theme', word };
@@ -561,7 +578,11 @@ function hintFn(cm) {
 
     let list = [];
 
-    if (ctx.type === 'theme') {
+    if (ctx.type === 'asciistyle') {
+        list = asciiStyleItems();
+    } else if (ctx.type === 'audiviz') {
+        list = audivizItems();
+    } else if (ctx.type === 'theme') {
         list = themeItems();
     } else if (ctx.type === 'language') {
         list = languageItems();

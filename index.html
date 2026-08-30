@@ -253,7 +253,8 @@
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
+    import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
+    import { asciiWord, ASCII_STYLES } from './js/ui/ascii.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
@@ -458,6 +459,48 @@
         if (el) el.classList.toggle('disconnected', !up);
         if (up) log(isRejoin ? 'reconnected — your changes are reaching the room again' : 'session relay connected', isRejoin ? 'ok' : 'info');
         else log('DISCONNECTED from the session relay — text still syncs, but nothing you play is reaching anyone. Retrying…', 'error');
+    }
+
+    // ── ascii_gen() / audiviz() — things to look at in the log ─────────────────
+
+    // ascii_gen("word", style) — the word, large, in the log. One line per row so it
+    // scrolls like anything else rather than needing its own surface.
+    function ascii_gen(word, style) {
+        if (word == null) {
+            log(`ascii_gen("word", style) — styles: ${ASCII_STYLES.join(' · ')}`, 'info');
+            return;
+        }
+        const rows = asciiWord(word, style);
+        if (!rows.length) { log('ascii_gen: nothing to draw', 'warn'); return; }
+        for (const r of rows) log(r, 'ok');
+    }
+
+    // audiviz(band) — a live level meter in the log, redrawn in place.
+    //
+    // Reads the SAME analyser the visuals use (bridge.js taps scsynth's output), so
+    // the bar and the picture always agree, and nothing extra is connected to the
+    // audio graph. It needs audio booted; before that the analyser does not exist and
+    // every band reads zero, which would look like silence rather than like "not
+    // running", so that is said out loud instead.
+    const AUDIVIZ_BANDS = ['level', 'bass', 'mid', 'treble'];
+    const AUDIVIZ_WIDTH = 48;
+    let _audiviz = null;
+    function audiviz(band = 0) {
+        if (_audiviz) { clearInterval(_audiviz.timer); _audiviz.update('audiviz: off', 'info'); _audiviz = null; }
+        if (band === false || band < 0) return;                 // audiviz(false) / audiviz(-1) stops
+        const i = Math.max(0, Math.min(3, Math.round(Number(band) || 0)));
+        const name = AUDIVIZ_BANDS[i];
+        if (document.getElementById('status-dot')?.className !== 'ready')
+            log('audiviz: boot audio first (top-left) — the analyser only exists once the engine is running', 'warn');
+        const update = logLive(`audiviz ${name}`, 'ok');
+        const timer = setInterval(() => {
+            const a = getVisualAudio();
+            const v = Math.max(0, Math.min(1, a[name] ?? 0));
+            const n = Math.round(v * AUDIVIZ_WIDTH);
+            update(`${name.padEnd(6)} ${'|'.repeat(n)}${'·'.repeat(AUDIVIZ_WIDTH - n)} ${v.toFixed(2)}`, 'ok');
+        }, 50);
+        _audiviz = { timer, update };
+        log(`audiviz: ${name} (band ${i} of 0 level · 1 bass · 2 mid · 3 treble) — audiviz(false) stops it`, 'info');
     }
 
     // ── attack() — drop a prepared block into the set ──────────────────────────
@@ -906,6 +949,12 @@
             //   attack() · attack("dubplate") · attack("showcase", "drop")
             //   attack("showcase", "drop", 1) · attack("dubplate", 1)
             attack,
+            // ascii_gen("word", style)  the word drawn large in the log.
+            // audiviz(band)  a live level meter — 0 level · 1 bass · 2 mid · 3 treble;
+            // audiviz(false) stops it.
+            ascii_gen,
+            audiviz,
+            audioviz: audiviz,   // the spelling people reach for first
             // panic()  stops everything for EVERYONE in the room (plain stop-all —
             // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
             panic: () => panic(),
