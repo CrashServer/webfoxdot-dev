@@ -32,6 +32,7 @@
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">■</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
+      <button id="btn-parts" title="parts — browse every example's #@ sections and click one into your set (same as attack())">🧩<span class="tb-label"> parts</span></button>
       <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🎛<span class="tb-label"> modular</span></button>
       <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">⊞<span class="tb-label"> perform</span></button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴<span class="tb-label"> share</span></button>
@@ -255,6 +256,7 @@
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
     import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
     import { asciiWord, ASCII_STYLES } from './js/ui/ascii.js';
+    import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
@@ -610,6 +612,20 @@
         return run ? 'pasted here and playing' : 'pasted here (add , 1 to play it)';
     }
 
+    // The parts index the 🧩 panel browses. exampleCode() re-parses the whole examples
+    // document per call, so asking every block for its parts is done once and kept.
+    let _partsIndex = null;
+    function partsIndex() {
+        if (_partsIndex) return _partsIndex;
+        _partsIndex = new Map();
+        for (const e of exampleList()) {
+            let ps = [];
+            try { ps = partsIn(exampleCode(e.id) || ''); } catch (_) {}
+            _partsIndex.set(e.id, [...new Set(ps)]);
+        }
+        return _partsIndex;
+    }
+
     function attack(name, part, play) {
         // attack("x", 1) — a non-string second argument is the play flag, not a part.
         if (part !== undefined && typeof part !== 'string') { play = part; part = undefined; }
@@ -962,6 +978,8 @@
             // audiviz(false) stops it.
             ascii_gen,
             audiviz,
+            // parts()  open the 🧩 parts panel — click a block, click a part.
+            parts: () => toggleParts(),
             audioviz: audiviz,   // the spelling people reach for first
             // panic()  stops everything for EVERYONE in the room (plain stop-all —
             // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
@@ -2322,12 +2340,21 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     });
     // The rules panel is a pure view over js/collab/permissions.js — it only needs to
     // know who is in the room and how to name a user id.
+    // The 🧩 parts panel is a VIEW over attack(): every click calls the same function
+    // the console does, so the two can never behave differently.
+    initPartsPanel({
+        list:    () => exampleList(),
+        partsOf: (id) => partsIndex().get(id) || [],
+        fire:    (id, part, play) => attack(id, part, play ? 1 : undefined),
+    });
+
     initRulesPanel({
         peers:  () => (_collab ? _collab.getPeers() : []),
         nameOf: (uid) => peerName(uid),
         inRoom: () => !!_collab,
     });
     document.getElementById('btn-rules').onclick = () => toggleRules();
+    document.getElementById('btn-parts').onclick = () => toggleParts();
     // The modular panel's "use it" button pastes AND runs a p1 >> line for the
     // just-Defined synth (unlike chaos()'s paste-don't-run — this is a single
     // synth the user just built and asked to hear, not a batch to review
