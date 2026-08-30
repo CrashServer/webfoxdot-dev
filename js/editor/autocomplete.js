@@ -333,13 +333,22 @@ function attackItems() {
         if (e.cat !== cat) { cat = e.cat; out.push(item(`— ${cat} —`, 'hint-sep')); }
         // The whole block, then each of its parts. `grp` nests them one level deeper
         // (see groupByKey in toTree) so a block with sections becomes its own submenu.
+        // Two rows per thing: show it, or show AND play it (the trailing 1). Showing is
+        // attack()'s default, so the plain row comes first — the ▶ row is the one you
+        // reach for on a #@ line, where you want the material to start as well as land.
         const whole = item(`"${e.id}"`, 'hint-attack', e.parts.length ? `${e.id} — whole set` : e.id);
         whole.grp = e.id; whole.detail = e.title || '';
         out.push(whole);
+        const wholePlay = item(`"${e.id}", 1`, 'hint-attack', `${e.id} — whole set  ▶ play`);
+        wholePlay.grp = e.id;
+        out.push(wholePlay);
         for (const p of e.parts) {
-            const it = item(`"${e.id}", "${p}"`, 'hint-attack', p);
-            it.grp = e.id;
-            out.push(it);
+            const show = item(`"${e.id}", "${p}"`, 'hint-attack', p);
+            show.grp = e.id;
+            out.push(show);
+            const play = item(`"${e.id}", "${p}", 1`, 'hint-attack', `${p}  ▶ play`);
+            play.grp = e.id;
+            out.push(play);
         }
     }
     return out;
@@ -349,7 +358,10 @@ function attackItems() {
 function attackPartItems(id) {
     const e = attackLib().find(x => x.id.toLowerCase() === String(id).toLowerCase());
     if (!e) return [];
-    return e.parts.map(p => item(`"${p}"`, 'hint-attack', p));
+    return e.parts.flatMap(p => [
+        item(`"${p}"`, 'hint-attack', p),
+        item(`"${p}", 1`, 'hint-attack', `${p}  ▶ play`),
+    ]);
 }
 
 function getContext(cm) {

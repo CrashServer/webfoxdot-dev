@@ -466,15 +466,20 @@
     // FoxDot server; here the library is the bundled examples and live sets, which are
     // already runnable buffers.
     //
-    //   attack()                 list what is available
-    //   attack("dubplate")       run the whole set
-    //   attack("showcase", "drop")   run just its #@drop part
+    //   attack()                       list what is available
+    //   attack("dubplate")             show the whole set
+    //   attack("showcase", "drop")     show just its #@drop part
+    //   attack("showcase", "drop", 1)  …and play it
+    //   attack("dubplate", 1)          show and play the whole set
     //
-    // It PASTES the block at the end of the buffer and runs it, so you can see what
-    // you just fired and then edit it — a block you cannot read is a black box, and
-    // half the point of calling one up is to take it somewhere else. Appending rather
-    // than inserting at the cursor keeps it from landing in the middle of a #@ section
-    // or on a line someone else is editing.
+    // It PASTES rather than plays, unless you ask for both with a trailing 1. Showing
+    // is the safe default: a block you cannot read is a black box, and dropping a whole
+    // set into a live mix unasked is a bigger thing to do by accident than pasting some
+    // text. The flag is what makes it usable INSIDE a composition — attack("x", "y", 1)
+    // on a #@ section line both writes the material in and starts it.
+    //
+    // It appends rather than inserting at the cursor, so it never lands in the middle
+    // of a #@ section or on a line someone else is editing.
     const _SEC_RE = /^#@\s*([a-zA-Z_]\w*)/;
 
     // The lines of one #@ part: from its header to the next #@ (or the end).
@@ -500,7 +505,10 @@
             .filter(n => n && !/^(goto|end|endfade|clear)$/i.test(n));
     }
 
-    function attack(name, part) {
+    function attack(name, part, play) {
+        // attack("x", 1) — a non-string second argument is the play flag, not a part.
+        if (part !== undefined && typeof part !== 'string') { play = part; part = undefined; }
+        const run = !!play;
         const items = exampleList();
         if (name === undefined) {
             log(`attack — ${items.length} prepared blocks · attack("name") to fire one, attack("name", "part") for one section:`, 'info');
@@ -523,9 +531,9 @@
         if (!code) { log(`attack: "${hit.id}" has no runnable code`, 'warn'); return; }
 
         if (part === undefined) {
-            insertCode(code, { quiet: true });
+            insertCode(code, { quiet: true, run });
             const ps = partsIn(code);
-            log(`attack: ${hit.id} — pasted at the end and running${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
+            log(`attack: ${hit.id} — pasted${run ? ' and playing' : ' (add , 1 to play it)'}${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
             return;
         }
         const body = partOf(code, part);
@@ -537,8 +545,8 @@
         if (!body.trim()) { log(`attack: part "${part}" of ${hit.id} is empty`, 'warn'); return; }
         // Keep the #@ header on a part, so what lands in the buffer is a section you
         // can re-run, jump to and fold — not a loose pile of player lines.
-        insertCode(`#@${part}\n${body.replace(/\s+$/, '')}`, { quiet: true });
-        log(`attack: ${hit.id} · ${part} — pasted at the end and running`, 'ok');
+        insertCode(`#@${part}\n${body.replace(/\s+$/, '')}`, { quiet: true, run });
+        log(`attack: ${hit.id} · ${part} — pasted${run ? ' and playing' : ' (add , 1 to play it)'}`, 'ok');
     }
 
     // ── Room-rules console commands ───────────────────────────────────────────
@@ -823,9 +831,11 @@
             // modular()  opens/closes the modular synth builder panel — same as
             // clicking the toolbar's 🎛 button, for when your hands are on the keyboard.
             modular: () => toggleModular(),
-            // attack()  fire a prepared block from the examples library —
-            // attack() lists · attack("dubplate") runs it · attack("showcase", "drop")
-            // runs one #@ part of it.
+            // attack()  call up a prepared block from the examples library. It SHOWS
+            // the code (pasted at the end of the buffer); a trailing 1 also plays it,
+            // which is what makes it usable from inside a #@ composition.
+            //   attack() · attack("dubplate") · attack("showcase", "drop")
+            //   attack("showcase", "drop", 1) · attack("dubplate", 1)
             attack,
             // panic()  stops everything for EVERYONE in the room (plain stop-all —
             // the ■ button, Ctrl+; / Ctrl+, / Ctrl+. — stays local to you).
@@ -2218,6 +2228,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         recCapture(text);
         if (opts.quiet !== true) log('modular: ran ' + text + ' — the graph now updates it live as you edit (⚡)', 'ok');
     }
+    // The modular panel's ▸ use it wants paste-and-run, which is insertCode's default;
+    // its ⇱ show in code passes { run: false }.
     initModular((msg, kind) => log(msg, kind), insertCode);
     initPerform(clock);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
