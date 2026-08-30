@@ -299,7 +299,7 @@ export const METHODS = [
 const CHANGELOG = [
     { v: 'beta11', title: 'Multiplayer performs together · hiss (unified noise) · 5 new voices + tape/bitcrush FX', items: [
         'Multiplayer syncs the whole PERFORMANCE now, not just the code — and you can join a jam already in progress. Until this release only text edits, evals, section jumps and eval-level solos crossed the wire; everything you did with your hands stayed on your own machine. Pull a fader down or Alt+X a line and your peers would watch the line grey out while still hearing the track at full level. Mute, solo, track volume, the mixer\'s ■ stop, Alt+X, tempo, the Scale and Root menus, perform mode\'s XY pad and its momentary DROP / STUTTER / GATE / ECHO holds all reach the room now — from whichever way you touch them: a mixer click, a bound MIDI control, a perform-mode tile, the crash panel\'s M/S buttons. Tempo was the sneakiest of them: the clock already told everyone the beat, so the room stayed locked to the same downbeat while running the set at different SPEEDS. Two things it deliberately does NOT share: master volume (that\'s your own monitoring level, not the mix) and plain stop-all (your private escape hatch). For stopping the room on purpose there\'s PANIC — Ctrl+Shift+. , shift-clicking ■ , or panic() — because a jam where anyone can silence everyone by reflex is worse than one where you have to mean it. The mix, tempo, key, pad position and any synth you build in the modular panel are now shared STATE rather than one-off messages, so someone arriving mid-set gets the faders where they actually are instead of the composition\'s text over everyone\'s default mix; per-track keys mean two people riding different faders merge cleanly instead of one clobbering the other. That also closes a real trap: a synth built in the modular panel used to be defined on YOUR machine only while the p1 >> line ▸ use it generates went out to everybody, so peers got a player line for a synth they didn\'t have. Its source travels with it now, live-mode redefinitions included. Still live-only, so still lost on a late join: which section is playing, and eval-level .solo() — both re-arrive the moment anyone runs something.',
-        'Dark Chill and Film Score are rebuilt as #@ arrangements, and Padding the Bells is gone — both were written as flat buffers you evaluated top to bottom a few lines at a time, re-running player slots by hand to make them evolve — which is a fine way to work but a poor way to SHIP a piece, because the shape only existed in the instructions. Dark Chill is now twelve parts that advance on their own, from a 92-bpm downtempo groove through full techno, breaking on a frozen reverb and shifting to 124 to filter everything down to nothing. Film Score is four, its keys ostinato phrased by per-step var on both dur and sus so it breathes rather than marches, under cs80 and choir swells on slow sinvar sweeps. Put the cursor on #@intro and press Ctrl+Enter; the rest follows. Padding the Bells is removed outright, from the examples dropdown, the Examples page and the galaxy.',
+        'Dark Chill, Film Score, Virtual Reality and Rise are rebuilt as #@ arrangements, and Padding the Bells is gone — both were written as flat buffers you evaluated top to bottom a few lines at a time, re-running player slots by hand to make them evolve — which is a fine way to work but a poor way to SHIP a piece, because the shape only existed in the instructions. Dark Chill is now twelve parts that advance on their own, from a 92-bpm downtempo groove through full techno, breaking on a frozen reverb and shifting to 124 to filter everything down to nothing. Film Score is four, its keys ostinato phrased by per-step var on both dur and sus so it breathes rather than marches, under cs80 and choir swells on slow sinvar sweeps. Virtual Reality is twenty, a 106-bpm D-minor industrial set where each part evolves the last rather than restating it — .stop(), .oct= and .rate= on players already running, so the arrangement reads as a sequence of MOVES instead of a stack of near-identical lines. Rise is seventeen, climbing from a pads intro into driving techno by pushing one ebass through dist2 in stages. Put the cursor on #@intro and press Ctrl+Enter; the rest follows. Padding the Bells is removed outright, from the examples dropdown, the Examples page and the galaxy.',
         'Boot stops re-downloading two megabytes on every refresh — the dev servers sent no-store on EVERYTHING, which is right for the files you are editing — index.html, js, css should never come from cache while you are working on the app itself — and wrong for the built ones. The 141 compiled synthdefs (620K), the WASM engine (1.4M) and the sample bank change only when a build script runs, and no-store forbids the browser from keeping them at all, not even from revalidating, so every refresh fetched the whole lot again before a note could sound. They now get a short max-age with must-revalidate: the browser keeps the bytes and asks whether they are still current, which the server answers with a 304 and no body. Rebuild a synthdef and its timestamp changes, so the next ask returns the new one — nothing goes stale and nothing re-downloads. Worth being exact about what this does NOT fix: scsynth starts with an empty synthdef table, so all 141 still have to be SENT to the engine on every boot. Caching removes the download, not the handover.',
         'A parts panel — build a set by clicking, and stop-all finally stops the picture too. The panel puts the whole examples library in two columns: every block on the left grouped by category with a count of the sections it holds, that block\'s #@ parts on the right, and a filter that matches a part NAME as well as a block name — type rumble and you find the track that contains it without knowing which one that is. Clicking a part writes a SECTION and the attack() line that fills it — #@stab(16) then attack(\'dresdensunlight\', \'stab\', 1) — rather than the borrowed code itself. That is the difference between a clipboard and a composition tool: click four parts and you have a four-section arrangement you can read, reorder and set beat counts on, with the material still living in the tracks it came from until you run it. A repeated part name is numbered, because #@goto resolves to the first match and two sections called stab would quietly shadow each other. Arm ▶ and each new section is run as it is written; off by default, because writing is recoverable and dropping a set into a live mix is not. Separately, a real bug: full stop sometimes left things running. Video players live in the visual language\'s own list rather than the clock\'s, so clearing the clock never touched them and stop-all silenced the audio while the picture carried on — invisible until a set borrows a visuals part, which the new example sets do. A live audiviz meter was missed for the same reason, being a timer rather than a player. Stop everything now means everything.',
         'ascii_gen() and audiviz() — a title card and a level meter, both in the log. ascii_gen(\'ACID\', \'shade\') draws a word five rows tall, which is the fastest way to mark where you are in a long scroll, or to put a name up at the start of a set. Eleven styles, all the same glyphs drawn with a different character: block · shade · light · hash · dot · star · plus · slash · dash · wave · wide, the last doubling each cell so the letters read square in a terminal font. Anything it does not know draws a box rather than vanishing, so a typo is visible. audiviz(0) puts a live |||||||| meter in the log and keeps redrawing it in place — 0 is the overall level, 1 bass, 2 mid, 3 treble, and audiviz(false) stops it. It reads the same analyser the visuals use rather than opening a second tap on the audio graph, so the bar and the picture can never disagree. Ctrl+Space offers the styles and the bands.',
@@ -1259,33 +1259,64 @@ b1 >> play([x.ox.] <xox> x.x., crush=0.5, bits=4)
     `, 'sections');
 
     const rise = section('Rise', `
-        ${note('A live build — evaluate the numbered blocks top to bottom and it rises from a pad intro into driving industrial techno. Shows the tempo-locked <code>rgate</code> + <code>fbdelay</code>, <code>ebass</code> with <code>dist2</code>, a <code>compkick</code>, and <code>pbuild</code> with per-bar layer gates. Boot + load the kit first.')}
-        ${code(`Clock.bpm = 126
+        ${note('A 126-bpm E-minor build as a <code>#@</code> chain — Ctrl+Enter on <code>#@intro</code> and it climbs from a <code>pads</code> intro into driving industrial techno on its own. Shows the tempo-locked <code>rgate</code> + <code>fbdelay</code>, <code>ebass</code> pushed through <code>dist2</code> in stages, a <code>compkick</code>, and <code>pbuild</code> with per-layer gates. Boot + load the kit first.')}
+        ${code(`#@intro(16)
+Clock.bpm = 126
 Root.default = "E"
 Scale.default = "minor"
-
-# 1 — pads + a sine motif
 p1 >> pads([0, 3, (0,3,7), 5], oct=4, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=0.5)
+
+#@build(16)
 p2 >> sine([7, 5, 3, 0], oct=5, dur=4, amp=0.25, mverb=0.6)
 
-# 2 — the motif picks up a feedback delay
+#@peak(16)
 p2 >> sine([0, 3, 5, 7], oct=5, dur=2, amp=0.3, lpf=sinvar([800, 5000], [8]), fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-# 3 — gated saw + ebass come in
+#@break(20)
 p3 >> saw([0, 0, 7, 0], oct=3, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 p4 >> ebass([0, 0, 7, 0], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-# 4 — lift the pads an octave
+#@drop(8)
 p1 >> pads([0, 3, (0,3,7), 5], oct=6, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=0.5)
 
-# 5 — the drop: compkick + industrial drums (snare/hat gated out)
+#@outro(8)
 ~p2 >> compkick([0], oct=3, punch=4, squash=80, click=40, dist=120, sub=4, body=0.6, tone=4)
+
+#@part7(8)
 v1 >> play(pbuild("indus", evolve=8, fill=4, density=1, kick=1, snare=0, hat=0, perc=1), dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part8(28)
 v2 >> play("X ", amp=1)
 p4 >> ebass([0, 0, 7, 4], oct=4, dist2=0.6, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-# 6 — open the saw up an octave
-p3 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)`)}
+#@part9(12)
+p1 >> pads([0, 3, (0,3,7), 5], oct=6, dur=8, attack=2, release=5, reverb=0.6, room=0.9, lpf=linvar([500, 2200], [16]), amp=1)
+
+#@part10(8)
+p4 >> ebass([0, 0, 7, 0], oct=4, dist2=1, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part11(12)
+p4 >> ebass([0, 0, 7, 0], oct=4, dist2=2, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part12(8)
+p4 >> ebass([0, 0, 7, 0], oct=4, dist2=2, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part13(8)
+p3 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part14(24)
+p3 >> saw([0, 0, 7, 0], oct=5, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.4, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part15(8)
+p4 >> ebass([0, 0, 7, 0], oct=4, dist2=2, dist2shape=1, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.6, fbdelay=0.5, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part16(8)
+p3 >> saw([0, 0, 7, 0], oct=3, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.3, fbdelay=0.5, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@part17(40)
+p3 >> saw([0, 0, 7, 0], oct=3, dur=0.25, lpf=sinvar([400, 4000], [8]), rgate=0.7, rgaterate=4, amp=0.4, fbdelay=0.5, fbtime=0.5, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
+
+#@end(16)`)}
     `, 'rise');
 
     const dresdensunlight = section('Dresden Sunlight', `
@@ -1550,48 +1581,86 @@ pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1
     `, 'filmscore');
 
     const virtualreality = section('Virtual Reality', `
-        ${note('A 106-bpm D-minor industrial build — multicrushed ebass, a blip lead with PStep octave stairs, gated pbuild drums, a reese ssaw→dbass, distorted a_gesa/hoover leads and a brass motif, evolved live via .stop()/.oct=/.rate=.')}
-        ${code(`Clock.bpm = 106
+        ${note('A 106-bpm D-minor industrial set as a <code>#@</code> chain — Ctrl+Enter on <code>#@intro</code> and it runs itself. Multicrushed <code>ebass</code>, a <code>blip</code> lead on <code>PStep</code> octave stairs, gated <code>pbuild</code> drums, a reese <code>ssaw</code>→<code>dbass</code>, distorted <code>a_gesa</code>/<code>hoover</code> leads and a <code>brass</code> motif — each part evolving the last with <code>.stop()</code>, <code>.oct=</code> and <code>.rate=</code> rather than restating it.')}
+        ${code(`#@intro(12)
+Clock.bpm = 106
 Scale.default = "minor"
 Root.default = "D"
-
 ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=4, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, hpf=120, lpf=sinvar([400,2000],16), multicrush=0.8, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
+
+#@build(24)
 ag >> blip([7,5,0,7,5,7,0,5], oct=PStep(4, 5, 6), dur=0.5, sus=PRand([0.2,0.4,0.6],4), amp=sinvar([0.2,0.6],8), cutoff=sinvar([800,12000],4), rq=0.4, fbdelay=0.5, attack=0.01, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
 dk >> play("X...X.X.-...<---->...", dur=0.25, amp=var([1,0.9,1,0.88],4), fbdelay=0.4, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.1)
 
+#@peak(4)
+ag >> blip([7,5,0,7,5,7,0,5], oct=PStep(4, 5, 6), dur=0.5, sus=PRand([0.2,0.4,0.6],4), amp=sinvar([0.2,0.6],8), cutoff=sinvar([800,12000],4), rq=0.4, fbdelay=0.5, attack=0.01, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, eq3=1, eqlow=0, eqmid=2, eqhigh=0)
+
+#@break(8)
 sn >> play("....o.......o...", dur=0.25, amp=0.85, sample=2, hpf=200)
 cl >> play("..o.", dur=0.5, sample=5, amp=0.7, amplify=PEuclid(5,8), hpf=3500, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
 
+#@drop(12)
 ~dk >> play(pbuild("industrial"), dur=0.25, amp=var([1,0.9,1,0.88],4), rgate=0.1, rgaterate=4, multicrush=4, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
 
+#@outro(8)
+ag.lpf=1200
+
+#@part7(8)
+ag.lpr=0.2
+
+#@part8(8)
 wr >> ssaw([0,0,-5,-5,-7,-7,0,0], oct=5, dur=0.5, sus=0.4, amp=0.8, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.2, hpf=240, lpf=sinvar([400,2000],16))
 
+#@part9(8)
+ag.stop()
+
+#@part10(16)
 ~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
 
+#@part11(8)
 ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=6, dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
 
+#@part12(8)
 sn.stop()
 cl.stop()
 br >> brass([0, -5, -7, -5, 0, ., 0, .], oct=6, dur=0.5, sus=0.2, room=0.3, reverb=0.25, comp=0.5, amp=0.4)
 
-ba.stop()
-
+#@part13(8)
 ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
 wr.oct=3
 br.stop()
 
+#@part14(8)
 ag.oct=3
 dk.rate=4
 ~ag >> a_gesa([2, 1, 0, [7, 4], ., 5, 4, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.0, fbdelay=0.25, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35).unison(3)
 
+#@part15(8)
 ~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
 
+#@part16(4)
 v4 >> play("X<-->X{o<-->}", dist2=0.5, dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
 
-wr >> hoover([0,0,-5,-5,-7,-7,0,0], oct=6, dur=0.5, sus=0.1, amp=0.2, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
+#@part17(8)
+wr >> hoover([0,0,-5,-5,-7,-7,0,0], oct=6, dur=0.5, sus=0.1, amp=0.2, lpf=sinvar([300,14000],8), lpr=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 
-wr >> a_hhat()`)}
+#@part18(8)
+ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
+wr.oct=3
+br.stop()
+
+#@part19(8)
+wr >> a_hhat()
+
+
+#@part21(16)
+wr >> ssaw([0,0,-5,-5,-7,-7,0,0], oct=5, dur=0.5, sus=0.4, amp=0.8, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
+ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.2, hpf=240, lpf=sinvar([400,2000],16))
+~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
+ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=6, dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
+
+#@end(16)`)}
     `, 'virtualreality');
 
     const tenebrae = section('Tenebrae', `
