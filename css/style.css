@@ -1519,16 +1519,34 @@ button.recording {
     height: 1.2em;
     pointer-events: none;
 }
-.remote-caret-label {
+/* The name label. y-codemirror builds it as a BARE <div> inside .remote-caret —
+   createRemoteCaret() adds no class — so the old `.remote-caret-label` rule here
+   matched nothing at all. With no rule the div stayed a block element in normal flow
+   and rendered inline with the code, which is what made a peer's name sit in the
+   middle of the line you were trying to read.
+   It floats BELOW the caret rather than above: above covers the previous line, which
+   just moves the problem up one row. */
+.remote-caret > div {
     position: absolute;
-    top: -1.2em;
-    left: -1px;
+    top: 100%;
+    left: -2px;
+    z-index: 5;
     font-size: 10px;
-    padding: 0 3px;
-    border-radius: 3px 3px 3px 0;
+    line-height: 1.5;
+    padding: 0 4px;
+    border-radius: 0 3px 3px 3px;
     white-space: nowrap;
+    color: #000;
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.6);   /* legible on a dark peer colour too */
     pointer-events: none;
+    user-select: none;
+    opacity: 0.95;
+    transition: opacity 0.25s ease-in-out;
 }
+/* y-codemirror adds .hide-name two seconds after a cursor stops moving. Nothing was
+   styling it, so every name stayed up permanently; fading them out means the labels
+   are there while someone is typing and gone while you are reading. */
+.remote-caret.hide-name > div { opacity: 0; }
 
 /* ── About button + card ─────────────────────────────────────────────────── */
 #btn-about {
