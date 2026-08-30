@@ -542,12 +542,17 @@
     // run it. Returns what it did, for the log.
     function place(key, text, run, at) {
         const already = _attacked.get(key);
-        const stillThere = already && editor.getValue().includes(already);
+        const stillThere = already && editor.getValue().includes(already.text);
         if (stillThere) {
-            if (run) runCode(text);
-            return run ? 'already here — playing it' : 'already here';
+            // Nothing to do when the material was written INLINE: it now sits inside
+            // the very section that is running, so the section evaluates it itself on
+            // this pass. Re-running here would just do it twice.
+            if (run && !already.inline) runCode(text);
+            return already.inline ? 'already here (the section plays it)'
+                 : run             ? 'already here — playing it'
+                                   : 'already here';
         }
-        _attacked.set(key, text);
+        _attacked.set(key, { text, inline: at >= 0 });
         if (at >= 0) {
             // Write it directly under the call that asked for it. Far better to read
             // than a pile of anonymous sections at the far end of the buffer: the
