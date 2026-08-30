@@ -523,18 +523,44 @@
         return `# ── borrowed · ${id}${part ? ' · ' + part : ''} ${'─'.repeat(Math.max(3, 46 - id.length - (part ? part.length + 3 : 0)))}\n# ${call}`;
     }
 
+    // Find the line holding the attack() call that is running, so its material can be
+    // written directly underneath. Returns -1 when there is no such line — the call
+    // came from the console rather than from the buffer — and then it appends instead.
+    function callLine(id, part) {
+        const q = '["\']';
+        const re = new RegExp(`attack\\(\\s*${q}${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${q}` +
+                              (part ? `\\s*,\\s*${q}${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${q}` : '\\s*[,)]'));
+        for (let i = 0; i < editor.lineCount(); i++) {
+            const t = editor.getLine(i);
+            if (t.trim().startsWith('#')) continue;      // the banner quotes the call too
+            if (re.test(t)) return i;
+        }
+        return -1;
+    }
+
     // Paste `text` unless this block is already sitting in the buffer, then optionally
     // run it. Returns what it did, for the log.
-    function place(key, text, run) {
+    function place(key, text, run, at) {
         const already = _attacked.get(key);
         const stillThere = already && editor.getValue().includes(already);
         if (stillThere) {
             if (run) runCode(text);
-            return run ? 'already in the buffer — playing it' : 'already in the buffer';
+            return run ? 'already here — playing it' : 'already here';
         }
         _attacked.set(key, text);
-        insertCode(text, { quiet: true, run });
-        return run ? 'pasted and playing' : 'pasted (add , 1 to play it)';
+        if (at >= 0) {
+            // Write it directly under the call that asked for it. Far better to read
+            // than a pile of anonymous sections at the far end of the buffer: the
+            // arrangement and the material it pulls in sit together.
+            const end = { line: at, ch: editor.getLine(at).length };
+            editor.replaceRange('\n' + text, end, end);
+            editor.setCursor({ line: at + 1, ch: 0 });
+            editor.scrollIntoView({ line: at + 1, ch: 0 });
+            if (run) runCode(text);
+        } else {
+            insertCode(text, { quiet: true, run });   // called from the console — append
+        }
+        return run ? 'pasted here and playing' : 'pasted here (add , 1 to play it)';
     }
 
     function attack(name, part, play) {
@@ -564,7 +590,7 @@
 
         if (part === undefined) {
             const ps = partsIn(code);
-            const how = place(hit.id, `${banner(hit.id)}\n${code.replace(/\s+$/, '')}`, run);
+            const how = place(hit.id, `${banner(hit.id)}\n${code.replace(/\s+$/, '')}`, run, callLine(hit.id));
             log(`attack: ${hit.id} — ${how}${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
             return;
         }
@@ -575,10 +601,15 @@
             return;
         }
         if (!body.trim()) { log(`attack: part "${part}" of ${hit.id} is empty`, 'warn'); return; }
-        // Keep the #@ header on a part, so what lands in the buffer is a section you
-        // can re-run, jump to and fold — not a loose pile of player lines.
+        // A part written UNDER its call carries no #@ header: it belongs to whatever
+        // section the call is in, and a header there would SPLIT that section in two
+        // and insert a nameless part into the middle of the arrangement. Appended at
+        // the end (a console call) it keeps the header, since there it has to stand as
+        // a section of its own to be re-runnable.
+        const at = callLine(hit.id, part);
+        const head = at >= 0 ? '' : `#@${part}\n`;
         const how = place(`${hit.id}/${part}`,
-                          `${banner(hit.id, part)}\n#@${part}\n${body.replace(/\s+$/, '')}`, run);
+                          `${banner(hit.id, part)}\n${head}${body.replace(/\s+$/, '')}`, run, at);
         log(`attack: ${hit.id} · ${part} — ${how}`, 'ok');
     }
 
