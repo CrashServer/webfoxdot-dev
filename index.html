@@ -513,11 +513,10 @@
             .filter(n => n && !/^(goto|end|endfade|clear)$/i.test(n));
     }
 
-    // A banner above every pasted block. Borrowed material lands at the END of the
-    // buffer, a long way from the attack() line that called it, so without a label you
-    // are left with anonymous sections and no idea which came from where — or that
-    // they were borrowed at all. The banner is also the exact call that produced it,
-    // so it doubles as a way to fetch it again.
+    // A banner, for the APPEND path only. Material written under its own call needs
+    // no label — the call is the line above it, and repeating that as a comment just
+    // pushes the code you wanted to read further down. Appended from the console it
+    // lands at the end with nothing around it, so there it says where it came from.
     function banner(id, part) {
         const call = part ? `attack("${id}", "${part}")` : `attack("${id}")`;
         return `# ── borrowed · ${id}${part ? ' · ' + part : ''} ${'─'.repeat(Math.max(3, 46 - id.length - (part ? part.length + 3 : 0)))}\n# ${call}`;
@@ -595,7 +594,9 @@
 
         if (part === undefined) {
             const ps = partsIn(code);
-            const how = place(hit.id, `${banner(hit.id)}\n${code.replace(/\s+$/, '')}`, run, callLine(hit.id));
+            const at = callLine(hit.id);
+            const head = at >= 0 ? '' : `${banner(hit.id)}\n`;
+            const how = place(hit.id, `${head}${code.replace(/\s+$/, '')}`, run, at);
             log(`attack: ${hit.id} — ${how}${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
             return;
         }
@@ -612,9 +613,8 @@
         // the end (a console call) it keeps the header, since there it has to stand as
         // a section of its own to be re-runnable.
         const at = callLine(hit.id, part);
-        const head = at >= 0 ? '' : `#@${part}\n`;
-        const how = place(`${hit.id}/${part}`,
-                          `${banner(hit.id, part)}\n${head}${body.replace(/\s+$/, '')}`, run, at);
+        const head = at >= 0 ? '' : `${banner(hit.id, part)}\n#@${part}\n`;
+        const how = place(`${hit.id}/${part}`, `${head}${body.replace(/\s+$/, '')}`, run, at);
         log(`attack: ${hit.id} · ${part} — ${how}`, 'ok');
     }
 
