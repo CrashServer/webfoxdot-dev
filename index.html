@@ -797,6 +797,14 @@
         cancelSection();
         clock.clear();
         if (_jamBot) _jamBot.stop(true);        // stop son()/chaos jam-bot loop + its g* players
+        // VIDEO players live in vlang's own map, not the clock's, so clock.clear()
+        // never saw them: stop-all silenced the audio and left the picture running.
+        // Easy to miss until a set borrows a visuals part — vis-all's scenes start
+        // video1…video9 like any other player.
+        clearVisuals();
+        // A live audiviz meter is a timer, not a player, so nothing above reaches it
+        // either. "Stop everything" should mean everything.
+        if (_audiviz) { clearInterval(_audiviz.timer); _audiviz.update('audiviz: off', 'info'); _audiviz = null; }
         clock.bpm = clock.bpm;                  // sampling a TimeVar → freeze at the current value
     }
 
