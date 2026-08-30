@@ -962,17 +962,32 @@ body.zen #docs-panel { display: none !important; }
 
 /* Scale/Root selects */
 .cp-select {
-    background: var(--bg-3);
+    /* Without an appearance reset a <select> keeps its NATIVE widget on most
+       platforms and ignores most of what follows — so scale, root and theme were
+       drawing as OS dropdowns in the middle of a themed panel. The arrow that reset
+       removes is redrawn below out of two gradients, in currentColor, so it follows
+       whatever skin is loaded instead of needing an image per theme. */
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: var(--bg-3);
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 10px center, right 6px center;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
     color: var(--text-1);
     border: 1px solid var(--border-1);
     font-family: monospace;
     font-size: 10px;
-    padding: 2px 4px;
+    padding: 2px 18px 2px 4px;   /* room on the right for the arrow */
     border-radius: 2px;
     cursor: pointer;
     width: 100%;
     margin-top: 2px;
+    text-overflow: ellipsis;      /* a long scale name truncates instead of overflowing */
 }
+.cp-select:hover  { border-color: var(--green); }
+.cp-select:focus  { outline: none; border-color: var(--green); }
 /* Theme the open popup too — the native <option> list otherwise falls back to the
    browser default (white/black), which clashes with every dark theme. Chromium/
    Firefox on Linux honour option colours; where they don't, it's a harmless no-op. */
