@@ -299,6 +299,7 @@ export const METHODS = [
 const CHANGELOG = [
     { v: 'beta11', title: 'Multiplayer performs together · hiss (unified noise) · 5 new voices + tape/bitcrush FX', items: [
         'Multiplayer syncs the whole PERFORMANCE now, not just the code — and you can join a jam already in progress. Until this release only text edits, evals, section jumps and eval-level solos crossed the wire; everything you did with your hands stayed on your own machine. Pull a fader down or Alt+X a line and your peers would watch the line grey out while still hearing the track at full level. Mute, solo, track volume, the mixer\'s ■ stop, Alt+X, tempo, the Scale and Root menus, perform mode\'s XY pad and its momentary DROP / STUTTER / GATE / ECHO holds all reach the room now — from whichever way you touch them: a mixer click, a bound MIDI control, a perform-mode tile, the crash panel\'s M/S buttons. Tempo was the sneakiest of them: the clock already told everyone the beat, so the room stayed locked to the same downbeat while running the set at different SPEEDS. Two things it deliberately does NOT share: master volume (that\'s your own monitoring level, not the mix) and plain stop-all (your private escape hatch). For stopping the room on purpose there\'s PANIC — Ctrl+Shift+. , shift-clicking ■ , or panic() — because a jam where anyone can silence everyone by reflex is worse than one where you have to mean it. The mix, tempo, key, pad position and any synth you build in the modular panel are now shared STATE rather than one-off messages, so someone arriving mid-set gets the faders where they actually are instead of the composition\'s text over everyone\'s default mix; per-track keys mean two people riding different faders merge cleanly instead of one clobbering the other. That also closes a real trap: a synth built in the modular panel used to be defined on YOUR machine only while the p1 >> line ▸ use it generates went out to everybody, so peers got a player line for a synth they didn\'t have. Its source travels with it now, live-mode redefinitions included. Still live-only, so still lost on a late join: which section is playing, and eval-level .solo() — both re-arrive the moment anyone runs something.',
+        'Dark Chill and Film Score are rebuilt as #@ arrangements, and Padding the Bells is gone — both were written as flat buffers you evaluated top to bottom a few lines at a time, re-running player slots by hand to make them evolve — which is a fine way to work but a poor way to SHIP a piece, because the shape only existed in the instructions. Dark Chill is now twelve parts that advance on their own, from a 92-bpm downtempo groove through full techno, breaking on a frozen reverb and shifting to 124 to filter everything down to nothing. Film Score is four, its keys ostinato phrased by per-step var on both dur and sus so it breathes rather than marches, under cs80 and choir swells on slow sinvar sweeps. Put the cursor on #@intro and press Ctrl+Enter; the rest follows. Padding the Bells is removed outright, from the examples dropdown, the Examples page and the galaxy.',
         'Boot stops re-downloading two megabytes on every refresh — the dev servers sent no-store on EVERYTHING, which is right for the files you are editing — index.html, js, css should never come from cache while you are working on the app itself — and wrong for the built ones. The 141 compiled synthdefs (620K), the WASM engine (1.4M) and the sample bank change only when a build script runs, and no-store forbids the browser from keeping them at all, not even from revalidating, so every refresh fetched the whole lot again before a note could sound. They now get a short max-age with must-revalidate: the browser keeps the bytes and asks whether they are still current, which the server answers with a 304 and no body. Rebuild a synthdef and its timestamp changes, so the next ask returns the new one — nothing goes stale and nothing re-downloads. Worth being exact about what this does NOT fix: scsynth starts with an empty synthdef table, so all 141 still have to be SENT to the engine on every boot. Caching removes the download, not the handover.',
         'A parts panel — build a set by clicking, and stop-all finally stops the picture too. The panel puts the whole examples library in two columns: every block on the left grouped by category with a count of the sections it holds, that block\'s #@ parts on the right, and a filter that matches a part NAME as well as a block name — type rumble and you find the track that contains it without knowing which one that is. Clicking a part writes a SECTION and the attack() line that fills it — #@stab(16) then attack(\'dresdensunlight\', \'stab\', 1) — rather than the borrowed code itself. That is the difference between a clipboard and a composition tool: click four parts and you have a four-section arrangement you can read, reorder and set beat counts on, with the material still living in the tracks it came from until you run it. A repeated part name is numbered, because #@goto resolves to the first match and two sections called stab would quietly shadow each other. Arm ▶ and each new section is run as it is written; off by default, because writing is recoverable and dropping a set into a live mix is not. Separately, a real bug: full stop sometimes left things running. Video players live in the visual language\'s own list rather than the clock\'s, so clearing the clock never touched them and stop-all silenced the audio while the picture carried on — invisible until a set borrows a visuals part, which the new example sets do. A live audiviz meter was missed for the same reason, being a timer rather than a player. Stop everything now means everything.',
         'ascii_gen() and audiviz() — a title card and a level meter, both in the log. ascii_gen(\'ACID\', \'shade\') draws a word five rows tall, which is the fastest way to mark where you are in a long scroll, or to put a name up at the start of a set. Eleven styles, all the same glyphs drawn with a different character: block · shade · light · hash · dot · star · plus · slash · dash · wave · wide, the last doubling each cell so the letters read square in a terminal font. Anything it does not know draws a box rather than vanishing, so a typo is visible. audiviz(0) puts a live |||||||| meter in the log and keeps redrawing it in place — 0 is the overall level, 1 bass, 2 mid, 3 treble, and audiviz(false) stops it. It reads the same analyser the visuals use rather than opening a second tap on the audio graph, so the bar and the picture can never disagree. Ctrl+Space offers the styles and the bands.',
@@ -1461,58 +1462,91 @@ p2 >> ebass([0, 0, 7, 4], oct=6, dur=0.25, dist2=0.6, dist2shape=1, lpf=sinvar([
     `, 'nocturne');
 
     const darkchill = section('Dark Chill', `
-        ${note('A live build that grows from a dark 92-bpm downtempo groove into full techno and back out again — evaluate it top to bottom, a few lines at a time, re-running the same player slots to evolve them. It rides the tempo up with linbpm, moves the acid root and the chord progression (note evolution), peaks with a modulating supersaw/a_gesa + a noise riser, breaks on a frozen reverb, then filters down and fades. Boot + load the kit first; Ctrl+; (or shutup()) stops all.')}
-        ${code(`Clock.bpm = 92
+        ${note('A dark 92-bpm downtempo groove that grows into full techno and back out again — twelve <code>#@</code> parts that advance on their own: put the cursor on <code>#@intro</code> and press Ctrl+Enter. The acid root and the chord progression move as it goes, it peaks on a modulating supersaw with a noise riser, breaks on a frozen reverb (<code>mverbfreeze</code>), then shifts the tempo up to 124 and filters everything down to nothing. Boot + load the kit first; Ctrl+; stops all.')}
+        ${code(`#@intro(32)
+Clock.bpm = 92
 Root.default = "A"
 Scale.default = "minor"
 m0 >> bass(var([0, -2, -4], [32]), oct=3, dur=8, lpf=sinvar([180, 500], [16]), tanh=0.15, amp=0.6).unison(2)
+
+#@build(16)
 o9 >> prophet([6, 3, PRand([4, 2, 5])], oct=5, dur=PRand([2, 4, 8]), sus=3, mverb=0.8, lpf=PRand([1200, 3000]), hpf=300, amp=0.4).unison(2) + (-7, 0)
+
+#@peak(12)
 t0 >> play("d", dur=0.5, rate=PWhite(1, 3), pan=PWhite(-1, 1), mverb=0.2, amp=Pacc("ghost")).often("stutter", PRand([2, 4, 8]))
+
+#@break(20)
 d6 >> play("x..<x.>x.", dur=0.5, shape=0.4, drcomp=0.4, amp=0.7)
 q2 >> play("x", dur=1, amp=0.9)
 s1 >> play("-.-.-.-.", hpf=8000, amp=Pacc("offbeat"))
 s2 >> play("....o...", dur=0.5, room=0.4, amp=0.7).sometimes("stutter", 2)
+
+#@drop(28)
 h4 >> supersaw([0, 3, 5, 0, 3, 5, 7, 0], oct=5, dur=0.5, cutoff=linvar([800, 4500], [8]), amp=0.32, resonbank=0.3, rbfreq=60, rbdecay=0.5, rbspread=1, lpf=1200, lpr=0.1, bpf=1200).every(8, "reverse")
 e2 >> acidbass(var([0, 5, 6], [8, 4, 4]), oct=4, dur=0.5, lpf=PFr(1400, 4000, 512), lpr=0.2, chorus=0.4, amp=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000).unison(3)
+
+#@outro(32)
 h4.stop()
 p3 >> rhodes([0, 4, 7, 5], oct=5, dur=2, cutoff=2200, echo=0.4, echo_time=0.375, comp=0.4, amp=0.28, mverb=0.5)
 q2 >> play("x", dur=1/2, amp=0.9, sample=2)
 g17 >> a_gesa([0, [0, 5], 4, 0], oct=6, dur=1/2, amp=0.79, pan=[-0.5, 0.5], pong=0.35, pongtime=0.375, fbdelay=0.46, fbtime=0.25, fbfeed=0.44, fbcutoff=3000)
+
+#@part7(16)
+g17.only()
+
+#@part8(12)
 v2 >> play("X<-->", sample=4, amp=1, dur=1/2)
 q2 >> play("x", dur=1, amp=1, drive=2, tanh=0.3)
 s2 >> play("....o.......o.o.", dur=0.25, room=0.3, amp=0.6).sometimes("stutter", 2)
+
+#@part9(16)
 h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=5, dur=0.25, cutoff=sinvar([600, 5000], [4]), spin=0.5, drive=3, tanh=0.4, amp=0.32).every(8, "rotate")
 p1 >> blip(PxRand(0, 12), oct=6, dur=PRand([1/4, 1/8]), crush=0.5, bits=4, squiz=0.4, squizpitch=3, bpf=PLorenz(600, 5000), amp=0.25).every(4, "shuffle")
 o9 >> prophet(PRoman("i VI iv v"), oct=5, dur=4, sus=3, mverb=0.7, lpf=linvar([800, 4000], [16]), amp=0.3)
+
+#@part10(8)
+g17.stop()
 m0 >> bass(var([0, 3, 5, 2], [16]), oct=2, dur=4, lpf=sinvar([200, 1200], [8]), tanh=0.3, dist2=0.3, amp=0.6).unison(2)
 h4 >> supersaw([0, 3, 7, (0,3,7), 5, 2], oct=6, dur=0.25, cutoff=linvar([600, 6000, 600], [4, 4]), spin=0.6, drive=4, tanh=0.5, chop=8, amp=0.34).every(4, "rotate")
+
+#@part11(8)
 e2.rgaterate = 16
 n1 >> a_hhat([0], oct=6, dur=16, tone=linvar([200, 8000], [16]), open=1, dist=2, amp=linvar([0, 0.5], [16]))
 o9 >> prophet((0,3,7), oct=5, dur=8, sus=7, mverb=0.9, mverbfreeze=1, lpf=linvar([5000, 400], [16]), amp=0.35)
 e2 >> acidbass([0], oct=3, dur=0.5, lpf=linvar([4000, 400], [16]), lpr=0.15, amp=0.4)
+
+#@part12(16)
 Clock.bpm = 124
 m0 >> bass([0], oct=2, dur=8, lpf=linvar([1200, 200], [16]), amp=linvar([0.6, 0], [16]))
 h4 >> supersaw([0, 3, 7], oct=5, dur=1, lpf=linvar([5000, 300], [16]), amp=linvar([0.3, 0], [16]))
 v1 >> play("X", amp=4)
-o9.amp = linvar([0.3, 0], [16])`)}
+o9.amp = linvar([0.3, 0], [16])
+
+#@end(16)`)}
     `, 'darkchill');
 
     const filmscore = section('Film Score', `
-        ${note('A slow cinematic score (60 bpm, C minor) — a keys ostinato, a moving pad line, cs80 + choir chord swells on slow filter/amp sweeps, a soft feedback-delay pulse. Evaluate top to bottom.')}
-        ${code(`# cinematic score — 60 bpm, C minor
+        ${note('A slow cinematic score — 60 bpm, C minor, four <code>#@</code> parts that advance on their own: put the cursor on <code>#@intro</code> and press Ctrl+Enter. A keys ostinato with per-step <code>var</code> phrasing on both <code>dur</code> and <code>sus</code> (so it breathes rather than marching), cs80 and choir chord swells riding slow <code>sinvar</code> amp and filter sweeps, and a soft feedback-delay pulse underneath. Boot + load the kit first.')}
+        ${code(`#@intro(4)
 Clock.bpm = 60
 Scale.default = "minor"
 Root.default = "C"
-
 oj >> basic([0,6,5,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
+
+#@build(4)
 pt >> basic([0,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
+
+#@peak(8)
 hp >> basic([0,3,5,7,5,3, 6,1,3,6,3,1, 5,0,3,5,3,0, 4,6,1,4,1,6], oct=6, dur=0.5, sus=PRand([0.4,0.6,0.8],6), amp=0.28, cheapverb=0.5, cvdecay=2, pan=sinvar([-0.4,0.4],6))
 cx >> cs80([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=4, dur=4, sus=5, amp=sinvar([0.12,0.32],32), cutoff=sinvar([1000,3500],24), vibrate=3.5, vib=0.012, room=0.9, reverb=0)
+
+#@break(16)
 ch >> choir([(0,3,5),(6,1,3),(5,0,3),(4,6,1)], oct=6, dur=4, sus=5.5, amp=sinvar([0.3,0.55],16), room=0.99, reverb=0.95, lpf=linvar([800,3000],32))
 v1 >> play("<--->.<-->.x...", lpf=1200, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
-
 oj >> choir([4,6,12,6], oct=3, dur=1, sus=0.88, amp=1, room=0.7, reverb=0.6)
-pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))`)}
+pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1,2]), sus=var([0.8,0.8,0.8,0.4,0.8,0.8,1.5,1.5],[1,1,1,1,1,1,1,2]), amp=0.5, room=0, reverb=0.5, pan=sinvar([-0.2,0.2],16))
+
+#@end(16)`)}
     `, 'filmscore');
 
     const virtualreality = section('Virtual Reality', `
@@ -1559,20 +1593,6 @@ wr >> hoover([0,0,-5,-5,-7,-7,0,0], oct=6, dur=0.5, sus=0.1, amp=0.2, cutoff=sin
 
 wr >> a_hhat()`)}
     `, 'virtualreality');
-
-    const paddingbells = section('Padding the Bells', `
-        ${note('Long-drone ambient (68, D dorian) — pads and random bell voices on huge cheapverb tails, a slow sub underneath.')}
-        ${code(`Clock.bpm = 68
-Scale.default = "dorian"
-Root.default = "D"
-
-m1 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.8, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
-r1 >> bell(PRand([0,4,7,11,2,9]), dur=PWhite(6,20), sus=PWhite(4,12), oct=5, amp=0.4, cheapverb=0.75, cvdecay=4, hpf=600, pan=PRand([-0.75,-0.35,0.35,0.75]))
-g1 >> bell(PRand([0,4,7,11]), dur=PWhite(18,48), sus=PWhite(12,30), oct=4, amp=0.2, cheapverb=0.8, cvdecay=5, hpf=300, pan=PRand([-0.6,0.6]))
-m3 >> pads([(0,2,4),(0,4,7),(0,2,7),(0,3,6)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.35, cutoff=linvar([800,3200],120), cheapverb=0.7, cvdecay=3, hpf=220)
-m2 >> pads([(0,1,4),(0,3,6),(0,1,7),(-1,2,5)], dur=PWhite(16,40), sus=PWhite(20,48), oct=5, amp=0.42, cutoff=linvar([600,2400],96), cheapverb=0.8, cvdecay=3.5, hpf=240)
-b1 >> dbass([0,0,0,4,0,0,-3,0], dur=PWhite(6,16), sus=PWhite(8,24), oct=4, amp=1.3, lpf=260, hpf=35, pan=0)`)}
-    `, 'paddingbells');
 
     const tenebrae = section('Tenebrae', `
         ${note('Slow evolving chord clusters (60, C minor) — cs80 / bass / a_gesa / a_daft with grouped per-voice octaves and [1, 1/2] alternating durations.')}
@@ -2640,7 +2660,7 @@ pd >> darkpad(PProg("andalusian"), oct=4, dur=8)
 
     const slug = (s) => 'cat-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const GROUPS = [
-        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, dresdensunlight, sunsetdribble, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, paddingbells, tenebrae, scorched, inthemood, karpDMK]],
+        ['Live sets',       [celeste, no_harm, thelakeisgreen, rise, dresdensunlight, sunsetdribble, shorelines, flickering, dubplate, showcase, nocturne, darkchill, filmscore, virtualreality, tenebrae, scorched, inthemood, karpDMK]],
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
