@@ -34,7 +34,7 @@ const ZOOM_MIN = 0.4, ZOOM_MAX = 2;
 // paste-don't-run convention) — used by the "use it" button.
 export function initModular(logFn, insertFn) {
     _logFn = logFn || null;
-    _insertFn = insertFn || null;
+    _insertFn = insertFn || null;   // (text, { run }) — run:false pastes without evaluating
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) _graph = fromJSON(saved);
@@ -216,6 +216,7 @@ function build() {
             <input type="text" class="modular-name" value="mypatch" spellcheck="false" title="synth name — used as  p1 &gt;&gt; name(...)">
             <button class="modular-define" title="compile this patch into a playable synth">Define ▸</button>
             <button class="modular-insert" title="paste AND run a p1 &gt;&gt; line for this synth, every unwired knob spelled out — turns on live editing (see the ⚡ badge)">▸ use it</button>
+            <button class="modular-show" title="paste the patch into the editor as a real defsynth() — the same code the graph compiles, ready to hand-edit or keep with your set">⇱ show in code</button>
             <button class="modular-live" title="live is off — Define (or ▸ use it) to turn it on">⚡</button>
             <button class="modular-center" title="center the view on the patch">⌖</button>
             <button class="modular-save" title="save patch to a .json file">⇩</button>
@@ -268,6 +269,7 @@ function build() {
     _panel.querySelector('.modular-close').onclick = closeModular;
     _panel.querySelector('.modular-define').onclick = onDefine;
     _panel.querySelector('.modular-insert').onclick = onInsert;
+    _panel.querySelector('.modular-show').onclick = onShowInCode;
     _liveBadge.onclick = () => {
         if (!_lastDefined) return;   // nothing live to pause/resume yet
         _liveMode = !_liveMode;
@@ -658,6 +660,33 @@ function onInsert() {
     const { extraParams } = generateSource(_graph);
     const args = Object.entries(extraParams || {}).map(([k, v]) => `${k}=${v}`).join(', ');
     _insertFn(`p1 >> ${name}(${args})`);
+}
+
+// "⇱ show in code" — paste the patch into the editor as a real, hand-editable
+// defsynth() call.
+//
+// The preview pane already shows the compiled body, but that body is a bare arrow
+// function: it is what compileToFunction() evaluates, not something you can run from
+// the editor. Wrapping it in defsynth(name, params, fn) turns the graph into ordinary
+// code — you can keep it with the set, hand-edit past what the block palette can
+// express, and share it, since a composition is just text.
+//
+// It does NOT Define first: the point is to read and edit the source, and requiring a
+// Define to look at your own patch would be a strange gate. It also does not RUN what
+// it pastes, unlike "▸ use it" — re-running the definition of a synth that is already
+// live is a no-op at best, and the reason to press this is to LOOK at it.
+function onShowInCode() {
+    const name = (_nameInput.value || '').trim() || 'mypatch';
+    if (!_insertFn) { setStatus('no editor connected', 'error'); return; }
+    const { source, extraParams, error, warnings } = generateSource(_graph);
+    if (error) { setStatus(`✗ ${error}`, 'error'); return; }
+    const params = Object.keys(extraParams || {}).length
+        ? '{ ' + Object.entries(extraParams).map(([k, v]) => `${k}: ${v}`).join(', ') + ' }'
+        : '{}';
+    _insertFn(`defsynth("${name}", ${params}, ${source})`, { run: false });
+    const warn = warnings && warnings.length ? '  ⚠ ' + warnings.join('  ·  ') : '';
+    setStatus(`⇱ pasted "${name}" into the editor — edit it there, Ctrl+Enter to define${warn}`, warn ? 'warn' : 'ok');
+    if (_logFn) _logFn(`modular: "${name}" pasted as defsynth() — run it to define`, 'ok');
 }
 
 function setStatus(msg, kind) {

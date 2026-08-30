@@ -470,9 +470,11 @@
     //   attack("dubplate")       run the whole set
     //   attack("showcase", "drop")   run just its #@drop part
     //
-    // It RUNS rather than pasting. Pasting into a shared buffer mid-set moves everyone
-    // else's cursor and lines; running touches only the sound. The code still reaches
-    // peers, because runCode broadcasts.
+    // It PASTES the block at the end of the buffer and runs it, so you can see what
+    // you just fired and then edit it — a block you cannot read is a black box, and
+    // half the point of calling one up is to take it somewhere else. Appending rather
+    // than inserting at the cursor keeps it from landing in the middle of a #@ section
+    // or on a line someone else is editing.
     const _SEC_RE = /^#@\s*([a-zA-Z_]\w*)/;
 
     // The lines of one #@ part: from its header to the next #@ (or the end).
@@ -521,9 +523,9 @@
         if (!code) { log(`attack: "${hit.id}" has no runnable code`, 'warn'); return; }
 
         if (part === undefined) {
-            runCode(code);
+            insertCode(code, { quiet: true });
             const ps = partsIn(code);
-            log(`attack: ${hit.id}${ps.length ? ` — parts: ${ps.join(' · ')}` : ''}`, 'ok');
+            log(`attack: ${hit.id} — pasted at the end and running${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
             return;
         }
         const body = partOf(code, part);
@@ -533,8 +535,10 @@
             return;
         }
         if (!body.trim()) { log(`attack: part "${part}" of ${hit.id} is empty`, 'warn'); return; }
-        runCode(body);
-        log(`attack: ${hit.id} · ${part}`, 'ok');
+        // Keep the #@ header on a part, so what lands in the buffer is a section you
+        // can re-run, jump to and fold — not a loose pile of player lines.
+        insertCode(`#@${part}\n${body.replace(/\s+$/, '')}`, { quiet: true });
+        log(`attack: ${hit.id} · ${part} — pasted at the end and running`, 'ok');
     }
 
     // ── Room-rules console commands ───────────────────────────────────────────
@@ -2193,7 +2197,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // synth the user just built and asked to hear, not a batch to review
     // first). From here the panel's live mode keeps redefining that synth as
     // the graph is edited, so the running player picks up each change.
-    initModular((msg, kind) => log(msg, kind), (text) => {
+    // Append a block to the end of the buffer, put the cursor on it and reveal it.
+    // Shared by the modular panel's ▸ use it / ⇱ show in code and by attack(): all
+    // three want the code VISIBLE, and appending never disturbs lines someone else
+    // (or a #@ section) is sitting on.
+    function insertCode(text, opts = {}) {
         const last  = editor.lastLine();
         const atEnd = editor.getValue().trim() === '';
         const pre   = atEnd ? '' : '\n\n';
@@ -2202,10 +2210,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         editor.setCursor({ line: startLine, ch: 0 });
         editor.scrollIntoView({ line: startLine, ch: 0 });
         editor.focus();
+        // "⇱ show in code" pastes a defsynth() to be READ and edited, so it asks not to
+        // be run — re-defining a synth that is already live achieves nothing, and the
+        // reason to press it is to look at the source.
+        if (opts.run === false) return;
         runCode(text);
         recCapture(text);
-        log('modular: ran ' + text + ' — the graph now updates it live as you edit (⚡)', 'ok');
-    });
+        if (opts.quiet !== true) log('modular: ran ' + text + ' — the graph now updates it live as you edit (⚡)', 'ok');
+    }
+    initModular((msg, kind) => log(msg, kind), insertCode);
     initPerform(clock);
     initSections(clock, runCode, editor, renderParts, (line, autoplay) => {
         // Record the active section's player lines so the live highlight lands on
