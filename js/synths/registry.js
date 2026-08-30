@@ -658,9 +658,17 @@ export function makeSynth(name) {
     return function(degreeArg, opts = {}) {
         // A plain object as the first arg is the opts dict (degree(opts) form);
         // a group/array/pattern is a degree.
+        //
+        // _sub — a <a b c> subdivision — is a plain object too ({__sub: [...]}), so it
+        // used to fall into the opts branch: saw(<0 4 7>, dur=1, amp=0.3) silently
+        // became "options {__sub: […]}", which discarded dur and amp AND left no
+        // degree, so the player sounded the default 0. That is why it played one note.
+        // Only the top-level form was affected; inside an array the _sub reaches the
+        // player as a step value and subdivides correctly.
         const isOptsObj = degreeArg !== null && typeof degreeArg === 'object'
                 && !Array.isArray(degreeArg)
                 && !isGroup(degreeArg)
+                && !Array.isArray(degreeArg.__sub)   // <a b c> subdivision IS a degree
                 && typeof degreeArg.get !== 'function';
         const userArgs = isOptsObj ? { ...degreeArg } : { ...opts };
         if (!isOptsObj && degreeArg !== undefined) userArgs.degree = degreeArg;

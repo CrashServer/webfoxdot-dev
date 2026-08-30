@@ -120,8 +120,12 @@ attachModifiers(MidiOutCall);
 // pattern) or, if a plain object, the opts dict.
 export function makeMidiOut() {
     return function (degreeArg, opts = {}) {
+        // A <a b c> subdivision is a plain object ({__sub: [...]}) but IS a degree —
+        // without this it lands in the opts branch, dropping the real opts and the
+        // notes with them. Same fix as js/synths/registry.js's makeSynth.
         const isOptsObj = degreeArg !== null && typeof degreeArg === 'object'
             && !Array.isArray(degreeArg) && !isGroup(degreeArg)
+            && !Array.isArray(degreeArg.__sub)
             && typeof degreeArg.get !== 'function';
         const userArgs = isOptsObj ? { ...degreeArg } : { ...opts };
         if (!isOptsObj && degreeArg !== undefined) userArgs.degree = degreeArg;

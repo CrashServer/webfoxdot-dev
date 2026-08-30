@@ -2323,10 +2323,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // group (..) [..] {..} <..> = one step spanning the whole group) so the
             // highlight stays aligned even with brackets.
             const spans = [];
+            let patEnd = lineText.length;
             for (let k = i; k < lineText.length; k++) {
                 const c = lineText[k];
-                if (q) { if (c === q) break; }
-                else if (c === ',' || k === end) break;   // params start here
+                if (q) { if (c === q) { patEnd = k + 1; break; } }
+                else if (c === ',' || k === end) { patEnd = k; break; }   // params start here
                 else if (/\s/.test(c) && !spans.length) continue;   // leading space
                 if ('([{<'.includes(c)) {
                     let depth = 0, j = k;
@@ -2340,12 +2341,25 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                     spans.push([k, k + 1]);             // char / . / space — one step each
                 }
             }
-            return spans.length ? [spans] : null;
+            // …then the PARAMS, exactly as a synth line's are. `k` stopped either on the
+            // comma before the params or at the closing paren.
+            const rest = spans.length ? scanArgs(lineText, patEnd, 1) : scanArgs(lineText, op, 0);
+            const all = spans.length ? [spans, ...rest] : rest;
+            return all.length ? all : null;
         }
-        // synth: capture every stepped array/group that is a direct argument.
+        const args = scanArgs(lineText, op, 0);
+        return args.length ? args : null;
+    }
+
+    // Every stepped array / group / generator that is a DIRECT argument of the call.
+    // Shared by both branches: play() reuses it for its params, which used to get
+    // nothing at all — a play line highlighted its drum pattern and then stopped, so
+    // crush={0.3, 0.6, 2} sat dark while the identical thing on a synth line was boxed.
+    // `from`/`depth` let play() start after its pattern, already inside the parens.
+    function scanArgs(lineText, from, depth) {
         const out = [];
-        let pdepth = 0;
-        for (let k = op; k < lineText.length; k++) {
+        let pdepth = depth;
+        for (let k = from; k < lineText.length; k++) {
             const c = lineText[k];
             if (c === '(') {
                 // A chord group as a direct arg — dbass((0,4,7)) — highlights the whole
@@ -2404,7 +2418,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 if (j > o) { out.push([[k, j + 1]]); k = j; }
             }
         }
-        return out.length ? out : null;
+        return out;          // always an array — callers spread it
     }
     function arraysFor(lineText) {
         if (_spanCache.has(lineText)) return _spanCache.get(lineText);
