@@ -480,6 +480,14 @@
     //
     // It appends rather than inserting at the cursor, so it never lands in the middle
     // of a #@ section or on a line someone else is editing.
+    //
+    // The paste is ONCE per block. A #@ section runs again every time the arrangement
+    // comes round to it, so a section holding attack(…, 1) would otherwise append the
+    // same material on every pass and grow the buffer without limit. Pasted blocks are
+    // remembered, and a repeat call only plays — unless you deleted the text, in which
+    // case it comes back. That is what lets one composition pull parts out of another
+    // and keep running.
+    const _attacked = new Map();   // "id/part" → the exact text pasted
     const _SEC_RE = /^#@\s*([a-zA-Z_]\w*)/;
 
     // The lines of one #@ part: from its header to the next #@ (or the end).
@@ -503,6 +511,20 @@
             .filter(t => !t.startsWith('#@#@'))
             .map(t => (t.match(_SEC_RE) || [])[1])
             .filter(n => n && !/^(goto|end|endfade|clear)$/i.test(n));
+    }
+
+    // Paste `text` unless this block is already sitting in the buffer, then optionally
+    // run it. Returns what it did, for the log.
+    function place(key, text, run) {
+        const already = _attacked.get(key);
+        const stillThere = already && editor.getValue().includes(already);
+        if (stillThere) {
+            if (run) runCode(text);
+            return run ? 'already in the buffer — playing it' : 'already in the buffer';
+        }
+        _attacked.set(key, text);
+        insertCode(text, { quiet: true, run });
+        return run ? 'pasted and playing' : 'pasted (add , 1 to play it)';
     }
 
     function attack(name, part, play) {
@@ -531,9 +553,9 @@
         if (!code) { log(`attack: "${hit.id}" has no runnable code`, 'warn'); return; }
 
         if (part === undefined) {
-            insertCode(code, { quiet: true, run });
             const ps = partsIn(code);
-            log(`attack: ${hit.id} — pasted${run ? ' and playing' : ' (add , 1 to play it)'}${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
+            const how = place(hit.id, code, run);
+            log(`attack: ${hit.id} — ${how}${ps.length ? ` · parts: ${ps.join(' · ')}` : ''}`, 'ok');
             return;
         }
         const body = partOf(code, part);
@@ -545,8 +567,8 @@
         if (!body.trim()) { log(`attack: part "${part}" of ${hit.id} is empty`, 'warn'); return; }
         // Keep the #@ header on a part, so what lands in the buffer is a section you
         // can re-run, jump to and fold — not a loose pile of player lines.
-        insertCode(`#@${part}\n${body.replace(/\s+$/, '')}`, { quiet: true, run });
-        log(`attack: ${hit.id} · ${part} — pasted${run ? ' and playing' : ' (add , 1 to play it)'}`, 'ok');
+        const how = place(`${hit.id}/${part}`, `#@${part}\n${body.replace(/\s+$/, '')}`, run);
+        log(`attack: ${hit.id} · ${part} — ${how}`, 'ok');
     }
 
     // ── Room-rules console commands ───────────────────────────────────────────
