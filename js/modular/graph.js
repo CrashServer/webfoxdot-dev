@@ -73,6 +73,31 @@ export function topoSort(graph) {
     return { order };
 }
 
+/**
+ * Copy `ids` into the graph, offset by (dx, dy). Returns a Map of old id → new id.
+ *
+ * Wires BETWEEN two copied nodes are copied too — duplicating a filter and its
+ * envelope should give you a working pair, not two loose blocks. A wire with
+ * only one end inside the selection is dropped: there is no second copy of the
+ * far end for it to attach to, and re-pointing it at the ORIGINAL far end would
+ * silently steal that node's input, since one inlet takes only one cable.
+ */
+export function duplicateNodes(graph, ids, dx = 24, dy = 24) {
+    const want = new Set(ids);
+    const map = new Map();
+    for (const n of graph.nodes.filter(n => want.has(n.id))) {
+        const id = addNode(graph, n.type, n.x + dx, n.y + dy, { ...n.params });
+        const copy = graph.nodes[graph.nodes.length - 1];
+        if (n.roles) copy.roles = { ...n.roles };
+        map.set(n.id, id);
+    }
+    for (const e of [...graph.edges]) {
+        if (map.has(e.from.node) && map.has(e.to.node))
+            connect(graph, map.get(e.from.node), e.from.port, map.get(e.to.node), e.to.port);
+    }
+    return map;
+}
+
 export function toJSON(graph) { return JSON.stringify(graph); }
 export function fromJSON(text) {
     const g = JSON.parse(text);

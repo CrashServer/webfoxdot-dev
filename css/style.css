@@ -2361,3 +2361,59 @@ body.is-offline #btn-galaxy {
     user-select: none;
     pointer-events: none;
 }
+
+/* ── Modular: drag-knobs, selection, rubber band ────────────────────────────
+   The knob replaces the old <input type=number> in a block row, so it has to
+   live in the same 22px row and the same flex slot. It is a track with a fill
+   bar showing where the value sits in its range — that bar is the whole reason
+   to prefer this to a number field: you can see a cutoff is near the bottom of
+   its travel without reading the number. Unbounded knobs (signal inlets, the
+   Number block) carry no bar, because there is no range for it to mean
+   anything against. */
+.mod-knob {
+    flex: 1; min-width: 0; max-width: 56px; position: relative; overflow: hidden;
+    height: 15px; line-height: 15px; background: var(--bg-3);
+    border: 1px solid var(--border-1); border-radius: 2px;
+    font-family: monospace; font-size: 9px; color: var(--text-1);
+    cursor: ns-resize; user-select: none; text-align: right;
+}
+.mod-knob-fill {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: color-mix(in srgb, var(--blue) 30%, transparent); pointer-events: none;
+}
+.mod-knob-val { position: relative; padding: 0 4px; pointer-events: none; }
+.mod-knob:hover  { border-color: var(--blue); }
+.mod-knob.dragging { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 14%, var(--bg-3)); }
+.mod-knob.dragging .mod-knob-fill { background: color-mix(in srgb, var(--blue) 45%, transparent); }
+/* The type-it field covers the whole control while it is open, so the value
+   underneath cannot show through and be misread as what you are editing. */
+.mod-knob-edit {
+    position: absolute; inset: 0; width: 100%; border: none; outline: none;
+    background: var(--bg-1); color: var(--text-1);
+    font-family: monospace; font-size: 9px; text-align: right; padding: 0 4px;
+}
+
+/* Selection reads on the block's border and header, not a wash over the whole
+   body — the rows carry live values you still need to read while several
+   blocks are selected. */
+.modular-block.selected { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), 0 2px 10px rgba(0, 0, 0, 0.45); }
+.modular-block.selected .modular-block-head { background: color-mix(in srgb, var(--blue) 22%, var(--bg-3)); }
+
+.modular-band {
+    position: absolute; pointer-events: none; z-index: 5;
+    border: 1px dashed var(--blue);
+    background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
+/* The canvas takes focus so the shortcuts can be bound to it rather than to
+   the window — the panel is not modal, and a window-level Ctrl+Z would undo a
+   patch edit while you were typing code. The ring says where the keys go. */
+.modular-canvas-wrap:focus { outline: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 55%, transparent); }
+.modular-canvas-wrap:focus-visible { outline: none; }
+
+.modular-keys {
+    color: var(--text-2); font-size: 9px; line-height: 1.45; padding: 4px 6px;
+    border-top: 1px solid var(--border-1); opacity: 0.85;
+}
+.modular-audition { font-size: 12px; }
+.modular-undo:disabled, .modular-redo:disabled { opacity: 0.35; cursor: default; }

@@ -37,7 +37,7 @@ export const BLOCKS = {
         label: 'Oscillator',
         output: 'audio',
         params: [{ name: 'wave', kind: 'select', options: ['sine', 'saw', 'pulse', 'triangle', 'varsaw', 'blip'], default: 'sine' }],
-        inputs: [{ name: 'freq', default: 440 }],
+        inputs: [{ name: 'freq', default: 440, min: 20, max: 20000, curve: 'exp' }],
         codegen(node, ins) {
             const factory = { sine: 'SinOsc', saw: 'Saw', pulse: 'Pulse', triangle: 'LFTri', varsaw: 'VarSaw', blip: 'Blip' }[node.params.wave] || 'SinOsc';
             return `${factory}.ar(${ins.freq})`;
@@ -48,7 +48,7 @@ export const BLOCKS = {
         label: 'Impulse',
         output: 'audio',
         params: [],
-        inputs: [{ name: 'freq', default: 1 }],
+        inputs: [{ name: 'freq', default: 1, min: 0, max: 200 }],
         // A train of clicks at `freq` Hz (DC between them) — an excitation
         // source for percussive hits (through a resonant Filter + short
         // Envelope) or a trigger-rate clock; freq=0 is a single unit impulse
@@ -72,7 +72,7 @@ export const BLOCKS = {
         label: 'Filter',
         output: 'audio',
         params: [{ name: 'mode', kind: 'select', options: ['resonant', 'resonant-hp', 'lowpass', 'highpass', 'bandpass'], default: 'resonant' }],
-        inputs: [{ name: 'in', default: 0 }, { name: 'cutoff', default: 800 }, { name: 'rq', default: 0.5 }],
+        inputs: [{ name: 'in', default: 0 }, { name: 'cutoff', default: 800, min: 20, max: 20000, curve: 'exp' }, { name: 'rq', default: 0.5, min: 0.01, max: 2, curve: 'exp' }],
         codegen(node, ins) {
             // LPF/HPF ignore a 3rd (rq) argument harmlessly — ugens.js's make()
             // only maps over its OWN defaults array, extra args are dropped.
@@ -85,7 +85,7 @@ export const BLOCKS = {
         label: 'Clip',
         output: 'audio',
         params: [],
-        inputs: [{ name: 'in', default: 0 }, { name: 'lo', default: -1 }, { name: 'hi', default: 1 }],
+        inputs: [{ name: 'in', default: 0 }, { name: 'lo', default: -1, min: -1, max: 1 }, { name: 'hi', default: 1, min: -1, max: 1 }],
         // Soft-limits a signal to [lo, hi] — a HARD ceiling (feed it an
         // over-driven signal and it flattens dead at lo/hi), or a safety
         // limiter after a Mix that could otherwise sum past ±1. For actual
@@ -104,7 +104,7 @@ export const BLOCKS = {
         // (war/dab/growl/tekno/guitar all end their drive stage in `(sig *
         // dist).tanh`) — a soft-saturation curve, louder drive rounds off
         // instead of hard-clipping flat.
-        inputs: [{ name: 'in', default: 0 }, { name: 'dist', default: 1 }],
+        inputs: [{ name: 'in', default: 0 }, { name: 'dist', default: 1, min: 0.1, max: 100, curve: 'exp' }],
         codegen(node, ins) {
             return `tanh(mul(${ins.in}, ${ins.dist}))`;
         },
@@ -119,8 +119,8 @@ export const BLOCKS = {
             // wireable ports) rather than always-present inputs, so a perc/
             // linen Envelope doesn't carry two dead, unused extraParams (see
             // the conditional knobRef() calls below).
-            { name: 'decay', kind: 'number', default: 0.1 },
-            { name: 'sustainLevel', kind: 'number', default: 0.5 },
+            { name: 'decay', kind: 'number', default: 0.1, min: 0.001, max: 10, curve: 'exp' },
+            { name: 'sustainLevel', kind: 'number', default: 0.5, min: 0, max: 1 },
         ],
         // attack/release default to the STD attack/release controls when left
         // unwired and untagged (resolveKnob reuses them bare — same behavior
@@ -130,7 +130,7 @@ export const BLOCKS = {
         // from the note's — useful once a patch has more than one voice/stage.
         // sus stays unexposed (bare STD only) — it's the note's own duration,
         // not really a per-voice "character" knob the way attack/release are.
-        inputs: [{ name: 'in', default: 0 }, { name: 'attack', default: 0.01 }, { name: 'release', default: 0.1 }],
+        inputs: [{ name: 'in', default: 0 }, { name: 'attack', default: 0.01, min: 0.001, max: 10, curve: 'exp' }, { name: 'release', default: 0.1, min: 0.001, max: 10, curve: 'exp' }],
         codegen(node, ins, knobRef) {
             let env;
             if (node.params.shape === 'adsr') {
@@ -161,10 +161,10 @@ export const BLOCKS = {
         // Envelope) still correctly triggers the "notes never stop" warning.
         params: [
             { name: 'shape', kind: 'select', options: ['perc', 'linen', 'adsr'], default: 'adsr' },
-            { name: 'decay', kind: 'number', default: 0.3 },
-            { name: 'sustainLevel', kind: 'number', default: 0.5 },
+            { name: 'decay', kind: 'number', default: 0.3, min: 0.001, max: 10, curve: 'exp' },
+            { name: 'sustainLevel', kind: 'number', default: 0.5, min: 0, max: 1 },
         ],
-        inputs: [{ name: 'attack', default: 0.01 }, { name: 'release', default: 0.5 }],
+        inputs: [{ name: 'attack', default: 0.01, min: 0.001, max: 10, curve: 'exp' }, { name: 'release', default: 0.5, min: 0.001, max: 10, curve: 'exp' }],
         codegen(node, ins, knobRef) {
             let env;
             if (node.params.shape === 'adsr') {
@@ -187,7 +187,7 @@ export const BLOCKS = {
         // (sample-and-hold, zippery), smooth = LFNoise2 (quadratic-interpolated,
         // rounder than noise).
         params: [{ name: 'shape', kind: 'select', options: ['sine', 'noise', 'stepped', 'smooth'], default: 'sine' }],
-        inputs: [{ name: 'rate', default: 4 }],
+        inputs: [{ name: 'rate', default: 4, min: 0.01, max: 100, curve: 'exp' }],
         codegen(node, ins) {
             const factory = { noise: 'LFNoise1', stepped: 'LFNoise0', smooth: 'LFNoise2' }[node.params.shape];
             return factory ? `${factory}.kr(${ins.rate})` : `SinOsc.kr(${ins.rate})`;
@@ -202,7 +202,7 @@ export const BLOCKS = {
         // sweep that crosses zero will glitch, that's an XLine/SC constraint,
         // not this block's.
         params: [{ name: 'shape', kind: 'select', options: ['linear', 'exponential'], default: 'linear' }],
-        inputs: [{ name: 'start', default: 1 }, { name: 'end', default: 0 }, { name: 'dur', default: 1 }],
+        inputs: [{ name: 'start', default: 1 }, { name: 'end', default: 0 }, { name: 'dur', default: 1, min: 0.001, max: 20, curve: 'exp' }],
         codegen(node, ins) {
             const factory = node.params.shape === 'exponential' ? 'XLine' : 'Line';
             // doneAction 0 — only the Envelope block frees the voice, so a
@@ -219,7 +219,7 @@ export const BLOCKS = {
         // classic synth "glide"/"portamento" knob; wire it between a Note →
         // Pitch and every oscillator's freq so pitch changes slide.
         params: [],
-        inputs: [{ name: 'in', default: 0 }, { name: 'time', default: 0.1 }],
+        inputs: [{ name: 'in', default: 0 }, { name: 'time', default: 0.1, min: 0.001, max: 5, curve: 'exp' }],
         codegen(node, ins) {
             return `Lag.kr(${ins.in}, ${ins.time})`;
         },
@@ -276,12 +276,26 @@ export const BLOCKS = {
         // the old hardcoded `pan` couldn't do. amp deliberately stays
         // hardcoded, not a port: every note's own amp/velocity should always
         // scale the voice, never be silently replaceable by a wire.
-        inputs: [{ name: 'in', default: 0 }, { name: 'pan', default: 0 }],
+        inputs: [{ name: 'in', default: 0 }, { name: 'pan', default: 0, min: -1, max: 1 }],
         codegen(node, ins) {
             return `Out.ar(out, Pan2.ar(mul(${ins.in}, amp), ${ins.pan}))`;
         },
     },
 };
+
+// Range metadata for a knob (js/ui/knob.js), by port OR param name. A spec
+// with no min/max drags by proportion instead of across a fixed span — right
+// for the signal inlets (`in`, `a`, `b`, Ramp's start/end) and the Number
+// block, whose sensible range depends entirely on what they are wired into.
+// Curves are chosen by ear: frequencies and times are exponential, because a
+// linear 20 Hz-20 kHz sweep spends nine tenths of the gesture above 2 kHz.
+export function knobSpec(type, key) {
+    const b = BLOCKS[type];
+    if (!b) return {};
+    const p = b.params.find(x => x.name === key) || b.inputs.find(x => x.name === key);
+    if (!p) return {};
+    return { min: p.min, max: p.max, curve: p.curve, default: p.default };
+}
 
 export function blockDef(type) {
     const b = BLOCKS[type];
