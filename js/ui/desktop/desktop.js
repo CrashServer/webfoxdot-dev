@@ -20,6 +20,25 @@
 
 import { initCanvas, resetView, getZoom, onViewChange } from './canvas.js';
 import { createPanel, resetAllLayouts } from './panel.js';
+import { mountScreen, toggleBackdrop } from './screens.js';
+
+// A ▦ button in every panel header: run the visuals behind that panel's content.
+// Added from out here rather than inside createPanel so the ported panel system
+// stays a straight copy of the workshop's — this is crashDot's business, not its.
+function addBackdropButton(panelEl, clock) {
+    const head = panelEl.querySelector('.panel-head');
+    if (!head) return;
+    const b = document.createElement('button');
+    b.className = 'panel-backdrop-btn';
+    b.textContent = '\u25a6';
+    b.title = 'run the visuals behind this panel (needs a video player: video1 >> plasma())';
+    b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        b.classList.toggle('on', toggleBackdrop(panelEl, clock));
+    });
+    // Before the collapse/close cluster, after the title.
+    head.insertBefore(b, head.querySelector('.panel-collapse') || null);
+}
 
 // ── CodeMirror under a scaled ancestor ───────────────────────────────────────
 // CodeMirror pins its gutter with
@@ -72,6 +91,9 @@ const PANELS = [
     { id: 'wfd-session', title: 'session',     x:1524, y:   0, w:  390, h: 420, minW: 280, minH: 140, adopt: ['#cp-session', '#cp-link'] },
     { id: 'wfd-midi',    title: 'midi',        x:1524, y: 442, w:  390, h: 230, minW: 280, minH: 110, adopt: ['#cp-midi'] },
     { id: 'wfd-settings',title: 'settings',    x:1524, y: 694, w:  390, h: 300, minW: 280, minH: 140, adopt: ['#cp-settings'] },
+    // A monitor on the canvas: video1 >> plasma() plays HERE, next to the code that
+    // drives it, instead of in a pop-out window on another screen.
+    { id: 'wfd-screen',  title: 'screen',      x:   0, y: 884, w: 1080, h: 400, minW: 240, minH: 140, screen: true },
 ];
 
 /**
@@ -80,7 +102,7 @@ const PANELS = [
  * @param {object} editor      CodeMirror instance (told to refresh on resize)
  * @param {function} onReady   called with the desktop element once built
  */
-export function initDesktop(editor, onReady = null) {
+export function initDesktop(editor, clock = null, onReady = null) {
     const body = document.body;
     body.classList.add('desktop-ui');
 
@@ -105,15 +127,18 @@ export function initDesktop(editor, onReady = null) {
     const refresh = () => editor?.refresh?.();
 
     for (const spec of PANELS) {
-        const src = spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
-        if (!src.length) continue;      // a section this build doesn't have
+        const src = spec.screen ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
+        if (!spec.screen && !src.length) continue;   // a section this build doesn't have
 
-        const { body: panelBody } = createPanel(canvas, {
+        const { el: panelEl, body: panelBody } = createPanel(canvas, {
             ...spec,
             onResize: spec.id === 'wfd-editor' ? refresh : undefined,
         });
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
+        if (spec.screen) mountScreen(panelBody, clock);
         for (const el of src) panelBody.appendChild(el);   // adopt, don't rebuild
+
+        addBackdropButton(panelEl, clock);
     }
 
     // The toolbar is NOT a panel: STOP is a panic button and must never be

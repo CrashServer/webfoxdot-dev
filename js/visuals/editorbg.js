@@ -1,64 +1,31 @@
-// editorbg.js — run the WebGL2 visuals as a live BACKGROUND behind the code editor.
+// editorbg.js — run the visuals as a live BACKGROUND behind the code editor.
 //
-// Reuses the exact renderer the pop-out window uses, but in the MAIN window: it reads
-// the authoritative vlang snapshot + the audio analyser directly each frame (no
-// BroadcastChannel, no pop-out needed). Toggle with vbg() / Shift+Alt+B; the on/off
-// state persists. When no video layers are running it fades the canvas out.
+// Toggle with vbg() / Shift+Alt+B; off every session, never automatic. The frame
+// loop, the audio smoothing and the FX bundle all live in surface.js now — this is
+// just the one surface that happens to sit behind the editor, plus the body class
+// that dims the code over it.
 
-import { createGLRenderer } from './render/gl/renderer.js';
-import { snapshot }       from './vlang.js';
-import { getVisualAudio } from './bridge.js';
+import { createSurface } from './surface.js';
 
-let _r = null, _canvas = null, _clock = null, _on = false, _raf = 0;
-const _aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
-
-// Post-FX bundle: the max of each FX key across all layers (mirrors render/main.js).
-function fxBundle(layers) {
-    const mx = (key, d = 0) => {
-        let m = d;
-        for (const l of layers) { const f = l.fx && l.fx[key]; if (typeof f === 'number' && f > m) m = f; else if (f === true && m < 1) m = 1; }
-        return m;
-    };
-    return {
-        trails: mx('trails'), feedback: mx('feedback'), glitch: mx('glitch'), scan: mx('scan'),
-        vignette: mx('vignette'), invert: mx('invert') >= 1, blur: mx('blur'), bloom: mx('bloom'),
-        posterize: mx('posterize'), droste: mx('droste'), fold: mx('fold'), hueshift: mx('hueshift'),
-        dither: mx('dither'), pixelsort: mx('pixelsort'), mirror: mx('mirror'), edge: mx('edge'), pixelate: mx('pixelate'),
-    };
-}
-
-function frame(ts) {
-    if (!_on) return;
-    _raf = requestAnimationFrame(frame);
-    const t = ts / 1000;
-    const beat = _clock ? _clock.now() : t;               // clock beat → resolves TimeVars/patterns
-    const vst = snapshot(beat);
-    if (!vst.layers.length) { _canvas.style.opacity = '0'; return; }   // nothing running → fade out
-    _canvas.style.opacity = '';                           // CSS controls the dim level
-    const a = getVisualAudio();
-    _aud.bass += (a.bass - _aud.bass) * 0.35; _aud.mid += (a.mid - _aud.mid) * 0.35;
-    _aud.treble += (a.treble - _aud.treble) * 0.35; _aud.level += (a.level - _aud.level) * 0.35;
-    _aud.spectrum = a.spectrum;
-    _r.render(vst, t, _aud, fxBundle(vst.layers));
-}
+let _s = null, _canvas = null;
 
 export function initEditorBg(canvas, clock) {
-    _canvas = canvas; _clock = clock;
-    try { _r = createGLRenderer(canvas); }
-    catch (e) { console.warn('editor-bg: WebGL2 unavailable —', e?.message || e); _r = null; }
-    // Off every session — the background only appears when you explicitly toggle it
-    // (vbg() / Shift+Alt+B), never automatically. No persistence.
+    _canvas = canvas;
+    _s = createSurface(canvas, clock);
+    if (!_s.ok()) console.warn('editor-bg: no WebGL2 — vbg() will be a no-op');
 }
 
 export function setEditorBg(on) {
-    if (!_r) return false;
-    _on = !!on;
-    document.body.classList.toggle('viz-bg', _on);
-    _canvas.style.display = _on ? 'block' : 'none';
-    cancelAnimationFrame(_raf);
-    if (_on) _raf = requestAnimationFrame(frame);
-    return _on;
+    if (!_s?.ok()) return false;
+    const now = _s.toggle(!!on);
+    document.body.classList.toggle('viz-bg', now);
+    if (!now && _canvas) _canvas.style.display = 'none';
+    return now;
 }
 
-export function toggleEditorBg() { return setEditorBg(!_on); }
-export function editorBgOn()     { return _on; }
+export function toggleEditorBg() { return setEditorBg(!editorBgOn()); }
+export function editorBgOn()     { return !!_s?.isOn(); }
+
+// The surface itself, so other UI (the desktop's panel backdrops) can mirror its
+// frames instead of standing up a second WebGL context for the same picture.
+export function editorBgSurface() { return _s; }

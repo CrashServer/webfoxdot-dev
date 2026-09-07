@@ -2615,3 +2615,34 @@ body.desktop-ui .panel-body > .cp-section + .cp-section > h3 { display: block; }
     .panel-resize { width: 22px; height: 22px; }
     .panel-body { padding-right: 22px; padding-bottom: 22px; }
 }
+
+/* ── Screens & panel backdrops (js/ui/desktop/screens.js) ─────────────────── */
+.panel-backdrop-btn {
+    width: 18px; height: 18px; padding: 0;
+    font-size: 10px; line-height: 1;
+    background: transparent; border: none;
+    color: var(--text-2); cursor: pointer; border-radius: 2px;
+}
+.panel-backdrop-btn:hover { background: var(--bg-1); color: var(--text-1); }
+.panel-backdrop-btn.on { color: var(--green); text-shadow: 0 0 6px var(--glow); }
+
+/* The mirrored frame sits behind the panel's own content. The panel background
+   goes translucent so the picture reads through it — the code stays first. */
+.wfd-backdrop {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border-radius: 5px;
+    pointer-events: none;
+    opacity: 0.5;
+    z-index: 0;
+}
+.panel.has-backdrop { background: color-mix(in srgb, var(--bg-2) 55%, transparent); }
+.panel.has-backdrop > .panel-head,
+.panel.has-backdrop > .panel-body { position: relative; z-index: 1; }
+.panel.has-backdrop > .panel-head { background: color-mix(in srgb, var(--bg-3) 70%, transparent); }
+.panel.has-backdrop .CodeMirror { background: transparent; }
+.panel.has-backdrop .CodeMirror-gutters { background: color-mix(in srgb, var(--bg-1) 42%, transparent); border-right-color: transparent; }
+
+/* The SCREEN panel is a monitor: no padding, black behind, the canvas fills it. */
+.wfd-body-wfd-screen { padding: 0 !important; background: #000; overflow: hidden; }
+#wfd-screen-gl { display: block; width: 100%; height: 100%; }

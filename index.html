@@ -3416,7 +3416,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     };
     if (desktopModeOn()) {
         try {
-            initDesktop(editor);
+            initDesktop(editor, clock);
             document.getElementById('btn-desktop').classList.add('active');
             log('desktop UI — drag panel headers to move, corners to resize, Ctrl+scroll to zoom, drag the background to pan (double-click it to reset)', 'info');
         } catch (e) {
