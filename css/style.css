@@ -2489,3 +2489,129 @@ body.is-offline #btn-galaxy {
 }
 .modular-audition { font-size: 12px; }
 .modular-undo:disabled, .modular-redo:disabled { opacity: 0.35; cursor: default; }
+
+/* ══ Desktop UI — the optional pan/zoom canvas (js/ui/desktop/) ══════════════
+   Ported from the stars/workshop VJ tool and re-pointed at crashDot's theme
+   vars. Every rule is scoped under body.desktop-ui, so the classic layout —
+   which is still the default — cannot be reached by any of it. */
+
+body.desktop-ui #editor-container.is-desktop-host { display: none; }
+body.desktop-ui #keybar { z-index: 140; }
+
+#desktop {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    top: var(--toolbar-h, 34px);   /* the toolbar is pinned above it */
+    overflow: hidden;
+    cursor: grab;
+    background:
+        radial-gradient(circle, var(--border-1) 1px, transparent 1px),
+        radial-gradient(circle, var(--border-1) 1px, transparent 1px),
+        var(--bg-1);
+    background-size: 110px 110px, 22px 22px;
+    z-index: 0;
+}
+#desktop.space-pan { cursor: grab; }
+#desktop.panning   { cursor: grabbing !important; }
+#desktop .panel    { cursor: default; }
+
+/* The toolbar stays pinned above the canvas rather than becoming a panel: STOP
+   is a panic button and must never be somewhere you have to pan to find. */
+body.desktop-ui #toolbar {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 120;
+    border-bottom: 1px solid var(--border-1);
+}
+
+#wfd-canvas { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; z-index: 0; }
+
+/* Two background zones: the whole workspace, and the "home" rectangle the
+   default layout is arranged in — so you can always find your way back. */
+.canvas-workspace { background: rgba(255,255,255,0.012); border-radius: 6px; }
+.canvas-stage {
+    background: rgba(255,255,255,0.022);
+    border: 1px dashed var(--border-1);
+    border-radius: 6px;
+}
+
+#canvas-zoom-ind {
+    position: fixed; right: 10px; bottom: 8px; z-index: 130;
+    padding: 2px 8px; font-size: 10px; font-family: monospace;
+    background: var(--bg-2); color: var(--text-2);
+    border: 1px solid var(--border-1); border-radius: 4px; cursor: pointer;
+}
+#canvas-zoom-ind:hover { color: var(--green); border-color: var(--green); }
+
+/* ── Panels ─────────────────────────────────────────────────────────────── */
+.panel {
+    position: absolute;
+    display: flex; flex-direction: column;
+    min-width: 200px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.panel.collapsed { height: auto !important; }
+.panel-head {
+    height: 24px; flex-shrink: 0; position: relative;
+    display: flex; align-items: center; padding: 0 6px;
+    background: var(--bg-3);
+    border-bottom: 1px solid var(--border-1);
+    border-radius: 5px 5px 0 0;
+    cursor: grab; touch-action: none; user-select: none;
+}
+.panel-head:active { cursor: grabbing; }
+.panel-title {
+    flex: 1; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-1);
+}
+.panel-collapse, .panel-pin, .panel-home-set, .panel-home-go, .panel-color-btn {
+    width: 18px; height: 18px; padding: 0;
+    font-size: 10px; line-height: 1;
+    background: transparent; border: none;
+    color: var(--text-2); cursor: pointer; border-radius: 2px;
+}
+.panel-collapse:hover, .panel-pin:hover, .panel-home-set:hover,
+.panel-home-go:hover, .panel-color-btn:hover { background: var(--bg-1); color: var(--text-1); }
+.panel-pin.on { color: var(--green); text-shadow: 0 0 6px var(--glow); }
+.panel-home-set.on { color: var(--green); opacity: 0.7; }
+.panel-home-go { color: var(--text-2); }
+
+.panel-color-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; }
+.panel-color-picker {
+    display: none; position: absolute; top: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); z-index: 10; gap: 4px; padding: 5px;
+    background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 4px;
+}
+.panel-color-picker.open { display: flex; }
+.panel-color-swatch { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 2px solid transparent; cursor: pointer; flex-shrink: 0; }
+.panel-color-swatch:hover { border-color: var(--border-2); }
+.panel-color-swatch.on { border-color: var(--text-1) !important; box-shadow: 0 0 0 1px var(--green); }
+
+.panel-body { flex: 1; overflow: auto; padding: 8px 14px 14px 8px; }
+.panel-resize { position: absolute; right: 0; bottom: 0; width: 13px; height: 13px; cursor: nwse-resize; touch-action: none; }
+.panel-resize::after {
+    content: ""; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px;
+    border-right: 2px solid var(--border-2); border-bottom: 2px solid var(--border-2);
+    border-radius: 0 0 2px 0;
+}
+
+/* ── Adopted content ────────────────────────────────────────────────────────
+   The editor panel hands its whole body to CodeMirror; the crash-panel sections
+   arrive with their own padding and borders, which a panel already provides. */
+.wfd-body-wfd-editor { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.wfd-body-wfd-editor #editor-wrap { flex: 1; min-height: 0; overflow: hidden; }
+.wfd-body-wfd-editor .CodeMirror { height: 100%; }
+.wfd-body-wfd-log { padding: 0; }
+.wfd-body-wfd-log #log { position: static; height: 100%; border: none; }
+body.desktop-ui .panel-body > .cp-section { border: none; padding: 0; margin: 0; }
+/* The panel header already names the section — its own <h3> would say it twice. */
+body.desktop-ui .panel-body > .cp-section > h3 { display: none; }
+body.desktop-ui .panel-body > .cp-section + .cp-section { margin-top: 10px; }
+body.desktop-ui .panel-body > .cp-section + .cp-section > h3 { display: block; }
+
+@media (pointer: coarse) {
+    .panel-resize { width: 22px; height: 22px; }
+    .panel-body { padding-right: 22px; padding-bottom: 22px; }
+}

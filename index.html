@@ -51,6 +51,7 @@
       <button id="docs-toggle-btn" title="documentation (F1)">docs</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">split</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">zen</button>
+      <button id="btn-desktop" title="desktop — experimental: the whole app on an infinite pan/zoom canvas, every part a draggable panel. Ctrl+scroll zooms, drag the background to pan, double-click it to reset.">desktop</button>
       <!-- visuals: a 2-channel video mixer driven by video1/video2/… >> scene players -->
       <!-- visuals button hidden for now — visuals still open via openVisuals() / a videoN >> line, and vbg() for the editor background -->
       <button id="btn-visuals" hidden title="pop out the visuals window — a 2-channel mixer for video players (video1 &gt;&gt; plasma() · video2 &gt;&gt; tunnel(ch=1) · video9 &gt;&gt; mix(0.5))">visuals</button>
@@ -96,7 +97,7 @@
     </div>
 
     <!-- Major controls together: clock, scale, root. -->
-    <div class="cp-section">
+    <div class="cp-section" id="cp-clock">
       <h3>Clock</h3>
       <!-- Phrase counters: current bar position within 4/8/16/32/64-bar phrases. -->
       <div id="cp-phrases">
@@ -118,7 +119,7 @@
     </div>
 
     <!-- Players — the second most important panel, right under the clock. -->
-    <div class="cp-section">
+    <div class="cp-section" id="cp-players">
       <h3>Players</h3>
       <div id="cp-players"></div>
     </div>
@@ -146,7 +147,7 @@
       <input id="cp-chat-input" type="text" placeholder="chat…  (Enter)" maxlength="280" spellcheck="false">
     </div>
 
-    <div class="cp-section">
+    <div class="cp-section" id="cp-compo">
       <h3>Composition</h3>
       <div id="cp-autoplay">autoplay: off</div>
       <button id="cp-stop-autoplay" class="cp-btn">■ stop autoplay</button>
@@ -266,6 +267,7 @@
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
+    import { initDesktop, desktopModeOn, setDesktopMode } from './js/ui/desktop/desktop.js';
     import { getLang, setLang } from './js/i18n/lang.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo,
@@ -3399,6 +3401,28 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Solo (no session) — register lightweight presence so the collab server
         // can count solo usage. Silent no-op if the collab server isn't reachable.
         initSoloPresence().then(p => { _soloPresence = p; }).catch(() => {});
+    }
+
+    // ── Desktop UI (experimental) ─────────────────────────────────────────────
+    // An optional second layout: the same DOM, scattered over a pan/zoom canvas as
+    // draggable panels. Off by default; the classic layout is untouched by it.
+    // Switching either way is a reload — the mode is persisted, and putting a dozen
+    // live nodes back where they came from is a lot of code to get subtly wrong.
+    document.getElementById('btn-desktop').onclick = () => {
+        const on = !desktopModeOn();
+        setDesktopMode(on);
+        log(on ? 'switching to the desktop UI…' : 'back to the classic layout…', 'info');
+        setTimeout(() => location.reload(), 150);
+    };
+    if (desktopModeOn()) {
+        try {
+            initDesktop(editor);
+            document.getElementById('btn-desktop').classList.add('active');
+            log('desktop UI — drag panel headers to move, corners to resize, Ctrl+scroll to zoom, drag the background to pan (double-click it to reset)', 'info');
+        } catch (e) {
+            setDesktopMode(false);
+            log('desktop UI failed to build (' + e.message + ') — back to the classic layout on the next reload', 'error');
+        }
     }
 
     // ── Load / latency meter ──────────────────────────────────────────────────
