@@ -344,6 +344,14 @@ body {
     flex-wrap: wrap;          /* too narrow → flow onto a second row, nothing clipped */
 }
 #toolbar > * { flex-shrink: 0; }   /* nothing collapses/resizes as text changes */
+/* One flat vocabulary in the top bar: words, uppercase, no glyphs. Done here rather
+   than in the markup so the labels a button rewrites at runtime — "booting…",
+   "kit 3/12", "retry boot" — come out in the same voice without the JS knowing. */
+#toolbar button, #toolbar #examples-btn {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 9px;          /* words are wider than the glyphs were — buy the row back */
+}
 #btn-perform { display: none; }    /* Perform Mode is a touch feature — shown only on coarse pointers */
 /* On narrow screens, tighten spacing so more fits per row before wrapping. */
 @media (max-width: 760px) {
@@ -2301,20 +2309,18 @@ body.is-offline #btn-galaxy {
     .keybar-key.keybar-act { color: var(--green); border-color: var(--green); }
 }
 
-/* Narrow phones: shrink the top bar to fit in one or two rows. The button LABELS are
-   what make it wrap over many rows, so drop them to glyph-only (the title stays in the
-   button's tooltip), hide the app title + synth status, and drop the rarely-needed
-   reload / split / zen buttons. Tap targets stay ~36px. Appended last so it wins. */
+/* Narrow phones: shrink the top bar to fit in one or two rows. Every button is a WORD
+   now, so there is no glyph-only mode to fall back to — the labels shrink instead, and
+   the app title, synth status and the rarely-needed reload / split / zen buttons drop
+   out to buy the room back. Tap targets stay ~36px. Appended last so it wins. */
 @media (max-width: 640px) {
-    #toolbar .tb-label,
     #toolbar .title,
     #synth-status,
     #btn-reload, #btn-split, #btn-zen { display: none; }
     #toolbar { gap: 4px; row-gap: 4px; padding: 4px 6px; }
-    #toolbar button, #toolbar #examples-btn { min-height: 36px; padding: 5px 9px; font-size: 14px; }
-    /* glyph-only buttons: keep them square-ish and readable */
-    #btn-loadkit, #btn-mixer, #btn-modular, #btn-perform, #btn-share, #btn-multiplayer, #cp-toggle, #btn-galaxy,
-    #btn-run, #btn-stop, #docs-toggle-btn { font-size: 16px; padding: 5px 8px; }
+    #toolbar button, #toolbar #examples-btn {
+        min-height: 36px; padding: 5px 8px; font-size: 11px; letter-spacing: 0.3px;
+    }
 }
 
 /* ── Perform Mode — full-screen, keyboard-free touch performance surface ──────── */

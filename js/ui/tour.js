@@ -460,7 +460,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`),
 #   Ctrl+Space      autocomplete                     Ctrl+/   toggle comment
 #   Alt+T           record a knob move as automation
 #   Ctrl+Alt+P      JUMP to the ACTIVE section — where the running set is right now
-#   Shift+Alt+Z     zen mode (hide all UI)  ·  F1 / ?  docs
+#   Shift+Alt+Z     zen mode (hide all UI)  ·  F1  docs
 #
 # Ctrl+Alt+P is the "go to composition position" jump — handy in a long #@ set.`),
 
@@ -684,9 +684,9 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
-#   • examples ▾ (top bar)  full tracks & techniques — click one to load it
-#   • the  ?  button        docs: every synth, effect, pattern & shortcut
-#   • 🌌 galaxy             browse & jam with other people, live
+#   • examples (top bar)  full tracks & techniques — click one to load it
+#   • the docs button     every synth, effect, pattern & shortcut
+#   • galaxy              browse & jam with other people, live
 #
 # Now clear this buffer (Ctrl+A, Delete) and make something of your own.
 # Welcome aboard!`),
@@ -1097,7 +1097,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'fr'),
 #   Ctrl+Espace     autocomplétion                  Ctrl+/   commente/décommente
 #   Alt+T           enregistre un mouvement de réglage en automation
 #   Ctrl+Alt+P      SAUTE à la section ACTIVE — là où le set en cours joue
-#   Shift+Alt+Z     mode zen (masque toute l'UI)  ·  F1 / ?  docs
+#   Shift+Alt+Z     mode zen (masque toute l'UI)  ·  F1  docs
 #
 # Ctrl+Alt+P est le saut « aller à la position de la composition ».`, 'fr'),
 
@@ -1323,9 +1323,9 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
-#   • examples ▾ (en haut)  morceaux & techniques complets — clique pour en charger un
-#   • le bouton  ?          docs : chaque synthé, effet, pattern & raccourci
-#   • 🌌 galaxy             parcours & jamme avec d'autres, en direct
+#   • examples (en haut)  morceaux & techniques complets — clique pour en charger un
+#   • le bouton docs      chaque synthé, effet, pattern & raccourci
+#   • galaxy              parcours & jamme avec d'autres, en direct
 #
 # Maintenant vide ce buffer (Ctrl+A, Suppr) et fais quelque chose à toi.
 # Bienvenue à bord !`, 'fr'),
@@ -1732,7 +1732,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'de'),
 #   Strg+Leertaste  Autovervollständigung             Strg+/   Kommentar umschalten
 #   Alt+T           nimmt eine Reglerbewegung als Automation auf
 #   Strg+Alt+P      SPRINGT zur AKTIVEN Section — dorthin, wo das Set gerade ist
-#   Shift+Alt+Z     Zen-Modus (UI ausblenden)  ·  F1 / ?  Docs
+#   Shift+Alt+Z     Zen-Modus (UI ausblenden)  ·  F1  Docs
 #
 # Strg+Alt+P ist der Sprung „zur Kompositions-Position".`, 'de'),
 
@@ -1958,9 +1958,9 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
-#   • examples ▾ (oben)   ganze Stücke & Techniken — klicke eins zum Laden
-#   • der  ?  Button      Docs: jeder Synth, Effekt, jedes Pattern & Tastenkürzel
-#   • 🌌 galaxy           stöbere & jamme mit anderen, live
+#   • examples (oben)  ganze Stücke & Techniken — klicke eins zum Laden
+#   • der docs-Button  jeder Synth, Effekt, jedes Pattern & Tastenkürzel
+#   • galaxy           stöbere & jamme mit anderen, live
 #
 # Jetzt leere diesen Buffer (Strg+A, Entf) und mach etwas Eigenes.
 # Willkommen an Bord!`, 'de'),
@@ -2366,7 +2366,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'es'),
 #   Ctrl+Espacio     autocompletado                    Ctrl+/   alterna comentario
 #   Alt+T            graba un movimiento de perilla como automatización
 #   Ctrl+Alt+P       SALTA a la section ACTIVA — donde va el set ahora mismo
-#   Shift+Alt+Z      modo zen (oculta la UI)  ·  F1 / ?  docs
+#   Shift+Alt+Z      modo zen (oculta la UI)  ·  F1  docs
 #
 # Ctrl+Alt+P es el salto «a la posición de la composición».`, 'es'),
 
@@ -2592,9 +2592,9 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
-#   • examples ▾ (arriba)   temas completos y técnicas — haz clic en uno para cargarlo
-#   • el botón  ?           docs: cada synth, efecto, pattern y atajo
-#   • 🌌 galaxy             explora e improvisa con otros, en vivo
+#   • examples (arriba)  temas completos y técnicas — haz clic en uno para cargarlo
+#   • el botón docs      cada synth, efecto, pattern y atajo
+#   • galaxy             explora e improvisa con otros, en vivo
 #
 # Ahora vacía este buffer (Ctrl+A, Supr) y haz algo tuyo.
 # ¡Bienvenido a bordo!`, 'es'),
@@ -2999,7 +2999,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'ja'),
 #   Ctrl+スペース   オートコンプリート          Ctrl+/   コメント切り替え
 #   Alt+T           つまみの動きをオートメーションとして記録
 #   Ctrl+Alt+P      「アクティブ」なセクションへジャンプ — 今セットが進んでいる場所
-#   Shift+Alt+Z     禅モード（UIを隠す）  ·  F1 / ?  ドキュメント
+#   Shift+Alt+Z     禅モード（UIを隠す）  ·  F1  ドキュメント
 #
 # Ctrl+Alt+P は「コンポジションの現在位置へ」のジャンプ。`, 'ja'),
 
@@ -3222,9 +3222,9 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
-#   • examples ▾（上）   完成した曲とテクニック — クリックで読み込む
-#   • ?  ボタン          ドキュメント：各シンセ・エフェクト・パターン・ショートカット
-#   • 🌌 galaxy          他の人とライブで探索し、ジャムする
+#   • examples（上）  完成した曲とテクニック — クリックで読み込む
+#   • docs ボタン     ドキュメント：各シンセ・エフェクト・パターン・ショートカット
+#   • galaxy          他の人とライブで探索し、ジャムする
 #
 # では、このバッファを空にして（Ctrl+A、Delete）、自分だけの何かを作ろう。
 # ようこそ！`, 'ja'),

@@ -27,33 +27,33 @@
       <span id="version-tag" class="version-tag" title="changelog"></span>
       <button id="btn-tour" title="guided tour — learn live coding from scratch, right in the editor">tour</button>
       <button id="btn-boot">boot</button>
-      <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">♪<span class="tb-label"> load kit</span></button>
-      <button id="btn-run"  disabled title="run  (Ctrl+↵)">▶</button>
-      <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">■</button>
-      <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">↻</button>
-      <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">🎚<span class="tb-label"> mix</span></button>
+      <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">load kit</button>
+      <button id="btn-run"  disabled title="run  (Ctrl+↵)">run</button>
+      <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">stop</button>
+      <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">reload</button>
+      <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">mix</button>
       <button id="btn-parts" title="parts — browse every example's #@ sections and click one into your set as a #@ section + attack() line">parts</button>
-      <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">🎛<span class="tb-label"> modular</span></button>
-      <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">⊞<span class="tb-label"> perform</span></button>
-      <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">⤴<span class="tb-label"> share</span></button>
-      <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">👥<span class="tb-label"> go live</span></button>
+      <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">modular</button>
+      <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">perform</button>
+      <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">share</button>
+      <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">go live</button>
       <span id="synth-status"></span>
       <div style="flex:1"></div>
       <!-- right cluster: galaxy · examples · docs · split · zen — kept together so they
            wrap as one group onto the second row on narrow windows -->
       <!-- mobile-only: slide the side panel (Clock/Players/Composition/Settings) up as a drawer -->
-      <button id="cp-toggle" title="show / hide the panel">☰<span class="tb-label"> panel</span></button>
-      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">🌌<span class="tb-label"> galaxy</span></button>
+      <button id="cp-toggle" title="show / hide the panel">panel</button>
+      <button id="btn-galaxy" title="galaxy — browse &amp; join live jam sessions (experimental)">galaxy</button>
       <div id="examples-dd">
-        <button id="examples-btn" title="load an example into the editor">examples ▾</button>
+        <button id="examples-btn" title="load an example into the editor">examples</button>
         <div id="examples-pop" hidden></div>
       </div>
-      <button id="docs-toggle-btn" title="documentation (F1)">?</button>
-      <button id="btn-split" title="split view — peers' evals below (in a session)">⬓</button>
-      <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">⛶</button>
+      <button id="docs-toggle-btn" title="documentation (F1)">docs</button>
+      <button id="btn-split" title="split view — peers' evals below (in a session)">split</button>
+      <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">zen</button>
       <!-- visuals: a 2-channel video mixer driven by video1/video2/… >> scene players -->
       <!-- visuals button hidden for now — visuals still open via openVisuals() / a videoN >> line, and vbg() for the editor background -->
-      <button id="btn-visuals" hidden title="pop out the visuals window — a 2-channel mixer for video players (video1 &gt;&gt; plasma() · video2 &gt;&gt; tunnel(ch=1) · video9 &gt;&gt; mix(0.5))">▦ visuals</button>
+      <button id="btn-visuals" hidden title="pop out the visuals window — a 2-channel mixer for video players (video1 &gt;&gt; plasma() · video2 &gt;&gt; tunnel(ch=1) · video9 &gt;&gt; mix(0.5))">visuals</button>
     </div>
 
     <!-- ── Docs overlay (inside editor-container for absolute positioning) ── -->
@@ -1727,7 +1727,7 @@ start_guided_tour()
 #  ── Already know your way around?  Quick start: ──
 #   1. Click [ boot ] (top-left).   2. Load the kit (cursor on a line, Ctrl+Enter).
 #   3. Cursor on #@intro(16) → Ctrl+Enter — the set plays & auto-advances.
-#   Ctrl+; stops all · Alt+Up/Down nudges a number live · Best in Chromium · [ ? ] = docs.
+#   Ctrl+; stops all · Alt+Up/Down nudges a number live · Best in Chromium · [ docs ] = the manual.
 # ────────────────────────────────────────────────────────────────────────
 
 # ── load the default kit — evaluate ONE of these (cursor on it, Ctrl+Enter)
@@ -1802,7 +1802,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
 
 # ════════ CHEATSHEET — everything below is reference; edit & run freely ════
-# Full docs, the changelog and a copy-paste example library: the [ ? ] button.
+# Full docs, the changelog and a copy-paste example library: the [ docs ] button.
 
 # DRUMS — play()  ( . = rest )   (xo) together  [xo] alternate  {xo} random  <xo> subdivide
 # b2 >> play(x-o-, lpf=1500, reverb=0.3)         # FX work on drums too
@@ -1825,7 +1825,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
 # PERFORMANCE: p1.every(8,'stutter',4) · p1.solo(8) · soloRnd(8) · drop(14,2)
 
-# DEFINE A SYNTH LIVE — defsynth() (no SuperCollider). See the [ ? ] examples.
+# DEFINE A SYNTH LIVE — defsynth() (no SuperCollider). See the [ docs ] examples.
 
 # SECTIONS ( #@ ): auto-advance after beats · #@goto(part, prob) branches ·
 #   #@loop(beats, a:2, b:1) weighted jump · a commented "# p1 >>" stops it on entry
@@ -2198,7 +2198,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         })
         .then(n => {
             update(n ? `load kit: ${n} chars loaded ✓` : 'load kit: 0 loaded (all failed)', n ? 'ok' : 'error');
-            kbtn.textContent = n ? '✓ kit' : 'retry kit';
+            kbtn.textContent = n ? 'kit ok' : 'retry kit';
             if (n) { kbtn.classList.add('booted'); try { localStorage.setItem('wfd-kit', '1'); } catch (_) {} }
             return n;
         })
