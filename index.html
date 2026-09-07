@@ -1895,7 +1895,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         },
     });
 
-    _tour = initTour(editor);   // interactive guided tour, launched by start_guided_tour()
+    // The reveal callback brings the tour's own buffer back on screen before a lesson is
+    // written, so evaluating next() from a scratch tab does not land the lesson there.
+    _tour = initTour(editor, (doc) => _tabs?.goToDoc(doc));   // guided tour · start_guided_tour()
 
     // ── Editor buffers ────────────────────────────────────────────────────────
     // Tab 1 is the set (shared, autosaved, shared-link encoded); the rest are local

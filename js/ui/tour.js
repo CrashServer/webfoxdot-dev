@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 40;
+const TOTAL = 41;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -291,6 +291,11 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`),
 #               Hacker, Sakura, Paper… changes colours instantly, saved for next time.
 #   rec code    records your evaluations into a replayable #@ composition
 #   rec audio   records the actual audio output to a file (tick "share tab audio")
+#   rec midi    records every NOTE that plays and saves a .mid — one track per
+#               player, drums on GM channel 10 — to open and edit in a DAW
+#
+# rec midi records the TAKE, not the pattern: PRand, {a b} picks, .degrade and a knob
+# you nudged on the way past all land in the file as you actually played them.
 #
 # And  Alt+T  arms the AUTOMATION recorder: nudge a knob with Alt+Up/Down over a few
 # beats and it writes the movement as a linvar for you — a hands-on way to automate.
@@ -298,17 +303,18 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`),
 # ▶ Prefer the keyboard? Switch skin from code (theme() alone lists them all):
 theme("synthwave")   # · solar · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
-# (The rec buttons need no code — try them whenever, then evaluate next().)`),
+# ▶ And the MIDI take, from code — start something playing first, then arm it:
+midi_rec()           # run it again to save  ·  midi_save("myset", 1/16) quantises`),
 
     lesson(19, 'Jam with other people',
 `# crashDot is multiplayer. Two ways in:
 #
-#   👥 go live   turns your current code into a shared session — send the link and
-#               others edit the SAME buffer with you, in sync, cursors and all.
-#   🌌 galaxy    a live map of every public jam — click a star to hop into one.
+#   GO LIVE   turns your current code into a shared session — send the link
+#             and others edit the SAME buffer with you, in sync, cursors and all.
+#   GALAXY    a live map of every public jam — click a star to hop into one.
 #
 # In a session everyone sees each other's evals; the chat is in the right panel.
-# (Nothing to run — press go live when you want to share. Then evaluate next().)`),
+# (Nothing to run — press GO LIVE when you want to share. Then evaluate next().)`),
 
     lesson(20, 'Perform — solo & mute',
 `# Playing live is muting and un-muting. Keyboard, on the line at the cursor:
@@ -460,6 +466,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`),
 #   Ctrl+Space      autocomplete                     Ctrl+/   toggle comment
 #   Alt+T           record a knob move as automation
 #   Ctrl+Alt+P      JUMP to the ACTIVE section — where the running set is right now
+#   Ctrl+Alt+N      a new scratch buffer   ·   Alt+1 … Alt+9  switch buffer (lesson 40)
 #   Shift+Alt+Z     zen mode (hide all UI)  ·  F1  docs
 #
 # Ctrl+Alt+P is the "go to composition position" jump — handy in a long #@ set.`),
@@ -524,12 +531,12 @@ b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`),
 `# Your work is safe and shareable:
 #
 #   • the editor AUTO-SAVES to this browser — reload the page and it's still here.
-#   • ⤴ share (top bar) copies a self-contained LINK: the whole composition rides in
+#   • SHARE (top bar) copies a self-contained LINK: the whole composition rides in
 #     the URL, so anyone who opens it gets your exact code — no server needed.
 #   • rec code (right panel) records your evals into a replayable #@ set;
 #     rec audio captures the sound itself to a file.
 #
-# (Nothing to run — press ⤴ share once you've made something you like.)`),
+# (Nothing to run — press SHARE once you've made something you like.)`),
 
     lesson(34, 'Tempo & the clock',
 `# Everything rides on one CLOCK. Set the tempo in beats-per-minute:
@@ -569,11 +576,11 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # extra note, so it costs CPU. Pair with reverb for a huge wall of sound.`),
 
     lesson(36, 'The mixer — perform your tracks live',
-`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+`# The MIXER (MIX, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
 # ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
-#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#   Ctrl+Enter — then open  MIX  and perform it. Each part redefines the SAME tracks:
 #@ intro(16)
 bass  >> dbass(dur=4, mverb=0, chop=0)
 drum  >> a_bd(dur=1, oct=3)
@@ -591,7 +598,7 @@ bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
 drum  >> a_bd(dur=1, oct=3)
 bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
-# Now click  🎚 mix. Each track is a vertical strip:
+# Now click  MIX. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
 #             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
 #   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
@@ -680,13 +687,34 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`),
 
-    lesson(40, 'You’re ready ✨',
+    lesson(40, 'Buffers — a blank canvas beside your set',
+`# Above the code is a row of tabs. The first, SET, is your composition: the buffer
+# examples load into, the one SHARE encodes into a link, the one GO LIVE hands to a
+# room. Press  +  and you get a SCRATCH buffer — empty, and none of those things.
+#
+#   +  ·  Ctrl+Alt+N   a new scratch buffer      Alt+1        back to the set
+#   Alt+2 … Alt+9      switch buffer             double-click a tab to rename it
+#
+# What matters is that the SOUND does not switch with the tab. Try it:
+#
+# ▶ start something here in the set —
+p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
+#
+# ▶ — then press  +  . The buffer is empty and p9 is still playing. Write an idea
+#   in there over what is already running, and paste the line across once it earns
+#   its place. Alt+1 comes back here; so does evaluating  next()  from anywhere.
+#
+# Scratch buffers are yours alone: never shared into a jam, never in a share link,
+# but kept across a refresh. In a session that is the whole point — somewhere to
+# flail before the room hears it.`),
+
+    lesson(41, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
-#   • examples (top bar)  full tracks & techniques — click one to load it
-#   • the docs button     every synth, effect, pattern & shortcut
-#   • galaxy              browse & jam with other people, live
+#   • EXAMPLES (top bar)  full tracks & techniques — click one to load it
+#   • DOCS                every synth, effect, pattern & shortcut
+#   • GALAXY              browse & jam with other people, live
 #
 # Now clear this buffer (Ctrl+A, Delete) and make something of your own.
 # Welcome aboard!`),
@@ -931,6 +959,11 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'fr'),
 #               Hacker, Sakura, Paper… change les couleurs aussitôt, gardé pour la fois suivante.
 #   rec code    enregistre tes évaluations en une composition #@ rejouable
 #   rec audio   capture la sortie audio dans un fichier (coche « share tab audio »)
+#   rec midi    enregistre chaque NOTE jouée et sauve un .mid — une piste par
+#               player, la batterie sur le canal GM 10 — à ouvrir dans un DAW
+#
+# rec midi enregistre la PRISE, pas le pattern : PRand, les tirages {a b}, .degrade et
+# le réglage que tu as bougé en passant arrivent dans le fichier tels que tu les as joués.
 #
 # Et  Alt+T  arme l'enregistreur d'AUTOMATION : bouge un réglage avec Alt+Haut/Bas sur
 # quelques temps et il écrit le mouvement en linvar pour toi.
@@ -938,17 +971,18 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'fr'),
 # ▶ Tu préfères le clavier ? Change de skin en code (theme() seul les liste tous) :
 theme("synthwave")   # · solar · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
-# (Les boutons rec ne demandent aucun code — essaie-les quand tu veux, puis évalue next().)`, 'fr'),
+# ▶ Et la prise MIDI, en code — lance d'abord quelque chose, puis arme :
+midi_rec()           # relance-le pour sauver  ·  midi_save("myset", 1/16) quantifie`, 'fr'),
 
     lesson(19, 'Jamme avec d’autres',
 `# crashDot est multijoueur. Deux façons d'entrer :
 #
-#   👥 go live   transforme ton code en session partagée — envoie le lien et d'autres
-#               éditent le MÊME buffer avec toi, en sync, curseurs compris.
-#   🌌 galaxy    une carte en direct de chaque jam public — clique une étoile pour y sauter.
+#   GO LIVE   transforme ton code en session partagée — envoie le lien et
+#             d'autres éditent le MÊME buffer avec toi, en sync, curseurs compris.
+#   GALAXY    une carte en direct de chaque jam public — clique une étoile pour y sauter.
 #
 # En session, chacun voit les évaluations des autres ; le chat est dans le panneau de droite.
-# (Rien à lancer — clique go live quand tu veux partager. Puis évalue next().)`, 'fr'),
+# (Rien à lancer — clique GO LIVE quand tu veux partager. Puis évalue next().)`, 'fr'),
 
     lesson(20, 'Jouer en live — solo & mute',
 `# Jouer en live, c'est couper et rallumer. Au clavier, sur la ligne au curseur :
@@ -1097,6 +1131,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'fr'),
 #   Ctrl+Espace     autocomplétion                  Ctrl+/   commente/décommente
 #   Alt+T           enregistre un mouvement de réglage en automation
 #   Ctrl+Alt+P      SAUTE à la section ACTIVE — là où le set en cours joue
+#   Ctrl+Alt+N      nouveau buffer scratch  ·  Alt+1 … Alt+9  changer de buffer (leçon 40)
 #   Shift+Alt+Z     mode zen (masque toute l'UI)  ·  F1  docs
 #
 # Ctrl+Alt+P est le saut « aller à la position de la composition ».`, 'fr'),
@@ -1162,12 +1197,12 @@ b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'fr'),
 `# Ton travail est en sécurité et partageable :
 #
 #   • l'éditeur SAUVEGARDE tout seul dans ce navigateur — recharge la page, il est là.
-#   • ⤴ share (en haut) copie un LIEN autonome : toute la composition tient dans l'URL,
+#   • SHARE (en haut) copie un LIEN autonome : toute la composition tient dans l'URL,
 #     donc qui l'ouvre récupère ton code exact — aucun serveur nécessaire.
 #   • rec code (panneau de droite) enregistre tes évaluations en un set #@ rejouable ;
 #     rec audio capture le son lui-même dans un fichier.
 #
-# (Rien à lancer — clique ⤴ share quand tu as fait quelque chose qui te plaît.)`, 'fr'),
+# (Rien à lancer — clique SHARE quand tu as fait quelque chose qui te plaît.)`, 'fr'),
 
     lesson(34, 'Le tempo & l’horloge',
 `# Tout repose sur une seule HORLOGE. Règle le tempo en battements par minute :
@@ -1208,11 +1243,11 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # voix est une vraie note en plus, donc ça coûte du CPU. Ajoute une réverb pour un mur de son.`, 'fr'),
 
     lesson(36, 'The mixer — perform your tracks live',
-`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+`# The MIXER (MIX, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
 # ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
-#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#   Ctrl+Enter — then open  MIX  and perform it. Each part redefines the SAME tracks:
 #@ intro(16)
 bass  >> dbass(dur=4, mverb=0, chop=0)
 drum  >> a_bd(dur=1, oct=3)
@@ -1230,7 +1265,7 @@ bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
 drum  >> a_bd(dur=1, oct=3)
 bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
-# Now click  🎚 mix. Each track is a vertical strip:
+# Now click  MIX. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
 #             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
 #   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
@@ -1319,13 +1354,35 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'fr'),
 
-    lesson(40, 'Tu es prêt ✨',
+    lesson(40, 'Les buffers — une page blanche à côté de ton set',
+`# Au-dessus du code, une rangée d'onglets. Le premier, SET, c'est ta composition :
+# le buffer où les examples se chargent, celui que SHARE encode en lien, celui que
+# GO LIVE donne à la salle. Appuie sur  +  : tu obtiens un buffer SCRATCH — vide,
+# et rien de tout ça.
+#
+#   +  ·  Ctrl+Alt+N   nouveau buffer scratch    Alt+1        retour au set
+#   Alt+2 … Alt+9      changer de buffer         double-clic sur un onglet = renommer
+#
+# L'essentiel : le SON ne change pas d'onglet avec toi. Essaie :
+#
+# ▶ lance quelque chose ici, dans le set —
+p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
+#
+# ▶ — puis appuie sur  +  . Le buffer est vide et p9 joue toujours. Écris une idée
+#   là-dedans par-dessus ce qui tourne, et recopie la ligne quand elle le mérite.
+#   Alt+1 te ramène ici ; évaluer  next()  depuis n'importe où aussi.
+#
+# Les buffers scratch n'appartiennent qu'à toi : jamais partagés en jam, jamais dans
+# un lien, mais gardés au rechargement. En session c'est tout l'intérêt — un endroit
+# pour tâtonner avant que la salle n'entende.`, 'fr'),
+
+    lesson(41, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
-#   • examples (en haut)  morceaux & techniques complets — clique pour en charger un
-#   • le bouton docs      chaque synthé, effet, pattern & raccourci
-#   • galaxy              parcours & jamme avec d'autres, en direct
+#   • EXAMPLES (en haut)  morceaux & techniques complets — clique pour en charger un
+#   • DOCS                chaque synthé, effet, pattern & raccourci
+#   • GALAXY              parcours & jamme avec d'autres, en direct
 #
 # Maintenant vide ce buffer (Ctrl+A, Suppr) et fais quelque chose à toi.
 # Bienvenue à bord !`, 'fr'),
@@ -1567,6 +1624,11 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'de'),
 #               Hacker, Sakura, Paper… ändert die Farben sofort, für nächstes Mal gespeichert.
 #   rec code    nimmt deine Auswertungen als abspielbare #@-Komposition auf
 #   rec audio   nimmt das Audio-Signal in eine Datei auf (hake „share tab audio" an)
+#   rec midi    nimmt jede gespielte NOTE auf und speichert ein .mid — eine Spur pro
+#               Player, Drums auf GM-Kanal 10 — zum Öffnen und Bearbeiten in einer DAW
+#
+# rec midi nimmt den TAKE auf, nicht das Pattern: PRand, {a b}-Würfe, .degrade und der
+# Regler, den du im Vorbeigehen bewegt hast, landen so in der Datei, wie du sie gespielt hast.
 #
 # Und  Alt+T  aktiviert den AUTOMATIONS-Recorder: bewege einen Regler mit Alt+Hoch/Runter
 # über ein paar Beats, und er schreibt die Bewegung als linvar für dich.
@@ -1574,17 +1636,18 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'de'),
 # ▶ Lieber per Tastatur? Wechsle den Skin im Code (theme() allein listet alle auf):
 theme("synthwave")   # · solar · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
-# (Die rec-Buttons brauchen keinen Code — probiere sie jederzeit, dann werte next() aus.)`, 'de'),
+# ▶ Und der MIDI-Take, im Code — starte erst etwas, dann aktiviere ihn:
+midi_rec()           # nochmal ausführen zum Speichern  ·  midi_save("myset", 1/16) quantisiert`, 'de'),
 
     lesson(19, 'Jamme mit anderen',
 `# crashDot ist Mehrspieler. Zwei Wege hinein:
 #
-#   👥 go live   macht deinen Code zu einer geteilten Session — schicke den Link und andere
-#               bearbeiten DENSELBEN Buffer mit dir, synchron, samt Cursorn.
-#   🌌 galaxy    eine Live-Karte jedes öffentlichen Jams — klicke einen Stern, um beizutreten.
+#   GO LIVE   macht deinen Code zu einer geteilten Session — schicke den Link,
+#             und andere bearbeiten DENSELBEN Buffer mit dir, synchron, samt Cursorn.
+#   GALAXY    eine Live-Karte jedes öffentlichen Jams — klicke einen Stern, um beizutreten.
 #
 # In einer Session sehen alle die Auswertungen der anderen; der Chat ist im rechten Panel.
-# (Nichts auszuführen — klicke go live, wenn du teilen willst. Dann werte next() aus.)`, 'de'),
+# (Nichts auszuführen — klicke GO LIVE, wenn du teilen willst. Dann werte next() aus.)`, 'de'),
 
     lesson(20, 'Live spielen — Solo & Mute',
 `# Live spielen heißt stumm- und lautschalten. Per Tastatur, auf der Zeile am Cursor:
@@ -1732,6 +1795,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'de'),
 #   Strg+Leertaste  Autovervollständigung             Strg+/   Kommentar umschalten
 #   Alt+T           nimmt eine Reglerbewegung als Automation auf
 #   Strg+Alt+P      SPRINGT zur AKTIVEN Section — dorthin, wo das Set gerade ist
+#   Strg+Alt+N      neuer Scratch-Buffer  ·  Alt+1 … Alt+9  Buffer wechseln (Lektion 40)
 #   Shift+Alt+Z     Zen-Modus (UI ausblenden)  ·  F1  Docs
 #
 # Strg+Alt+P ist der Sprung „zur Kompositions-Position".`, 'de'),
@@ -1797,12 +1861,12 @@ b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'de'),
 `# Deine Arbeit ist sicher und teilbar:
 #
 #   • der Editor SPEICHERT automatisch in diesem Browser — lade neu, sie ist noch da.
-#   • ⤴ share (oben) kopiert einen eigenständigen LINK: die ganze Komposition steckt in
+#   • SHARE (oben) kopiert einen eigenständigen LINK: die ganze Komposition steckt in
 #     der URL, wer ihn öffnet, bekommt deinen exakten Code — kein Server nötig.
 #   • rec code (rechtes Panel) nimmt deine Auswertungen als abspielbares #@-Set auf;
 #     rec audio nimmt den Klang selbst in eine Datei auf.
 #
-# (Nichts auszuführen — klicke ⤴ share, wenn du etwas gemacht hast, das dir gefällt.)`, 'de'),
+# (Nichts auszuführen — klicke SHARE, wenn du etwas gemacht hast, das dir gefällt.)`, 'de'),
 
     lesson(34, 'Tempo & die Clock',
 `# Alles hängt an einer CLOCK. Stelle das Tempo in Schlägen pro Minute (BPM):
@@ -1843,11 +1907,11 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # echte Extra-Note, kostet also CPU. Kombiniere es mit Hall für eine riesige Klangwand.`, 'de'),
 
     lesson(36, 'The mixer — perform your tracks live',
-`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+`# The MIXER (MIX, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
 # ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
-#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#   Ctrl+Enter — then open  MIX  and perform it. Each part redefines the SAME tracks:
 #@ intro(16)
 bass  >> dbass(dur=4, mverb=0, chop=0)
 drum  >> a_bd(dur=1, oct=3)
@@ -1865,7 +1929,7 @@ bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
 drum  >> a_bd(dur=1, oct=3)
 bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
-# Now click  🎚 mix. Each track is a vertical strip:
+# Now click  MIX. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
 #             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
 #   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
@@ -1954,13 +2018,35 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'de'),
 
-    lesson(40, 'Du bist bereit ✨',
+    lesson(40, 'Buffer — ein leeres Blatt neben deinem Set',
+`# Über dem Code liegt eine Reihe von Tabs. Der erste, SET, ist deine Komposition:
+# der Buffer, in den examples laden, den SHARE in einen Link packt, den GO LIVE an
+# einen Raum gibt. Drücke  +  und du bekommst einen SCRATCH-Buffer — leer, und
+# nichts davon.
+#
+#   +  ·  Strg+Alt+N   neuer Scratch-Buffer      Alt+1        zurück zum Set
+#   Alt+2 … Alt+9      Buffer wechseln           Doppelklick auf ein Tab: umbenennen
+#
+# Entscheidend: der KLANG wechselt nicht mit dem Tab. Probier es:
+#
+# ▶ starte hier im Set etwas —
+p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
+#
+# ▶ — und drücke dann  +  . Der Buffer ist leer, und p9 spielt weiter. Schreib dort
+#   eine Idee über das, was schon läuft, und kopiere die Zeile herüber, sobald sie
+#   es verdient. Alt+1 bringt dich zurück; next() auszuwerten ebenfalls.
+#
+# Scratch-Buffer gehören nur dir: nie in einen Jam geteilt, nie in einem Link, aber
+# über einen Reload hinweg erhalten. In einer Session ist genau das der Sinn — ein
+# Ort zum Herumprobieren, bevor der Raum es hört.`, 'de'),
+
+    lesson(41, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
-#   • examples (oben)  ganze Stücke & Techniken — klicke eins zum Laden
-#   • der docs-Button  jeder Synth, Effekt, jedes Pattern & Tastenkürzel
-#   • galaxy           stöbere & jamme mit anderen, live
+#   • EXAMPLES (oben)  ganze Stücke & Techniken — klicke eins zum Laden
+#   • DOCS             jeder Synth, Effekt, jedes Pattern & Tastenkürzel
+#   • GALAXY           stöbere & jamme mit anderen, live
 #
 # Jetzt leere diesen Buffer (Strg+A, Entf) und mach etwas Eigenes.
 # Willkommen an Bord!`, 'de'),
@@ -2201,6 +2287,11 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'es'),
 #               Hacker, Sakura, Paper… cambia los colores al instante, guardado para la próxima.
 #   rec code    graba tus evaluaciones como una composición #@ reproducible
 #   rec audio   graba la señal de audio a un archivo (marca «share tab audio»)
+#   rec midi    graba cada NOTA que suena y guarda un .mid — una pista por player,
+#               la batería en el canal GM 10 — para abrir y editar en un DAW
+#
+# rec midi graba la TOMA, no el patrón: PRand, los sorteos {a b}, .degrade y la perilla
+# que moviste al pasar llegan al archivo tal como los tocaste.
 #
 # Y  Alt+T  activa el grabador de AUTOMATIZACIÓN: mueve una perilla con Alt+Arriba/Abajo
 # durante unos beats y escribe el movimiento como un linvar por ti.
@@ -2208,17 +2299,18 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'es'),
 # ▶ ¿Prefieres el teclado? Cambia de skin desde código (theme() solo los lista todos):
 theme("synthwave")   # · solar · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
-# (Los botones rec no necesitan código — pruébalos cuando quieras, luego evalúa next().)`, 'es'),
+# ▶ Y la toma MIDI, desde código — pon algo a sonar primero, luego actívala:
+midi_rec()           # vuelve a ejecutarlo para guardar  ·  midi_save("myset", 1/16) cuantiza`, 'es'),
 
     lesson(19, 'Improvisa con otros',
 `# crashDot es multijugador. Dos formas de entrar:
 #
-#   👥 go live   convierte tu código en una sesión compartida — pasa el enlace y otros
-#               editan EL MISMO buffer contigo, sincronizados, con sus cursores.
-#   🌌 galaxy    un mapa en vivo de cada jam público — haz clic en una estrella para unirte.
+#   GO LIVE   convierte tu código en una sesión compartida — pasa el enlace y
+#             otros editan EL MISMO buffer contigo, sincronizados, con sus cursores.
+#   GALAXY    un mapa en vivo de cada jam público — haz clic en una estrella para unirte.
 #
 # En una sesión todos ven las evaluaciones de los demás; el chat está en el panel derecho.
-# (Nada que ejecutar — haz clic en go live si quieres compartir. Luego evalúa next().)`, 'es'),
+# (Nada que ejecutar — haz clic en GO LIVE si quieres compartir. Luego evalúa next().)`, 'es'),
 
     lesson(20, 'Tocar en vivo — solo y mute',
 `# Tocar en vivo es silenciar y activar. Con el teclado, en la línea del cursor:
@@ -2366,6 +2458,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'es'),
 #   Ctrl+Espacio     autocompletado                    Ctrl+/   alterna comentario
 #   Alt+T            graba un movimiento de perilla como automatización
 #   Ctrl+Alt+P       SALTA a la section ACTIVA — donde va el set ahora mismo
+#   Ctrl+Alt+N       nuevo buffer scratch  ·  Alt+1 … Alt+9  cambiar de buffer (lección 40)
 #   Shift+Alt+Z      modo zen (oculta la UI)  ·  F1  docs
 #
 # Ctrl+Alt+P es el salto «a la posición de la composición».`, 'es'),
@@ -2431,12 +2524,12 @@ b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'es'),
 `# Tu trabajo está a salvo y se puede compartir:
 #
 #   • el editor GUARDA solo en este navegador — recarga y sigue ahí.
-#   • ⤴ share (arriba) copia un ENLACE autónomo: toda la composición va en la URL,
+#   • SHARE (arriba) copia un ENLACE autónomo: toda la composición va en la URL,
 #     quien lo abra recibe tu código exacto — sin servidor.
 #   • rec code (panel derecho) graba tus evaluaciones como un set #@ reproducible;
 #     rec audio graba el sonido mismo a un archivo.
 #
-# (Nada que ejecutar — haz clic en ⤴ share cuando hagas algo que te guste.)`, 'es'),
+# (Nada que ejecutar — haz clic en SHARE cuando hagas algo que te guste.)`, 'es'),
 
     lesson(34, 'Tempo & el reloj',
 `# Todo se apoya en un RELOJ. Fija el tempo en pulsos por minuto (BPM):
@@ -2477,11 +2570,11 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # nota real extra, así que cuesta CPU. Combínalo con reverb para un muro de sonido enorme.`, 'es'),
 
     lesson(36, 'The mixer — perform your tracks live',
-`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+`# The MIXER (MIX, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
 # ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
-#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#   Ctrl+Enter — then open  MIX  and perform it. Each part redefines the SAME tracks:
 #@ intro(16)
 bass  >> dbass(dur=4, mverb=0, chop=0)
 drum  >> a_bd(dur=1, oct=3)
@@ -2499,7 +2592,7 @@ bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
 drum  >> a_bd(dur=1, oct=3)
 bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
-# Now click  🎚 mix. Each track is a vertical strip:
+# Now click  MIX. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
 #             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
 #   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
@@ -2588,13 +2681,35 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'es'),
 
-    lesson(40, 'Estás listo ✨',
+    lesson(40, 'Buffers — un lienzo en blanco junto a tu set',
+`# Sobre el código hay una fila de pestañas. La primera, SET, es tu composición: el
+# buffer donde se cargan los examples, el que SHARE codifica en un enlace, el que
+# GO LIVE entrega a una sala. Pulsa  +  y tienes un buffer SCRATCH — vacío, y nada
+# de eso.
+#
+#   +  ·  Ctrl+Alt+N   nuevo buffer scratch      Alt+1        volver al set
+#   Alt+2 … Alt+9      cambiar de buffer         doble clic en una pestaña: renombrar
+#
+# Lo importante: el SONIDO no cambia de pestaña contigo. Pruébalo:
+#
+# ▶ pon algo a sonar aquí, en el set —
+p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
+#
+# ▶ — y luego pulsa  +  . El buffer está vacío y p9 sigue sonando. Escribe una idea
+#   ahí encima de lo que ya suena, y copia la línea cuando se lo gane. Alt+1 te trae
+#   de vuelta; evaluar  next()  desde donde sea, también.
+#
+# Los buffers scratch son solo tuyos: nunca se comparten en una jam, nunca van en un
+# enlace, pero sobreviven a una recarga. En una sesión ese es todo el sentido — un
+# sitio donde trastear antes de que la sala lo oiga.`, 'es'),
+
+    lesson(41, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
-#   • examples (arriba)  temas completos y técnicas — haz clic en uno para cargarlo
-#   • el botón docs      cada synth, efecto, pattern y atajo
-#   • galaxy             explora e improvisa con otros, en vivo
+#   • EXAMPLES (arriba)  temas completos y técnicas — haz clic en uno para cargarlo
+#   • DOCS               cada synth, efecto, pattern y atajo
+#   • GALAXY             explora e improvisa con otros, en vivo
 #
 # Ahora vacía este buffer (Ctrl+A, Supr) y haz algo tuyo.
 # ¡Bienvenido a bordo!`, 'es'),
@@ -2835,6 +2950,11 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'ja'),
 #               Hacker, Sakura, Paper… 色が即座に変わり、次回まで保存される。
 #   rec code    評価の履歴を、再生できる #@ コンポジションとして記録
 #   rec audio   音声信号をファイルに録音（「share tab audio」にチェック）
+#   rec midi    鳴った音符をすべて記録して .mid に保存 — player ごとに1トラック、
+#               ドラムは GM チャンネル10 — DAW で開いて音符として編集できる
+#
+# rec midi が記録するのは「テイク」であってパターンではない：PRand、{a b} の抽選、
+# .degrade、通りすがりに回したつまみも、実際に演奏したとおりファイルに入る。
 #
 # さらに  Alt+T  で「オートメーション」記録がオン：Alt+上/下 でつまみを数ビート動かすと、
 # その動きを linvar として書き出してくれる。
@@ -2842,17 +2962,18 @@ p1 >> buzz([0, 3, 7, 3], dur=1/2, cutoff=sinvar([600, 4000], [8]))`, 'ja'),
 # ▶ キーボード派？ コードでスキンを切り替え（theme() だけで一覧）：
 theme("synthwave")   # · solar · fiesta 🎉 · sakura · hacker · nova · paper · brutalist · cyberpunk · dark
 #
-# （rec ボタンはコード不要 — 好きなときに試して、next() を評価。）`, 'ja'),
+# ▶ MIDI テイクもコードから — まず何か鳴らしてから、アームする：
+midi_rec()           # もう一度実行で保存  ·  midi_save("myset", 1/16) でクオンタイズ`, 'ja'),
 
     lesson(19, 'みんなでジャム',
 `# crashDot はマルチプレイヤー。入り口は2つ：
 #
-#   👥 go live   コードを共有セッションにする — リンクを渡せば、他の人が「同じ」
-#               バッファをあなたと編集する。同期し、カーソルも見える。
-#   🌌 galaxy    公開ジャムのライブ地図 — 星をクリックして参加。
+#   GO LIVE   コードを共有セッションにする — リンクを渡せば、他の人が「同じ」
+#             バッファをあなたと編集する。同期し、カーソルも見える。
+#   GALAXY    公開ジャムのライブ地図 — 星をクリックして参加。
 #
 # セッションでは全員が互いの評価を見られる。チャットは右パネルに。
-# （実行するものはない — 共有したければ go live をクリック。それから next()。）`, 'ja'),
+# （実行するものはない — 共有したければ GO LIVE をクリック。それから next()。）`, 'ja'),
 
     lesson(20, 'ライブ演奏 — ソロとミュート',
 `# ライブ演奏はミュートとオンの切り替え。キーボードで、カーソル行に対して：
@@ -2999,6 +3120,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'ja'),
 #   Ctrl+スペース   オートコンプリート          Ctrl+/   コメント切り替え
 #   Alt+T           つまみの動きをオートメーションとして記録
 #   Ctrl+Alt+P      「アクティブ」なセクションへジャンプ — 今セットが進んでいる場所
+#   Ctrl+Alt+N      新しい scratch バッファ  ·  Alt+1 … Alt+9  バッファ切り替え（レッスン40）
 #   Shift+Alt+Z     禅モード（UIを隠す）  ·  F1  ドキュメント
 #
 # Ctrl+Alt+P は「コンポジションの現在位置へ」のジャンプ。`, 'ja'),
@@ -3063,12 +3185,12 @@ b4 >> blip(dur=1/4, oct=4).accompany("p1").unison(3)`, 'ja'),
 `# 作業は安全に、共有もできる：
 #
 #   • エディタはこのブラウザに自動「保存」— 再読み込みしても残っている。
-#   • ⤴ share（上）は自己完結の「リンク」をコピー：コンポジション全体がURLに入り、
+#   • SHARE（上）は自己完結の「リンク」をコピー：コンポジション全体がURLに入り、
 #     開いた人はあなたの正確なコードを受け取る — サーバー不要。
 #   • rec code（右パネル）は評価を再生できる #@ セットとして記録；
 #     rec audio は音そのものをファイルに録音。
 #
-# （実行するものはない — 気に入ったものができたら ⤴ share をクリック。）`, 'ja'),
+# （実行するものはない — 気に入ったものができたら SHARE をクリック。）`, 'ja'),
 
     lesson(34, 'テンポとクロック',
 `# すべては一つの「クロック」に乗っている。テンポを BPM（1分あたりの拍）で設定：
@@ -3107,11 +3229,11 @@ p1 >> saw([0, 4, 7], oct=5, dur=1/2, lpf=2000, amp=0.35).unison(5, 0.3)
 # なので CPU を食う。リバーブと組み合わせれば巨大な音の壁に。`, 'ja'),
 
     lesson(36, 'The mixer — perform your tracks live',
-`# The MIXER (🎚 mix, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
+`# The MIXER (MIX, top toolbar) is a live desk + CLIP-LAUNCHER for your tracks. It
 # floats and is NON-MODAL — keep coding while it's open.
 #
 # ▶ Run this 4-part set (NO #@end, so it plays on forever). Cursor on #@ intro(16),
-#   Ctrl+Enter — then open  🎚 mix  and perform it. Each part redefines the SAME tracks:
+#   Ctrl+Enter — then open  MIX  and perform it. Each part redefines the SAME tracks:
 #@ intro(16)
 bass  >> dbass(dur=4, mverb=0, chop=0)
 drum  >> a_bd(dur=1, oct=3)
@@ -3129,7 +3251,7 @@ bass  >> dbass(dur=1/2, mverb=0.6, chop=4)
 drum  >> a_bd(dur=1, oct=3)
 bass2 >> ebass([0, <0 5>, 3, 0], oct=5, dur=1/2, amp=0.7, tremolo=0.48, trem_rate=4).every(16, "rotate")
 #
-# Now click  🎚 mix. Each track is a vertical strip:
+# Now click  MIX. Each track is a vertical strip:
 #   • FADER   its volume — shared per NAME, and kept SEPARATE from amplify, so
 #             mute / solo / drop can never wipe your mix. Mirrors the Players panel.
 #   • S / M   SOLO and MUTE — shared with the Players panel AND code .solo()/drop(),
@@ -3218,13 +3340,33 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'ja'),
 
-    lesson(40, '準備完了 ✨',
+    lesson(40, 'バッファ — セットの隣にある白紙',
+`# コードの上にタブの列がある。最初の SET が君のコンポジション：examples が読み込ま
+# れるバッファ、SHARE がリンクに変換するバッファ、GO LIVE が部屋に渡すバッファ。
+#  +  を押すと SCRATCH バッファが手に入る — 空で、そのどれでもない。
+#
+#   +  ·  Ctrl+Alt+N   新しい scratch バッファ    Alt+1        セットに戻る
+#   Alt+2 … Alt+9      バッファを切り替え         タブをダブルクリックで名前変更
+#
+# 大事なのは、音はタブと一緒に切り替わらないこと。試してみよう：
+#
+# ▶ まずここ、セットで何か鳴らす —
+p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
+#
+# ▶ — そして  +  を押す。バッファは空なのに p9 は鳴り続けている。すでに鳴っている音に
+#   重ねてそこでアイデアを書き、良ければその行をセットに写す。Alt+1 でここに戻れる。
+#   どこからでも  next()  を評価すれば、やはりここに戻ってくる。
+#
+# scratch バッファは君だけのもの：ジャムで共有されず、共有リンクにも入らないが、
+# リロードしても残る。セッションではそこが肝心 — 部屋に聞かれる前に手探りする場所。`, 'ja'),
+
+    lesson(41, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
-#   • examples（上）  完成した曲とテクニック — クリックで読み込む
-#   • docs ボタン     ドキュメント：各シンセ・エフェクト・パターン・ショートカット
-#   • galaxy          他の人とライブで探索し、ジャムする
+#   • EXAMPLES（上）  完成した曲とテクニック — クリックで読み込む
+#   • DOCS            各シンセ・エフェクト・パターン・ショートカット
+#   • GALAXY          他の人とライブで探索し、ジャムする
 #
 # では、このバッファを空にして（Ctrl+A、Delete）、自分だけの何かを作ろう。
 # ようこそ！`, 'ja'),
@@ -3238,9 +3380,16 @@ function lessons() {
 }
 
 let editor = null, idx = 0, active = false;
+// The buffer the tour is being read in. Editor tabs (js/ui/tabs.js) mean the editor
+// can be showing a scratch canvas when you evaluate next(), and show() writes with
+// editor.setValue() — which would drop the next lesson on top of whatever you were
+// drafting there. So the tour pins its own buffer and asks to be brought back to it.
+let tourDoc = null;
+let reveal  = null;   // (doc) => bring that buffer on screen; supplied by initTour
 
-export function initTour(_editor) {
+export function initTour(_editor, _reveal = null) {
     editor = _editor;
+    reveal = _reveal;
     // Recover the tour across a page reload. The editor autosaves its buffer, so if
     // it's still showing a tour lesson, re-activate at THAT lesson's number (read from
     // the header) — otherwise next()/back() would be inert after a refresh (active was
@@ -3250,7 +3399,7 @@ export function initTour(_editor) {
     try {
         const buf = editor.getValue ? editor.getValue() : '';
         const m = buf.match(/🎓[^\n]*·\s*(\d+)\s*\/\s*\d+\s*·/);
-        if (m) { const n = parseInt(m[1], 10); if (n >= 1 && n <= TOTAL) { active = true; idx = n - 1; } }
+        if (m) { const n = parseInt(m[1], 10); if (n >= 1 && n <= TOTAL) { active = true; idx = n - 1; tourDoc = editor.getDoc(); } }
     } catch (_) {}
     // refresh() re-renders the current lesson (used after language() switches).
     return { start, next, back, list, go, refresh: () => { if (active) show(); }, isActive: () => active, notify() {} };
@@ -3262,7 +3411,7 @@ function list() { return lessons().map(l => ({ n: l.n, title: l.title })); }
 function go(n) {
     const set = lessons();
     const i = Math.round(Number(n)) - 1;
-    if (i >= 0 && i < set.length) { active = true; idx = i; show(); }
+    if (i >= 0 && i < set.length) { active = true; idx = i; tourDoc ??= editor.getDoc(); show(); }
     return '';
 }
 
@@ -3302,6 +3451,8 @@ function decorate(text) {
 
 function show() {
     const text = lessons()[idx].text;
+    // Back to the buffer the tour lives in before writing the lesson into it.
+    if (reveal && tourDoc && editor.getDoc() !== tourDoc) reveal(tourDoc);
     editor.setValue(text);
     decorate(text);
     // Drop the cursor on the first runnable line (the ▶ example) so Ctrl+Enter works
@@ -3319,6 +3470,6 @@ function show() {
     editor.focus();
 }
 
-function start() { active = true; idx = 0; show(); }
+function start() { active = true; idx = 0; tourDoc = editor.getDoc(); show(); }
 function next() { if (!active) return ''; if (idx < lessons().length - 1) { idx++; show(); } return ''; }
 function back() { if (!active) return ''; if (idx > 0) { idx--; show(); } return ''; }
