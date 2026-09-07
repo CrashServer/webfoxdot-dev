@@ -2682,7 +2682,8 @@ body.desktop-ui #galaxy-overlay.wfd-hosted { display: block !important; }
 body.desktop-ui .wfd-hosted .mixer-head,
 body.desktop-ui .wfd-hosted .modular-head,
 body.desktop-ui .wfd-hosted .parts-head,
-body.desktop-ui .wfd-hosted .rules-head { cursor: default; }
+body.desktop-ui .wfd-hosted .rules-head,
+body.desktop-ui .wfd-hosted #galaxy-head { cursor: default; }
 body.desktop-ui .wfd-hosted .mixer-drag,
 body.desktop-ui .wfd-hosted .modular-drag,
 body.desktop-ui .wfd-hosted .parts-drag,

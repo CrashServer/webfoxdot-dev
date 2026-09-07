@@ -30,12 +30,27 @@ function hostFloating(canvas, spec, clock) {
     let panel = null;
     const hiddenNow = (el) => spec.attr ? el.hasAttribute('hidden') : el.classList.contains('hidden');
 
+    // Anything that sizes a canvas from its container measured 0×0 while the panel
+    // was display:none, and most of these modules only re-measure on a window
+    // resize — the galaxy is the loud case: its canvas stayed 0×0 and it rendered
+    // nothing at all. Nudge them once the panel actually has a box.
+    // Sent twice on purpose. These modules resize synchronously inside their own
+    // show() — while the panel is still display:none, so they measure 0×0 — and the
+    // observer that flips the panel visible only runs afterwards. The immediate
+    // dispatch catches that (reading a box here forces the pending layout); the
+    // rAF one covers anything that needs a settled frame.
+    const remeasure = () => {
+        window.dispatchEvent(new Event('resize'));
+        requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+    };
+
     const sync = (el) => {
         if (!panel) return;
         const hid = hiddenNow(el);
         panel.el.style.display = hid ? 'none' : '';
         if (hid) return;
         panel.bringToFront?.();
+        remeasure();
         // These live below the main cluster, so opening one from the toolbar would
         // otherwise put it somewhere off-screen and leave you to go hunting. Only
         // pans when it is actually out of view.
@@ -44,7 +59,7 @@ function hostFloating(canvas, spec, clock) {
 
     const adopt = (el) => {
         if (panel) return;
-        panel = createPanel(canvas, spec);
+        panel = createPanel(canvas, { ...spec, onResize: remeasure });
         panel.body.classList.add('wfd-panel-body', 'wfd-float-body');
         panel.body.appendChild(el);
         el.classList.add('wfd-hosted');

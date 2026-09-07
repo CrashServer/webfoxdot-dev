@@ -162,14 +162,31 @@ fills the panel, and `editor.refresh()` on every view change.
 zoom, so it should look the same. If font scaling turns out to be too coarse at small
 zoom, the fallback is constant-size text in a shrinking viewport, which looks wrong.
 
-### 2. Galaxy does not load — diagnosed, not fixed
+### 2. Galaxy does not load — FIXED
 
-`js/galaxy/galaxy.js:159` sizes its canvas from `overlay.clientWidth/clientHeight`.
-Its panel starts `display:none`, so that measures **0×0** and nothing ever renders.
-Needs a resize once the panel actually becomes visible — hook it to the panel's
-visibility sync in `hostFloating()`.
+`js/galaxy/galaxy.js` sizes its canvas from `overlay.clientWidth/clientHeight` inside
+its own `show()`, which runs **synchronously** — while the panel is still
+`display:none`, because the MutationObserver that flips the panel visible only runs
+afterwards. So it measured 0×0 and rendered nothing, for ever.
 
-### 3. Galaxy panel will not move — not yet diagnosed
+`hostFloating()` now fires a `window` resize event when a panel becomes visible and
+when it is resized — once immediately (reading a box there forces the pending layout)
+and once on the next frame. These modules already listen for window resize, so nothing
+in them had to change. Verified by screenshot: the starfield, clusters and controls
+all render inside the panel.
+
+### 3. Galaxy panel will not move — COULD NOT REPRODUCE
+
+The panel drags correctly under test (962,1732 → 1114,1811), and so does a control
+panel. The original failure was in the **test harness**: synthetic `PointerEvent`s
+have no active pointer, so `head.setPointerCapture()` throws `NotFoundError` and the
+drag never wires up. Stub `setPointerCapture`/`releasePointerCapture` in the iframe
+before dispatching synthetic drags.
+
+Best guess at what was actually hit: the galaxy has its **own** header bar
+(`#galaxy-head`, with the ✕ close button) sitting just below the panel header, and
+dragging that does nothing. It is now styled `cursor: default` like the other hosted
+heads, so it no longer looks draggable. Needs confirmation from a real mouse.
 
 ---
 
