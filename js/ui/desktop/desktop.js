@@ -99,6 +99,36 @@ function addBackdropButton(panelEl, clock) {
     head.insertBefore(b, head.querySelector('.panel-collapse') || null);
 }
 
+// ── Keeping CodeMirror out of the canvas scale ───────────────────────────────
+//
+// CodeMirror converts a screen-space Y delta — from getBoundingClientRect(), which an
+// ancestor transform scales — into document space using line heights it measured with
+// offsetHeight, which it does not. Inside a scaled canvas the two disagree by
+// lineHeight × (1 - zoom) PER LINE, so at 76% zoom a click twelve lines down lands
+// three lines high and the caret drifts further the further you go. Unlike the gutter
+// offset there is no single value to correct: it is the whole vertical measurement
+// layer, and patching that means forking CodeMirror.
+//
+// So the editor is taken out of the scale instead. Its content sits in a layer that
+// is counter-scaled by 1/zoom — net screen scale exactly 1, whatever the canvas is
+// doing — sized to bodyBox × zoom so it still fills the panel, with the font size
+// scaled by zoom to match. The result looks like zoom because it IS zoom: real
+// layout at a real font size, so every measurement CodeMirror makes is consistent
+// and the cursor lands where you click.
+let editorBody = null, editorLayer = null, baseFontPx = 14;
+
+function keepEditorUnscaled(editor) {
+    if (!editorBody || !editorLayer) return;
+    const z = getZoom() || 1;
+    const w = editorBody.clientWidth, h = editorBody.clientHeight;
+    if (!w || !h) return;
+    editorLayer.style.width  = `${w * z}px`;
+    editorLayer.style.height = `${h * z}px`;
+    editorLayer.style.transform = z === 1 ? '' : `scale(${1 / z})`;
+    editorLayer.style.fontSize  = `${baseFontPx * z}px`;
+    editor?.refresh?.();
+}
+
 // ── CodeMirror under a scaled ancestor ───────────────────────────────────────
 // CodeMirror pins its gutter with
 //     r = (scroller.rect.left - sizer.rect.left) - scrollLeft + doc.scrollLeft
@@ -212,11 +242,20 @@ export function initDesktop(editor, clock = null, onReady = null) {
 
         const { el: panelEl, body: panelBody } = createPanel(canvas, {
             ...spec,
-            onResize: spec.id === 'wfd-editor' ? refresh : undefined,
+            onResize: spec.id === 'wfd-editor' ? () => keepEditorUnscaled(editor) : undefined,
         });
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
         if (spec.screen) mountScreen(panelBody, clock);
-        for (const el of src) panelBody.appendChild(el);   // adopt, don't rebuild
+        if (spec.id === 'wfd-editor') {
+            // The editor gets a counter-scale layer — see keepEditorUnscaled().
+            editorBody = panelBody;
+            editorLayer = document.createElement('div');
+            editorLayer.className = 'wfd-cm-layer';
+            panelBody.appendChild(editorLayer);
+            for (const el of src) editorLayer.appendChild(el);
+        } else {
+            for (const el of src) panelBody.appendChild(el);   // adopt, don't rebuild
+        }
 
         addBackdropButton(panelEl, clock);
     }
@@ -256,6 +295,19 @@ export function initDesktop(editor, clock = null, onReady = null) {
     // CodeMirror rewrites the gutter offset on every display update, so the
     // correction has to run after each one — and after any zoom change.
     if (editor) {
+        // Remember the authored font size before anything scales it.
+        try {
+            const px = parseFloat(getComputedStyle(editor.getWrapperElement()).fontSize);
+            if (px > 0) baseFontPx = px;
+        } catch (_) {}
+        const rescale = () => keepEditorUnscaled(editor);
+        onViewChange(rescale);          // every pan/zoom apply()
+        rescale();
+        requestAnimationFrame(rescale);
+
+        // The gutter correction stays: it is cheap, and it is what keeps the editor
+        // correct in the one case the counter-scale cannot cover — a panel BACKDROP
+        // or any future content that does sit inside the scale.
         const fix = () => unskewGutter(editor);
         editor.on('update', fix);
         editor.on('refresh', fix);

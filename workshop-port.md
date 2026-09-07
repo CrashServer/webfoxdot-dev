@@ -144,23 +144,31 @@ carry the same error. It is not a valid test. Use a real rendered character's
 
 ## Open bugs
 
-### 1. Cursor position wrong when the canvas is zoomed — diagnosed, not fixed
+### 1. Cursor position wrong when the canvas is zoomed — FIXED
 
-Reproduced at 76% zoom: clicking line 2 puts the cursor on line 1, and the painted
-caret's vertical error grows **4.0 px per line** = `lineHeight × (1 − zoom)`.
-CodeMirror converts a scaled screen-space Y delta into document space using unscaled
-line heights. Too deep in its measurement layer to patch from outside the way the
-gutter was.
+CodeMirror converts a screen-space Y delta — from `getBoundingClientRect()`, which an
+ancestor transform scales — into document space using line heights measured with
+`offsetHeight`, which it does not. Inside a scaled canvas the two disagreed by
+`lineHeight × (1 − zoom)` **per line**, so the caret drifted further the further down
+you went (measured: 4.0 px/line at 76% zoom). Unlike the gutter offset there is no
+single value to correct — it is the whole vertical measurement layer — so patching it
+would mean forking CodeMirror.
 
-**Planned fix:** stop putting CodeMirror inside a scaled ancestor. Counter-scale the
-editor panel's contents by `1/zoom` and scale the **font-size** by `zoom` instead —
-visually equivalent to zooming, but every measurement becomes real layout, so the
-cursor is exact. Set the wrapper's size to `bodyW × zoom` / `bodyH × zoom` so it still
-fills the panel, and `editor.refresh()` on every view change.
+Fixed by taking the editor **out of the scale** instead. Its content lives in a
+`.wfd-cm-layer` counter-scaled by `1/zoom` — net screen scale exactly 1, whatever the
+canvas is doing — sized to `bodyBox × zoom` so it still fills the panel, with the font
+size scaled by `zoom` to match. It looks like zoom because it *is* zoom: real layout at
+a real font size, so every measurement CodeMirror makes is consistent.
+`keepEditorUnscaled()` in `desktop.js`, driven by `onViewChange` and the panel's
+`onResize`.
 
-**Trade-off to flag before shipping:** with real font scaling this behaves like true
-zoom, so it should look the same. If font scaling turns out to be too coarse at small
-zoom, the fallback is constant-size text in a shrinking viewport, which looks wrong.
+Verified exact click→character on four lines at 47%, 76%, 111% and back, with the
+rendered line box tracking zoom (11.6 → 18.7 → 27.5 px) so it still reads as zoom.
+
+**Test trap that cost time twice:** `document.querySelectorAll('.CodeMirror-line')` is
+off by one — CodeMirror keeps a hidden line inside `.CodeMirror-measure` for measuring.
+Scope to `.CodeMirror-code > div`. This produced a convincing but entirely false
+"clicks land one line early" for several runs.
 
 ### 2. Galaxy does not load — FIXED
 

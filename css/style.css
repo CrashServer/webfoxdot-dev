@@ -2600,9 +2600,17 @@ body.desktop-ui #toolbar {
 /* ── Adopted content ────────────────────────────────────────────────────────
    The editor panel hands its whole body to CodeMirror; the crash-panel sections
    arrive with their own padding and borders, which a panel already provides. */
-.wfd-body-wfd-editor { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
-.wfd-body-wfd-editor #editor-wrap { flex: 1; min-height: 0; overflow: hidden; }
-.wfd-body-wfd-editor .CodeMirror { height: 100%; }
+.wfd-body-wfd-editor { padding: 0; overflow: hidden; }
+/* The counter-scale layer — see keepEditorUnscaled() in js/ui/desktop/desktop.js.
+   Its size, transform and font-size are all set from JS on every view change. */
+.wfd-cm-layer {
+    transform-origin: 0 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.wfd-cm-layer #editor-wrap { flex: 1; min-height: 0; overflow: hidden; }
+/* Inherit the layer's scaled font size rather than the authored 14px. */
+.wfd-cm-layer .CodeMirror { height: 100%; font-size: inherit; }
 .wfd-body-wfd-log { padding: 0; }
 .wfd-body-wfd-log #log { position: static; height: 100%; border: none; }
 body.desktop-ui .panel-body > .cp-section { border: none; padding: 0; margin: 0; }
