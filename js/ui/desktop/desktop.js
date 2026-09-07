@@ -18,9 +18,53 @@
 // into a layout they no longer remember is a lot of code to get subtly wrong, and
 // the mode is persisted, so a reload lands you exactly where you asked to be.
 
-import { initCanvas, resetView, getZoom, onViewChange } from './canvas.js';
+import { initCanvas, resetView, getZoom, onViewChange, panToReveal } from './canvas.js';
 import { createPanel, resetAllLayouts } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
+
+/**
+ * Give one of the floating overlays a panel, whenever its root shows up.
+ * The root keeps its own show/hide logic; the panel just follows it.
+ */
+function hostFloating(canvas, spec, clock) {
+    let panel = null;
+    const hiddenNow = (el) => spec.attr ? el.hasAttribute('hidden') : el.classList.contains('hidden');
+
+    const sync = (el) => {
+        if (!panel) return;
+        const hid = hiddenNow(el);
+        panel.el.style.display = hid ? 'none' : '';
+        if (hid) return;
+        panel.bringToFront?.();
+        // These live below the main cluster, so opening one from the toolbar would
+        // otherwise put it somewhere off-screen and leave you to go hunting. Only
+        // pans when it is actually out of view.
+        panToReveal(panel.el);
+    };
+
+    const adopt = (el) => {
+        if (panel) return;
+        panel = createPanel(canvas, spec);
+        panel.body.classList.add('wfd-panel-body', 'wfd-float-body');
+        panel.body.appendChild(el);
+        el.classList.add('wfd-hosted');
+        // Its own toggles just add/remove .hidden (or the hidden attribute) — watch
+        // for that and move the PANEL, so nothing in those modules has to know.
+        new MutationObserver(() => sync(el))
+            .observe(el, { attributes: true, attributeFilter: ['class', 'hidden'] });
+        addBackdropButton(panel.el, clock);
+        sync(el);
+    };
+
+    const present = document.querySelector(spec.sel);
+    if (present) { adopt(present); return; }
+    // Built lazily on first open — wait for it to turn up on <body>.
+    const watch = new MutationObserver(() => {
+        const el = document.querySelector(spec.sel);
+        if (el) { watch.disconnect(); adopt(el); }
+    });
+    watch.observe(document.body, { childList: true });
+}
 
 // A ▦ button in every panel header: run the visuals behind that panel's content.
 // Added from out here rather than inside createPanel so the ported panel system
@@ -96,6 +140,27 @@ const PANELS = [
     { id: 'wfd-screen',  title: 'screen',      x:   0, y: 884, w: 1080, h: 400, minW: 240, minH: 140, screen: true },
 ];
 
+// The floating overlays — mixer, modular, parts, room rules, docs, galaxy — get
+// the same treatment, but they cannot be adopted up front: each builds its root
+// lazily the first time you open it, so most of them do not exist yet. Instead we
+// watch for the root to appear, adopt it then, and mirror its own hidden state
+// onto the panel — which means every existing toggle (the toolbar buttons, the ✕
+// in their own headers, Escape) keeps working with no change to those modules.
+//
+// Perform mode is deliberately NOT here. It is a full-screen, keyboard-free touch
+// surface for playing live; shrinking it into a panel on a zoomable canvas would
+// take away the one thing it is for.
+const FLOATING = [
+    { sel: '#docs-panel',     id: 'wfd-docs',    title: 'docs',       x:1102, y:1106, w: 812, h: 520, minW: 380, minH: 220 },
+    { sel: '#mixer-modal',    id: 'wfd-mixer',   title: 'mixer',      x:   0, y:1310, w: 760, h: 400, minW: 300, minH: 180 },
+    { sel: '#modular-panel',  id: 'wfd-modular', title: 'modular',    x:   0, y:1732, w: 940, h: 580, minW: 400, minH: 260 },
+    { sel: '#parts-modal',    id: 'wfd-parts',   title: 'parts',      x: 782, y:1310, w: 480, h: 400, minW: 300, minH: 200 },
+    { sel: '#rules-modal',    id: 'wfd-rules',   title: 'room rules', x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
+    // The galaxy paints an absolutely-positioned starfield canvas, so its host needs
+    // to be a positioned ancestor — see .wfd-hosted below.
+    { sel: '#galaxy-overlay', id: 'wfd-galaxy',  title: 'galaxy',     x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },
+];
+
 /**
  * Switch the running app onto the canvas. Call once, after the editor and the
  * crash panel exist.
@@ -140,6 +205,8 @@ export function initDesktop(editor, clock = null, onReady = null) {
 
         addBackdropButton(panelEl, clock);
     }
+
+    for (const spec of FLOATING) hostFloating(canvas, spec, clock);
 
     // The toolbar is NOT a panel: STOP is a panic button and must never be
     // somewhere you have to pan to find. Lift it out of the (now empty) editor

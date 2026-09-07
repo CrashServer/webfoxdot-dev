@@ -2646,3 +2646,46 @@ body.desktop-ui .panel-body > .cp-section + .cp-section > h3 { display: block; }
 /* The SCREEN panel is a monitor: no padding, black behind, the canvas fills it. */
 .wfd-body-wfd-screen { padding: 0 !important; background: #000; overflow: hidden; }
 #wfd-screen-gl { display: block; width: 100%; height: 100%; }
+
+/* ── Hosted overlays ────────────────────────────────────────────────────────
+   mixer · modular · parts · room rules · docs · galaxy were each a fixed-position
+   floating window with its own drag code and its own .hidden toggle. Inside a
+   panel the panel owns position, size and visibility, so strip all of that —
+   position:relative rather than static, because the galaxy paints an absolutely
+   positioned starfield that needs a positioned ancestor to anchor to.
+
+   Their own .hidden rule has to stop applying: the root now stays laid out and
+   the PANEL is what disappears (desktop.js mirrors the one onto the other). */
+body.desktop-ui .wfd-hosted,
+body.desktop-ui .wfd-hosted.hidden,
+body.desktop-ui .wfd-hosted[hidden] {
+    position: relative !important;
+    inset: auto !important;
+    left: auto !important; top: auto !important; right: auto !important; bottom: auto !important;
+    width: 100% !important; height: 100% !important;
+    max-width: none !important; max-height: none !important;
+    min-width: 0 !important; min-height: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    z-index: auto !important;
+    background: transparent !important;
+    animation: none !important;
+    display: flex !important;
+}
+/* The galaxy is not a flex column — its children are absolutely placed. */
+body.desktop-ui #galaxy-overlay.wfd-hosted { display: block !important; }
+
+/* A hosted root brings its own header (mixer learn, modular name, parts filter),
+   which is worth keeping — but its drag affordance now lies, so say so. */
+body.desktop-ui .wfd-hosted .mixer-head,
+body.desktop-ui .wfd-hosted .modular-head,
+body.desktop-ui .wfd-hosted .parts-head,
+body.desktop-ui .wfd-hosted .rules-head { cursor: default; }
+body.desktop-ui .wfd-hosted .mixer-drag,
+body.desktop-ui .wfd-hosted .modular-drag,
+body.desktop-ui .wfd-hosted .parts-drag,
+body.desktop-ui .wfd-hosted .rules-drag { pointer-events: none; }
+
+.wfd-float-body { padding: 0 !important; overflow: hidden !important; }
