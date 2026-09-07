@@ -187,6 +187,7 @@
       <div class="cp-row rec-row" style="gap:4px;margin-top:4px">
         <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
         <button id="btn-rec-audio" class="cp-btn" title="record the audio output to a file">rec audio</button>
+        <button id="btn-rec-midi" class="cp-btn" title="record every note that plays and save it as a .mid — one track per player, drums on GM channel 10 — to edit in a DAW">rec midi</button>
       </div>
     </div>
 
@@ -254,6 +255,7 @@
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
+    import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
     import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
@@ -1064,6 +1066,20 @@
             // modular()  opens/closes the modular synth builder panel — same as
             // clicking the toolbar's 🎛 button, for when your hands are on the keyboard.
             modular: () => toggleModular(),
+            // ── MIDI export ───────────────────────────────────────────────────
+            // midi_rec() arms the capture; midi_rec() again (or the "rec midi" button)
+            // stops it and downloads a Standard MIDI File — one track per player, so
+            // you can open the take in a DAW and edit the parts as notes.
+            //   midi_rec()                      arm / stop+save
+            //   midi_save("myset", 1/16)        stop + save, snapping onsets to 16ths
+            //   midi_map("x", 36)               re-point a play() char at a GM drum note
+            midi_rec: () => { toggleRecMidi(); return midiCaptureArmed() ? '\u25cf recording MIDI\u2026' : '\u25a0 MIDI saved'; },
+            midi_save: (name, quantize) => { saveMidi(name, quantize); },
+            midi_map: (char, note) => {
+                if (char == null) { log('midi_map("x", 36) \u2014 point a play() char at a General MIDI drum note (35\u201381)', 'info'); return; }
+                const n = setDrumNote(char, note);
+                log(n == null ? `midi_map: "${char}" back to its default note` : `midi_map: "${char}" \u2192 GM note ${n}`, 'info');
+            },
             // attack()  call up a prepared block from the examples library. It SHOWS
             // the code (pasted at the end of the buffer); a trailing 1 also plays it,
             // which is what makes it usable from inside a #@ composition.
@@ -1463,6 +1479,32 @@
         } catch (e) {
             log('rec audio cancelled: ' + e.message, 'warn');
         }
+    }
+
+    // ── MIDI capture — every note that plays, written out as a .mid ──────────
+    // Records the note stream the scheduler actually produces (see js/midi/midifile.js),
+    // so a stochastic set exports as the take you just heard rather than as the pattern
+    // it was written from.
+    function saveMidi(name, quantize) {
+        const armed = midiCaptureArmed();
+        const res = saveMidiCapture({ name: name || 'crashDot', quantize: Number(quantize) || 0 });
+        const btn = document.getElementById('btn-rec-midi');
+        btn.classList.remove('recording'); btn.textContent = 'rec midi';
+        if (!res) {
+            log(armed ? 'MIDI recording empty — nothing played while it was armed' : 'MIDI: not recording — press "rec midi" (or midi_rec()) first', 'warn');
+            return;
+        }
+        // Not armed but events remain → the last take, saved again (a second pass with
+        // a different quantize is a reasonable thing to want).
+        log(`MIDI ${armed ? 'saved' : 're-saved'} — ${res.file} · ${res.notes} notes at ${Math.round(res.bpm)} bpm · ${res.tracks.join(' · ')}`, 'ok');
+        if (res.drums) log(`  drum map (GM ch 10): ${res.drums}`, 'info');
+    }
+    function toggleRecMidi() {
+        if (midiCaptureArmed()) { saveMidi(); return; }
+        const btn = document.getElementById('btn-rec-midi');
+        armMidiCapture(clock.bpm, clock.now());
+        btn.classList.add('recording'); btn.textContent = '\u25cf midi';
+        log('recording MIDI \u2014 play your set, then press "rec midi" again to save a .mid', 'warn');
     }
 
     function toggleRec() {
@@ -2184,6 +2226,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     document.getElementById('btn-rec').onclick       = toggleRec;
     document.getElementById('btn-rec-audio').onclick = toggleRecAudio;
+    document.getElementById('btn-rec-midi').onclick  = toggleRecMidi;
     document.getElementById('cp-stop-autoplay').onclick = stopAutoplay;
     // Examples dropdown — pick a category to load it into the editor. First entry
     // is the Introduction (boot + load the kit + a starter); last is "All examples".
@@ -2356,8 +2399,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     });
 
     // Version prefix glyph: β for beta releases, α for alpha (derived from VERSION).
+    // Anything else — a dev line, say — shows its name as written rather than being
+    // reduced to a bare number.
     const _verGlyph = /^beta/i.test(VERSION) ? 'β' : /^alpha/i.test(VERSION) ? 'α' : '';
-    const _verLabel = _verGlyph + VERSION.replace(/[^0-9]/g, '');   // "beta01" → "β01"
+    const _verLabel = _verGlyph ? _verGlyph + VERSION.replace(/[^0-9]/g, '') : VERSION;   // "beta01" → "β01"
 
     // ── About card ────────────────────────────────────────────────────────────
     const aboutOverlay = document.getElementById('about-overlay');

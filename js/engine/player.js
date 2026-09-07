@@ -56,6 +56,7 @@ import { randomGroove, randomFill } from './drummer.js';
 // .gtr(string) guitar-string → root semitone offset (FoxDot/CrashServer submap).
 const GTR_STRINGS = { 0: -10, 1: -8, 2: -3, 3: 2, 4: 7, 5: 11, 6: 16 };
 import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut } from '../midi/midiout.js';
+import { midiCapture } from '../midi/midifile.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
 export const PLAYER_GROUP = 2;
@@ -323,6 +324,8 @@ export class Player {
         this._loopOpts = {};
         this._midiOpts = {};        // midiout-mode opts (degree/channel/amp/…)
         this._midiChans = new Set();// channels this player has sent on (for note-off)
+        this._stepBeat = 0;         // beat + velocity of the step being rendered
+        this._stepVel  = 100;       // (MIDI capture; _renderToken reads them)
         // Axis-3 parameter-envelope scheduler
         this._envTimer = null;
         // probability modifiers (.sometimes/.often/…) — array of specs
@@ -583,7 +586,7 @@ export class Player {
 
         // Fire a chord/voices for a resolved args-object at a time, with a note length.
         // voices = longest group among the params; each voice picks its zipped element.
-        const fireVoices = (sA, whenNTP, noteDur) => {
+        const fireVoices = (sA, whenNTP, noteDur, whenBeat) => {
             let voices = 1;
             for (const v of Object.values(sA)) if (isGroup(v)) voices = Math.max(voices, v.__group.length);
             for (let vi = 0; vi < voices; vi++) {
@@ -605,25 +608,37 @@ export class Player {
                 midi += (va.pshift ?? 0);   // semitone detune (fractional MIDI → midicps)
                 if (!Number.isFinite(midi)) continue;
                 const { pshift: _ps, amplify: _amp, ...synthA } = va;   // player-side, not synth params
-                const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel * _masterMix;
+                // mixAmp is the note's own dynamic: its amp, the player's amplify
+                // (mute/solo/drop) and its mixer fader. The MASTER fader is deliberately
+                // not part of it — that one is your monitoring level, not the piece —
+                // so it scales the audio but never the exported MIDI velocity.
+                const mixAmp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel;
+                const amp = mixAmp * _masterMix;
                 // Silent (amp≤0 — e.g. muted by a drop/solo, _amplify=0) → spawn NO
                 // server node. Firing amp-0 synths every step would pile up nodes on
                 // scsynth until it hits its node cap and stops sounding entirely (a
                 // "stuck engine" only a reboot clears). The step/reschedule below still
                 // run, so the player resumes the instant amp comes back.
                 if (!(amp > 0)) continue;
+                // MIDI capture rides the same branch as the note itself, so what the
+                // file gets is exactly what scsynth was told to play — rests, degrades,
+                // muted steps and out-of-range degrees are all already gone by here.
+                if (midiCapture.on)
+                    midiCapture.note(this.name, whenBeat + vi * (this._strum || 0),
+                                     va.sus ?? noteDur, midi, mixAmp * 127);
                 this._trigger(midi, { ...synthA, dur: noteDur, amp }, whenNTP + vi * strumSec, outBus, secPerBeat);
             }
         };
         // SUBDIVISION: a `<a b c>` degree (_sub) crams its items into the slot — schedule
         // each at 1/N of the slot with its own sub-degree. Recurses for nested <…<…>…>.
-        const fireDeg = (deg, whenNTP, noteDur) => {
+        const fireDeg = (deg, whenNTP, noteDur, whenBeat) => {
             if (deg != null && Array.isArray(deg.__sub) && deg.__sub.length) {
                 const subs = deg.__sub, subDur = noteDur / subs.length;
-                subs.forEach((s, j) => fireDeg(patGet(s, step), whenNTP + j * subDur * secPerBeat, subDur));
+                subs.forEach((s, j) => fireDeg(patGet(s, step),
+                    whenNTP + j * subDur * secPerBeat, subDur, whenBeat + j * subDur));
                 return;
             }
-            fireVoices({ ...sArgs, degree: deg }, whenNTP, noteDur);
+            fireVoices({ ...sArgs, degree: deg }, whenNTP, noteDur, whenBeat);
         };
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
         // bundle, not a setTimeout, carries the precise sub-beat timing to scsynth.
@@ -632,7 +647,8 @@ export class Player {
         const onsetNTP = this._clock.beatToNTP(this._nextBeat);
         if (!degraded) {
             for (let i = 0; i < reps; i++) {
-                fireDeg(r.degree, onsetNTP + (delayBeats + i * repDur) * secPerBeat, repDur);
+                const off = delayBeats + i * repDur;
+                fireDeg(r.degree, onsetNTP + off * secPerBeat, repDur, this._nextBeat + off);
             }
             emitStep(this.name, step);   // editor degree highlight
         }
@@ -662,7 +678,8 @@ export class Player {
             return isEnv(out) ? envValue(out) : out;   // lpf=fb(...) etc. on samples
         };
         const baseDur  = Math.max(0.0625, opt(opts.dur, 1));
-        const amp      = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel * _masterMix;
+        const mixAmp   = opt(opts.amp, 0.8) * opt(opts.amplify, 1) * this._amplify * this._mixLevel;
+        const amp      = mixAmp * _masterMix;
         const pan      = opt(opts.pan, 0);
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
@@ -689,6 +706,10 @@ export class Player {
         const repDur = baseDur / reps;
         // unison: layer the sample, detuned via playback rate (2^(pshift/12)) + pan spread
         const onsetNTP = this._clock.beatToNTP(this._nextBeat);
+        // _renderToken recurses (and splits amp across unison voices); MIDI capture
+        // wants the step's own beat and dynamic, so stash them rather than thread them.
+        this._stepBeat = this._nextBeat;
+        this._stepVel  = mixAmp * 127;
         const renderAt = (off, slot) => {
             if (this._unison) {
                 const { pan: pans, pshift: shifts } = this._unison;
@@ -731,6 +752,12 @@ export class Player {
         if (!token || token.rest) return;
 
         if (token.char !== undefined) {
+            // Capture BEFORE the buffer lookup. A char whose WAV has not arrived yet —
+            // the first hit of each char, or every char when the kit was never loaded —
+            // makes no sound, but the pattern is still the one you wrote, and it is
+            // exactly what you want in the DAW, where the drums will be yours anyway.
+            if (midiCapture.on)
+                midiCapture.drum(this.name, this._stepBeat + beatOffset, slotBeats, token.char, this._stepVel);
             const bufId = charToBufId(token.char, p.sampleIdx);
             if (bufId === null) return;
             const whenNTP = onsetNTP + beatOffset * 60 / this._clock.bpm;
@@ -876,10 +903,14 @@ export class Player {
                     if (note === null) continue;
                     note += (va.pshift ?? 0);
                     if (!Number.isFinite(note) || note < 0 || note > 127) continue;
-                    const amp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel * _masterMix;
+                    const mixAmp = (va.amp ?? 0.8) * (va.amplify ?? 1) * this._amplify * this._mixLevel;
+                    const amp = mixAmp * _masterMix;
                     const vel = amp * 127;
                     const vch = Math.round(va.channel ?? chan);
                     this._midiChans.add(vch);
+                    if (midiCapture.on)
+                        midiCapture.note(this.name, this._nextBeat + delayBeats + rep * repDur,
+                                         lenBeats, note, mixAmp * 127);
                     scheduleNote(note, vel, vch, whenMs, lenBeats * secPerBeat * 1000);
                 }
             }

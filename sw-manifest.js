@@ -31,6 +31,7 @@ self.__WFD_PRECACHE = [
   './js/galaxy/galaxy.js',
   './js/i18n/lang.js',
   './js/midi/midi.js',
+  './js/midi/midifile.js',
   './js/midi/midiout.js',
   './js/net/serverUrls.js',
   './js/patterns/rest.js',

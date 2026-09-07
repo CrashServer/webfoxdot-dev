@@ -272,6 +272,7 @@ const GLOBALS = [
     'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(',
     'say(','darker()','lighter()','shutup()','swap(','melody(',
     'midi(','midiin(','mlearn(','midiout(','link(',
+    'midi_rec()','midi_save(','midi_map(',
     // The app's OWN commands. These were reachable only by knowing they existed:
     // every one is documented and several take an argument the menu can complete,
     // but none of them was offered, so the completion never fired because you had
