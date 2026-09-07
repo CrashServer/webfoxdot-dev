@@ -718,35 +718,17 @@ const CHANGELOG = [
 
 // ── HTML builders ──────────────────────────────────────────────────────────────
 
-// Turn the Examples tab into a self-documenting editor buffer: section titles
-// become headers, explanations (notes) become # comments, code stays runnable.
-// Same source as the docs tab, so they never drift.
-const _EX_HEADER = [
-    '# crashDot examples — put the cursor on a line and press Ctrl+Enter to run it.',
-    '# Ctrl+Alt+Enter runs the whole block. Lines starting with # are notes.',
-    '',
-];
-function _wrap(text, width = 78) {
-    const words = text.replace(/\s+/g, ' ').trim().split(' ');
-    const lines = []; let cur = '';
-    for (const w of words) {
-        if (cur && (cur + ' ' + w).length > width) { lines.push(cur); cur = w; }
-        else cur = cur ? cur + ' ' + w : w;
-    }
-    if (cur) lines.push(cur);
-    return lines;
-}
-// One .docs-section → runnable buffer text (title header, notes as # comments,
-// code verbatim).
+// Turn the Examples tab into a runnable editor buffer: the code blocks, nothing
+// else. The prose belongs on the Examples PAGE, which is built from this same
+// source and keeps every note — in the editor it is text you have to scroll past
+// before you reach a line you can put the cursor on, and attack() pastes this too,
+// so a borrowed block would arrive wearing a title banner and a paragraph about
+// itself. What lands is what plays.
+// One .docs-section → runnable buffer text.
 function _sectionToCode(sec) {
     const out = [];
-    const title = sec.querySelector('.docs-section-title')?.textContent.trim();
-    if (title) out.push('# ══ ' + title + ' ══');
-    sec.querySelectorAll('.docs-note, .docs-code').forEach(el => {
-        if (el.classList.contains('docs-note')) _wrap(el.textContent).forEach(l => out.push('# ' + l));
-        else out.push(el.textContent.replace(/\s+$/, ''));
-    });
-    return out.join('\n');
+    sec.querySelectorAll('.docs-code').forEach(el => out.push(el.textContent.replace(/\s+$/, '')));
+    return out.join('\n\n');   // a blank line between blocks, where a section has several
 }
 
 // [{ id, title, cat }] for the example sections, in document order, tagged with the
@@ -770,13 +752,13 @@ export function exampleCode(id) {
     const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
     const sec = doc.getElementById('ex-' + id);
     if (!sec) return '';
-    return _EX_HEADER.join('\n') + '\n' + _sectionToCode(sec) + '\n';
+    return _sectionToCode(sec) + '\n';
 }
 
-// Turn the whole Examples tab into a self-documenting editor buffer.
+// Turn the whole Examples tab into a runnable editor buffer.
 export function examplesAsCode() {
     const doc = new DOMParser().parseFromString(buildExamples(), 'text/html');
-    const out = [..._EX_HEADER];
+    const out = [];
     doc.querySelectorAll('.docs-section').forEach(sec => { out.push(_sectionToCode(sec)); out.push(''); });
     return out.join('\n');
 }
@@ -1392,14 +1374,18 @@ a1 >> pluck(arp([0, 3, 7, 10], "up", 2), oct=4, dur=1/4, sus=0.2, lpf=2500, pong
 b1 >> play(x...x, dur=1/2, amp=0.95)
 d1 >> play(..o., sus=0.25, reverb=0.7, room=0.9, damp=0.8, amp=1)
 n1 >> synthbass([0, 0, 0, 0, 5, 5, 3, 3], oct=3, dur=1/2, sus=1, lpf=1400, amp=0.75, multicrush=0.6, mclowdrive=2, mcmiddrive=2, mchighdrive=2, mclofreq=300, mchifreq=2500).unison(3)
-p1 >> prophet([(0,3,7), (5,8,12), (3,7,10), (10,14,17)], oct=5, dur=4, sus=4, attack=0.15, chorus=0.7, reverb=0.45, room=0.8, stereowidth=1.4, amp=0.6)
+# Once the big bass is in, the arp drops another octave into it and picks up a
+# shape pattern, so it stops reading as a line and starts reading as texture.
+a1.oct=3
+a1.shape=[0.3, 0.4, 0.4, 0.5]
+p1 >> prophet([(0,3,7), (5,8,12), (3,7,10), (10,14,17)], oct=5, dur=4, sus=4, attack=0.15, chorus=0.7, reverb=0.45, room=0.8, stereowidth=1.4, amp=0.6).unison(3)
 l1 >> supersaw([7, 12, 10, 14], oct=5, dur=4, sus=3, attack=0.05, vibrato=0.3, reverb=0.4, amp=0.28)
 
 #@middle8(16)
-# Everything out but the arp and the pad — pop arranges by SUBTRACTION, and the
-# arp goes UP an octave and turns around ("updown") so the thinnest section is
-# also the highest.
-a1 >> pluck(arp([0, 3, 7, 10], "updown", 2), oct=6, dur=1/2, sus=0.2, lpf=linvar([1000, 6000], [16]), pong=0.45, pongtime=0.375, amp=0.35)
+# Everything out but the arp and the pad — pop arranges by SUBTRACTION. The arp
+# goes UP an octave, turns around ("updown") and slows to quarter the speed, so
+# the thinnest section is also the highest and the least busy.
+a1 >> pluck(arp([0, 3, 7, 10], "updown", 2), oct=6, dur=1, sus=0.2, lpf=linvar([1000, 6000], [16]), pong=0.45, pongtime=0.375, amp=0.35)
 p1 >> prophet([(0,3,7), (10,14,17)], oct=4, dur=8, sus=8, attack=0.5, chorus=0.7, reverb=0.6, room=0.9, amp=0.35)
 b1.stop()
 d1.stop()
@@ -1582,84 +1568,54 @@ pt >> basic([4,3,5,7,5,3,7,5], oct=5, dur=var([1,1,1,0.5,1,1,2,2],[1,1,1,1,1,1,1
     `, 'filmscore');
 
     const virtualreality = section('Virtual Reality', `
-        ${note('A 106-bpm D-minor industrial set as a <code>#@</code> chain — Ctrl+Enter on <code>#@intro</code> and it runs itself. Multicrushed <code>ebass</code>, a <code>blip</code> lead on <code>PStep</code> octave stairs, gated <code>pbuild</code> drums, a reese <code>ssaw</code>→<code>dbass</code>, distorted <code>a_gesa</code>/<code>hoover</code> leads and a <code>brass</code> motif — each part evolving the last with <code>.stop()</code>, <code>.oct=</code> and <code>.rate=</code> rather than restating it.')}
-        ${code(`#@intro(12)
+        ${note('A 106-bpm D-minor industrial set as a <code>#@</code> chain — Ctrl+Enter on <code>#@intro</code> and it runs itself. The reese opens ALONE (a <code>~dbass</code> under a slow <code>sinvar</code> filter), a multicrushed <code>supersaw</code> builds under it, and the peak stacks two <code>plaits</code> lines — a 16-step against a 32-step, so the phrase never lands the same way twice. The break hands the tune to a distorted <code>a_gesa</code> lead answered by a <code>brass</code> motif, the drop swaps the bass for <code>ebass</code> + a <code>ssaw</code> reese, and the gated <code>pbuild</code> drum engine arrives LAST. Parts evolve the last one with <code>.oct=</code> and <code>.rate=</code> rather than restating it.')}
+        ${code(`#@#@ virtualreality
+
+#@intro(8)
+# The reese alone — no drums, no tempo set yet, just the filter breathing.
+~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.8).unison(3)
+
+#@build(12)
 Clock.bpm = 106
 Scale.default = "minor"
 Root.default = "D"
-ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=4, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, hpf=120, lpf=sinvar([400,2000],16), multicrush=0.8, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
+ba >> supersaw([0,0,-5,0,-7,0,-5,-3], oct=4, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.45, hpf=120, lpf=sinvar([400,2000],16), multicrush=0.8, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000).unison(3)
 
-#@build(24)
-ag >> blip([7,5,0,7,5,7,0,5], oct=PStep(4, 5, 6), dur=0.5, sus=PRand([0.2,0.4,0.6],4), amp=sinvar([0.2,0.6],8), cutoff=sinvar([800,12000],4), rq=0.4, fbdelay=0.5, attack=0.01, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
-dk >> play("X...X.X.-...<---->...", dur=0.25, amp=var([1,0.9,1,0.88],4), fbdelay=0.4, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.1)
-
-#@peak(4)
-ag >> blip([7,5,0,7,5,7,0,5], oct=PStep(4, 5, 6), dur=0.5, sus=PRand([0.2,0.4,0.6],4), amp=sinvar([0.2,0.6],8), cutoff=sinvar([800,12000],4), rq=0.4, fbdelay=0.5, attack=0.01, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, eq3=1, eqlow=0, eqmid=2, eqhigh=0)
+#@peak(8)
+# Two plaits lines over the same bass figure: 16 steps against 32, so they
+# only agree every other bar.
+bb >> plaits([0,0,-5,0,-7,0,3,5, 0,0,-5,7,-7,6,3,6], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=1, hpf=120, lpf=sinvar([400,2000],16), multicrush=0.8, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
+bc >> plaits([0,0,-5,0,-7,0,3,5, 0,0,-5,7,-7,6,3,6, 0,0,4,0,-7,0,3,5, 0,0,6,7,7,6,3,6], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, hpf=120, lpf=sinvar([400,2000],16), multicrush=0.8, mclowdrive=1.5, mcmiddrive=2, mchighdrive=4, mclofreq=200, mchifreq=3000)
 
 #@break(8)
-sn >> play("....o.......o...", dur=0.25, amp=0.85, sample=2, hpf=200)
-cl >> play("..o.", dur=0.5, sample=5, amp=0.7, amplify=PEuclid(5,8), hpf=3500, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02)
-
-#@drop(12)
-~dk >> play(pbuild("industrial"), dur=0.25, amp=var([1,0.9,1,0.88],4), rgate=0.1, rgaterate=4, multicrush=4, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
-
-#@outro(8)
-ag.lpf=1200
-
-#@part7(8)
-ag.lpr=0.2
-
-#@part8(8)
-wr >> ssaw([0,0,-5,-5,-7,-7,0,0], oct=5, dur=0.5, sus=0.4, amp=0.8, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
-ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.2, hpf=240, lpf=sinvar([400,2000],16))
-
-#@part9(8)
-ag.stop()
-
-#@part10(16)
-~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
-
-#@part11(8)
+# Lead and answer — the a_gesa states it loud, brass replies, then the same
+# a_gesa line comes back quiet and one octave narrower.
+ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=1)
+br >> brass([0, -5, -7, -5, 0, ., 0, .], oct=6, dur=0.5, sus=0.2, room=0.3, reverb=0.25, comp=0.5, amp=0.4)
 ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=6, dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
 
-#@part12(8)
-sn.stop()
-cl.stop()
-br >> brass([0, -5, -7, -5, 0, ., 0, .], oct=6, dur=0.5, sus=0.2, room=0.3, reverb=0.25, comp=0.5, amp=0.4)
+#@drop(8)
+ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.2, hpf=240, lpf=sinvar([400,2000],16))
+wr >> ssaw([0,0,-5,-5,-7,-7,0,0], oct=5, dur=0.5, sus=0.4, amp=0.8, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 
-#@part13(8)
-ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
-wr.oct=3
-br.stop()
-
-#@part14(8)
+#@outro(8)
 ag.oct=3
 dk.rate=4
 ~ag >> a_gesa([2, 1, 0, [7, 4], ., 5, 4, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.0, fbdelay=0.25, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35).unison(3)
-
-#@part15(8)
 ~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
 
-#@part16(4)
-v4 >> play("X<-->X{o<-->}", dist2=0.5, dur=1/2, fbdelay=0.5, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02)
-
-#@part17(8)
+#@part7(8)
 wr >> hoover([0,0,-5,-5,-7,-7,0,0], oct=6, dur=0.5, sus=0.1, amp=0.2, lpf=sinvar([300,14000],8), lpr=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
 
-#@part18(8)
+#@part8(8)
 ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=(6, 5, 7), dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
-wr.oct=3
-br.stop()
 
-#@part19(8)
-wr >> a_hhat()
+#@part9(4)
+ag >> a_xbass([7,5,0,7,5,7,0,5], oct=PStep(4, 5, 6), dur=0.5, sus=PRand([0.2,0.4,0.6],4), amp=sinvar([0.2,0.6],8), cutoff=sinvar([800,12000],4), rq=0.1, fbdelay=0.5, attack=0.01, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, fbspread=0.02, eq3=3, eqlow=0, eqmid=2, eqhigh=2)
 
-
-#@part21(16)
-wr >> ssaw([0,0,-5,-5,-7,-7,0,0], oct=5, dur=0.5, sus=0.4, amp=0.8, cutoff=sinvar([300,14000],8), rq=0.45, fbdelay=0.5, fbtime=0.25, fbfeed=0.85, fbcutoff=6000, fbspread=0.05).unison(3)
-ba >> ebass([0,0,-5,0,-7,0,-5,-3], oct=5, dur=0.25, sus=var([0.3,0.2,0.35,0.25],[4,4,4,4]), amp=0.85, dist2=0.2, hpf=240, lpf=sinvar([400,2000],16))
-~wr >> dbass([0, 0, -5, -5, -7, -7, 0, 0], oct=5, dur=0.5, drive=5, tanh=0.5, lpf=sinvar([600, 3000], [16]), fbdelay=0.5, fbtime=0.25, fbfeed=0.4, fbcutoff=3000, amp=0.4).unison(3)
-ag >> a_gesa([7, 5, 0, 7, ., 5, 7, .], oct=6, dur=0.5, dist=4, cutoff=sinvar([800, 6000], [4]), spin=0.5, fbdelay=0.5, fbtime=0.25, fbfeed=0.7, fbcutoff=3000, amp=0.35)
+#@part10(16)
+# The drums arrive last — a gated, multicrushed pbuild engine under everything.
+~dk >> play(pbuild("industrial"), dur=0.25, amp=var([1,0.9,1,0.88],4), rgate=0.1, rgaterate=4, multicrush=4, mclowdrive=1.5, mcmiddrive=2, mchighdrive=1.8, mclofreq=200, mchifreq=3000)
 
 #@end(16)`)}
     `, 'virtualreality');
@@ -1711,9 +1667,7 @@ t2 >> dbass(dist2=1)`)}
 
     const inthemood = section('In the mood for CS80 (recorded #@ set)', `
         ${note('A full recorded composition arranged with #@ parts. <b>Load the kit first</b> (♪ load kit), then put the cursor on <code>#@intro</code> and press Ctrl+Enter — it auto-plays and advances through the parts while you can still edit live. (The free-text narration lines are commented so each section evaluates cleanly.)')}
-        ${code(`# ══ recorded composition (run the #@ parts) ══
-#@#@ in_the_mood_for_cs80
-# don't forget to load samples (♪ load kit) then evaluate #@intro with Ctrl+Enter
+        ${code(`#@#@ in_the_mood_for_cs80
 
 #@intro(12)
 Root.default = "E#"
@@ -1837,7 +1791,7 @@ g71 >> cs80(PCircle(16), oct=(6, 5), dur=1/2, amp=0.39, pan=sinvar([-1, 1], [8])
 
     const karpDMK = section('Untitled — Daniel M Karlsson', `
         ${note('A community contribution by <b>Daniel M Karlsson</b>. Six karp voices (p0–p5) shuffle a harmonic-minor scale across octaves, each rolling random 1/4 &amp; 1/2 durations, thickening as you run the #@ parts top to bottom. Boot, put the cursor on #@intro and Ctrl+Enter.')}
-        ${code(`# ══ made by Daniel M Karlsson (contribution) ══
+        ${code(`# Untitled — by Daniel M Karlsson (contribution)
 #@#@ recorded
 
 #@intro(32)
