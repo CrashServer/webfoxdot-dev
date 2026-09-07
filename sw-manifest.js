@@ -49,6 +49,7 @@ self.__WFD_PRECACHE = [
   './js/ui/midipanel.js',
   './js/ui/mixer.js',
   './js/ui/perform.js',
+  './js/ui/tabs.js',
   './js/ui/tour.js',
   './js/visuals/bridge.js',
   './js/visuals/editorbg.js',

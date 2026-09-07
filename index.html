@@ -74,6 +74,8 @@
       <div id="docs-body"></div>
     </div>
 
+    <!-- Editor buffers: the set + local scratch canvases (js/ui/tabs.js) -->
+    <div id="editor-tabs"></div>
     <div id="editor-wrap"></div>
 
     <!-- Split view: peers' evals stream below the shared editor (session only) -->
@@ -261,9 +263,11 @@
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { initTour } from './js/ui/tour.js';
+    import { initTabs } from './js/ui/tabs.js';
     import { getLang, setLang } from './js/i18n/lang.js';
     import { initSections, runSection, cancelSection,
-             getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo } from './js/engine/sections.js';
+             getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo,
+             activeSectionDoc } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import { setActionSender, setStateWriter, applying as applyingRemote, isApplying, shareState, shareStateThrottled } from './js/collab/actions.js';
     import * as perms from './js/collab/permissions.js';
@@ -362,6 +366,8 @@
 
     // Collab API — populated after initCollab() if ?session= is in the URL
     let _collab = null;
+    // Editor buffers (the set + scratch canvases) — populated once the editor exists
+    let _tabs = null;
     let _soloPresence = null;   // solo presence handle → forwards solo evals to the monitor
 
     // Broadcast a non-eval action (solo / composition state / the mix) to peers, if in
@@ -1479,6 +1485,9 @@
 
     // ── Flash highlight ───────────────────────────────────────────────────────
     function flashLines(from, to) {
+        // Line numbers are the SET's; painting them onto a scratch buffer would
+        // flash whatever happens to sit on those lines.
+        if (_tabs && !_tabs.isMain()) return;
         const marks = [];
         for (let i = from; i <= to; i++) {
             marks.push(editor.addLineClass(i, 'background', 'flash-highlight'));
@@ -1839,12 +1848,35 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Ctrl-,':         ()   => stopAll(),
             'Ctrl-Shift-.':   ()   => panic(),   // stop the whole ROOM, not just you
             'Ctrl-Alt-;':     ()   => stopAutoplay(),
-            'Ctrl-Alt-P':     ()   => { if (!jumpToActive()) log('no active part', 'info'); },
+            'Ctrl-Alt-P':     ()   => { _tabs?.goToDoc(activeSectionDoc()); if (!jumpToActive()) log('no active part', 'info'); },
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
         },
     });
 
     _tour = initTour(editor);   // interactive guided tour, launched by start_guided_tour()
+
+    // ── Editor buffers ────────────────────────────────────────────────────────
+    // Tab 1 is the set (shared, autosaved, shared-link encoded); the rest are local
+    // scratch canvases. One editor, several docs — see js/ui/tabs.js. A session or a
+    // #c= share link forces the set on screen: both are ABOUT the set, and restoring
+    // into a scratch buffer would hide what you just opened.
+    _tabs = initTabs({
+        editor,
+        mount: document.getElementById('editor-tabs'),
+        inSession: !!_sessionSlug || !!_shareTok,
+        // Deferred to a microtask because initTabs can restore a scratch buffer while
+        // this module is still being evaluated, and the panels refreshed here are
+        // declared further down (a `let` touched too early throws and takes the rest
+        // of the boot with it). There is no top-level await in this module, so one
+        // microtask is enough to land after the whole body.
+        onSwitch: (isMain, name) => queueMicrotask(() => {
+            // Yjs binds to ONE document, so text sync only runs while the set is up.
+            if (_collab) { if (isMain) _collab.resumeSync(); else _collab.pauseSync(); }
+            document.body.classList.toggle('on-scratch', !isMain);
+            renderParts();          // the parts panel follows the buffer on screen
+            if (!isMain) log(`scratch buffer "${name}" — local to you; players you start here keep playing`, 'info');
+        }),
+    });
 
     // ── Touch: drag a number to nudge it live (mobile port of Alt+Up/Down) ──────
     // Touching a number turns it into a knob — drag up/down to change it and re-run
@@ -1981,6 +2013,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         let _saveTimer = null;
         editor.on('change', (cm, ch) => {
             if (ch && ch.origin === 'setValue') return;
+            if (_tabs && !_tabs.isMain()) return;   // scratch buffers save themselves
             clearTimeout(_saveTimer);
             _saveTimer = setTimeout(() => {
                 try { localStorage.setItem(SOLO_KEY, editor.getValue()); } catch (_) {}
@@ -3300,6 +3333,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             }
         }, applyAction, onPeersChanged, appendChat, _seedText, renderListing, applyPerfState, onConnection, onPermsChanged).then(collab => {
             _collab = collab;
+            // Connected while a scratch buffer is up: the binding must not mirror the
+            // room's text into it (see collab.js pauseSync).
+            if (_tabs && !_tabs.isMain()) collab.pauseSync();
             // Room rules live in the shared doc; this module just reads and writes it.
             perms.initPermissions({
                 get:  (k) => collab.getPerm(k),

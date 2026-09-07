@@ -44,7 +44,31 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // Scoped per-user undo: a Y.UndoManager so Ctrl-Z reverts only YOUR edits, not a
     // collaborator's (y-codemirror wires CM undo/redo to it when passed).
     const undoManager = new Y.UndoManager(ytext);
-    const binding  = new CodemirrorBinding(ytext, editor, provider.awareness, { yUndoManager: undoManager });
+    // y-codemirror installs an undo/redo keymap it does NOT remove on destroy(), so
+    // note whichever maps a binding adds — pauseSync/resumeSync would otherwise stack
+    // a fresh copy of it on every tab switch.
+    function makeBinding() {
+        const before = new Set(editor.state.keyMaps || []);
+        const b = new CodemirrorBinding(ytext, editor, provider.awareness, { yUndoManager: undoManager });
+        b._addedKeyMaps = (editor.state.keyMaps || []).filter(m => !before.has(m));
+        return b;
+    }
+    let binding = makeBinding();
+
+    // ── Suspend / resume text sync (editor tabs — see js/ui/tabs.js) ──────────
+    // The binding follows ONE CodeMirror document: its type observer writes remote
+    // edits into the doc it was built on, whether or not that doc is the one on
+    // screen. So when you switch to a scratch buffer the binding is torn down, and
+    // rebuilt when you come back — rebuilding re-reads the shared text, so you
+    // return to the room's current state rather than to a stale snapshot. The Yjs
+    // doc itself never stops receiving; only the editor stops mirroring it.
+    function pauseSync() {
+        if (!binding) return;
+        for (const m of binding._addedKeyMaps || []) { try { editor.removeKeyMap(m); } catch (_) {} }
+        binding.destroy();
+        binding = null;
+    }
+    function resumeSync() { if (!binding) binding = makeBinding(); }
 
     // Seed a BRAND-NEW room with the creator's composition. Once the server has
     // synced, if the shared doc is still empty (nobody's typed), insert the seed —
@@ -371,10 +395,10 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         try { provider.awareness.off('change', _onPeersChange); } catch (_) {}
         try { provider.off('sync', _onSynced); provider.off('synced', _onSynced); } catch (_) {}
         try { ws && ws.close(); } catch (_) {}
-        binding.destroy();
+        pauseSync();
         provider.destroy();
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setPerf, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, destroy };
+    return { broadcastEval, broadcastAction, setPerf, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, pauseSync, resumeSync, destroy };
 }

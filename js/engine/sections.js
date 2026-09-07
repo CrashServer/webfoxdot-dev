@@ -13,6 +13,15 @@
 let _clock  = null;
 let _evalFn = null;
 let _editor = null;
+// The buffer the running arrangement lives in. Editor tabs (js/ui/tabs.js) can put
+// a scratch buffer on screen while a #@ set is autoplaying, and the advance has to
+// keep reading the buffer it was LAUNCHED from — a line handle still resolves to the
+// right number in its own document, but findAllSections() would go looking for the
+// next #@ in whatever happens to be showing. So runSection pins the doc for the whole
+// chain, and every line read goes through _doc(). Only jumpToActive's viewport calls,
+// which are about what you are LOOKING at, stay on the editor.
+let _arrDoc = null;
+const _doc = () => _arrDoc || (_editor ? _editor.getDoc() : null);
 let _onChange = null;      // fired when the active section / autoplay state changes (local UI)
 let _onActive = null;      // fired when active section / autoplay changes (for multiplayer broadcast)
 
@@ -134,15 +143,15 @@ function setAutoplay(v) { _autoplay = v; if (_onChange) _onChange(); notifyActiv
 
 // Mark `line` as the active section (persistent highlight + a brief blink).
 function setActive(line) {
-    if (_activeLine >= 0 && _activeLine < _editor.lineCount()) {
-        try { _editor.removeLineClass(_activeLine, 'background', 'section-active'); } catch (_) {}
+    if (_doc() && _activeLine >= 0 && _activeLine < _doc().lineCount()) {
+        try { _doc().removeLineClass(_activeLine, 'background', 'section-active'); } catch (_) {}
     }
     _activeLine = line;
     if (line >= 0) {
         try {
-            _editor.addLineClass(line, 'background', 'section-active');
-            _editor.addLineClass(line, 'background', 'section-blink');
-            setTimeout(() => { try { _editor.removeLineClass(line, 'background', 'section-blink'); } catch (_) {} }, 650);
+            _doc().addLineClass(line, 'background', 'section-active');
+            _doc().addLineClass(line, 'background', 'section-blink');
+            setTimeout(() => { try { _doc().removeLineClass(line, 'background', 'section-blink'); } catch (_) {} }, 650);
         } catch (_) {}
     }
     if (_onChange) _onChange();
@@ -155,21 +164,25 @@ function setActive(line) {
 function applyRemoteSection(line, autoplay) {
     _autoplay = !!autoplay;
     // Approximate the progress window so peers animate too (start = now of receipt).
-    const parsed = line >= 0 && _editor ? parseSectionTag(_editor.getLine(line)) : null;
+    const parsed = line >= 0 && _doc() ? parseSectionTag(_doc().getLine(line)) : null;
     _activeBeats = parsed?.beats ?? null;
     _activeStart = _clock ? _clock.now() : 0;
     setActive(line);
 }
+
+// The buffer the running arrangement was launched from (null when none is running),
+// so the UI can bring it back on screen before jumping to the active part.
+function activeSectionDoc() { return _arrDoc; }
 
 // Progress info for the active section's panel squares: { line, start, beats }.
 function getActiveInfo() { return { line: _activeLine, start: _activeStart, beats: _activeBeats }; }
 
 // All #@ sections + #@#@ tracks, in document order, with active flag.
 function getSections() {
-    if (!_editor) return [];
+    if (!_doc()) return [];
     const out = [];
-    for (let i = 0; i < _editor.lineCount(); i++) {
-        const t = parseSectionTag(_editor.getLine(i));
+    for (let i = 0; i < _doc().lineCount(); i++) {
+        const t = parseSectionTag(_doc().getLine(i));
         if (!t) continue;
         if (t.track !== undefined) out.push({ line: i, track: t.track });
         else out.push({ line: i, name: t.name, beats: t.beats, type: t.type, active: i === _activeLine });
@@ -182,7 +195,7 @@ function isAutoplaying() { return _autoplay; }
 // Move the cursor to the active section and reveal it.
 function jumpToActive() {
     if (!_editor || _activeLine < 0) return false;
-    _editor.setCursor({ line: _activeLine, ch: 0 });
+    _doc().setCursor({ line: _activeLine, ch: 0 });
     _editor.scrollIntoView({ line: _activeLine, ch: 0 }, 120);
     _editor.focus();
     return true;
@@ -195,10 +208,10 @@ function jumpToActive() {
  * Returns the raw code string (without the header line itself).
  */
 function getSectionCode(sectionLine) {
-    const lineCount = _editor.lineCount();
+    const lineCount = _doc().lineCount();
     const lines = [];
     for (let i = sectionLine + 1; i < lineCount; i++) {
-        const line = _editor.getLine(i);
+        const line = _doc().getLine(i);
         if (line.trimStart().startsWith('#@')) break;
         lines.push(line);
     }
@@ -226,11 +239,11 @@ function applyPlayerStop(code) {
  * Each entry: { line, name, beats, type, targets }
  */
 function findAllSections() {
-    if (!_editor) return [];
-    const lineCount = _editor.lineCount();
+    if (!_doc()) return [];
+    const lineCount = _doc().lineCount();
     const sections = [];
     for (let i = 0; i < lineCount; i++) {
-        const parsed = parseSectionTag(_editor.getLine(i));
+        const parsed = parseSectionTag(_doc().getLine(i));
         if (parsed && !parsed.track) {
             sections.push({ line: i, ...parsed });
         }
@@ -253,6 +266,7 @@ function findSectionByName(name) {
  */
 function cancelSection() {
     _sequenceId = Symbol();
+    _arrDoc = null;              // no chain running → follow whatever buffer is showing
     setAutoplay(false);
     if (_onChange) _onChange();
 }
@@ -267,11 +281,20 @@ function cancelSection() {
  * - Schedules next section if beats is set
  *
  * Returns false if the line is a #@#@ track header or not a #@ line.
+ *
+ * Called from the editor, so this is where the arrangement's buffer gets pinned —
+ * the auto-advance (_runSection) then keeps reading it whichever tab you switch to.
  */
 function runSection(sectionLine) {
-    if (!_clock || !_evalFn || !_editor) return false;
+    _arrDoc = _editor ? _editor.getDoc() : null;
+    return _runSection(sectionLine);
+}
 
-    const lineText = _editor.getLine(sectionLine);
+function _runSection(sectionLine) {
+    if (!_clock || !_evalFn || !_doc()) return false;
+
+    const chainDoc = _doc();   // cancelSection() below drops the pin — this restores it
+    const lineText = _doc().getLine(sectionLine);
     if (!lineText) return false;
 
     const parsed = parseSectionTag(lineText);
@@ -282,6 +305,7 @@ function runSection(sectionLine) {
 
     // Cancel stale sequences
     cancelSection();
+    _arrDoc = chainDoc;        // …the chain carries on in the buffer it started in
     const myId = _sequenceId;
 
     if (type === 'clear') {
@@ -295,7 +319,7 @@ function runSection(sectionLine) {
         // Zero-duration probabilistic router: no code, no highlight. Roll the
         // dice — jump to the target part, or fall through to the next section.
         const target = parsed.gotoTarget ? findSectionByName(parsed.gotoTarget) : null;
-        if (target && Math.random() < parsed.gotoProb) runSection(target.line);
+        if (target && Math.random() < parsed.gotoProb) _runSection(target.line);
         else advanceToNext(sectionLine);
         return true;
     }
@@ -330,7 +354,7 @@ function runSection(sectionLine) {
     // Track this section across edits: a line handle survives inserts/deletes
     // above it, so a scheduled advance still finds the right section if the
     // buffer is edited while autoplay runs.
-    const lineHandle = _editor.getLineHandle ? _editor.getLineHandle(sectionLine) : null;
+    const lineHandle = _doc().getLineHandle ? _doc().getLineHandle(sectionLine) : null;
 
     // Get and transform the code body
     const rawCode  = getSectionCode(sectionLine);
@@ -353,7 +377,7 @@ function runSection(sectionLine) {
         // After beats: weighted-jump to a target, or loop this section if none.
         _clock._schedule(targetBeat, () => {
             if (_sequenceId !== myId) return;
-            if (targets.length === 0) { runSection(liveLine(lineHandle, sectionLine)); return; }
+            if (targets.length === 0) { _runSection(liveLine(lineHandle, sectionLine)); return; }
             jumpToTarget(targets);
         });
         return true;
@@ -372,7 +396,7 @@ function runSection(sectionLine) {
 // Resolve a line handle to its current line number (tracks edits); -1 if removed.
 function liveLine(handle, fallback) {
     if (!handle) return fallback;
-    const n = _editor.getLineNumber(handle);
+    const n = _doc().getLineNumber(handle);
     return n == null ? -1 : n;
 }
 
@@ -380,7 +404,7 @@ function liveLine(handle, fallback) {
 function advanceToNext(sectionLine) {
     const sections = findAllSections();
     const idx = sections.findIndex(s => s.line === sectionLine);
-    if (idx !== -1 && idx + 1 < sections.length) runSection(sections[idx + 1].line);
+    if (idx !== -1 && idx + 1 < sections.length) _runSection(sections[idx + 1].line);
 }
 
 // Weighted-random pick from [{name, weight}] and run that section.
@@ -393,10 +417,11 @@ function jumpToTarget(targets) {
         if (r <= 0) { chosen = t; break; }
     }
     const target = findSectionByName(chosen.name);
-    if (target) runSection(target.line);
+    if (target) _runSection(target.line);
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export { initSections, runSection, cancelSection, parseSectionTag,
-         getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo };
+         getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo,
+         activeSectionDoc };

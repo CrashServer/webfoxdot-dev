@@ -41,6 +41,8 @@ const SHORTCUTS = [
     { key: 'Shift+Alt+↑/↓',      desc: 'Nudge value ×10' },
     { key: 'Alt+T',              desc: 'Automation record: arm on a number, nudge it live, Alt+T again → var/linvar/sinvar (Alt+T cycles the form, Esc cancels)' },
     { key: 'Ctrl+/',             desc: 'Toggle line comment' },
+    { key: 'Ctrl+Alt+N',         desc: 'New scratch buffer — a blank canvas next to your set, local to you' },
+    { key: 'Alt+1 … Alt+9',      desc: 'Switch buffer — Alt+1 is the set, the rest are your scratch canvases' },
     { key: 'Shift+Alt+B',        desc: 'Toggle the visuals as a live background behind the editor (or vbg())' },
     { key: 'Shift+Alt+Z',        desc: 'Zen — hide all UI' },
 ];

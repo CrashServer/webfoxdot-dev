@@ -572,6 +572,71 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .rec-row { flex-wrap: wrap; }   /* narrow panel → the two buttons stack, full labels intact */
 
 /* ── Editor ───────────────────────────────────────────────────────────────── */
+/* ── Editor tabs — the set + local scratch buffers (js/ui/tabs.js) ─────────── */
+#editor-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 1px;
+    padding: 0 8px;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border-1);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+#editor-tabs::-webkit-scrollbar { display: none; }
+
+.ed-tab {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    font-size: 10.5px;
+    letter-spacing: 0.4px;
+    color: var(--text-2);
+    background: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.1s, border-color 0.1s;
+}
+.ed-tab:hover   { color: var(--text-1); }
+.ed-tab.active  { color: var(--green); border-bottom-color: var(--green); }
+/* The set reads as the anchor: a touch brighter even when another buffer is up. */
+.ed-tab.is-main .ed-tab-name { font-weight: 600; }
+.ed-tab.is-main.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+.ed-tab-close {
+    background: none;
+    border: none;
+    padding: 0 1px;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--text-2);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s, color 0.1s;
+}
+.ed-tab:hover .ed-tab-close,
+.ed-tab.active .ed-tab-close { opacity: 0.6; }
+.ed-tab-close:hover { opacity: 1; color: var(--red); }
+
+.ed-tab-add {
+    background: none;
+    border: none;
+    padding: 0 8px;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--text-2);
+    cursor: pointer;
+}
+.ed-tab-add:hover:not(:disabled) { color: var(--green); }
+.ed-tab-add:disabled { opacity: 0.25; cursor: default; }
+
+/* A scratch buffer is private and unsaved-to-the-set — say so quietly, at the
+   one place you are already looking. */
+body.on-scratch #editor-tabs { border-bottom-color: var(--border-2); }
+
 #editor-wrap { flex: 1; overflow: hidden; min-height: 0; }
 
 .CodeMirror {
@@ -601,7 +666,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 }
 /* Lift the editor's own content above the background canvas (a positioned canvas
    would otherwise paint over static siblings). Harmless when vbg is off. */
-#toolbar, #editor-wrap, #log-handle, #log, #peer-handle, #peer-feed { position: relative; z-index: 1; }
+#toolbar, #editor-tabs, #editor-wrap, #log-handle, #log, #peer-handle, #peer-feed { position: relative; z-index: 1; }
 /* When live, let the visuals show through with a theme-tinted scrim behind the code
    for contrast (rgba fallback first, theme-aware color-mix second). */
 body.viz-bg .CodeMirror         { background: rgba(8,10,14,0.52); background: color-mix(in srgb, var(--bg-1) 60%, transparent); }
@@ -732,6 +797,7 @@ body.viz-bg .CodeMirror-gutters { background: rgba(8,10,14,0.32); background: co
 
 /* ── Zen — hide all UI except the editor (clean view for performing/projection) */
 body.zen #toolbar,
+body.zen #editor-tabs,
 body.zen #crash-panel,
 body.zen #log,
 body.zen #log-handle,
