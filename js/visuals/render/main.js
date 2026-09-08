@@ -34,6 +34,9 @@ let lastClearSeq = 0;
 let lastRes;                                     // last applied vres() scale
 let overlayOpaque = true;                        // is the 2D canvas currently covering GL?
 let wsd = null;                                  // workshop-layer deck, built on first use
+// Workshop layers animate on the SHARED beat, not on this machine's clock — see
+// surface.js. Same line on two peers means the same picture at the same phase.
+const BEAT_SECONDS = 60 / 120;
 
 function resize() {
     W = innerWidth; H = innerHeight;
@@ -131,7 +134,9 @@ function loop(ts) {
             if (ws.length) {
                 if (!wsd) wsd = createWorkshopDeck();
                 const { W: gw, H: gh } = glr.size;
-                const d = wsd.render(ws, gw, gh, t, aud);
+                // Room time — see surface.js. The pop-out window has no clock of its
+                // own, but the bridge streams the beat, which is the shared one.
+                const d = wsd.render(ws, gw, gh, AUD.beat * BEAT_SECONDS, aud);
                 glr.setWorkshop(d.a, d.b);
             } else glr.setWorkshop(null, null);
             glr.render(V, t, aud, f);

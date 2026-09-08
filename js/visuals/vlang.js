@@ -16,6 +16,7 @@
 
 import { patGet } from '../patterns/sequences.js';
 import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES } from './vdata.js';
+import { defaults as wsDefaults } from './workshop/index.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);
@@ -211,8 +212,12 @@ class VisualPlayer {
         const p = { ...(cur ? cur.params : {}), ...s.params };
         const ch = Math.max(0, Math.min(1, Math.round(Number(p.ch) || 0)));
         delete p.ch;
-        layers.set(this.name, { scene: s.scene || (cur && cur.scene) || null, ch, params: p,
-                                fx: { ...(cur ? cur.fx : {}), ...s.fx }, born: _now() });
+        const scene = s.scene || (cur && cur.scene) || null;
+        layers.set(this.name, { scene, ch, params: p,
+                                fx: { ...(cur ? cur.fx : {}), ...s.fx }, born: _now(),
+                                // vsnap() prints only what differs from the layer's own
+                                // defaults, so it needs to know what those were.
+                                _wsDefaults: (scene && WS_SET.has(scene) && !isScene(scene)) ? wsDefaults(scene) : null });
         if (mixer && mixer.owner === this.name) mixer = null;   // reused a mixer name as a layer
         return this;
     }
@@ -245,6 +250,60 @@ export function isVideoLayer(name) { return layers.has(name) || (!!mixer && mixe
 
 export function clearAll() { layers.clear(); mixer = null; }   // shutup()/panic
 
+// ── vsnap() — the visual state, as CODE ──────────────────────────────────────
+//
+// The workshop's answer to "save this look" is a preset: a blob of channel state in
+// localStorage. crashDot's answer has to be different, because in crashDot the piece
+// IS the text — and a look you can read, edit and paste into a set is worth more than
+// one you can only recall. It is also the only form that survives a jam: code is in
+// the shared buffer, so a look written as code arrives on every peer, while a preset
+// in your localStorage arrives nowhere.
+//
+// So this writes the lines you would have typed to get what is on screen right now,
+// including the params you did not type (they come out at their live values) — which
+// makes it a way to LEARN a layer as much as to save one. Non-default params only, so
+// the line stays readable; vsnap(true) writes every knob.
+function fmtVal(v) {
+    if (typeof v === 'string') return JSON.stringify(v);
+    if (typeof v === 'boolean') return String(v);
+    if (Array.isArray(v)) return '[' + v.map(fmtVal).join(', ') + ']';
+    const n = Number(v);
+    if (!isFinite(n)) return '0';
+    return String(Math.round(n * 1000) / 1000);
+}
+export function vsnap(all = false) {
+    const beat = _lastBeat;
+    const lines = [];
+    for (const [name, l] of layers) {
+        if (!l.scene) continue;
+        const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;
+        const def = l._wsDefaults || null;
+        // vsnap(true) writes the layer's own defaults too — the params you never typed,
+        // which is how you find out a layer HAS them.
+        const p = { ...(all && def ? def : {}), ...resolveMap(l.params, beat, dur) };
+        const args = [];
+        for (const [k, v] of Object.entries(p)) {
+            if (v == null) continue;
+            if (!all && def && def[k] !== undefined && Number(def[k]) === Number(v)) continue;  // unchanged
+            args.push(`${k}=${fmtVal(v)}`);
+        }
+        if (l.ch) args.push('ch=1');
+        let line = `${name} >> ${l.scene}(${args.join(', ')})`;
+        const fx = resolveMap(l.fx, beat, dur);
+        for (const [k, v] of Object.entries(fx)) if (v != null && v !== false) line += ` + ${k}(${fmtVal(v)})`;
+        lines.push(line);
+    }
+    if (mixer) {
+        const v = Number(resolveVisual(mixer.value, beat, mixer.dur)) || 0;
+        const bl = resolveVisual(mixer.blend, beat, mixer.dur);
+        lines.push(`${mixer.owner} >> mix(${fmtVal(v)}${bl ? `, blend=${fmtVal(bl)}` : ''})`);
+    }
+    if (master.palette) lines.push(`palette(${JSON.stringify(master.palette)})`);
+    if (master.mode)    lines.push(`vmode(${JSON.stringify(master.mode)})`);
+    if (master.res)     lines.push(`vres(${fmtVal(master.res)})`);
+    return lines.length ? lines.join('\n') : '# nothing on screen';
+}
+
 // Snapshot of all active workshop layers with resolved params (for bridge tick).
 // Returns null when no WS layers are active.
 export function wsSnapshot(beat) {
@@ -262,7 +321,9 @@ export function stopVisual(name) { layers.delete(name); if (mixer && mixer.owner
 export function hasContent() { return layers.size > 0 || !!mixer; }
 
 // The resolved, serialisable state for the renderer (called on the clock tick).
+let _lastBeat = 0;
 export function snapshot(beat) {
+    _lastBeat = beat;
     const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq };
     for (const [name, l] of layers) {
         if (!l.scene) continue;

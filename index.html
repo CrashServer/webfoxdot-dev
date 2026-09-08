@@ -266,7 +266,7 @@
     import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
     import { initPiano, togglePiano } from './js/ui/piano.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
-    import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
+    import { visualBuilders, getVisualPlayer, VSpec, vsnap, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
@@ -1144,6 +1144,11 @@
             __p,
             ...SYNTHS,
             ...visualBuilders(),   // plasma/tunnel/… scenes + scan/trails/… fx for vN players
+            // vsnap()  print what is on screen as the code that would make it — every
+            // live layer with its params at their CURRENT values, its FX chain, the
+            // crossfader and the palette. Paste it into your set to keep a look.
+            // vsnap(true) writes every knob, not just the ones you changed.
+            vsnap: (all) => { const code = vsnap(all); log(code, 'ok'); return code; },
 
             PRand, PWhite, PWalk, PDur, PPing,
             PStutter, PAlt, PShuf, PBern, PCoin,

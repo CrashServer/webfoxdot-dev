@@ -46,6 +46,25 @@ export function fxBundle(layers) {
     };
 }
 
+// ── Room time ────────────────────────────────────────────────────────────────
+// Workshop layers animate from `t`, and a machine-local `t` is the one thing that
+// breaks visuals in a jam: two peers running the same line see the same scene at
+// different PHASES, so a strobe flashes on different frames and a sweep is halfway
+// round when yours is starting. The workshop hit this first and named it — its
+// fxStack passes "room time, so every machine in a classroom flashes on the same
+// frame instead of each running off its own wall clock".
+//
+// crashDot already has a shared clock: in a session the BEAT is synced. So workshop
+// layers run on beats, converted to seconds at a 120bpm reference — monotonic (the
+// beat is), identical on every peer (the beat is), and tempo-proportional, which for
+// visuals driven by music is the behaviour you want anyway: take the set to 138 and
+// the picture moves 15% faster with it.
+//
+// Field scenes keep wall time. They are pure functions of (u,v,t) evaluated in one
+// shader, so their phase is already whatever `t` says and changing it would alter
+// every existing set's look.
+const BEAT_SECONDS = 60 / 120;
+
 /**
  * @param {HTMLCanvasElement} canvas  where to render
  * @param {object} clock              the beat clock (resolves TimeVars/patterns)
@@ -84,7 +103,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         if (ws.length) {
             if (!wsd) wsd = createWorkshopDeck();
             const { W, H } = r.size;
-            const d = wsd.render(ws, W, H, t, aud);
+            const d = wsd.render(ws, W, H, beat * BEAT_SECONDS, aud);
             r.setWorkshop(d.a, d.b);
         } else if (wsd) { r.setWorkshop(null, null); }
         r.render(vst, t, aud, fxBundle(vst.layers));
