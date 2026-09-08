@@ -27,6 +27,7 @@ const GROUP_ORDER = ['workspace', 'status', 'tools', 'learn', 'collab', 'bars'];
  * @param {object}  api
  *   panels()   → [{ id, title, group, isOpen(), toggle(), reveal() }]
  *   buffers()  → [{ name, detached, active, go() }]
+ *   toggles()  → [{ label, title, isOn(), toggle() }]  shown as rows under "view"
  *   actions    → [{ label, title, run() }]
  */
 export function initCanvasMenu(desktop, api) {
@@ -103,9 +104,22 @@ export function initCanvasMenu(desktop, api) {
             }
         }
 
+        const togs = api.toggles?.() || [];
         const acts = api.actions || [];
-        if (acts.length) {
-            section('view');
+        if (togs.length || acts.length) section('view');
+        // Toggles first and as ROWS, not buttons: they have a state to report, and a
+        // dot reports it. Like the panel rows, they leave the menu open.
+        for (const t of togs) {
+            row({
+                name: t.label,
+                on: t.isOn(),
+                onPick: (e) => {
+                    t.toggle();
+                    e.currentTarget.classList.toggle('on', t.isOn());
+                },
+            }).title = t.title || '';
+        }
+        {
             for (const a of acts) {
                 const el = document.createElement('button');
                 el.className = 'wfd-menu-act';

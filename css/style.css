@@ -2556,6 +2556,42 @@ body.desktop-ui #keybar { z-index: 140; }
     z-index: 0;
 }
 
+/* bpm + phrase counters on the canvas floor. Sized in canvas px like the
+   wordmark, so they scale with the zoom, and dimmer than it — the wordmark is a
+   label, these are a reading, and a reading that competes with the code is worse
+   than no reading. */
+.canvas-hud {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 26px;
+    color: var(--text-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    z-index: 0;
+}
+.hud-bpm { display: flex; align-items: baseline; gap: 16px; opacity: 0.11; }
+.hud-bpm-n { font: 700 132px/1 inherit; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.hud-bpm-u { font: 600 34px/1 inherit; letter-spacing: 0.28em; text-transform: uppercase; }
+.hud-bars { display: flex; gap: 12px; width: 74%; opacity: 0.1; }
+.hud-cell {
+    position: relative; flex: 1; height: 48px; border-radius: 5px;
+    background: var(--text-1); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+}
+/* The fill is the beat position — the same discrete step the sidebar counters
+   make, just large enough to read without looking straight at it. */
+.hud-cell > i {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: var(--green); opacity: 0.55;
+}
+.hud-cell > span {
+    position: relative;
+    font: 700 24px/1 inherit; font-variant-numeric: tabular-nums;
+    color: var(--bg-1);
+}
+.hud-pos {
+    font: 600 30px/1 inherit; letter-spacing: 0.16em; text-transform: uppercase;
+    opacity: 0.09; font-variant-numeric: tabular-nums;
+}
+
 /* Two background zones: the whole workspace, and the "home" rectangle the
    default layout is arranged in — so you can always find your way back. */
 .canvas-workspace { background: rgba(255,255,255,0.012); border-radius: 6px; }

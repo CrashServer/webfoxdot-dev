@@ -820,6 +820,57 @@ clip it into a scrollbar.
 The home rectangle is now `-96 … 1220` so both the bar row above the editor and the
 windows panel below the right-hand column are inside what "reset view" frames.
 
+## Canvas HUD — bpm & counters on the floor
+
+`hud.js`. The same numbers the clock section carries, drawn big and dim behind the
+panels like the wordmark. Off by default; toggled from the canvas menu's `view`
+section, persisted in `wfd-hud`.
+
+The phrase counters are glanced at constantly and read in a tenth of a second —
+exactly what should not require finding a panel, and exactly what a 10px row in a
+sidebar is bad at. On the floor they are legible across a room, which is the
+situation this layout is for.
+
+**Cost.** The note scheduler is on the main thread, so a per-frame loop that writes
+DOM every frame is a loop that jitters audio (that is how zoom used to disturb
+timing). It reads the clock each frame but writes only when a displayed VALUE
+changes — the counters step once per BEAT, so ~2 DOM touches a second at 120bpm —
+and the rAF loop does not run at all while hidden. `setVisible(true)` paints
+**synchronously** before scheduling: showing empty boxes until the next frame reads
+as broken, and a throttled rAF can make that wait arbitrarily long.
+
+Menu gained `toggles()` — rows under `view` with a state dot, which leave the menu
+open like the panel rows. An action button has nothing to report; a toggle does.
+
+## Traps found the hard way (testing)
+
+**`--virtual-time-budget` fires `requestAnimationFrame` exactly ONCE.** Virtual time
+advances instantly and nothing composites, so every rAF loop in the app freezes
+after one tick. Measured: 1 tick per run, with `--headless=new`,
+`--headless=old` and `--run-all-compositor-stages-before-draw` alike. That silently
+makes a large part of this app untestable — the var needles, the live gutter, the
+crash panel's `_updateBeat`, and this HUD are all rAF — and it fails by showing
+STALE values, not by erroring.
+
+The fix: shim rAF onto `setTimeout` inside the app frame, patched before its
+deferred module scripts run. Poll `iframe.contentWindow` from the moment the iframe
+navigates (a `load` listener is far too late):
+
+```js
+const iv = setInterval(() => {
+  const w = fr.contentWindow;
+  if (w && !w.__rafShim && w.location.pathname.includes('index')) {
+    w.__rafShim = 1;
+    w.requestAnimationFrame = (cb) => w.setTimeout(() => cb(w.performance.now()), 16);
+    w.cancelAnimationFrame  = (id) => w.clearTimeout(id);
+  }
+}, 0);
+fr.addEventListener('load', () => clearInterval(iv), { once: true });
+```
+
+Verified: 31 ticks in 500 ms, and the HUD's bpm then follows a live `Clock.bpm`
+change. Use this in any test that asserts on something animated.
+
 ## Engine work done from here (portable to dev01)
 
 None of this is desktop-specific — cherry-pick it onto `dev01` when the branch lands.

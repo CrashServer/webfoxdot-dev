@@ -23,6 +23,7 @@ import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY } from './panel.js'
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
 import { initCanvasMenu } from './menu.js';
+import { initHud } from './hud.js';
 import { changelogHTML } from '../docs.js';
 
 /**
@@ -456,8 +457,15 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         })),
     ];
 
+    // bpm + phrase counters on the workspace floor, off by default.
+    const hud = initHud(canvas, clock);
+
     initCanvasMenu(desktop, {
         panels: menuPanels,
+        toggles: () => [
+            { label: 'bpm & counters', title: 'draw the tempo and the phrase counters on the canvas, behind the panels',
+              isOn: () => hud.isVisible(), toggle: () => hud.setVisible(!hud.isVisible()) },
+        ],
         // A buffer is a tab in the strip or a panel on the canvas, depending on where
         // you last put it. One list either way — index.html supplies the strip half,
         // since that is where the tabs live.
