@@ -184,6 +184,12 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         mount.appendChild(plus);
     }
 
+    // The strip is chrome, never draggable content. Without this, dragging a tab
+    // starts a native text drag of its LABEL — and dropping that on an editor makes
+    // CodeMirror insert it, which is where stray "set", "scratch", ⧉, × and + were
+    // turning up in buffers.
+    mount.addEventListener('dragstart', (e) => e.preventDefault());
+
     // ── keys ────────────────────────────────────────────────────────────────
     // Bound on the EDITOR, not the window: the panels float over the code and a
     // window-level Alt+2 would fire while you were typing in the chat box.

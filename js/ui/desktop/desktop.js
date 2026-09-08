@@ -288,6 +288,17 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     desktop.appendChild(zoomInd);
 
     document.body.appendChild(desktop);
+
+    // Nothing on the canvas is draggable text except actual editor content. Panel
+    // headers, tab strips, hosted module bars, every button label — all of it is
+    // chrome, and a native text drag of any of it ends up inserted into whatever
+    // editor you drop it on. Guarding the panel header alone was not enough: the
+    // tab strip lives in a panel BODY, which was deliberately left draggable.
+    // One rule at the top beats a growing list of exceptions underneath.
+    desktop.addEventListener('dragstart', (e) => {
+        if (!e.target.closest?.('.CodeMirror-lines')) e.preventDefault();
+    });
+
     initCanvas(canvas);
 
     // CodeMirror measures its own geometry, so it has to be refreshed whenever its
