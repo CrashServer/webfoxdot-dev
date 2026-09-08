@@ -52,7 +52,6 @@
       <button id="docs-toggle-btn" title="documentation (F1)">docs</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">split</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">zen</button>
-      <button id="btn-windows" hidden title="windows — every panel on the canvas, with a chip to show or hide it. Only in desktop mode">windows</button>
       <button id="btn-layouts" hidden title="layouts — saved workspaces: every panel's position, size and colour, plus the view. Only in desktop mode">layouts</button>
       <button id="btn-desktop" title="desktop — experimental: the whole app on an infinite pan/zoom canvas, every part a draggable panel. Ctrl+scroll zooms, drag the background to pan, double-click it to reset.">desktop</button>
       <!-- visuals: a 2-channel video mixer driven by video1/video2/… >> scene players -->
@@ -3687,11 +3686,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // job is to show a panel is a chip in the WINDOWS panel now, and having
             // both was two controls for one piece of state.
             document.getElementById('btn-layouts').onclick = () => _dk.showLayouts();
-            // WINDOWS is the deliberate exception — the index has to be reachable
-            // without already having found the index — so it does get a bar button.
-            const wb = document.getElementById('btn-windows');
-            wb.hidden = false;
-            wb.onclick = () => _dk.showWindows();
+            // Every panel, and every buffer, is a right-click on the canvas away —
+            // see js/ui/desktop/menu.js. The strip half of "every buffer" lives here,
+            // so hand it over rather than have the desktop reach into the tabs.
+            _dk.setBuffers?.({
+                list: () => _tabs?.list?.() || [],
+                go:   (t) => { _tabs?.goToDoc?.(t.doc); editor.focus(); },
+            });
             _detachHost = _dk.detachBuffer;
             _tabs.refresh?.();          // reveal the detach buttons now there is a host
             document.getElementById('btn-desktop').classList.add('active');

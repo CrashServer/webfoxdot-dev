@@ -18,11 +18,11 @@
 // into a layout they no longer remember is a lot of code to get subtly wrong, and
 // the mode is persisted, so a reload lands you exactly where you asked to be.
 
-import { initCanvas, resetView, getZoom, onViewChange, panToReveal } from './canvas.js';
+import { initCanvas, resetView, getZoom, onViewChange, panToReveal, centerOn } from './canvas.js';
 import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
-import { buildWindowsPanel } from './windows.js';
+import { initCanvasMenu } from './menu.js';
 import { changelogHTML } from '../docs.js';
 
 /**
@@ -172,7 +172,6 @@ function addBackdropButton(panelEl, clock) {
 // layout at a real font size, so every measurement CodeMirror makes is consistent
 // and the cursor lands where you click.
 let editorBody = null, editorLayer = null, baseFontPx = 14;
-let windowsBody  = null;   // the windows panel body, filled once every panel exists
 // The zoom the layer was last laid out for. Between settles the layer keeps this
 // geometry and simply rides the canvas transform, which costs nothing.
 let settledZoom = 1;
@@ -281,16 +280,16 @@ const PANELS = [
     //
     // ONE RULE decides what belongs here: a bar holds VERBS. Anything whose button
     // only showed or hid a panel — mix, parts, piano, modular, galaxy, docs,
-    // layouts — is a NOUN, and nouns live in the WINDOWS panel as chips that also
-    // show whether the thing is currently open, which a button never did. Keeping
-    // both was two controls for one state, and the pair could disagree. The single
-    // exception is the WINDOWS button itself: the index has to be reachable without
-    // already having found the index.
+    // layouts — is a NOUN, and nouns are rows in the canvas context menu, which also
+    // shows whether the thing is currently open (a button never did) and can centre
+    // the view on it. Keeping both was two controls for one state, and the pair could
+    // disagree. ZEN and CLASSIC UI went the same way: they act on the VIEW, and the
+    // menu is where the view is managed, so the bar that held them is gone.
     //
     // The buttons are ADOPTED, not rebuilt: same elements, same ids, same listeners,
     // so nothing in index.html knows this happened. The ones no longer on a bar stay
     // in the hidden #toolbar — a programmatic .click() still works on them, which is
-    // exactly how the WINDOWS chips toggle a hosted module.
+    // exactly how a menu row toggles a hosted module.
     { id: 'wfd-bar-transport',  group: 'bars', title: 'transport', x:   0, y: -78, w: 250, h: 66, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-run', '#btn-stop', '#btn-reload', '#btn-perform'] },
     { id: 'wfd-bar-engine',     group: 'bars', title: 'engine',    x: 272, y: -78, w: 330, h: 66, minW: 110, minH: 44, bar: true,
@@ -302,11 +301,7 @@ const PANELS = [
       adopt: ['#btn-share', '#btn-multiplayer', '#btn-split'] },
     { id: 'wfd-bar-learn',      group: 'bars', title: 'learn',     x: 926, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-tour', '#examples-dd', '#version-tag'] },
-    { id: 'wfd-bar-view',       group: 'bars', title: 'view',      x:1228, y: -78, w: 300, h: 66, minW: 110, minH: 44, bar: true,
-      adopt: ['#btn-windows', '#btn-zen', '#btn-desktop'] },
-    // Every window on the canvas, with a chip to bring it back. The one panel with
-    // no × — see windows.js.
-    { id: 'wfd-windows', title: 'windows',     x:1418, y:1004, w: 496, h: 210, minW: 260, minH: 110, windows: true, closable: false },
+
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.
     { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1802, y:1732, w:  520, h: 580, minW: 320, minH: 200, changelog: true },
@@ -396,7 +391,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     const refresh = () => editor?.refresh?.();
 
     const ownedPanels = new Map();          // id → panel api, for the windows list
-    const BUILT = (spec) => spec.screen || spec.layouts || spec.windows || spec.changelog;
+    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog;
     for (const spec of PANELS) {
         const src = BUILT(spec) ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
         if (!BUILT(spec) && !src.length) continue;   // not in this build
@@ -411,7 +406,6 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         if (spec.bar) panelBody.classList.add('wfd-bar');
         if (spec.screen)  mountScreen(panelBody, clock);
         if (spec.layouts) buildLayoutsPanel(panelBody, log);
-        if (spec.windows) windowsBody = panelBody;
         if (spec.changelog) buildChangelogBody(panelBody);
         if (spec.id === 'wfd-editor') {
             // The editor gets a counter-scale layer — see keepEditorUnscaled().
@@ -429,23 +423,58 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
 
     for (const spec of FLOATING) hostFloating(canvas, spec, clock);
 
-    // The windows list, built last because it needs every panel to exist first.
-    // Owned panels answer for themselves; hosted ones are asked through their own
-    // module, which is the only thing that actually knows whether they are open.
-    if (windowsBody) {
-        buildWindowsPanel(windowsBody, [
-            ...PANELS.filter(p => p.closable !== false && ownedPanels.has(p.id)).map(p => ({
+    // Right-click the canvas for every window, whether it is open, and a GO TO that
+    // centres on it — plus the buffers and the view actions. Built last because it
+    // reads every panel, and lazily on each open so it is never stale. Owned panels
+    // answer for themselves; hosted ones are asked through their own module, which
+    // is the only thing that actually knows whether they are open.
+    const menuPanels = () => [
+        ...PANELS.filter(p => ownedPanels.has(p.id)).map(p => {
+            const api = ownedPanels.get(p.id);
+            return {
                 id: p.id, title: p.title, group: p.group || 'workspace',
-                isOpen: () => ownedPanels.get(p.id).isOpen(),
-                toggle: () => ownedPanels.get(p.id).setOpen(!ownedPanels.get(p.id).isOpen()),
-            })),
-            ...FLOATING.map(f => ({
-                id: f.id, title: f.title, group: f.group || 'tools',
-                isOpen: () => floatingIsOpen(f),
-                toggle: () => toggleFloating(f),
-            })),
-        ]);
-    }
+                isOpen: () => api.isOpen(),
+                toggle: () => api.setOpen(!api.isOpen()),
+                reveal: () => { api.setOpen(true); centerOn(api.el); },
+            };
+        }),
+        ...FLOATING.map(f => ({
+            id: f.id, title: f.title, group: f.group || 'tools',
+            isOpen: () => floatingIsOpen(f),
+            toggle: () => toggleFloating(f),
+            reveal: () => {
+                if (!floatingIsOpen(f)) toggleFloating(f);
+                // A module builds itself on first open, so its panel may not exist
+                // for another frame — centre once it does.
+                setTimeout(() => { const p = document.querySelector(f.sel)?.closest('.panel'); if (p) centerOn(p); }, 160);
+            },
+        })),
+    ];
+
+    initCanvasMenu(desktop, {
+        panels: menuPanels,
+        // A buffer is a tab in the strip or a panel on the canvas, depending on where
+        // you last put it. One list either way — index.html supplies the strip half,
+        // since that is where the tabs live.
+        buffers: () => {
+            const strip = (bufferSource?.list?.() || []).map(t => ({
+                name: t.name, active: !!t.active, detached: false,
+                go: () => bufferSource.go?.(t),
+            }));
+            const off = [...detached].map(([name, d]) => ({
+                name, active: false, detached: true,
+                go: () => { d.panel?.setOpen(true); if (d.panel) centerOn(d.panel.el); },
+            }));
+            return [...strip, ...off];
+        },
+        actions: [
+            { label: 'reset view', title: 'frame the default arrangement again', run: () => resetView() },
+            { label: 'zen',        title: 'hide all UI — clean editor (Shift+Alt+Z to restore)',
+              run: () => document.getElementById('btn-zen')?.click() },
+            { label: 'classic UI', title: 'leave the canvas and go back to the fixed layout',
+              run: () => document.getElementById('btn-desktop')?.click() },
+        ],
+    });
 
     // Reopen whatever was open last time, by pressing the same buttons you would.
     // Deferred a beat so every module has finished wiring its own toggle first.
@@ -469,6 +498,10 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     // options and keymap — and focusing it re-points the app's `editor` binding at
     // it, which is what makes Ctrl+Enter and the nudge keys work in a detached
     // panel without any of the run machinery knowing panels exist.
+    // The tab strip lives in index.html, so it hands the menu a way to list and
+    // switch buffers rather than the desktop reaching into it.
+    let bufferSource = null;
+
     let detachedN = 0;
     // Detached buffers are no longer in the tab strip, so anything offering buffers
     // as a destination has to be able to see them here instead.
@@ -487,7 +520,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
             // exactly like a tab does — double-click the name, type, Enter. All this
             // has to do is keep the map key (and therefore the piano's "to" picker
             // and bufferTargets()) pointing at the same document.
-            onRename: (v) => { detached.delete(name); name = v; detached.set(name, doc); },
+            onRename: (v) => { const e = detached.get(name); detached.delete(name); name = v; detached.set(name, e); },
         });
         panel.body.classList.add('wfd-panel-body', 'wfd-buf-body');
         const layer = document.createElement('div');
@@ -555,7 +588,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
 
         addBackdropButton(panel.el, clock);
         panToReveal(panel.el);
-        detached.set(name, doc);
+        detached.set(name, { doc, panel });
         return true;
     }
 
@@ -618,14 +651,12 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     onReady?.(desktop);
     return {
         desktop, canvas, resetView, getZoom, resetAllLayouts, detachBuffer,
-        detachedBuffers: () => [...detached].map(([name, doc]) => ({ name, doc, detached: true })),
+        setBuffers(src) { bufferSource = src; },
+        detachedBuffers: () => [...detached].map(([name, d]) => ({ name, doc: d.doc, detached: true })),
         // The toolbar's LAYOUTS button: bring the panel into view and raise it.
         // Through setOpen, not by poking style.display, so a panel that was CLOSED
         // comes back properly recorded as open rather than reappearing and then
         // vanishing again on the next reload.
         showLayouts() { return reveal('wfd-layouts'); },
-        // The way back to any panel you put away — and the only one that cannot
-        // itself be closed, which is why the toolbar points at it.
-        showWindows() { return reveal('wfd-windows'); },
     };
 }

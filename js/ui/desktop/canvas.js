@@ -271,6 +271,20 @@ export function panToReveal(el) {
     apply();
 }
 
+// Centre `el` in the viewport, unconditionally — panToReveal's "go there if you
+// cannot see it" is right for an incidental nudge, but a GO TO you asked for should
+// put the thing in front of you even when a corner of it was already showing.
+export function centerOn(el) {
+    if (!el || !canvasEl) return;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width && !rect.height) return;
+    const uz = uiZoom();
+    panX += (window.innerWidth  / 2 - (rect.left + rect.right)  / 2) / uz;
+    panY += (window.innerHeight / 2 - (rect.top  + rect.bottom) / 2) / uz;
+    apply();
+    save();
+}
+
 // Convert viewport px → canvas-space px.
 export function screenToCanvas(screenX, screenY) {
     const rect = desktop.getBoundingClientRect();
