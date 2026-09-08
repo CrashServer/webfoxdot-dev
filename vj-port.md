@@ -202,10 +202,7 @@ you discover what a layer even has.
   be redundant and a multiplayer liability.
 - **`sequencer.js`, `xfader.js`**. `#@` sections and `mix()` already do this, and both
   are code.
-- **`outputs.js`** (536 lines) and **`meshWarp.js`** (367). Multi-window output
-  management and grid warping. The pop-out visuals window already IS the output, and
-  corner-pin covers the common case; a mesh warp is for curved surfaces and wants a
-  grid editor of its own.
+- *(nothing — `outputs.js` and `meshWarp.js` were ported too, see below.)*
 
 ## Keeping it off the audio thread
 
@@ -323,3 +320,65 @@ reminder never showed. The hints are in the live HUD now. And a message written 
 outside the loop needs to HOLD it: mapping owns the HUD while it is open, and releases
 it rather than writing "off" (which would sit there until a next frame that a hidden
 tab or throttled rAF may never deliver).
+
+### Harness trap: `#btn-run` is disabled until audio boots
+
+A test that sets the editor's text and clicks RUN evaluates **nothing** in a headless
+run — the button carries `disabled` in the markup and is only enabled at boot (line
+~1758), and a click on a disabled button is silently dropped. So an assertion of the
+form "no eval errors after running the line" passes because nothing ran, not because
+it ran cleanly. Several checks in this port read that way before it was noticed.
+
+Two ways out, both used here:
+
+- Set `btn-run.disabled = false` first. `runSelected()` does not itself require audio —
+  visual code, `output()`, `wres()` and the pattern engine all work with the clock at
+  zero — so this exercises the real editor path without booting scsynth.
+- Better where possible: drive the module directly in the page's own realm
+  (`vlang` + `createSurface`) and assert on RENDERED PIXELS. That is what actually
+  verified the render pipeline; the button path only ever verified the wiring.
+
+Note that importing `vlang.js` from a test page gets a DIFFERENT module instance than
+the one inside an app iframe — asserting on the test page's `snapshot()` says nothing
+about the app's. Either drive the whole thing in one realm, or assert on the DOM.
+
+## The output manager
+
+`render/outputs.js` + `render/meshwarp.js` + `ui/desktop/outputspanel.js`. The reason
+it was worth porting whole rather than reducing to "warp the visuals window":
+
+> **One output = one projector. N surfaces in it = N independently warped patches.**
+
+That is how you map onto a physical 3D object without 3D rendering — pin a flat quad
+onto each visible face of a box or a truss corner and the object reads as mapped.
+MadMapper and Resolume do the same. A single warped window can only ever fit one plane,
+which is what my first pass (`mapping.js`) could do.
+
+**crashDot has more sources than the workshop did.** A surface can show the master mix
+or, now that `wsdeck` exposes each live layer's own canvas, ONE layer — including the
+code layers. So one face of the box carries the visuals and another carries the code
+that is making them. That is the "coding tabs as textures" idea, and it costs nothing
+extra: the layers already render the editor feed, and a layer canvas is already a
+canvas.
+
+**Rendering is a 2D canvas per surface, not a CSS transform.** A mesh warp is a grid of
+texture-mapped triangles and CSS can only express a 4-point projective map, so the
+canvas path is what buys `edge` and `mesh` mode. It also forces the read to happen
+INSIDE the frame callback — the GL canvas is `preserveDrawingBuffer:false`, so reading
+it later is black — which is why `surface.js` grew `eachFrame()`: outputs subscribe
+there rather than to one surface, because which surface is live depends on the UI mode.
+
+Default warp mode is **4pt**, not the workshop's `mesh`. Fitting a flat quad is the
+first thing anyone does and four handles is the whole gesture; a 5×5 mesh is 25 handles
+to say "the projector is off-square". `[m]` steps up when the wall is curved.
+
+Outputs are **not reopened automatically** on a refresh — a page reload that spawns
+projector windows unasked is worse than one that forgets them. The mapping is kept and
+REOPEN reattaches it.
+
+### Two ordering bugs worth remembering
+
+`initDesktop` builds its panels synchronously, so anything a panel needs must be handed
+over BEFORE it — the outputs manager was set up after, and the panel built empty. And
+`#btn-run` is `disabled` until audio boots, so the app-level test that "ran" `output(2)`
+was clicking a dead button; see the harness trap above.

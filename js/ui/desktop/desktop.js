@@ -22,6 +22,7 @@ import { initCanvas, resetView, getZoom, onViewChange, panToReveal, centerOn } f
 import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
+import { buildOutputsPanel } from './outputspanel.js';
 import { initCanvasMenu } from './menu.js';
 import { initHud } from './hud.js';
 import { changelogHTML } from '../docs.js';
@@ -310,6 +311,9 @@ const PANELS = [
 
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.
+    // The projector desk: outputs and their warped surfaces, built during a set
+    // rather than configured before one.
+    { id: 'wfd-outputs',  group: 'workspace', title: 'outputs',   x:1524, y: 756, w: 390, h: 300, minW: 300, minH: 140, outputs: true },
     { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1524, y:   0, w:  390, h: 620, minW: 320, minH: 200, changelog: true },
 ];
 
@@ -361,6 +365,12 @@ function writePanelOpen(id, open) {
  * @param {object} editor      CodeMirror instance (told to refresh on resize)
  * @param {function} onReady   called with the desktop element once built
  */
+// The output manager is supplied by index.html, which owns the renderer the outputs
+// read their frames from. Passed in rather than imported so the desktop keeps knowing
+// nothing about the visual engine.
+let outputsApi = null;
+export function setOutputsApi(a) { outputsApi = a; }
+
 export function initDesktop(editor, clock = null, editorFactory = null, onDropEditor = null, log = () => {}, onReady = null) {
     const body = document.body;
     body.classList.add('desktop-ui');
@@ -397,7 +407,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     const refresh = () => editor?.refresh?.();
 
     const ownedPanels = new Map();          // id → panel api, for the windows list
-    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog;
+    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog || spec.outputs;
     for (const spec of PANELS) {
         const src = BUILT(spec) ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
         if (!BUILT(spec) && !src.length) continue;   // not in this build
@@ -413,6 +423,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         if (spec.screen)  mountScreen(panelBody, clock);
         if (spec.layouts) buildLayoutsPanel(panelBody, log);
         if (spec.changelog) buildChangelogBody(panelBody);
+        if (spec.outputs && outputsApi) buildOutputsPanel(panelBody, outputsApi.api, outputsApi.sources, log);
         if (spec.id === 'wfd-editor') {
             // The editor gets a counter-scale layer — see keepEditorUnscaled().
             editorBody = panelBody;

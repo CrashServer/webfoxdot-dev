@@ -91,6 +91,14 @@ const BEAT_SECONDS = 60 / 120;
  * @param {object} clock              the beat clock (resolves TimeVars/patterns)
  * @param {object} [opts]             fadeWhenIdle: hide the canvas when nothing runs
  */
+// Anything that needs EVERY rendered frame — the output windows, chiefly — subscribes
+// here rather than to one surface, because which surface is live depends on the UI mode
+// (the SCREEN panel, the editor backdrop, the pop-out). Subscribers are called inside
+// the render callback, which is the only place the GL canvas can be read: it is created
+// with preserveDrawingBuffer:false, so after compositing it reads black.
+const _frameSubs = new Set();
+export function eachFrame(cb) { _frameSubs.add(cb); return () => _frameSubs.delete(cb); }
+
 export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     let r = null, on = false, raf = 0;
     const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
@@ -140,6 +148,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         } else r.setWorkshop(null, null);
         r.render(vst, t, aud, fxBundle(vst.layers));
         for (const cb of subs) { try { cb(canvas); } catch (_) {} }
+        for (const cb of _frameSubs) { try { cb(canvas, wsd); } catch (_) {} }
     }
 
     return {

@@ -32,6 +32,11 @@ let   _wsOpenHook = null;   // () => ensure /workshop/ is open
 export function setOpenHook(fn)   { _openHook   = fn; }
 export function setWsOpenHook(fn) { _wsOpenHook = fn; }
 const _open   = () => { try { _openHook   && _openHook();   } catch (_) {} }
+// The output manager is supplied from outside (index.html builds it once the renderer
+// exists) so the language can offer output() without importing the renderer.
+let _outputsApi = null;
+export function setOutputs(api) { _outputsApi = api; }
+const _outputs = () => _outputsApi;
 const _wsOpen = () => { try { _wsOpenHook && _wsOpenHook(); } catch (_) {} }
 const _now  = () => { try { return performance.now(); } catch (_) { return 0; } };
 
@@ -129,6 +134,24 @@ export function visualBuilders() {
     // different things: vres is GPU shader work, wres is main-thread canvas work, and
     // main-thread work is what makes the audio late. Default 1280; wres(0) = full size.
     out.wres    = (px) => { setWorkshopRes(px); _open(); return `wres(${workshopRes() || 'full'})`; };
+    // ── Output windows ────────────────────────────────────────────────────
+    // output()       open a projector window (one full-frame surface)
+    // output(2)      …with 2 independently warped surfaces — one per face of the
+    //                object you are mapping onto
+    // output("reopen")  bring back a saved output with its mapping
+    // outclose(i) · outlist()
+    // In the window: [w] warp · [m] 4pt/edge/mesh · [ and ] grid · [r] reset · [f] full
+    out.output  = (n = 1) => {
+        _open();
+        if (n === 'reopen') { _outputs()?.reopen(0); return 'output("reopen")'; }
+        const api = _outputs();
+        if (!api) return 'output: not available';
+        const o = api.addOutput();
+        for (let i = 1; i < (Number(n) || 1); i++) api.addSurface(o);
+        return `output(${n})`;
+    };
+    out.outclose = (i = 0) => { _outputs()?.close(Number(i) || 0); return `outclose(${i})`; };
+    out.outlist  = () => JSON.stringify(_outputs()?.list() || []);
     // clear() — blank the video: stop every layer + the crossfader and wipe the feedback
     // buffer, a full reset ([c] in the visuals window does the same).
     out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };

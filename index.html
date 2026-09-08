@@ -267,11 +267,13 @@
     import { initPiano, togglePiano } from './js/ui/piano.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
-             clearAll as clearVisuals } from './js/visuals/vlang.js';
+             setOutputs as setVisualOutputs, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
+    import { createOutputs } from './js/visuals/render/outputs.js';
+    import { eachFrame as eachVisualFrame } from './js/visuals/surface.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
-    import { initDesktop, desktopModeOn, setDesktopMode } from './js/ui/desktop/desktop.js';
+    import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi } from './js/ui/desktop/desktop.js';
     import { getLang, setLang } from './js/i18n/lang.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo,
@@ -3675,6 +3677,42 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Solo (no session) — register lightweight presence so the collab server
         // can count solo usage. Silent no-op if the collab server isn't reachable.
         initSoloPresence().then(p => { _soloPresence = p; }).catch(() => {});
+    }
+
+    // ── Output windows (projector mapping) ────────────────────────────────────
+    // One output = one projector; N surfaces in it = N independently warped patches,
+    // which is how you map a physical 3D object without 3D rendering. Built lazily on
+    // the first output() call so a session that never projects pays nothing, and fed
+    // from eachFrame() — the only place the GL canvas can be read, since it is created
+    // with preserveDrawingBuffer:false and reads black after compositing.
+    let _outputsApi = null;
+    let _outputsDeck = null;
+    // The desktop's outputs panel drives the same manager the code API does, so a
+    // surface added by a button and one added by output(2) are the same thing.
+    setOutputsApi({ api: { addOutput: () => _outs().addOutput(), addSurface: (o) => _outs().addSurface(o),
+                           removeSurface: (o, i) => _outs().removeSurface(o, i), setSource: (o, i, v) => _outs().setSource(o, i, v),
+                           setBlend: (o, i, e, v) => _outs().setBlend(o, i, e, v), close: (i) => _outs().close(i),
+                           reopen: (i) => _outs().reopen(i), list: () => (_outputsApi ? _outputsApi.list() : []),
+                           get: (i) => _outs().get(i), get MODES() { return _outs().MODES; }, get GRIDS() { return _outs().GRIDS; } },
+                    sources: () => (_outputsDeck?.sources?.() || []) });
+    setVisualOutputs({
+        addOutput()            { return _outs().addOutput(); },
+        addSurface(o)          { return _outs().addSurface(o); },
+        close(i)               { return _outs().close(i); },
+        list()                 { return _outsRaw() ? _outsRaw().list() : []; },
+        reopen(i)              { return _outs().reopen(i); },
+    });
+    function _outsRaw() { return _outputsApi; }
+    function _outs() {
+        if (_outputsApi) return _outputsApi;
+        // Sources: the finished mix, plus every live workshop layer on its own.
+        let deckRef = null;
+        _outputsApi = createOutputs({
+            getSources: () => (deckRef?.sources?.() || []),
+            onLog: (m, k) => log(m, k || 'info'),
+        });
+        eachVisualFrame((canvas, deck) => { deckRef = deck; _outputsDeck = deck; _outputsApi.render(canvas); });
+        return _outputsApi;
     }
 
     // ── Desktop UI (experimental) ─────────────────────────────────────────────

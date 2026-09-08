@@ -213,5 +213,11 @@ export function createWorkshopDeck() {
         return { a: used[0] ? deck[0] : null, b: used[1] ? deck[1] : null };
     }
 
-    return { render, dispose() { cache.clear(); deck[0] = deck[1] = null; dctx[0] = dctx[1] = null; } };
+    return {
+        render,
+        // Every live layer's own canvas, so an output surface can map ONE layer rather
+        // than the finished mix — one face of a box showing the visuals, another
+        // showing the code layer that is describing them.
+        sources: () => [...cache].map(([name, s]) => ({ id: 'ws:' + name, label: name + ' (' + s.kind + ')', canvas: s.canvas })),
+        dispose() { cache.clear(); deck[0] = deck[1] = null; dctx[0] = dctx[1] = null; } };
 }
