@@ -382,3 +382,28 @@ REOPEN reattaches it.
 over BEFORE it — the outputs manager was set up after, and the panel built empty. And
 `#btn-run` is `disabled` until audio boots, so the app-level test that "ran" `output(2)`
 was clicking a dead button; see the harness trap above.
+
+## Two corrections after using it
+
+**A video line no longer opens a window.** `_open()` used to call
+`ensureVisualsOpen()`, which was right when the pop-out was the only place visuals
+could go. With a SCREEN panel on the desktop and an explicit output manager, spawning
+a browser window on every evaluation is a set fighting you — where the picture goes is
+a decision made once, not a side effect of running a line. `setOpenHook` is a
+hint-once no-op now, and index.html says in the log where the picture actually went
+(SCREEN panel, or `output()`), once per session rather than per eval.
+
+**A code buffer is an output source.** `render/codecanvas.js` draws a buffer's text
+onto a canvas — syntax-coloured, sized to fit the surface's own aspect, redrawn only
+when the text or the size changes. `getBuffers()` feeds it every buffer including the
+detached ones, so the source list is `master · ws:<layer> · buf:<name>`.
+
+Deliberately NOT the `codeFull` layer, and both are worth having: `codeFull` is a
+performance — it accumulates evals, flashes, scrolls, and shows the code that RAN. A
+`buf:` source is the buffer as it is right now, the thing you are typing into, which is
+what belongs on a second surface while you work.
+
+Colouring is five regexes (comment · string · number · the `>>` arrow · a call) rather
+than CodeMirror's tokenizer, because this runs against a plain string on a canvas and
+those five are what carry the meaning of a FoxDot line. Plain runs coalesce so a line
+is a handful of `fillText` calls rather than one per character.

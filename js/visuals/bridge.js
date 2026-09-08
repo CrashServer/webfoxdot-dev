@@ -46,7 +46,17 @@ export function openWorkshop() {
     return _wsWin;
 }
 
-// Open without stealing focus — used when a `vN >>` line auto-launches the window.
+// Told once, the first time visual code runs with nowhere obvious to look.
+let _hinted = false, _hintFn = null;
+export function setVisualHint(fn) { _hintFn = fn; }
+function hintOnce() {
+    if (_hinted) return null;
+    _hinted = true;
+    try { _hintFn && _hintFn(); } catch (_) {}
+    return null;
+}
+
+// Open without stealing focus — kept for the explicit VISUALS route, not for evals.
 export function ensureVisualsOpen() {
     if (_win && !_win.closed) return _win;
     return _openWin('visuals.html');
@@ -72,8 +82,14 @@ function _openWin(url) {
 // off a clock reference means visual code works even before audio boots (beat = 0).
 export function initVisuals(clock) {
     if (clock) _clock = _clock || clock;
-    setOpenHook(ensureVisualsOpen);           // local scenes auto-open visuals.html
-    setWsOpenHook(ensureWorkshopOpen);        // WS scenes auto-open /workshop/
+    // A video line no longer opens a window by itself. It did when the pop-out WAS
+    // the only place visuals could go; now there is the SCREEN panel on the desktop
+    // and an explicit output manager for projectors, and a set that spawns a browser
+    // window every time you evaluate a scene is a set that fights you. Where the
+    // picture goes is a decision you make once, with output(), not a side effect of
+    // running a line. Said once, so the first time is not a mystery.
+    setOpenHook(hintOnce);
+    setWsOpenHook(ensureWorkshopOpen);        // the w*() commands still drive /workshop/
     // Start the workshop tick even without audio so patterns animate over WS
     if (!_timer) _timer = setInterval(_tick, 33);
     if (_vTimer) return;

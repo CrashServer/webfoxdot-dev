@@ -270,6 +270,7 @@
              setOutputs as setVisualOutputs, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
+    import { setVisualHint } from './js/visuals/bridge.js';
     import { eachFrame as eachVisualFrame } from './js/visuals/surface.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
@@ -3679,6 +3680,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         initSoloPresence().then(p => { _soloPresence = p; }).catch(() => {});
     }
 
+    // Running a video line used to pop open a browser window. It does not any more —
+    // see bridge.js — so say where the picture went, once.
+    setVisualHint(() => log(desktopModeOn()
+        ? 'visuals are running — they draw in the SCREEN panel. output() sends them to a projector window.'
+        : 'visuals are running — run  output()  for a window you can map, or switch to the desktop UI for a SCREEN panel.',
+        'info'));
+
     // ── Output windows (projector mapping) ────────────────────────────────────
     // One output = one projector; N surfaces in it = N independently warped patches,
     // which is how you map a physical 3D object without 3D rendering. Built lazily on
@@ -3694,7 +3702,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                            setBlend: (o, i, e, v) => _outs().setBlend(o, i, e, v), close: (i) => _outs().close(i),
                            reopen: (i) => _outs().reopen(i), list: () => (_outputsApi ? _outputsApi.list() : []),
                            get: (i) => _outs().get(i), get MODES() { return _outs().MODES; }, get GRIDS() { return _outs().GRIDS; } },
-                    sources: () => (_outputsDeck?.sources?.() || []) });
+                    sources: () => (_outputsApi ? _outputsApi.sources() : []) });
     setVisualOutputs({
         addOutput()            { return _outs().addOutput(); },
         addSurface(o)          { return _outs().addSurface(o); },
@@ -3709,6 +3717,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         let deckRef = null;
         _outputsApi = createOutputs({
             getSources: () => (deckRef?.sources?.() || []),
+            // Every buffer — the set and each scratch, attached or detached — so a
+            // surface can carry the code you are typing, not only the picture.
+            getBuffers: () => bufferTargets().map((t) => ({ name: t.name, text: t.doc.getValue() })),
             onLog: (m, k) => log(m, k || 'info'),
         });
         eachVisualFrame((canvas, deck) => { deckRef = deck; _outputsDeck = deck; _outputsApi.render(canvas); });

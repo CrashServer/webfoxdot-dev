@@ -28,6 +28,7 @@
 
 import { createMeshWarp, WARP_MODES, GRID_SIZES } from './meshwarp.js';
 import { applyEdgeBlend } from './edgeblend.js';
+import { createCodeCanvas } from './codecanvas.js';
 
 const KEY = 'crashdot-outputs';
 const COLORS = ['#4fd1ff', '#ff9a7f', '#a3ff7f', '#ffd94f', '#c98fff', '#ff6fb0'];
@@ -39,7 +40,23 @@ canvas{position:absolute;left:0;top:0;width:100vw;height:100vh;display:block}
      user-select:none;pointer-events:none;white-space:pre;z-index:99}</style>
 <pre id="tip">crashDot output · [w] warp  [m] mode 4pt/edge/mesh  [ ] grid  [r] reset  [f] fullscreen</pre>`;
 
-export function createOutputs({ getSources, onLog = () => {} } = {}) {
+/**
+ * @param getSources  () => [{id, label, canvas}] — the live workshop layers
+ * @param getBuffers  () => [{name, text}] — the editor buffers, rendered to a texture
+ *                    on demand so a surface can show the code itself
+ */
+export function createOutputs({ getSources, getBuffers = null, onLog = () => {} } = {}) {
+    // One canvas per buffer, kept between frames: createCodeCanvas only redraws when
+    // the text or the size actually changes, and a buffer is static between keystrokes.
+    const bufCanvases = new Map();
+    function bufferCanvas(name) {
+        const buf = (getBuffers?.() || []).find((b) => b.name === name);
+        if (!buf) return null;
+        let cc = bufCanvases.get(name);
+        if (!cc) { cc = createCodeCanvas(); bufCanvases.set(name, cc); }
+        return cc.draw(buf.text, W, H);
+    }
+
     const outputs = [];
     let W = 1280, H = 720;
     let restoring = false;
@@ -58,8 +75,18 @@ export function createOutputs({ getSources, onLog = () => {} } = {}) {
 
     function sourceCanvas(id, master) {
         if (!id || id === 'master') return master;
+        if (id.startsWith('buf:')) return bufferCanvas(id.slice(4)) || master;
         const found = (getSources?.() || []).find((s) => s.id === id);
         return found?.canvas || master;
+    }
+
+    /** Everything a surface can point at: the mix, each live layer, each code buffer. */
+    function sources() {
+        return [
+            { id: 'master', label: 'master mix' },
+            ...(getSources?.() || []),
+            ...(getBuffers?.() || []).map((b) => ({ id: 'buf:' + b.name, label: 'code · ' + b.name })),
+        ];
     }
 
     function addSurface(out, spec = {}) {
@@ -164,7 +191,7 @@ export function createOutputs({ getSources, onLog = () => {} } = {}) {
     }
 
     return {
-        addOutput, addSurface, render, prune, reopen, restore,
+        addOutput, addSurface, render, prune, reopen, restore, sources,
         list: () => outputs.map((o) => ({ id: o.id, surfaces: o.surfaces.length, closed: o.win.closed })),
         get: (i) => outputs[i],
         count: () => outputs.length,

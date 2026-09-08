@@ -21,7 +21,9 @@ export function buildOutputsPanel(container, api, getSources, log = () => {}) {
 
     function sourceOptions(sel, current) {
         sel.textContent = '';
-        const list = [{ id: 'master', label: 'master mix' }, ...(getSources?.() || [])];
+        // The manager owns the list — the master mix, every live layer, and every code
+        // buffer — so the panel and output() can never disagree about what exists.
+        const list = getSources?.() || [{ id: 'master', label: 'master mix' }];
         for (const s of list) {
             const o = document.createElement('option');
             o.value = s.id; o.textContent = s.label;
