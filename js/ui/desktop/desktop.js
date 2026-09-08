@@ -19,7 +19,7 @@
 // the mode is persisted, so a reload lands you exactly where you asked to be.
 
 import { initCanvas, resetView, getZoom, onViewChange, panToReveal } from './canvas.js';
-import { createPanel, resetAllLayouts } from './panel.js';
+import { createPanel, resetAllLayouts, LAYOUT_KEY } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
 
@@ -52,6 +52,7 @@ function hostFloating(canvas, spec, clock) {
         if (!panel) return;
         const hid = hiddenNow(el);
         panel.el.style.display = hid ? 'none' : '';
+        writePanelOpen(spec.id, !hid);
         if (hid) return;
         panel.bringToFront?.();
         remeasure();
@@ -232,17 +233,37 @@ const PANELS = [
 // Perform mode is deliberately NOT here. It is a full-screen, keyboard-free touch
 // surface for playing live; shrinking it into a panel on a zoomable canvas would
 // take away the one thing it is for.
+// `btn` is the toolbar control that opens each one. It is how "this panel was open
+// last time" gets restored: these modules build themselves lazily and own their own
+// open/closed flag, so the honest way to reopen one is to press its button, exactly
+// as you would — rather than to reach in and un-hide a root it does not think is
+// showing.
 const FLOATING = [
-    { sel: '#docs-panel',     id: 'wfd-docs',    title: 'docs',       x:1102, y:1106, w: 812, h: 520, minW: 380, minH: 220 },
-    { sel: '#mixer-modal',    id: 'wfd-mixer',   title: 'mixer',      x:   0, y:1310, w: 760, h: 400, minW: 300, minH: 180 },
-    { sel: '#modular-panel',  id: 'wfd-modular', title: 'modular',    x:   0, y:1732, w: 940, h: 580, minW: 400, minH: 260 },
-    { sel: '#parts-modal',    id: 'wfd-parts',   title: 'parts',      x: 782, y:1310, w: 480, h: 400, minW: 300, minH: 200 },
-    { sel: '#rules-modal',    id: 'wfd-rules',   title: 'room rules', x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
-    { sel: '#piano-modal',    id: 'wfd-piano',   title: 'piano',      x:   0, y:2334, w: 660, h: 260, minW: 340, minH: 200 },
+    { sel: '#docs-panel',     id: 'wfd-docs',    title: 'docs',       btn: '#docs-toggle-btn', x:1102, y:1106, w: 812, h: 520, minW: 380, minH: 220 },
+    { sel: '#mixer-modal',    id: 'wfd-mixer',   title: 'mixer',      btn: '#btn-mixer',    x:   0, y:1310, w: 760, h: 400, minW: 300, minH: 180 },
+    { sel: '#modular-panel',  id: 'wfd-modular', title: 'modular',    btn: '#btn-modular',  x:   0, y:1732, w: 940, h: 580, minW: 400, minH: 260 },
+    { sel: '#parts-modal',    id: 'wfd-parts',   title: 'parts',      btn: '#btn-parts',    x: 782, y:1310, w: 480, h: 400, minW: 300, minH: 200 },
+    { sel: '#rules-modal',    id: 'wfd-rules',   title: 'room rules', btn: '#btn-rules',    x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
+    { sel: '#piano-modal',    id: 'wfd-piano',   title: 'piano',      btn: '#btn-piano',    x:   0, y:2334, w: 660, h: 260, minW: 340, minH: 200 },
     // The galaxy paints an absolutely-positioned starfield canvas, so its host needs
     // to be a positioned ancestor — see .wfd-hosted below.
-    { sel: '#galaxy-overlay', id: 'wfd-galaxy',  title: 'galaxy',     x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },
+    { sel: '#galaxy-overlay', id: 'wfd-galaxy',  title: 'galaxy',     btn: '#btn-galaxy',   x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },
 ];
+
+// Whether a panel was open is as much a part of the workspace as where it was —
+// coming back to a bare canvas and having to reopen the mixer, the piano and the
+// modular every time is not "saved". Kept in the same store panel.js uses for
+// geometry, so a named layout snapshots it too.
+function readPanelLayout() {
+    try { return JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}'); } catch (_) { return {}; }
+}
+function writePanelOpen(id, open) {
+    try {
+        const all = readPanelLayout();
+        all[id] = { ...(all[id] || {}), open };
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(all));
+    } catch (_) {}
+}
 
 /**
  * Switch the running app onto the canvas. Call once, after the editor and the
@@ -301,6 +322,19 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     }
 
     for (const spec of FLOATING) hostFloating(canvas, spec, clock);
+
+    // Reopen whatever was open last time, by pressing the same buttons you would.
+    // Deferred a beat so every module has finished wiring its own toggle first.
+    setTimeout(() => {
+        const saved = readPanelLayout();
+        for (const spec of FLOATING) {
+            if (!spec.btn || saved[spec.id]?.open !== true) continue;
+            const el = document.querySelector(spec.sel);
+            const alreadyShowing = el && !(spec.attr ? el.hasAttribute('hidden') : el.classList.contains('hidden'));
+            if (alreadyShowing) continue;
+            document.querySelector(spec.btn)?.click();
+        }
+    }, 300);
 
     // ── Detached buffers ────────────────────────────────────────────────────
     // A scratch buffer pulled off the tab strip gets its own panel with its own
