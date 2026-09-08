@@ -267,11 +267,13 @@
     import { initPiano, togglePiano } from './js/ui/piano.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
-             setOutputs as setVisualOutputs, clearAll as clearVisuals } from './js/visuals/vlang.js';
+             setOutputs as setVisualOutputs, setVideoRec as setVisualRec,
+             clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
     import { setVisualHint } from './js/visuals/bridge.js';
-    import { eachFrame as eachVisualFrame } from './js/visuals/surface.js';
+    import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas } from './js/visuals/surface.js';
+    import { createVideoRecorder, downloadBlob as downloadVideo } from './js/visuals/render/vrec.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
     import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi } from './js/ui/desktop/desktop.js';
@@ -3686,6 +3688,31 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         ? 'visuals are running — they draw in the SCREEN panel. output() sends them to a projector window.'
         : 'visuals are running — run  output()  for a window you can map, or switch to the desktop UI for a SCREEN panel.',
         'info'));
+
+    // ── Recording the visuals ─────────────────────────────────────────────────
+    // The fourth thing a set is made of. vrec() arms, vrec() again saves a .webm —
+    // deliberately the same shape as midi_rec(), because it is the same gesture.
+    const _vrec = createVideoRecorder();
+    let _vrecName = 'crashdot';
+    // Every rendered frame is offered to the recorder; it ignores them unless armed.
+    // This is the only place the GL canvas can be read — see vrec.js.
+    eachVisualFrame((canvas) => _vrec.capture(canvas));
+    setVisualRec((name) => {
+        if (_vrec.recording) {
+            _vrec.stop().then((r) => {
+                if (!r || !r.blob.size) return log('video: nothing was recorded — was anything running?', 'warn');
+                downloadVideo(r.blob, `${_vrecName}-${Date.now()}.webm`);
+                log(`\u25a0 video saved — ${r.seconds.toFixed(1)}s at ${r.width}\u00d7${r.height}`, 'ok');
+            });
+            return '\u25a0 saving video…';
+        }
+        const c = liveVisualCanvas();
+        if (!c) return log('video: nothing is rendering yet — run a video line first', 'warn') || 'vrec: idle';
+        if (name) _vrecName = String(name).replace(/[^\w.-]+/g, '_') || 'crashdot';
+        if (!_vrec.start(c)) return log('video: this browser cannot record a canvas (MediaRecorder missing)', 'warn') || 'vrec: unsupported';
+        log('\u25cf recording video — vrec() again to save', 'ok');
+        return '\u25cf recording video\u2026';
+    });
 
     // ── Output windows (projector mapping) ────────────────────────────────────
     // One output = one projector; N surfaces in it = N independently warped patches,

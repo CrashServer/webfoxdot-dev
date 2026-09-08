@@ -36,6 +36,8 @@ const _open   = () => { try { _openHook   && _openHook();   } catch (_) {} }
 // exists) so the language can offer output() without importing the renderer.
 let _outputsApi = null;
 export function setOutputs(api) { _outputsApi = api; }
+let _vrecFn = null;
+export function setVideoRec(fn) { _vrecFn = fn; }
 const _outputs = () => _outputsApi;
 const _wsOpen = () => { try { _wsOpenHook && _wsOpenHook(); } catch (_) {} }
 const _now  = () => { try { return performance.now(); } catch (_) { return 0; } };
@@ -152,6 +154,11 @@ export function visualBuilders() {
     };
     out.outclose = (i = 0) => { _outputs()?.close(Number(i) || 0); return `outclose(${i})`; };
     out.outlist  = () => JSON.stringify(_outputs()?.list() || []);
+    // vrec()  arm — every frame from here on is captured
+    // vrec()  again — stop and download a .webm   ·   vrec("name") names the file
+    // crashDot could already record the audio, the code and the MIDI. This is the
+    // picture, from the same canvas you are looking at.
+    out.vrec = (name) => _vrecFn ? _vrecFn(name) : 'vrec: not available';
     // clear() — blank the video: stop every layer + the crossfader and wipe the feedback
     // buffer, a full reset ([c] in the visuals window does the same).
     out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };

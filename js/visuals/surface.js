@@ -99,6 +99,13 @@ const BEAT_SECONDS = 60 / 120;
 const _frameSubs = new Set();
 export function eachFrame(cb) { _frameSubs.add(cb); return () => _frameSubs.delete(cb); }
 
+// The canvas that most recently rendered a frame. Which surface is live depends on
+// the UI mode, and a recorder has to point at the one actually drawing — asking here
+// is more honest than making the caller guess between the SCREEN panel, the editor
+// backdrop and the pop-out.
+let _lastCanvas = null;
+export function liveCanvas() { return _lastCanvas; }
+
 export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     let r = null, on = false, raf = 0;
     const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
@@ -148,6 +155,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         } else r.setWorkshop(null, null);
         r.render(vst, t, aud, fxBundle(vst.layers));
         for (const cb of subs) { try { cb(canvas); } catch (_) {} }
+        _lastCanvas = canvas;
         for (const cb of _frameSubs) { try { cb(canvas, wsd); } catch (_) {} }
     }
 

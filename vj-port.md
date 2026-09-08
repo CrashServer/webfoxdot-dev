@@ -439,3 +439,37 @@ content is a WebGL canvas — nothing is copied. `outputs.js` draws through a me
 a 2D canvas per surface, which is what buys `edge` and `mesh` mode and per-surface
 sources. Different tools for "warp the window I already have" and "build a projector
 rig".
+
+## vrec() — recording the picture
+
+`render/vrec.js`, from the workshop's `export.js`. crashDot could already record the
+audio, the code and the MIDI, and not what it looked like. `vrec()` arms, `vrec()`
+again saves a `.webm`, `vrec("name")` names it — the same shape as `midi_rec()`,
+because it is the same gesture.
+
+Two things had to be measured rather than assumed, and both were wrong on the first
+attempt:
+
+**`captureStream` on a WebGL canvas produces no frames.** A 2D canvas drawn in a loop
+yields a real WebM; the identical loop on a WebGL2 canvas yields **110 bytes** — a
+header, no frames — with `preserveDrawingBuffer` both true *and* false. So this keeps a
+plain 2D mirror and copies each frame in with `drawImage`, which is the same copy the
+panel backdrops already make, from inside the render callback where the GL canvas is
+actually readable.
+
+**The mirror has to be IN THE DOCUMENT.** A detached canvas is barely sampled: 4.4 KB
+attached versus 0.7 KB detached, same drawing, same loop. The browser only captures a
+canvas that is part of a rendered document. Off-screen (`left:-10000px`) is fine —
+*invisible* is not the same thing as *detached*, and that distinction cost two rounds
+of debugging.
+
+It costs one blit per frame while recording and nothing when not.
+
+### How the isolation went, as a method note
+
+The first failure looked like a harness limitation, and saying so would have been
+wrong. What settled it was a CONTROL: a plain 2D canvas drawn in the same loop under
+the same flags. It produced 10 KB, which turned "the environment cannot do this" into
+"my canvas is different from that one" — and then the difference was findable by
+bisecting the differences one at a time (WebGL vs 2D, attached vs detached, GPU flags
+on vs off). Four small pages, and each answered exactly one question.
