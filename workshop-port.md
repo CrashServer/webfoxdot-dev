@@ -318,6 +318,18 @@ to the one you are looking at and remembering your choice while that buffer exis
 `insertCodeInto(doc, text)` is the doc-targeted write; `bufferTargets()` merges
 `_tabs.list()` with the desktop's `detachedBuffers()`.
 
+### The live gutter is per-buffer
+
+`_srcLine` mapped a player name to a LINE NUMBER, which means nothing once there is
+more than one buffer. `refreshLiveGutter` then scanned whichever buffer had focus, so
+an untouched scratch buffer that merely happened to contain a line for a live player
+was given the ▶ "this is the version you hear" marker — on a line that had never been
+evaluated. It records `{ line, doc }` now, and nothing is marked in a buffer the
+player is not sounding from.
+
+**This one is not desktop-only** — buffers shipped in `dev01`, so the bug is there too
+and this fix belongs on that branch.
+
 ### Traps found the hard way (desktop)
 
 - **On X11, a selection over chrome becomes a paste waiting to happen.** Selecting

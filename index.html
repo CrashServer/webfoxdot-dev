@@ -2770,28 +2770,41 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // the occurrence inside the currently-active #@ section.
     const _degMarks = new Map();      // playerName → CodeMirror TextMarker
     const _spanCache = new Map();     // lineText → [[s,e],…] | null
-    const _srcLine  = new Map();      // name → line that last (re)defined it
+    // name → { line, doc } for the line that last (re)defined that player. The DOC
+    // matters: a line number alone means nothing once there is more than one buffer,
+    // and a same-named line sitting at the same index in another buffer would be
+    // claimed as "the version you hear".
+    const _srcLine  = new Map();
     const _NAME_RE = /^\s*~?\s*([a-zA-Z_]\w*)\s*>>/;
 
     // Remember which editor line evaluated each player, so the highlight lands on
     // the line that's actually sounding (a name can recur across sections).
     function recordSourceLines(from, to) {
-        const lo = Math.max(0, from), hi = Math.min(editor.lineCount() - 1, to);
+        const doc = codeDoc();
+        const lo = Math.max(0, from), hi = Math.min(doc.lineCount() - 1, to);
         for (let i = lo; i <= hi; i++) {
-            const m = editor.getLine(i).match(_NAME_RE);
-            if (m) _srcLine.set(m[1], i);
+            const m = doc.getLine(i).match(_NAME_RE);
+            if (m) _srcLine.set(m[1], { line: i, doc });
         }
     }
+    // The line this player is sounding from, IN THE BUFFER ON SCREEN. Returns -1 when
+    // it is sounding from a different buffer — the marker belongs over there, not on
+    // a coincidentally similar line here.
     function resolveLine(name) {
         const rec = _srcLine.get(name);
-        if (rec != null && rec < editor.lineCount()) {
-            const m = editor.getLine(rec).match(_NAME_RE);
-            if (m && m[1] === name) return rec;   // still valid
+        const visible = editor.getDoc();
+        if (rec && rec.doc && rec.doc !== visible) return -1;
+        if (rec && rec.line < visible.lineCount()) {
+            const m = visible.getLine(rec.line).match(_NAME_RE);
+            if (m && m[1] === name) return rec.line;   // still valid
         }
         return findPlayerLine(name);
     }
 
     function findPlayerLine(name) {
+        // A player whose source is known to live in another buffer has no line here.
+        const rec = _srcLine.get(name);
+        if (rec && rec.doc && rec.doc !== editor.getDoc()) return -1;
         const active = isAutoplaying() ? getActiveInfo().line : -1;
         let secEnd = editor.lineCount();
         if (active >= 0) {
@@ -3144,12 +3157,20 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (ln >= 0) liveLines.set(ln, name);
         });
 
+        // Only mark lines in the buffer a player is actually sounding FROM. Without
+        // this, an untouched scratch buffer that merely happens to contain a line for
+        // a live player claimed to be the version you hear.
+        const visible = editor.getDoc();
+        const soundsHere = (name) => {
+            const rec = _srcLine.get(name);
+            return !rec || !rec.doc || rec.doc === visible;
+        };
         const want = new Map();
         for (let i = 0; i < editor.lineCount(); i++) {
             const m = editor.getLine(i).match(_NAME_RE);
             if (!m) continue;
             if (liveLines.get(i) === m[1]) want.set(i, 'live');
-            else if (liveNames.has(m[1])) want.set(i, 'shadow');
+            else if (liveNames.has(m[1]) && soundsHere(m[1])) want.set(i, 'shadow');
         }
 
         // Only touch lines whose state actually changed — setGutterMarker forces a
