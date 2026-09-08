@@ -273,6 +273,22 @@ Two things had to be fixed first, and they are the trap if this is ever reworked
 Detached panels get the same counter-scale treatment as the main editor, with the same
 140 ms settle, so they stay cursor-exact and stay off the audio thread.
 
+## Saving workspaces
+
+`layouts.js` was ported but had no UI, so it was unreachable. There is a **layouts**
+chip beside the zoom indicator now: save the current workspace under a name, restore
+it, overwrite it, delete it, plus "reset view" and "reset panels".
+
+A layout captures every panel's position, size, collapsed state **and colour**, plus
+the **view** (pan + zoom) under a `__view` key. So "writing", "mixing" and
+"performing" can be three arrangements of the same panels at three different zooms.
+Restoring also writes the arrangement through to `LAYOUT_KEY`, so panels that have not
+been built yet — the lazily-hosted mixer, modular, piano and so on — open in the right
+place when you eventually open them.
+
+Panel colour is part of a layout entry, so `applyLayout()` had to restore it too;
+before, half an arrangement came back and half did not.
+
 ## Next: importing features & content from the workshop
 
 Inventory of what is there, roughly in order of value-to-effort:

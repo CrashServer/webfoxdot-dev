@@ -179,13 +179,14 @@ export function createPanel(desktop, spec) {
     const colorBtn = document.createElement("button");
     colorBtn.className = "panel-color-btn";
     colorBtn.textContent = "◉";
-    colorBtn.title = "panel color";
+    colorBtn.title = "panel colour — tint this panel so you can find it at a glance";
     const colorPicker = document.createElement("div");
     colorPicker.className = "panel-color-picker";
     for (const { label, v, t } of PANEL_COLORS) {
         const sw = document.createElement("button");
         sw.className = "panel-color-swatch" + (v === (saved.panelColor ?? "") ? " on" : "");
-        sw.style.background = v || "var(--panel)";
+        sw.style.background = v || "var(--bg-2)";
+        sw.dataset.v = v;
         sw.title = label;
         sw.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -436,6 +437,14 @@ export function createPanel(desktop, spec) {
     // Push a layout entry onto this ALREADY-BUILT panel immediately (used by
     // named-layout switching) — also persists it as the new "current" layout.
     function applyLayout(entry) {
+        // Colour is part of a saved workspace, not decoration on the side: it is
+        // stored in this same per-panel entry, so recalling a layout has to put it
+        // back or half the arrangement returns and half does not.
+        if (entry.panelColor !== undefined) {
+            applyPanelColor(entry.panelColor, entry.panelTitleColor || "");
+            for (const s of colorPicker.querySelectorAll(".panel-color-swatch"))
+                s.classList.toggle("on", s.dataset.v === (entry.panelColor || ""));
+        }
         if (entry.x != null) win.style.left = `${entry.x}px`;
         if (entry.y != null) win.style.top = `${entry.y}px`;
         if (entry.w != null) win.style.width = `${entry.w}px`;

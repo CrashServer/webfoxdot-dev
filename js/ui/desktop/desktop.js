@@ -21,6 +21,7 @@
 import { initCanvas, resetView, getZoom, onViewChange, panToReveal } from './canvas.js';
 import { createPanel, resetAllLayouts } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
+import { initLayoutBar } from './layoutbar.js';
 
 /**
  * Give one of the floating overlays a panel, whenever its root shows up.
@@ -244,7 +245,7 @@ const FLOATING = [
  * @param {object} editor      CodeMirror instance (told to refresh on resize)
  * @param {function} onReady   called with the desktop element once built
  */
-export function initDesktop(editor, clock = null, editorFactory = null, onDropEditor = null, onReady = null) {
+export function initDesktop(editor, clock = null, editorFactory = null, onDropEditor = null, log = () => {}, onReady = null) {
     const body = document.body;
     body.classList.add('desktop-ui');
 
@@ -262,6 +263,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
 
     document.body.appendChild(desktop);
     initCanvas(canvas);
+    initLayoutBar(desktop, log);
 
     // CodeMirror measures its own geometry, so it has to be refreshed whenever its
     // panel changes size — during the drag, not only at the end, or the text lags

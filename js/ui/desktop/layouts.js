@@ -4,6 +4,11 @@
 // save your "performance" layout and your "calibration" layout separately,
 // switch between them without re-dragging everything each time.
 import { LAYOUT_KEY, getRegistry } from "./panel.js";
+import { getView, setView } from "./canvas.js";
+
+// A saved layout keeps the VIEW too, under this key alongside the panel ids —
+// where you were looking is as much a part of a workspace as where things were.
+const VIEW_KEY = "__view";
 
 const NAMED_KEY = "wfd-desktop-layouts";
 
@@ -17,7 +22,7 @@ export function saveLayout(name) {
     try { current = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}"); }
     catch (_) { current = {}; }
     const all = listLayouts();
-    all[name] = current;
+    all[name] = { ...current, [VIEW_KEY]: getView() };
     localStorage.setItem(NAMED_KEY, JSON.stringify(all));
 }
 
@@ -28,7 +33,20 @@ export function applyLayout(name) {
     const layout = all[name];
     if (!layout) return false;
     const registry = getRegistry();
-    for (const [id, entry] of Object.entries(layout)) registry.get(id)?.applyLayout(entry);
+    const saved = {};
+    for (const [id, entry] of Object.entries(layout)) {
+        if (id === VIEW_KEY) continue;
+        registry.get(id)?.applyLayout(entry);
+        saved[id] = entry;
+    }
+    // Panels that are not built yet (the lazily-hosted ones) must still land in the
+    // right place when they are opened, so write the arrangement through to the
+    // "current" layout panel.js reads at construction.
+    try {
+        const cur = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}");
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify({ ...cur, ...saved }));
+    } catch (_) {}
+    if (layout[VIEW_KEY]) setView(layout[VIEW_KEY]);
     return true;
 }
 

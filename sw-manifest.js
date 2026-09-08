@@ -54,6 +54,7 @@ self.__WFD_PRECACHE = [
   './js/ui/desktop/canvas.js',
   './js/ui/desktop/screens.js',
   './js/ui/desktop/desktop.js',
+  './js/ui/desktop/layoutbar.js',
   './js/ui/desktop/layouts.js',
   './js/ui/desktop/panel.js',
   './js/ui/tabs.js',

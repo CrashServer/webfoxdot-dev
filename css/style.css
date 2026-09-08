@@ -641,6 +641,16 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .ed-tab-add:hover:not(:disabled) { color: var(--green); }
 .ed-tab-add:disabled { opacity: 0.25; cursor: default; }
 
+/* The ported panel code refers to a couple of the workshop's own theme vars.
+   Map them onto crashDot's rather than leaving them undefined — the "default"
+   colour swatch is painted with var(--panel), and with no value it rendered as
+   nothing at all. */
+#desktop { --panel: var(--bg-2); --panel-head: var(--bg-3); }
+
+/* A tinted panel tints its HEADER too. Colouring only the body left the choice
+   barely visible, which is the other half of "the colour does not work". */
+.panel[style*="background"] > .panel-head { background: rgba(0, 0, 0, 0.28); }
+
 /* A scratch buffer is private and unsaved-to-the-set — say so quietly, at the
    one place you are already looking. */
 body.on-scratch #editor-tabs { border-bottom-color: var(--border-2); }
@@ -2553,7 +2563,7 @@ body.desktop-ui #toolbar {
 }
 .panel.collapsed { height: auto !important; }
 .panel-head {
-    height: 24px; flex-shrink: 0; position: relative;
+    height: 24px; flex-shrink: 0; position: relative; z-index: 1;
     display: flex; align-items: center; padding: 0 6px;
     background: var(--bg-3);
     border-bottom: 1px solid var(--border-1);
@@ -2581,11 +2591,22 @@ body.desktop-ui #toolbar {
 .panel-color-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; }
 .panel-color-picker {
     display: none; position: absolute; top: calc(100% + 4px); left: 50%;
-    transform: translateX(-50%); z-index: 10; gap: 4px; padding: 5px;
-    background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 4px;
+    transform: translateX(-50%); z-index: 20; gap: 5px; padding: 6px;
+    /* Two rows of five rather than one row of ten: a single row is wider than a
+       narrow panel and gets clipped, which is how a palette comes to look like it
+       only offers one colour. */
+    width: 148px; flex-wrap: wrap; justify-content: center;
+    background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.55);
 }
 .panel-color-picker.open { display: flex; }
-.panel-color-swatch { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 2px solid transparent; cursor: pointer; flex-shrink: 0; }
+.panel-color-swatch {
+    width: 22px; height: 22px; padding: 0; border-radius: 50%;
+    /* border-box is global here, so a 2px border inside an 18px box left only 14px
+       of actual colour. */
+    border: 2px solid transparent; background-clip: padding-box;
+    cursor: pointer; flex: 0 0 auto;
+}
 .panel-color-swatch:hover { border-color: var(--border-2); }
 .panel-color-swatch.on { border-color: var(--text-1) !important; box-shadow: 0 0 0 1px var(--green); }
 

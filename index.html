@@ -3504,7 +3504,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     };
     if (desktopModeOn()) {
         try {
-            const _dk = initDesktop(editor, clock, makeEditor, dropEditor);
+            const _dk = initDesktop(editor, clock, makeEditor, dropEditor, log);
             _detachHost = _dk.detachBuffer;
             _tabs.refresh?.();          // reveal the detach buttons now there is a host
             document.getElementById('btn-desktop').classList.add('active');

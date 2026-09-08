@@ -202,6 +202,17 @@ export function fitHome() {
 export function getZoom() { return zoom; }
 export function getPan()  { return { x: panX, y: panY }; }
 
+// The whole view as one value, for named layouts — where you were looking is as
+// much a part of a saved workspace as where the panels were.
+export function getView() { return { x: panX, y: panY, zoom }; }
+export function setView(v) {
+    if (!v || !isFinite(v.x) || !isFinite(v.y) || !isFinite(v.zoom)) return false;
+    panX = v.x; panY = v.y;
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, v.zoom));
+    apply(); save();
+    return true;
+}
+
 // Pan so that `el` (a DOM element in canvas-space) is centered in the viewport.
 // No-ops if el is already fully inside with 40 px breathing room.
 export function panToReveal(el) {
