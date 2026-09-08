@@ -2841,6 +2841,28 @@ body.desktop-ui .wfd-body-wfd-controls > .cp-section + .cp-section {
     border: 1px dashed var(--yellow); border-radius: 3px; padding: 1px 4px; cursor: help;
 }
 
+/* The FX chain on a layer row. Chips in chain order, then the picker — reading
+   left to right is reading the signal path. */
+.wfd-lay-fx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+.wfd-lay-fxchip {
+    display: flex; align-items: center; gap: 3px;
+    padding: 1px 3px 1px 6px; border-radius: 10px;
+    background: var(--bg-1); border: 1px solid var(--border-1);
+}
+.wfd-lay-fxname { font-size: 9px; color: var(--text-2); }
+.wfd-lay-fxchip .mod-knob { width: 22px; height: 22px; }
+.wfd-lay-fxdel {
+    width: 14px; height: 14px; padding: 0; line-height: 1; font-size: 11px;
+    background: transparent; border: none; color: var(--text-2); cursor: pointer; border-radius: 50%;
+}
+.wfd-lay-fxdel:hover { color: var(--red); background: var(--bg-2); }
+.wfd-lay-fxadd {
+    font-size: 9px; padding: 1px 3px; border-radius: 10px;
+    background: transparent; color: var(--text-2);
+    border: 1px dashed var(--border-1); cursor: pointer; max-width: 74px;
+}
+.wfd-lay-fxadd:hover { color: var(--green); border-color: var(--green); }
+
 /* Outputs panel — the projector desk. One block per output, one row per surface,
    because a surface is the unit that matters: one warped patch of content. */
 .wfd-out-wrap { padding: 6px; font-size: 11px; }

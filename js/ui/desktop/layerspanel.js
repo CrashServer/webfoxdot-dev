@@ -32,7 +32,8 @@ const HIDE = new Set(['dur', 'ch', 'pal', 'inv']);
 const CAT_RANGE = { hue: { min: 0, max: 1, default: 0 } };
 
 export function buildLayersPanel(container, deps) {
-    const { liveLayers, setLayerParam, setLayerChannel, sceneParams, paramRange, snapCode, log = () => {} } = deps;
+    const { liveLayers, setLayerParam, setLayerChannel, setLayerFx, sceneParams, paramRange,
+            fxNames, wsFxNames, wsImplements, fxPrimaryRange, ownFxDefaults, snapCode, log = () => {} } = deps;
     const root = document.createElement('div');
     root.className = 'wfd-lay-wrap';
     container.appendChild(root);
@@ -135,6 +136,83 @@ export function buildLayersPanel(container, deps) {
                 grid.appendChild(cell);
             }
             box.appendChild(grid);
+
+            // ── the FX chain ─────────────────────────────────────────────────
+            // 52 per-layer effects exist and the only way to reach one was to type
+            // `+ vhs(0.6)` on the line. Order is chain order, and a new one lands at
+            // the end — the same place the `+` would have put it.
+            const fxRow = document.createElement('div');
+            fxRow.className = 'wfd-lay-fx';
+            for (const [k, v] of Object.entries(L.fx || {})) {
+                if (v == null || v === false) continue;
+                const chip = document.createElement('div');
+                chip.className = 'wfd-lay-fxchip';
+                const nm2 = document.createElement('span');
+                nm2.className = 'wfd-lay-fxname';
+                nm2.textContent = k;
+                chip.appendChild(nm2);
+                if (typeof v === 'number') {
+                    const useWs = L.ws && wsImplements(k);
+                    const spec = (useWs && fxPrimaryRange(k)) || { min: 0, max: 1, default: v };
+                    const kn = makeKnob({ value: v, spec, rotary: true, title: `${L.name} · ${k}`,
+                                          onInput: (nv) => setLayerFx(L.name, k, nv) });
+                    knobs.set(L.name + ':fx:' + k, kn);
+                    chip.appendChild(kn);
+                }
+                const x = document.createElement('button');
+                x.className = 'wfd-lay-fxdel';
+                x.textContent = '×';
+                x.title = 'remove this effect';
+                x.onclick = () => { setLayerFx(L.name, k, null); refresh(true); };
+                chip.appendChild(x);
+                fxRow.appendChild(chip);
+            }
+            // 69 effects in one flat list is a list nobody reads, so they are grouped
+            // by what they DO to the frame: the whole-frame ones crashDot renders on
+            // the GPU, and the per-layer ones the workshop draws on the canvas.
+            const add = document.createElement('select');
+            add.className = 'wfd-lay-fxadd';
+            add.title = 'add an effect to this layer';
+            const ph = document.createElement('option');
+            ph.value = ''; ph.textContent = '+ fx'; add.appendChild(ph);
+            const mk = (label, names) => {
+                const g = document.createElement('optgroup');
+                g.label = label;
+                for (const n of names) {
+                    if (L.fx && L.fx[n] != null) continue;      // already on this layer
+                    const o = document.createElement('option');
+                    o.value = n; o.textContent = n;
+                    g.appendChild(o);
+                }
+                if (g.children.length) add.appendChild(g);
+            };
+            mk('whole frame (GPU)', fxNames());
+            mk('this layer only', wsFxNames());
+            add.onchange = () => {
+                if (!add.value) return;
+                // WHICH implementation will run decides the default. A workshop-
+                // implemented effect on a workshop layer runs per-layer on the canvas
+                // and takes the range that effect declares; anything else falls to
+                // crashDot's whole-frame version, which has its own idea of an amount.
+                // Getting this backwards is silent, not loud: crashDot's `invert` is a
+                // FLAG that triggers at >= 1, so handing it the workshop's 0.5 would
+                // add an effect that simply never happens.
+                // The test has to be "does the workshop IMPLEMENT this" — the full 52 —
+                // not "is it workshop-only" — the 40 crashDot lacks. They differ by the
+                // twelve shared names, and fxBundle routes those to the workshop on a
+                // workshop layer. Using the narrower set here made `invert` on a
+                // workshop layer take crashDot's flag, which its canvas effect cannot
+                // read: an effect added and then silently absent.
+                const useWs = L.ws && wsImplements(add.value);
+                const own = ownFxDefaults();
+                const dflt = useWs ? (fxPrimaryRange(add.value)?.default ?? 0.5)
+                                   : (own[add.value] ?? 0.5);
+                setLayerFx(L.name, add.value, dflt);
+                refresh(true);
+            };
+            fxRow.appendChild(add);
+            box.appendChild(fxRow);
+
             root.appendChild(box);
         }
     }
@@ -143,11 +221,17 @@ export function buildLayersPanel(container, deps) {
         const list = liveLayers();
         // Signature = what would change the SHAPE of the panel. Params are not in it:
         // a value changing must not rebuild the DOM under a finger that is dragging.
-        const sig = list.map((l) => `${l.name}:${l.scene}:${l.ch}:${Object.keys(l.params).sort().join(',')}`).join('|');
+        const sig = list.map((l) => `${l.name}:${l.scene}:${l.ch}:${Object.keys(l.params).sort().join(',')}:${Object.keys(l.fx || {}).join(',')}`).join('|');
         if (force || sig !== signature) { signature = sig; render(list); return; }
-        for (const l of list) for (const [k, v] of Object.entries(l.params)) {
-            const kn = knobs.get(l.name + ':' + k);
-            if (kn && typeof v === 'number' && kn.getValue() !== v) kn.setValue(v);
+        for (const l of list) {
+            for (const [k, v] of Object.entries(l.params)) {
+                const kn = knobs.get(l.name + ':' + k);
+                if (kn && typeof v === 'number' && kn.getValue() !== v) kn.setValue(v);
+            }
+            for (const [k, v] of Object.entries(l.fx || {})) {
+                const kn = knobs.get(l.name + ':fx:' + k);
+                if (kn && typeof v === 'number' && kn.getValue() !== v) kn.setValue(v);
+            }
         }
     }
 

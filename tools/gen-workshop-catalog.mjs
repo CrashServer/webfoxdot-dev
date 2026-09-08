@@ -52,8 +52,12 @@ for (const k of kinds) {
     ranged[k.key] = ranges(d);
 }
 const fx = await import('../js/visuals/workshop/fx/registry.js');
-const fxParams = {};
-for (const [name, kind] of Object.entries(fx.FX_KINDS)) fxParams[name] = flat(kind.makeParams());
+const fxParams = {}, fxRanged = {};
+for (const [name, kind] of Object.entries(fx.FX_KINDS)) {
+    const d = kind.makeParams();
+    fxParams[name] = flat(d);
+    fxRanged[name] = ranges(d);
+}
 
 const j = (o) => JSON.stringify(o, null, 0).replace(/","/g, '","');
 writeFileSync('js/visuals/workshop/catalog.js',
@@ -78,6 +82,8 @@ export const WORKSHOP_FX_NAMES = ${j(Object.keys(fxParams))};
 export const WORKSHOP_FX_PARAMS = ${JSON.stringify(fxParams)};
 /** kind → { param: [base, min, max] }. Only params that declare a range. */
 export const WORKSHOP_RANGES = ${JSON.stringify(ranged)};
+/** effect → { param: [base, min, max] }. The FIRST is what a bare call sets. */
+export const WORKSHOP_FX_RANGES = ${JSON.stringify(fxRanged)};
 
 export function defaults(kind) { return { ...(WORKSHOP_PARAMS[kind] || {}) }; }
 export function fxDefaults(type) { return { ...(WORKSHOP_FX_PARAMS[type] || {}) }; }

@@ -105,6 +105,10 @@ function fxBuilder(key, dflt) { return (v) => new VSpec(null, {}, { [key]: v ===
 // Video FX chained with `+` (like synth FX). trails/feedback are frame-feedback; blur/
 // bloom/scan/vignette/glitch/invert/posterize are post-process. Values are the default
 // amount when called bare, e.g. video1 >> plasma() + bloom() + blur(0.3).
+// Exported so a panel can offer them without re-deriving the list — and so the
+// distinction stays in one place: these are crashDot's own, applied to the WHOLE
+// frame as shader uniforms, as against the workshop's per-layer canvas effects.
+export const VFX_DEFAULTS = () => ({ ...VFX });
 const VFX = { trails: 0.7, feedback: 0.8, blur: 0.5, bloom: 0.6, scan: 0.5, vignette: 0.5, glitch: 1, invert: true,
               posterize: 3, droste: 0.6, fold: 0.6, hueshift: 0.5, dither: 0.7, pixelsort: 0.6, mirror: 0.8, edge: 0.8, pixelate: 0.5,
               // Master grade + limiter, ported from the workshop's lut.js / limiter.js.
@@ -311,6 +315,17 @@ export function setLayerParam(name, key, value) {
     const l = layers.get(name);
     if (!l) return false;
     if (value == null) delete l.params[key]; else l.params[key] = value;
+    return true;
+}
+/**
+ * Add, change or remove one effect on a layer. Order is the chain order, and JS keeps
+ * object keys in insertion order, so a newly added effect lands at the END of the
+ * chain — which is what "+ vhs(0.6)" on the line would have done too.
+ */
+export function setLayerFx(name, key, value) {
+    const l = layers.get(name);
+    if (!l) return false;
+    if (value == null) delete l.fx[key]; else l.fx[key] = value;
     return true;
 }
 export function setLayerChannel(name, ch) {

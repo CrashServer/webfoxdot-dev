@@ -269,6 +269,7 @@
     import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
              setOutputs as setVisualOutputs, setVideoRec as setVisualRec,
              liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
+             setLayerFx as setVisualFx, VFX_DEFAULTS as visualFxDefaults,
              clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
@@ -276,7 +277,8 @@
     import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas } from './js/visuals/surface.js';
     import { createVideoRecorder, downloadBlob as downloadVideo } from './js/visuals/render/vrec.js';
     import { vrandLines } from './js/visuals/vrand.js';
-    import { sceneParams as visualSceneParams } from './js/visuals/vdata.js';
+    import { sceneParams as visualSceneParams, fxPrimaryRange as visualFxRange,
+             WS_FX_NAMES as wsFxNameList } from './js/visuals/vdata.js';
     import { paramRange as wsParamRange } from './js/visuals/workshop/catalog.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
@@ -3738,6 +3740,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         liveLayers: visualLayers,
         setLayerParam: setVisualParam,
         setLayerChannel: setVisualChannel,
+        setLayerFx: setVisualFx,
+        // Two groups, because they are two different things: crashDot's own FX are
+        // uniforms over the whole frame, the workshop's run on that layer alone.
+        fxNames: () => Object.keys(visualFxDefaults()),
+        wsFxNames: () => { const own = visualFxDefaults(); return wsFxNameList.filter((n) => !(n in own)); },
+        // Which implementation runs, decided the same way fxBundle decides it: the
+        // workshop's per-layer version wins on a workshop layer for any effect it has.
+        wsImplements: (n) => wsFxNameList.includes(n),
+        fxPrimaryRange: visualFxRange,
+        ownFxDefaults: visualFxDefaults,
         sceneParams: visualSceneParams,
         paramRange: wsParamRange,
         snapCode: (name) => vsnap(false, name),

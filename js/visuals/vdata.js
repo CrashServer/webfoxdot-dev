@@ -1,6 +1,6 @@
 // The CATALOG, not the registry: names and defaults only, so a session that never
 // opens a visual does not parse 206 layer modules. See workshop/catalog.js.
-import { WORKSHOP_NAMES, WORKSHOP_FX_NAMES, defaults as wsDefaults } from './workshop/catalog.js';
+import { WORKSHOP_NAMES, WORKSHOP_FX_NAMES, WORKSHOP_FX_RANGES, defaults as wsDefaults } from './workshop/catalog.js';
 
 // Shared visual constants — imported by both vlang.js (main window, for routing /
 // validation / autocomplete) and clift.js (pop-out, for rendering). Single source of
@@ -48,6 +48,20 @@ export const SCENE_PARAMS = {
     mosaic:    [{ n: 'cells', d: 8 }, { n: 'rows', d: 0 }, { n: 'fill', d: 0.5 }, { n: 'shift', d: 0 },
                 { n: 'mode', d: 0 }, { n: 'seed', d: 0 }, { n: 'gap', d: 0.08 }, { n: 'react', d: 0.6 }],
 };
+
+// crashDot's own FX are single 0..1 amounts (invert is a flag). A workshop FX has a
+// whole param set, and its FIRST one is what a bare call sets — so that is the one a
+// chip's knob turns, with the range the effect itself declares.
+export function fxPrimaryRange(name) {
+    const ws = WORKSHOP_FX_RANGES[name];
+    if (ws) {
+        const k = Object.keys(ws)[0];
+        if (k) return { min: ws[k][1], max: ws[k][2], default: ws[k][0] };
+    }
+    if (name === 'invert') return null;                       // a flag, not an amount
+    if (name === 'posterize') return { min: 2, max: 16, default: 4 };
+    return { min: 0, max: 1, default: 0.5 };
+}
 
 /** Params for ANY scene name, field or workshop. [{ n, d }] — name and default. */
 export function sceneParams(name) {

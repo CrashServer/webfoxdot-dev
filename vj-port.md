@@ -580,3 +580,32 @@ the renderer draws straight through. Anything else is drawn into it FITTED, not
 stretched — a code buffer rarely matches the panel's aspect and squashed text is worse
 than a letterbox. The outputs loop keeps running while SCREEN is on a non-master
 source even with no output window open, which is what `needsLoop()` accounts for.
+
+## The FX chain on the layer row
+
+The workshop's `fxStackPanel.js` in job: chips in chain order, a knob on each amount, ×
+to remove, `+ fx` to add. A new effect lands at the END, which is where typing `+ vhs(0.6)`
+would have put it — object key order is chain order.
+
+The picker is grouped **whole frame (GPU)** / **this layer only**, because that is the
+real distinction and it changes what the effect does.
+
+### Two silent bugs, both about "which implementation runs"
+
+`fxBundle` already decides this: a workshop-implemented effect on a `ws` layer is
+handled per-layer and skipped in the global pass. The panel has to answer the *same*
+question or it hands the wrong default to the wrong implementation — and both failures
+are invisible rather than loud.
+
+1. **Adding an effect used whatever default came to hand.** `invert` on a field scene
+   got the workshop's `0.5`, but crashDot's whole-frame invert is a FLAG tested with
+   `>= 1`. The panel would add an effect that then never happened.
+2. **The "does the workshop implement this" test used the wrong set** — the 40 names
+   crashDot *lacks*, not the 52 the workshop *has*. They differ by the twelve shared
+   names, and the shared ones are precisely the ones that route to the workshop on a
+   workshop layer. So `invert` there took crashDot's `true`, which a canvas effect
+   cannot read.
+
+Both now ask the renderer's question in the renderer's words. Verified: `invert` arrives
+as `true` on a video synth and as a number on a workshop layer, and `posterize` picks up
+the workshop's levels range on the layer where the workshop is the one drawing it.
