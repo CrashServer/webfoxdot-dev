@@ -1,7 +1,12 @@
-// ── Layout bar ───────────────────────────────────────────────────────────────
+// ── Layouts panel ────────────────────────────────────────────────────────────
 // The named-layout machinery (layouts.js) had no way to reach it. This is that
-// way: a chip beside the zoom indicator that saves the current workspace under a
-// name and puts it back later.
+// way: a panel like every other one, listing saved workspaces.
+//
+// It was a fixed chip beside the zoom indicator first, on the reasoning that the
+// control which gets you back to a known workspace should not itself be somewhere
+// you can pan away from and lose. That is still true, and it is why the toolbar has
+// a LAYOUTS button that pans to this panel and raises it — but the panel is where
+// the controls live, consistent with everything else on the canvas.
 //
 // A layout is every panel's position, size and collapsed state PLUS the view —
 // where you were looking is as much a part of a workspace as where things were.
@@ -12,21 +17,11 @@ import { listLayouts, saveLayout, applyLayout, deleteLayout } from './layouts.js
 import { resetView } from './canvas.js';
 import { resetAllLayouts } from './panel.js';
 
-export function initLayoutBar(desktop, log = () => {}) {
-    const wrap = document.createElement('div');
-    wrap.id = 'wfd-layoutbar';
-
-    const btn = document.createElement('button');
-    btn.className = 'wfd-lb-btn';
-    btn.textContent = 'layouts';
-    btn.title = 'save and recall workspaces — panel positions, sizes and the view';
-
+/** Draw the layouts UI into a panel body. */
+export function buildLayoutsPanel(container, log = () => {}) {
     const pop = document.createElement('div');
     pop.className = 'wfd-lb-pop';
-    pop.hidden = true;
-
-    wrap.append(btn, pop);
-    desktop.appendChild(wrap);
+    container.appendChild(pop);
 
     function render() {
         pop.textContent = '';
@@ -48,7 +43,6 @@ export function initLayoutBar(desktop, log = () => {}) {
             use.onclick = () => {
                 applyLayout(name);
                 log(`layout: restored "${name}"`, 'ok');
-                pop.hidden = true;
             };
             const over = document.createElement('button');
             over.className = 'wfd-lb-small';
@@ -84,7 +78,7 @@ export function initLayoutBar(desktop, log = () => {}) {
         fit.className = 'wfd-lb-action';
         fit.textContent = 'reset view';
         fit.title = 'frame the whole layout again (same as double-clicking the background)';
-        fit.onclick = () => { resetView(); pop.hidden = true; };
+        fit.onclick = () => resetView();
 
         const wipe = document.createElement('button');
         wipe.className = 'wfd-lb-action wfd-lb-danger';
@@ -98,14 +92,6 @@ export function initLayoutBar(desktop, log = () => {}) {
         pop.appendChild(foot);
     }
 
-    btn.onclick = (e) => {
-        e.stopPropagation();
-        if (pop.hidden) render();
-        pop.hidden = !pop.hidden;
-    };
-    document.addEventListener('pointerdown', (e) => {
-        if (!pop.hidden && !wrap.contains(e.target)) pop.hidden = true;
-    });
-
+    render();
     return { render };
 }

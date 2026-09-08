@@ -21,7 +21,7 @@
 import { initCanvas, resetView, getZoom, onViewChange, panToReveal } from './canvas.js';
 import { createPanel, resetAllLayouts } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
-import { initLayoutBar } from './layoutbar.js';
+import { buildLayoutsPanel } from './layoutbar.js';
 
 /**
  * Give one of the floating overlays a panel, whenever its root shows up.
@@ -127,6 +127,7 @@ function addBackdropButton(panelEl, clock) {
 // layout at a real font size, so every measurement CodeMirror makes is consistent
 // and the cursor lands where you click.
 let editorBody = null, editorLayer = null, baseFontPx = 14;
+let layoutsPanel = null;   // the layouts panel element, for the toolbar button
 // The zoom the layer was last laid out for. Between settles the layer keeps this
 // geometry and simply rides the canvas transform, which costs nothing.
 let settledZoom = 1;
@@ -215,6 +216,10 @@ const PANELS = [
     // A monitor on the canvas: video1 >> plasma() plays HERE, next to the code that
     // drives it, instead of in a pop-out window on another screen.
     { id: 'wfd-screen',  title: 'screen',      x:   0, y: 884, w: 1080, h: 400, minW: 240, minH: 140, screen: true },
+    // Saved workspaces: panel positions, sizes, colours and the view. A panel like
+    // the rest — the toolbar's LAYOUTS button pans to it and raises it, so it stays
+    // findable after you have panned somewhere else.
+    { id: 'wfd-layouts', title: 'layouts',     x:1102, y:1004, w:  300, h:  92, minW: 240, minH: 80, layouts: true },
 ];
 
 // The floating overlays — mixer, modular, parts, room rules, docs, galaxy — get
@@ -263,7 +268,6 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
 
     document.body.appendChild(desktop);
     initCanvas(canvas);
-    initLayoutBar(desktop, log);
 
     // CodeMirror measures its own geometry, so it has to be refreshed whenever its
     // panel changes size — during the drag, not only at the end, or the text lags
@@ -271,15 +275,17 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     const refresh = () => editor?.refresh?.();
 
     for (const spec of PANELS) {
-        const src = spec.screen ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
-        if (!spec.screen && !src.length) continue;   // a section this build doesn't have
+        const src = (spec.screen || spec.layouts) ? []
+                  : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
+        if (!spec.screen && !spec.layouts && !src.length) continue;   // not in this build
 
         const { el: panelEl, body: panelBody } = createPanel(canvas, {
             ...spec,
             onResize: spec.id === 'wfd-editor' ? () => scheduleEditorScale(editor) : undefined,
         });
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
-        if (spec.screen) mountScreen(panelBody, clock);
+        if (spec.screen)  mountScreen(panelBody, clock);
+        if (spec.layouts) { buildLayoutsPanel(panelBody, log); layoutsPanel = panelEl; }
         if (spec.id === 'wfd-editor') {
             // The editor gets a counter-scale layer — see keepEditorUnscaled().
             editorBody = panelBody;
@@ -414,5 +420,14 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     }
 
     onReady?.(desktop);
-    return { desktop, canvas, resetView, getZoom, resetAllLayouts, detachBuffer };
+    return {
+        desktop, canvas, resetView, getZoom, resetAllLayouts, detachBuffer,
+        // The toolbar's LAYOUTS button: bring the panel into view and raise it.
+        showLayouts() {
+            if (!layoutsPanel) return false;
+            layoutsPanel.style.display = '';
+            panToReveal(layoutsPanel);
+            return true;
+        },
+    };
 }

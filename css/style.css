@@ -2792,28 +2792,12 @@ body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
 /* A detached buffer's panel: the editor fills it, same as the main editor panel. */
 .wfd-buf-body { padding: 0 !important; overflow: hidden; }
 
-/* ── Layout bar (js/ui/desktop/layoutbar.js) ───────────────────────────────
-   Fixed chrome next to the zoom chip rather than a panel on the canvas: the
-   thing that gets you back to a known workspace must not itself be somewhere
-   you can pan away from and lose. */
-#wfd-layoutbar { position: fixed; right: 64px; bottom: 8px; z-index: 130; }
-.wfd-lb-btn {
-    padding: 2px 9px; font-size: 10px; font-family: monospace;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    background: var(--bg-2); color: var(--text-2);
-    border: 1px solid var(--border-1); border-radius: 4px; cursor: pointer;
-}
-.wfd-lb-btn:hover { color: var(--green); border-color: var(--green); }
-
+/* ── Layouts panel (js/ui/desktop/layoutbar.js) ─────────────────────────── */
+.wfd-body-wfd-layouts { padding: 0 !important; }
 .wfd-lb-pop {
-    position: absolute; right: 0; bottom: calc(100% + 6px);
-    min-width: 220px; max-height: 60vh; overflow: auto;
     padding: 6px;
-    background: var(--bg-2); border: 1px solid var(--border-2); border-radius: 5px;
-    box-shadow: 0 8px 26px rgba(0,0,0,0.6);
     font-family: monospace; font-size: 11px;
 }
-.wfd-lb-pop[hidden] { display: none; }
 .wfd-lb-empty { color: var(--text-2); padding: 6px 4px; opacity: 0.7; }
 .wfd-lb-row { display: flex; align-items: center; gap: 3px; margin-bottom: 2px; }
 .wfd-lb-use {

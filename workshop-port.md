@@ -275,9 +275,11 @@ Detached panels get the same counter-scale treatment as the main editor, with th
 
 ## Saving workspaces
 
-`layouts.js` was ported but had no UI, so it was unreachable. There is a **layouts**
-chip beside the zoom indicator now: save the current workspace under a name, restore
-it, overwrite it, delete it, plus "reset view" and "reset panels".
+`layouts.js` was ported but had no UI, so it was unreachable. There is a **LAYOUTS
+panel** now — an ordinary panel like the rest — listing saved workspaces, with save,
+restore, overwrite, delete, plus "reset view" and "reset panels". The toolbar's
+**LAYOUTS** button (shown only in desktop mode) pans to it and raises it, so it stays
+findable after you have panned elsewhere.
 
 A layout captures every panel's position, size, collapsed state **and colour**, plus
 the **view** (pan + zoom) under a `__view` key. So "writing", "mixing" and
