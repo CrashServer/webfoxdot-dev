@@ -291,6 +291,25 @@ place when you eventually open them.
 Panel colour is part of a layout entry, so `applyLayout()` had to restore it too;
 before, half an arrangement came back and half did not.
 
+### Where generated code goes
+
+**Rule: code the app writes goes back to the buffer whose code asked for it** — never
+to whichever buffer happens to have focus. `runCode()` records `_evalDoc` for the
+duration of an evaluation (the arrangement's doc when a `#@` chain is running, the
+recorded source doc for a `.reroll()`, the main doc for a remote peer's eval,
+otherwise the doc it was run from), and `codeDoc()` reads it. Every writer goes
+through that: `insertCode`, `attack`'s `place`/`callLine`, `ascii_gen`, `audiviz` and
+their site-finding helpers.
+
+Before this they all used `editor`, which since detachable buffers means *the focused
+editor*. A `#@` section or a `.reroll()` loop re-running every few beats therefore
+pasted into whatever scratch buffer was open — worse when one was detached, because a
+detached editor holds focus. `ascii_gen` was the loudest: its "already drawn?" guard
+also read the focused buffer, so it never matched and it redrew its card on **every
+pass**.
+
+A scratch buffer should only ever contain what you put there.
+
 ### Traps found the hard way (desktop)
 
 - **On X11, a selection over chrome becomes a paste waiting to happen.** Selecting

@@ -494,8 +494,9 @@
     // far end of the buffer. Comment lines are skipped — a previous drawing is itself
     // comments, and would otherwise match before the real call does.
     function drawSite(re) {
-        for (let i = 0; i < editor.lineCount(); i++) {
-            const t = editor.getLine(i);
+        const doc = codeDoc();
+        for (let i = 0; i < doc.lineCount(); i++) {
+            const t = doc.getLine(i);
             if (t.trim().startsWith('#')) continue;
             if (re.test(t)) return i;
         }
@@ -518,16 +519,17 @@
         const text = rows.map(r => ('# ' + r).replace(/\s+$/, '')).join('\n');
         const key  = `ascii:${word}:${style || ''}`;
         const prev = _drawn.get(key);
-        if (prev && editor.getValue().includes(prev)) {
+        if (prev && codeDoc().getValue().includes(prev)) {
             log(`ascii_gen: "${word}" — already in the code`, 'info');
             return;
         }
         _drawn.set(key, text);
         const at = drawSite(new RegExp('ascii_gen\\s*\\(\\s*["\']' + reEsc(word) + '["\']'));
         if (at >= 0) {
-            const end = { line: at, ch: editor.getLine(at).length };
-            editor.replaceRange('\n' + text, end, end);
-            editor.scrollIntoView({ line: at + rows.length, ch: 0 });
+            const doc = codeDoc();
+            const end = { line: at, ch: doc.getLine(at).length };
+            doc.replaceRange('\n' + text, end, end);
+            if (doc === editor.getDoc()) editor.scrollIntoView({ line: at + rows.length, ch: 0 });
         } else {
             insertCode(text, { quiet: true, run: false });   // from the console — append
         }
@@ -553,8 +555,9 @@
     const AUDIVIZ_WIDTH = 48;
     let _audiviz = null;
     function audivizAnchor() {
-        for (let i = 0; i < editor.lineCount(); i++)
-            if (/^#\s*audiviz\b/.test(editor.getLine(i).trim())) return i;
+        const doc = codeDoc();
+        for (let i = 0; i < doc.lineCount(); i++)
+            if (/^#\s*audiviz\b/.test(doc.getLine(i).trim())) return i;
         return -1;
     }
     function stopAudiviz(dropAnchor) {
@@ -571,9 +574,10 @@
             // Take the newline with the line, or the buffer keeps a blank where the
             // meter was. On the LAST line there is no newline after it to remove, so
             // reach back and take the one before instead.
-            if (ln < editor.lastLine())      editor.replaceRange('', { line: ln, ch: 0 }, { line: ln + 1, ch: 0 });
-            else if (ln > 0)                 editor.replaceRange('', { line: ln - 1, ch: editor.getLine(ln - 1).length }, { line: ln, ch: editor.getLine(ln).length });
-            else                             editor.replaceRange('', { line: 0, ch: 0 }, { line: 0, ch: editor.getLine(0).length });
+            const doc = codeDoc();
+            if (ln < doc.lastLine())         doc.replaceRange('', { line: ln, ch: 0 }, { line: ln + 1, ch: 0 });
+            else if (ln > 0)                 doc.replaceRange('', { line: ln - 1, ch: doc.getLine(ln - 1).length }, { line: ln, ch: doc.getLine(ln).length });
+            else                             doc.replaceRange('', { line: 0, ch: 0 }, { line: 0, ch: doc.getLine(0).length });
         }
     }
     function audiviz(band = 0) {
@@ -587,12 +591,14 @@
         const anchor = `# audiviz ${name}`;
         let ln = audivizAnchor();
         if (ln >= 0) {
-            editor.replaceRange(anchor, { line: ln, ch: 0 }, { line: ln, ch: editor.getLine(ln).length });
+            const doc = codeDoc();
+            doc.replaceRange(anchor, { line: ln, ch: 0 }, { line: ln, ch: doc.getLine(ln).length });
         } else {
             const at = drawSite(/\baudi?o?viz\s*\(/);
             if (at >= 0) {
-                const end = { line: at, ch: editor.getLine(at).length };
-                editor.replaceRange('\n' + anchor, end, end);
+                const doc = codeDoc();
+                const end = { line: at, ch: doc.getLine(at).length };
+                doc.replaceRange('\n' + anchor, end, end);
             } else {
                 insertCode(anchor, { quiet: true, run: false });
             }
@@ -686,8 +692,7 @@
     // to a scratch buffer mid-set quietly pastes the set's material into your scratch,
     // and the set loses the material it was told to fetch.
     function codeDoc() {
-        const arr = activeSectionDoc();
-        return (arr && arr !== editor.getDoc()) ? arr : editor.getDoc();
+        return _evalDoc || activeSectionDoc() || editor.getDoc();
     }
     const codeDocVisible = () => codeDoc() === editor.getDoc();
 
@@ -1283,7 +1288,10 @@
     // without you re-running the line. Triggered by the chainable player method
     // .reroll(beats) (via setRerollHandler); .reroll(0) stops. The loop
     // self-cancels when the player is stopped.
-    const _srcByPlayer = new Map();   // player name → last source line
+    // player name → { src, doc }. The doc matters: a reroll re-evaluates that line
+    // every few beats, and anything it writes has to go back to the buffer the line
+    // actually lives in, not to whichever buffer is on screen when the timer fires.
+    const _srcByPlayer = new Map();
     const _rerollGen   = new Map();   // player name → generation token (supersedes old loops)
     function reroll(name, beats = 8) {
         if (!name) return;
@@ -1294,8 +1302,8 @@
             if (_rerollGen.get(name) !== gen) return;              // superseded by a newer reroll()
             const p = clock._players.get(name);
             if (!p || !p._active) return;                          // player stopped/gone → stop
-            const src = _srcByPlayer.get(name);
-            if (src) runCode(src, { fromRemote: true });           // re-eval locally → new random values
+            const rec = _srcByPlayer.get(name);
+            if (rec) runCode(rec.src, { fromRemote: true, doc: rec.doc });   // re-eval → new random values
             clock.mod(beats, tick);                                // repeat on the beat grid
         };
         clock.mod(beats, tick);
@@ -1303,7 +1311,23 @@
     }
     setRerollHandler(reroll);   // wire the chainable .reroll(beats) player method
 
-    function runCode(raw, { fromRemote = false, author = '', color = '', authorId = '' } = {}) {
+    // The buffer whose code is being evaluated right now. Anything the app WRITES
+    // while running goes back here — an ascii_gen card, an audiviz anchor, material
+    // pulled in by attack(). Without it those went to `editor`, meaning whichever
+    // buffer had focus, so a #@ section or a .reroll() loop re-running every few
+    // beats quietly pasted into whatever scratch buffer you had open. A scratch
+    // buffer should only ever contain what you put there.
+    let _evalDoc = null;
+
+    function runCode(raw, opts = {}) {
+        const prevEvalDoc = _evalDoc;
+        _evalDoc = opts.doc || activeSectionDoc()
+                 || (opts.fromRemote ? mainEditor.getDoc() : editor.getDoc());
+        try { return _runCode(raw, opts); }
+        finally { _evalDoc = prevEvalDoc; }
+    }
+
+    function _runCode(raw, { fromRemote = false, author = '', color = '', authorId = '' } = {}) {
         // Track claims. A line that defines someone else's instrument is dropped —
         // whether it came off the wire or was just typed here, because running it
         // locally would silently desync this machine from the room. Claims are only
@@ -1327,7 +1351,7 @@
         // Remember each player's source line so reroll() can re-evaluate it later.
         for (const ln of raw.split('\n')) {
             const mm = ln.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
-            if (mm) _srcByPlayer.set(mm[1], ln);
+            if (mm) _srcByPlayer.set(mm[1], { src: ln, doc: _evalDoc || editor.getDoc() });
         }
         let js = transpile(raw.trim());
         js = applyRenames(js);
