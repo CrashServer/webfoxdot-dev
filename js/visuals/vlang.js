@@ -188,18 +188,12 @@ class VisualPlayer {
             return this;
         }
 
-        // ── Workshop routing: WS scenes go to workshop only, skip local renderer ──
+        // A workshop layer used to be forwarded to a separate app and skipped locally.
+        // Its code lives here now, so it is an ordinary layer — same channel, same
+        // universal knobs, same crossfader — and only the renderer cares that it draws
+        // rather than fields. The w*() command builders still talk to an EXTERNAL
+        // workshop over the bridge for anyone running one; a scene name no longer does.
         const _spec = spec instanceof VSpec ? spec : new VSpec();
-        if (_spec.scene && WS_SET.has(_spec.scene)) {
-            _wsOpen();
-            const cur = (!reset && layers.get(this.name)) || null;
-            const p = { ...(cur ? cur.params : {}), ..._spec.params };
-            delete p.ch;
-            layers.set(this.name, { scene: _spec.scene, ch: 0, params: p, fx: {}, born: _now(), _ws: true });
-            workshopSend({ t: 'workshop', cmd: 'layer', ch: _wsChannel(this.name),
-                           layer: _spec.scene, params: resolveMap(p, 0, 1) });
-            return this;
-        }
 
         _open();
         if (spec && spec.isMix) {                       // become THE crossfader (singleton)
@@ -218,11 +212,6 @@ class VisualPlayer {
         return this;
     }
     stop() {
-        // Clear workshop channel if this player was a WS layer
-        const entry = layers.get(this.name);
-        if (entry?.scene && WS_SET.has(entry.scene)) {
-            workshopSend({ t: 'workshop', cmd: 'ch_clear', ch: _wsChannel(this.name) });
-        }
         layers.delete(this.name);
         if (mixer && mixer.owner === this.name) mixer = null;
         return this;
@@ -265,15 +254,19 @@ export function wsSnapshot(beat) {
 // Stop one video player by name (its layer or the crossfader it owns) — used by Alt+X /
 // .stop() so video stops like any other player.
 export function stopVisual(name) { layers.delete(name); if (mixer && mixer.owner === name) mixer = null; }
-export function hasContent() { for (const l of layers.values()) if (!l._ws) return true; return !!mixer; }
+export function hasContent() { return layers.size > 0 || !!mixer; }
 
 // The resolved, serialisable state for the renderer (called on the clock tick).
 export function snapshot(beat) {
     const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq };
     for (const [name, l] of layers) {
-        if (!l.scene || l._ws) continue;   // skip WS-only layers
+        if (!l.scene) continue;
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;
-        out.layers.push({ name, ch: l.ch, scene: l.scene, params: resolveMap(l.params, beat, dur), fx: resolveMap(l.fx, beat, dur) });
+        // `ws` tells the renderer which of the two scene models this is. It is decided
+        // here rather than looked up downstream so the renderer, the surface and the
+        // pop-out window all agree without importing the layer registry.
+        out.layers.push({ name, ch: l.ch, scene: l.scene, ws: !isScene(l.scene) && WS_SET.has(l.scene),
+                          params: resolveMap(l.params, beat, dur), fx: resolveMap(l.fx, beat, dur) });
     }
     if (mixer) {
         let v = Number(resolveVisual(mixer.value, beat, mixer.dur)) || 0;

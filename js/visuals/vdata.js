@@ -1,3 +1,5 @@
+import { WORKSHOP_NAMES, defaults as wsDefaults } from './workshop/index.js';
+
 // Shared visual constants — imported by both vlang.js (main window, for routing /
 // validation / autocomplete) and clift.js (pop-out, for rendering). Single source of
 // truth for the scene vocabulary, palettes, blend modes and glyph ramps. Palettes and
@@ -23,6 +25,8 @@ export const SCENES = [
 // Per-scene SPECIFIC params (beyond speed/scale + the universal knobs). Each entry maps
 // a name → default; its ARRAY INDEX is the slot the renderer packs it into (pp.x..pp.w in
 // GLSL, p.<name> in JS). Max 4 per scene. Unset → the default, so old behaviour is kept.
+// Field-scene params. Workshop layers answer through wsSceneParams() instead — see
+// sceneParams(), which is what callers should use when a name could be either.
 export const SCENE_PARAMS = {
     spiral:    [{ n: 'arms',      d: 3  }],
     tunnel:    [{ n: 'sectors',   d: 6  }],
@@ -42,6 +46,17 @@ export const SCENE_PARAMS = {
     mosaic:    [{ n: 'cells', d: 8 }, { n: 'rows', d: 0 }, { n: 'fill', d: 0.5 }, { n: 'shift', d: 0 },
                 { n: 'mode', d: 0 }, { n: 'seed', d: 0 }, { n: 'gap', d: 0.08 }, { n: 'react', d: 0.6 }],
 };
+
+/** Params for ANY scene name, field or workshop. [{ n, d }] — name and default. */
+export function sceneParams(name) {
+    // A FIELD scene wins a name collision — that is how visualBuilders() resolves the
+    // 16 shared names, so the params have to resolve the same way. Testing
+    // SCENE_PARAMS first would get this wrong for a field scene that declares no
+    // specific params: `plasma` has none of its own, but it is a field scene, and it
+    // must not inherit the workshop plasma's six knobs.
+    if (SCENE_SET.has(name)) return SCENE_PARAMS[name] || [];
+    return WS_SET.has(name) ? wsSceneParams(name) : [];
+}
 
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any
 //  legacy import still resolves.)
@@ -97,33 +112,25 @@ export const RENDER_MODE_NAMES = ['smooth', 'pixel', ...Object.keys(RENDER_MODES
 // These scene names are routed to the VJ Workshop (stars/workshop) instead
 // of visuals.html. video1 >> mandelbulb(...) → workshop channel 0.
 // Names map to LAYER_KINDS keys in workshop/src/channel.js (lowercased).
-export const WS_SCENES = [
-    'mandelbulb', 'mandelbox', 'volume', 'starfield', 'plasma', 'tunnel',
-    'noise', 'voronoi', 'rings', 'constellation', 'boids', 'attractor',
-    'clifford', 'lorenz', 'reaction', 'clift', 'sphere3d', 'splineweave',
-    'starburst', 'mycelium', 'neoncity', 'mazecity', 'neuralnet',
-    'crystalgrowth', 'fractaltree', 'phyllotaxis', 'cyclicca', 'gameoflife',
-    'ifsfractal', 'slimemold', 'rhizome', 'swarm', 'dnahelix', 'hypnoscope',
-    'wireframe3d', 'spectrum', 'freqtower', 'shapes', 'grid', 'apollonian',
-    'fpvdrone', 'circuitscanner', 'ikedabarcode', 'ikedacircuit',
-    'ikedamatrix', 'ikedaoscillo', 'ikedascan', 'stringart', 'codedisplay',
-];
+// The workshop layer vocabulary. It used to be a hand-kept list of 49 names that
+// vlang forwarded over the BroadcastChannel to a separate app; the layers live HERE
+// now (js/visuals/workshop/), so the list is the registry itself and cannot drift.
+// A name crashDot already has as a field scene keeps the field scene — those are the
+// GPU-native ones — so 16 collisions resolve in crashDot's favour and 190 names are new.
+export const WS_SCENES = WORKSHOP_NAMES;
+const SCENE_SET = new Set(SCENES);
 export const WS_SET = new Set(WS_SCENES);
 
-// Key params per workshop scene (for autocomplete hints)
-export const WS_SCENE_PARAMS = {
-    mandelbulb:  [{ n: 'power',   d: 2    }, { n: 'detail', d: 0.5  }, { n: 'glow',    d: 0.5  }],
-    mandelbox:   [{ n: 'scale',   d: 2    }, { n: 'fold',   d: 1    }, { n: 'detail',  d: 0.5  }],
-    volume:      [{ n: 'density', d: 0.5  }, { n: 'speed',  d: 1    }, { n: 'octaves', d: 4    }],
-    starfield:   [{ n: 'density', d: 0.5  }, { n: 'speed',  d: 1    }, { n: 'size',    d: 1    }],
-    plasma:      [{ n: 'speed',   d: 1    }, { n: 'scale',  d: 1    }, { n: 'hue',     d: 0    }],
-    tunnel:      [{ n: 'speed',   d: 1    }, { n: 'twist',  d: 0    }, { n: 'rings',   d: 8    }],
-    noise:       [{ n: 'scale',   d: 1    }, { n: 'speed',  d: 1    }, { n: 'octaves', d: 4    }],
-    boids:       [{ n: 'count',   d: 120  }, { n: 'speed',  d: 1    }, { n: 'trail',   d: 0.5  }],
-    reaction:    [{ n: 'feed',    d: 0.055}, { n: 'kill',   d: 0.062}, { n: 'diffA',   d: 1    }],
-    freqtower:   [{ n: 'height',  d: 0.8  }, { n: 'glow',   d: 0.5  }, { n: 'speed',   d: 1    }],
-    codedisplay: [{ n: 'style',   d: 0    }, { n: 'fontSize',d: 15  }, { n: 'fadeTime',d: 8    }],
-};
+// A workshop layer declares its own parameters — makeParams() returns
+// { name: { base, min, max } } — so the autocomplete table is derived rather than
+// kept by hand. It used to be 11 entries covering 49 forwarded names; it is now every
+// param of all 206, with the right defaults, and it cannot go stale.
+const _wsParams = {};
+export function wsSceneParams(name) {
+    if (_wsParams[name]) return _wsParams[name];
+    const d = wsDefaults(name);
+    return (_wsParams[name] = Object.entries(d).map(([n, v]) => ({ n, d: v })));
+}
 
 // Parse "#rrggbb" → [r,g,b] 0..255.
 function hex(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }

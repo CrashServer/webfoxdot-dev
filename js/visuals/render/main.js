@@ -14,6 +14,7 @@ import { draw } from './draw.js';
 import * as fx from './postfx.js';
 import { RENDER_MODES } from '../vdata.js';
 import { createGLRenderer } from './gl/renderer.js';
+import { createWorkshopDeck } from './wsdeck.js';
 import { V, AUD, S } from './state.js';
 
 const glCanvas = document.getElementById('visgl');
@@ -31,6 +32,7 @@ let beatPulse = 0;
 let lastClearSeq = 0;
 let lastRes;                                     // last applied vres() scale
 let overlayOpaque = true;                        // is the 2D canvas currently covering GL?
+let wsd = null;                                  // workshop-layer deck, built on first use
 
 function resize() {
     W = innerWidth; H = innerHeight;
@@ -114,7 +116,20 @@ function loop(ts) {
         const f = fxBundle();
         const mode = V.mode || 'smooth';
         const isGlyph = !!RENDER_MODES[mode];        // glyph ramp → CPU; pixel/smooth → GPU
-        if (glr && !isGlyph) { setOverlay(false); glr.render(V, t, aud, f); }
+        if (glr && !isGlyph) {
+            setOverlay(false);
+            // Workshop layers are imperative RGBA draws — they render on the CPU into a
+            // canvas per deck and reach the GPU as a texture. Nothing to do on the glyph
+            // path: a glyph ramp is a function of a scalar field, which they are not.
+            const ws = V.layers.filter((l) => l.ws);
+            if (ws.length) {
+                if (!wsd) wsd = createWorkshopDeck();
+                const { W: gw, H: gh } = glr.size;
+                const d = wsd.render(ws, gw, gh, t, aud);
+                glr.setWorkshop(d.a, d.b);
+            } else glr.setWorkshop(null, null);
+            glr.render(V, t, aud, f);
+        }
         else cpuFrame(t, f);
         hud.textContent = hudText();
     } else {

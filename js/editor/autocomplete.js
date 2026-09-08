@@ -4,12 +4,14 @@
 
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
-import { SCENES as VSCENES, SCENE_PARAMS, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
+import { SCENES as VSCENES, WS_SCENES, sceneParams, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 import { exampleList, exampleCode } from '../ui/docs.js';
 import { ASCII_STYLES } from '../ui/ascii.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
+// Workshop layers minus the 16 names crashDot already has as field scenes.
+const WS_ONLY     = WS_SCENES.filter((n) => !VSCENE_SET.has(n));
 const VFX_NAMES   = ['trails', 'feedback', 'blur', 'bloom', 'scan', 'vignette', 'glitch', 'invert', 'posterize', 'droste', 'fold', 'hueshift', 'dither', 'pixelsort', 'mirror', 'edge', 'pixelate'];
 // Every knob a scene understands. Scenes only read speed/scale (+ audio); the rest are
 // universal controls the compositor applies to any scene. Ctrl+Space inside a scene call
@@ -95,7 +97,7 @@ function synthItem(name) {
 // no-op default) so the controls are exposed for tweaking, and drops a caret just inside
 // the parens (on ch) rather than selecting anything.
 function fullSceneCall(name) {
-    const specific = (SCENE_PARAMS[name] || []).map((x) => `${x.n}=${x.d}`);   // scene's own params first
+    const specific = sceneParams(name).map((x) => `${x.n}=${x.d}`);   // scene's own params first
     const universal = VSCENE_DEFAULTS.map(([k, v]) => `${k}=${v}`);
     return `${name}(${[...specific, ...universal].join(', ')})`;
 }
@@ -617,7 +619,13 @@ function hintFn(cm) {
         // inserting all its knobs like a synth) and "fx" (the mixer + post-effects).
         // Every other name (v1, d4, pad, bass, …) gets the MUSIC vocabulary.
         if (/^video\d*$/i.test(ctx.player || '')) {
+            // Two groups of scene, because they are two different things and behave
+            // differently: a "video synth" is a scalar field evaluated per-pixel on the
+            // GPU and coloured by the palette (so hue/pal steer it); a "workshop layer"
+            // is an imperative draw that brings its own colour (so pal does nothing to
+            // it). Names crashDot has in both are the field version and are not repeated.
             list = [sep('video synths'), ...VSCENES.map(sceneItem),
+                sep('workshop layers'), ...WS_ONLY.map(sceneItem),
                 sep('fx'), item('mix()', 'hint-keyword', 'mix'),
                 ...VFX_NAMES.map(n => item(n + '()', 'hint-param', n))];
         } else {
@@ -629,7 +637,7 @@ function hintFn(cm) {
         list = filter(VFX_NAMES.map(n => item(n + '()', 'hint-param', n)));
     } else if (ctx.type === 'vparam') {
         // scene's own params first (spiral → arms=, tunnel → sectors=), then the universal knobs
-        const specific = (SCENE_PARAMS[ctx.vfn] || []).map((x) => x.n + '=');
+        const specific = sceneParams(ctx.vfn).map((x) => x.n + '=');
         const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : [...specific, ...VSCENE_PARAMS];
         list = filter(ps.map(p => item(p, 'hint-param', p.replace('=', ''))));
     } else if (ctx.type === 'vnames') {

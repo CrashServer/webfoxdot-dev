@@ -75,7 +75,17 @@ uniform vec4  uL3[${MAXL}];     // scene-specific params (pp.x..pp.w)
 uniform vec4  uL4[${MAXL}];     // extra scene params (pp2.x..pp2.w) — 8 per scene total
 uniform vec2  uPalA;            // palIndexA, hueA
 uniform vec2  uPalB;            // palIndexB, hueB
+// Workshop layers are the OTHER kind of scene: imperative RGBA draws that own their
+// colour, composited on the CPU into one canvas per deck and handed here as a texture.
+// They join the picture at deck level — after the field layers have been coloured by
+// the palette, before the A↔B crossfade — so the crossfader, the trails/feedback pass
+// and every post-fx apply to them exactly as they do to a field scene.
+uniform sampler2D uWsA;
+uniform sampler2D uWsB;
+uniform vec2  uHasWs;           // x: deck A carries workshop pixels · y: deck B
 out vec4 fragColor;
+
+float luma3(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
 
 vec3 palSample(float palIdx, float v, float hue){
     float x = fract(clamp(v,0.0,0.999999) + hue);   // cap below 1.0 so peak value hits the ramp TOP, not fract(1)=0 (black)
@@ -118,6 +128,11 @@ void main(){
     }
     vec3 ca = palSample(uPalA.x, av, uPalA.y);
     vec3 cb = palSample(uPalB.x, bv, uPalB.y);
+    // Workshop pixels over the field colour, by their own alpha. av/bv are raised too:
+    // the crossfade blends in VALUE space as well as colour, so a deck that is entirely
+    // workshop would otherwise read as empty and wipe/dissolve would misbehave.
+    if (uHasWs.x > 0.5){ vec4 w = texture(uWsA, uv); ca = mix(ca, w.rgb, w.a); av = max(av, w.a * luma3(w.rgb)); }
+    if (uHasWs.y > 0.5){ vec4 w = texture(uWsB, uv); cb = mix(cb, w.rgb, w.a); bv = max(bv, w.a * luma3(w.rgb)); }
     vec3 col = blendCol(av, bv, ca, cb, uMix, uv);
     vec2 tc = gl_FragCoord.xy / uRes;
     col = max(col, texture(uPrev, tc).rgb * uTrails);            // trails = static feedback
@@ -286,7 +301,7 @@ export function createGLRenderer(canvas) {
     // uniform locations — scene program
     const uLoc = {};
     for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
-        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uPalA', 'uPalB', 'uSpec']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
+        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uPalA', 'uPalB', 'uSpec', 'uWsA', 'uWsB', 'uHasWs']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
         'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate']) pLoc[n] = gl.getUniformLocation(presentProg, n);
@@ -304,6 +319,28 @@ export function createGLRenderer(canvas) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // ── workshop deck textures ──
+    // Uploaded from a 2D canvas each frame. A canvas source is the one texImage2D
+    // overload the browser can hand straight to the driver, so this stays cheap even
+    // at native resolution; the alternative (readback to an ArrayBuffer) would not.
+    function makeWsTex() {
+        const t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return t;
+    }
+    const wsTex = [makeWsTex(), makeWsTex()];
+    let wsSrc = [null, null];        // the two deck canvases for THIS frame, or null
+    // The canvas's own top-left origin has to survive the upload: GL's texture origin is
+    // bottom-left, and uv in the scene shader is already v-down, so flipping here would
+    // put every workshop layer upside down.
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    function setWorkshop(a, b) { wsSrc[0] = a || null; wsSrc[1] = b || null; }
 
     // ping-pong FBOs for feedback (this-frame reads last-frame)
     let W = 0, H = 0, fb = [null, null], tex = [null, null], cur = 0, needClear = true;
@@ -409,6 +446,14 @@ export function createGLRenderer(canvas) {
         gl.uniform2f(uLoc.uPalB, db.palIdx, db.hue);
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, palTex); gl.uniform1i(uLoc.uPal, 0);
         gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tex[src]); gl.uniform1i(uLoc.uPrev, 1);
+        for (let d = 0; d < 2; d++) {
+            gl.activeTexture(gl.TEXTURE2 + d);
+            gl.bindTexture(gl.TEXTURE_2D, wsTex[d]);
+            const c = wsSrc[d];
+            if (c && c.width && c.height) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+            gl.uniform1i(d ? uLoc.uWsB : uLoc.uWsA, 2 + d);
+        }
+        gl.uniform2f(uLoc.uHasWs, wsSrc[0] ? 1 : 0, wsSrc[1] ? 1 : 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 
         // ── pass 2: present dst → screen + post-fx ──
@@ -440,5 +485,5 @@ export function createGLRenderer(canvas) {
 
     function clear() { needClear = true; }             // wipe the feedback buffers (clear() reset)
 
-    return { render, resize, clear, setResolution, gl, get size() { return { W, H }; } };
+    return { render, resize, clear, setResolution, setWorkshop, gl, get size() { return { W, H }; } };
 }

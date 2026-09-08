@@ -13,6 +13,7 @@
 // literally the same picture.
 
 import { createGLRenderer } from './render/gl/renderer.js';
+import { createWorkshopDeck } from './render/wsdeck.js';
 import { snapshot }         from './vlang.js';
 import { getVisualAudio }   from './bridge.js';
 
@@ -47,6 +48,9 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     let r = null, on = false, raf = 0;
     const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
     const subs = new Set();
+    // Workshop layers draw on the CPU into a canvas per deck; the GL renderer takes
+    // those as textures. Built lazily — a set with no workshop layers never makes one.
+    let wsd = null;
 
     try { r = createGLRenderer(canvas); }
     catch (e) { console.warn('visual surface: WebGL2 unavailable —', e?.message || e); }
@@ -69,6 +73,13 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         aud.treble += (a.treble - aud.treble) * 0.35;
         aud.level  += (a.level  - aud.level)  * 0.35;
         aud.spectrum = a.spectrum;
+        const ws = vst.layers.filter((l) => l.ws);
+        if (ws.length) {
+            if (!wsd) wsd = createWorkshopDeck();
+            const { W, H } = r.size;
+            const d = wsd.render(ws, W, H, t, aud);
+            r.setWorkshop(d.a, d.b);
+        } else if (wsd) { r.setWorkshop(null, null); }
         r.render(vst, t, aud, fxBundle(vst.layers));
         for (const cb of subs) { try { cb(canvas); } catch (_) {} }
     }

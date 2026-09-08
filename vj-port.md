@@ -65,19 +65,56 @@ around `draw`, so they are dead in the workshop as well. Three causes:
 
 Worth sending back to the stars repo.
 
-## Stage 2 — rendering (next)
+## Stage 2 — rendering — done
 
-The renderer window already stacks `#visgl` (WebGL2, below) and `#vis` (2D, above),
-and the 2D canvas is either opaque (glyph/CPU mode) or fully cleared (GPU mode). A
-workshop layer draws into an offscreen canvas and is composited onto that 2D
-overlay with its blend and opacity — which needs a **third overlay state**:
-transparent, but with canvas layers on it. No shader changes, so all 206 work on
-the GPU path from day one.
+`video1 >> doomcorridor()` renders in crashDot. 190 new scene names (206 workshop
+layers minus 16 that collide with a field scene, where the field scene wins because
+it is the GPU-native one).
 
-Then: `vlang` routes a workshop name to a local layer instead of `workshopSend`;
-`SCENE_PARAMS`-style autocomplete data generated from `makeParams()`; the SCREEN
-panel and the panel backdrops pick it up for free, since both already read the
-renderer's surface.
+**Where they join the picture.** A workshop layer draws on the CPU into its own
+canvas; `render/wsdeck.js` composites the live ones into ONE canvas per deck; the GL
+renderer takes those two as textures (`uWsA`/`uWsB`) and folds them in at deck
+level — after the field layers are coloured by the palette, before the A↔B
+crossfade. So the crossfader, the trails/feedback pass and every post-fx apply to a
+workshop layer exactly as to a field scene, with no shader work per layer and one
+canvas out (which is what the SCREEN panel and the backdrop `onFrame` copies need).
+
+`av`/`bv` are raised by the workshop pixels too, not just the colours: the crossfade
+blends in VALUE space as well as colour, so a deck that is entirely workshop would
+otherwise read as empty and `wipe`/`dissolve` would misbehave.
+
+**Two things about workshop layers drove wsdeck.js.** Their state is keyed by
+CONTEXT (`_state.get(ctx)` on a module WeakMap), so every live layer needs its own
+canvas kept for as long as it is on screen — share one and their states collide,
+recreate it per frame and every particle system restarts 60×/second. And they size
+themselves from `w`/`h`, rebuilding grids and populations on a change, so the deck
+resizes only when the render size actually changes.
+
+crashDot's universal knobs are applied on the way into the deck, so no layer has to
+know about them: `zoom`/`rot`/`panx`/`pany` as a canvas transform, `bright`×`gain`
+as alpha. (`contrast` and `inv` are field-space operations and are not yet mapped.)
+
+**Upload cost**: `texImage2D` straight from the canvas — the one overload the browser
+hands to the driver without a readback.
+
+`UNPACK_FLIP_Y_WEBGL` is explicitly false: GL's texture origin is bottom-left, the
+canvas's is top-left, and the scene shader's `uv` is already v-down, so flipping
+would put every workshop layer upside down.
+
+**Discoverability.** `WS_SCENE_PARAMS` was a hand-kept table of 11 entries covering
+49 forwarded names; it is derived from `makeParams()` now, so all 206 layers have
+their real params with real defaults and it cannot go stale. Ctrl+Space on a `videoN`
+player offers two groups — "video synths" (fields; `hue`/`pal` steer them) and
+"workshop layers" (imperative; they bring their own colour, so `pal` does nothing).
+
+**A collision bug caught by the tests**: `sceneParams()` first tested
+`SCENE_PARAMS[name]`, so `plasma` — a field scene that declares no specific params —
+fell through and inherited the *workshop* plasma's six knobs. It tests scene
+MEMBERSHIP now, matching how `visualBuilders()` resolves the same collision.
+
+**What still routes over the bridge**: the `w*()` command builders (`wpreset`,
+`wblend`, `wfx`, `wseq`, …). Those drive an EXTERNAL workshop for anyone running
+one. A scene name no longer does.
 
 ## Stage 3 — the rest of the workshop
 
