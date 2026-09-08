@@ -19,7 +19,7 @@
 
 import { getLang } from '../i18n/lang.js';
 
-const TOTAL = 42;
+const TOTAL = 44;
 const DIV = '# ───────────────────────────────────────────────────────────────────────────';
 
 // Localised chrome (header word + footer navigation).
@@ -522,7 +522,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`),
 #   Ctrl+Space      autocomplete                     Ctrl+/   toggle comment
 #   Alt+T           record a knob move as automation
 #   Ctrl+Alt+P      JUMP to the ACTIVE section — where the running set is right now
-#   Ctrl+Alt+N      a new scratch buffer   ·   Alt+1 … Alt+9  switch buffer (lesson 41)
+#   Ctrl+Alt+N      a new scratch buffer   ·   Alt+1 … Alt+9  switch buffer (lesson 43)
 #   Shift+Alt+Z     zen mode (hide all UI)  ·  F1  docs
 #
 # Ctrl+Alt+P is the "go to composition position" jump — handy in a long #@ set.`),
@@ -743,7 +743,64 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`),
 
-    lesson(41, 'Buffers — a blank canvas beside your set',
+    lesson(41, 'Visuals — code the picture too',
+`# crashDot DRAWS as well as it plays, in this same editor. A player named video1,
+# video2, … is a VISUAL player, and it takes a scene the way an audio player takes
+# a synth:
+#
+# ▶ run it — the picture goes to the SCREEN panel (desktop UI), or to output():
+video1 >> plasma()
+#
+# There are TWO KINDS of scene and it is worth knowing which you have:
+#
+#   VIDEO SYNTH   ( 49)  a field evaluated per pixel on the GPU and coloured by
+#                        palette() — hue and pal steer it, and it is nearly free
+#   WORKSHOP LAYER (190)  an imperative drawing that brings its OWN colour —
+#                        palette() does nothing to it, and it costs more
+#
+# Ctrl+Space after  video1 >>  lists both groups, with every knob at its default.
+#
+# ▶ Every param takes the same patterns and TimeVars your audio does:
+video1 >> plasma(hue=sinvar([0, 1], 16), speed=2)
+#
+# ▶ Two decks and a crossfader — ch=0 is A, ch=1 is B, mix() moves between them:
+video1 >> plasma(ch=0)
+video2 >> doomcorridor(ch=1)
+video9 >> mix(sinvar([0, 1], 32))
+#
+# ▶ Chain effects with + , exactly like audio FX:
+video1 >> plasma() + bloom(0.5) + scan(0.3)
+#
+# palette("fire")  the colour ramp  ·  video1.stop()  stops it  ·  clear()  blanks all`),
+
+    lesson(42, 'Visuals on a wall — outputs & mapping',
+`# A picture on your laptop is a rehearsal. output() is the show.
+#
+# ▶ open a projector window (it stays black until visual code runs):
+output()
+#
+# One output is one PROJECTOR. Give it several SURFACES and each is an
+# independently warped patch — pin a flat quad onto each visible face of a box or
+# a truss corner and the object reads as MAPPED, with no 3D anywhere:
+#
+# ▶ one projector, three mappable patches:
+output(3)
+#
+# In the output window:
+#   [w]  show the corner handles — drag them onto the surface you are projecting on
+#   [m]  4pt → edge → mesh    ·    [ ] and [ ]  mesh grid    ·    [r]  reset    ·    [f]  fullscreen
+#
+# Each surface picks its own SOURCE — the master mix, one layer on its own, or a
+# CODE BUFFER. So one face of the object carries the visuals and another carries
+# the code making them, live, as you type it. The OUTPUTS panel has the picker.
+#
+# Mapping is saved on THIS machine and never travels: it describes where your
+# projector sits in a room, not what the piece is. Joining a jam cannot move it.
+#
+# ▶ and to keep a look you like — vsnap() prints it back as code you can paste:
+vsnap()`),
+
+    lesson(43, 'Buffers — a blank canvas beside your set',
 `# Above the code is a row of tabs. The first, SET, is your composition: the buffer
 # examples load into, the one SHARE encodes into a link, the one GO LIVE hands to a
 # room. Press  +  and you get a SCRATCH buffer — empty, and none of those things.
@@ -764,7 +821,7 @@ p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
 # but kept across a refresh. In a session that is the whole point — somewhere to
 # flail before the room hears it.`),
 
-    lesson(42, 'You’re ready ✨',
+    lesson(44, 'You’re ready ✨',
 `# That's the whole loop:   WRITE  →  RUN (Ctrl+Enter)  →  CHANGE  →  run again.
 #
 # Where to go next:
@@ -1245,7 +1302,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'fr'),
 #   Ctrl+Espace     autocomplétion                  Ctrl+/   commente/décommente
 #   Alt+T           enregistre un mouvement de réglage en automation
 #   Ctrl+Alt+P      SAUTE à la section ACTIVE — là où le set en cours joue
-#   Ctrl+Alt+N      nouveau buffer scratch  ·  Alt+1 … Alt+9  changer de buffer (leçon 41)
+#   Ctrl+Alt+N      nouveau buffer scratch  ·  Alt+1 … Alt+9  changer de buffer (leçon 43)
 #   Shift+Alt+Z     mode zen (masque toute l'UI)  ·  F1  docs
 #
 # Ctrl+Alt+P est le saut « aller à la position de la composition ».`, 'fr'),
@@ -1468,7 +1525,66 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'fr'),
 
-    lesson(41, 'Les buffers — une page blanche à côté de ton set',
+    lesson(41, 'Le visuel — coder l’image aussi',
+`# crashDot DESSINE autant qu’il joue, dans ce même éditeur. Un player nommé video1,
+# video2, … est un player VISUEL, et il prend une scène comme un player audio prend
+# un synthé :
+#
+# ▶ lance-le — l’image va dans le panneau SCREEN (UI desktop), ou dans output() :
+video1 >> plasma()
+#
+# Il y a DEUX SORTES de scène, et savoir laquelle tu utilises compte :
+#
+#   SYNTHÉ VIDÉO   ( 49)  un champ évalué par pixel sur le GPU et coloré par
+#                         palette() — hue et pal le pilotent, et c’est quasi gratuit
+#   COUCHE WORKSHOP (190)  un dessin impératif qui apporte SA couleur —
+#                         palette() n’y fait rien, et ça coûte plus cher
+#
+# Ctrl+Espace après  video1 >>  liste les deux groupes, tous les réglages inclus.
+#
+# ▶ Chaque paramètre accepte les mêmes patterns et TimeVars que ton audio :
+video1 >> plasma(hue=sinvar([0, 1], 16), speed=2)
+#
+# ▶ Deux platines et un crossfader — ch=0 c’est A, ch=1 c’est B, mix() passe de l’une
+#   à l’autre :
+video1 >> plasma(ch=0)
+video2 >> doomcorridor(ch=1)
+video9 >> mix(sinvar([0, 1], 32))
+#
+# ▶ Enchaîne les effets avec + , exactement comme les FX audio :
+video1 >> plasma() + bloom(0.5) + scan(0.3)
+#
+# palette("fire")  la rampe de couleur  ·  video1.stop()  arrête  ·  clear()  efface tout`, 'fr'),
+
+    lesson(42, 'Le visuel sur un mur — sorties & mapping',
+`# Une image sur ton portable, c’est une répétition. output(), c’est le concert.
+#
+# ▶ ouvre une fenêtre de projection (elle reste noire tant que rien ne tourne) :
+output()
+#
+# Une sortie = un PROJECTEUR. Donne-lui plusieurs SURFACES et chacune est un
+# morceau déformé indépendamment — épingle un quadrilatère plat sur chaque face
+# visible d’une boîte ou d’un angle de structure et l’objet se lit comme MAPPÉ,
+# sans aucune 3D :
+#
+# ▶ un projecteur, trois zones mappables :
+output(3)
+#
+# Dans la fenêtre de sortie :
+#   [w]  affiche les poignées de coin — traîne-les sur la surface que tu projettes
+#   [m]  4pt → edge → mesh   ·   [ ] et [ ]  grille   ·   [r]  reset   ·   [f]  plein écran
+#
+# Chaque surface choisit sa SOURCE — le mix master, une seule couche, ou un BUFFER
+# DE CODE. Une face de l’objet porte le visuel, une autre porte le code qui le
+# fabrique, en direct, pendant que tu le tapes. Le panneau OUTPUTS a le sélecteur.
+#
+# Le mapping est enregistré sur CETTE machine et ne voyage jamais : il décrit où est
+# ton projecteur dans la salle, pas ce qu’est le morceau. Une jam n’y touche pas.
+#
+# ▶ et pour garder un rendu — vsnap() le réécrit en code à coller :
+vsnap()`, 'fr'),
+
+    lesson(43, 'Les buffers — une page blanche à côté de ton set',
 `# Au-dessus du code, une rangée d'onglets. Le premier, SET, c'est ta composition :
 # le buffer où les examples se chargent, celui que SHARE encode en lien, celui que
 # GO LIVE donne à la salle. Appuie sur  +  : tu obtiens un buffer SCRATCH — vide,
@@ -1490,7 +1606,7 @@ p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
 # un lien, mais gardés au rechargement. En session c'est tout l'intérêt — un endroit
 # pour tâtonner avant que la salle n'entende.`, 'fr'),
 
-    lesson(42, 'Tu es prêt ✨',
+    lesson(44, 'Tu es prêt ✨',
 `# Voilà toute la boucle :   ÉCRIRE  →  LANCER (Ctrl+Entrée)  →  CHANGER  →  relancer.
 #
 # Où aller ensuite :
@@ -1967,7 +2083,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'de'),
 #   Strg+Leertaste  Autovervollständigung             Strg+/   Kommentar umschalten
 #   Alt+T           nimmt eine Reglerbewegung als Automation auf
 #   Strg+Alt+P      SPRINGT zur AKTIVEN Section — dorthin, wo das Set gerade ist
-#   Strg+Alt+N      neuer Scratch-Buffer  ·  Alt+1 … Alt+9  Buffer wechseln (Lektion 41)
+#   Strg+Alt+N      neuer Scratch-Buffer  ·  Alt+1 … Alt+9  Buffer wechseln (Lektion 43)
 #   Shift+Alt+Z     Zen-Modus (UI ausblenden)  ·  F1  Docs
 #
 # Strg+Alt+P ist der Sprung „zur Kompositions-Position".`, 'de'),
@@ -2190,7 +2306,63 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'de'),
 
-    lesson(41, 'Buffer — ein leeres Blatt neben deinem Set',
+    lesson(41, 'Visuals — auch das Bild wird gecodet',
+`# crashDot ZEICHNET auch, im selben Editor. Ein Player namens video1, video2, … ist
+# ein VISUELLER Player und nimmt eine Szene, wie ein Audio-Player einen Synth nimmt:
+#
+# ▶ Führ es aus — das Bild geht ins SCREEN-Panel (Desktop-UI) oder in output():
+video1 >> plasma()
+#
+# Es gibt ZWEI ARTEN von Szene, und es lohnt sich zu wissen, welche du hast:
+#
+#   VIDEO-SYNTH   ( 49)  ein Feld, pro Pixel auf der GPU ausgewertet und von
+#                        palette() eingefärbt — hue und pal steuern es, fast gratis
+#   WORKSHOP-LAYER (190)  eine imperative Zeichnung mit EIGENER Farbe —
+#                        palette() bewirkt nichts, und sie kostet mehr
+#
+# Strg+Leertaste nach  video1 >>  listet beide Gruppen, mit allen Reglern.
+#
+# ▶ Jeder Parameter nimmt dieselben Patterns und TimeVars wie dein Audio:
+video1 >> plasma(hue=sinvar([0, 1], 16), speed=2)
+#
+# ▶ Zwei Decks und ein Crossfader — ch=0 ist A, ch=1 ist B, mix() blendet:
+video1 >> plasma(ch=0)
+video2 >> doomcorridor(ch=1)
+video9 >> mix(sinvar([0, 1], 32))
+#
+# ▶ Effekte mit + verketten, genau wie Audio-FX:
+video1 >> plasma() + bloom(0.5) + scan(0.3)
+#
+# palette("fire")  die Farbrampe  ·  video1.stop()  stoppt sie  ·  clear()  löscht alles`, 'de'),
+
+    lesson(42, 'Visuals an der Wand — Ausgänge & Mapping',
+`# Ein Bild auf dem Laptop ist eine Probe. output() ist die Show.
+#
+# ▶ Öffne ein Projektorfenster (es bleibt schwarz, bis visueller Code läuft):
+output()
+#
+# Ein Ausgang ist ein PROJEKTOR. Gib ihm mehrere FLÄCHEN, und jede ist ein
+# unabhängig verzerrtes Stück — hefte ein flaches Viereck auf jede sichtbare Seite
+# einer Kiste oder Traverse, und das Objekt liest sich als GEMAPPT, ganz ohne 3D:
+#
+# ▶ ein Projektor, drei mapbare Flächen:
+output(3)
+#
+# Im Ausgabefenster:
+#   [w]  Eckpunkte zeigen — zieh sie auf die Fläche, auf die du projizierst
+#   [m]  4pt → edge → mesh   ·   [ ] und [ ]  Gitter   ·   [r]  Reset   ·   [f]  Vollbild
+#
+# Jede Fläche wählt ihre QUELLE — den Master-Mix, einen einzelnen Layer, oder einen
+# CODE-BUFFER. So trägt eine Seite des Objekts das Bild und eine andere den Code,
+# der es macht, live, während du ihn tippst. Das OUTPUTS-Panel hat die Auswahl.
+#
+# Das Mapping liegt auf DIESEM Rechner und reist nie mit: es beschreibt, wo dein
+# Projektor im Raum steht, nicht was das Stück ist. Ein Jam verschiebt es nicht.
+#
+# ▶ und um einen Look zu behalten — vsnap() schreibt ihn als Code zurück:
+vsnap()`, 'de'),
+
+    lesson(43, 'Buffer — ein leeres Blatt neben deinem Set',
 `# Über dem Code liegt eine Reihe von Tabs. Der erste, SET, ist deine Komposition:
 # der Buffer, in den examples laden, den SHARE in einen Link packt, den GO LIVE an
 # einen Raum gibt. Drücke  +  und du bekommst einen SCRATCH-Buffer — leer, und
@@ -2212,7 +2384,7 @@ p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
 # über einen Reload hinweg erhalten. In einer Session ist genau das der Sinn — ein
 # Ort zum Herumprobieren, bevor der Raum es hört.`, 'de'),
 
-    lesson(42, 'Du bist bereit ✨',
+    lesson(44, 'Du bist bereit ✨',
 `# Das ist die ganze Schleife:   SCHREIBEN  →  AUSFÜHREN (Strg+Enter)  →  ÄNDERN  →  erneut.
 #
 # Wohin als Nächstes:
@@ -2686,7 +2858,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'es'),
 #   Ctrl+Espacio     autocompletado                    Ctrl+/   alterna comentario
 #   Alt+T            graba un movimiento de perilla como automatización
 #   Ctrl+Alt+P       SALTA a la section ACTIVA — donde va el set ahora mismo
-#   Ctrl+Alt+N       nuevo buffer scratch  ·  Alt+1 … Alt+9  cambiar de buffer (lección 41)
+#   Ctrl+Alt+N       nuevo buffer scratch  ·  Alt+1 … Alt+9  cambiar de buffer (lección 43)
 #   Shift+Alt+Z      modo zen (oculta la UI)  ·  F1  docs
 #
 # Ctrl+Alt+P es el salto «a la posición de la composición».`, 'es'),
@@ -2909,7 +3081,64 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'es'),
 
-    lesson(41, 'Buffers — un lienzo en blanco junto a tu set',
+    lesson(41, 'Visuales — codear la imagen también',
+`# crashDot DIBUJA además de sonar, en este mismo editor. Un player llamado video1,
+# video2, … es un player VISUAL, y toma una escena como un player de audio toma un
+# synth:
+#
+# ▶ ejecútalo — la imagen va al panel SCREEN (UI de escritorio), o a output():
+video1 >> plasma()
+#
+# Hay DOS CLASES de escena, y conviene saber cuál tienes:
+#
+#   SYNTH DE VÍDEO ( 49)  un campo evaluado por píxel en la GPU y coloreado por
+#                         palette() — hue y pal lo guían, y casi no cuesta nada
+#   CAPA WORKSHOP  (190)  un dibujo imperativo que trae SU propio color —
+#                         palette() no le hace nada, y cuesta más
+#
+# Ctrl+Espacio tras  video1 >>  lista los dos grupos, con todos sus mandos.
+#
+# ▶ Cada parámetro acepta los mismos patterns y TimeVars que tu audio:
+video1 >> plasma(hue=sinvar([0, 1], 16), speed=2)
+#
+# ▶ Dos platos y un crossfader — ch=0 es A, ch=1 es B, mix() pasa de uno a otro:
+video1 >> plasma(ch=0)
+video2 >> doomcorridor(ch=1)
+video9 >> mix(sinvar([0, 1], 32))
+#
+# ▶ Encadena efectos con + , igual que los FX de audio:
+video1 >> plasma() + bloom(0.5) + scan(0.3)
+#
+# palette("fire")  la rampa de color  ·  video1.stop()  lo para  ·  clear()  borra todo`, 'es'),
+
+    lesson(42, 'Visuales en una pared — salidas y mapping',
+`# Una imagen en tu portátil es un ensayo. output() es el concierto.
+#
+# ▶ abre una ventana de proyección (queda negra hasta que corra código visual):
+output()
+#
+# Una salida es un PROYECTOR. Dale varias SUPERFICIES y cada una es un parche
+# deformado por separado — fija un cuadrilátero plano en cada cara visible de una
+# caja o una esquina de truss y el objeto se lee MAPEADO, sin nada de 3D:
+#
+# ▶ un proyector, tres zonas mapeables:
+output(3)
+#
+# En la ventana de salida:
+#   [w]  muestra las esquinas — arrástralas sobre la superficie que proyectas
+#   [m]  4pt → edge → mesh   ·   [ ] y [ ]  rejilla   ·   [r]  reset   ·   [f]  pantalla completa
+#
+# Cada superficie elige su FUENTE — la mezcla máster, una sola capa, o un BUFFER DE
+# CÓDIGO. Así una cara del objeto lleva la imagen y otra lleva el código que la
+# hace, en vivo, mientras lo escribes. El panel OUTPUTS tiene el selector.
+#
+# El mapping se guarda en ESTA máquina y nunca viaja: describe dónde está tu
+# proyector en la sala, no qué es la pieza. Entrar en una jam no lo mueve.
+#
+# ▶ y para guardar un look — vsnap() lo reescribe como código que puedes pegar:
+vsnap()`, 'es'),
+
+    lesson(43, 'Buffers — un lienzo en blanco junto a tu set',
 `# Sobre el código hay una fila de pestañas. La primera, SET, es tu composición: el
 # buffer donde se cargan los examples, el que SHARE codifica en un enlace, el que
 # GO LIVE entrega a una sala. Pulsa  +  y tienes un buffer SCRATCH — vacío, y nada
@@ -2931,7 +3160,7 @@ p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
 # enlace, pero sobreviven a una recarga. En una sesión ese es todo el sentido — un
 # sitio donde trastear antes de que la sala lo oiga.`, 'es'),
 
-    lesson(42, 'Estás listo ✨',
+    lesson(44, 'Estás listo ✨',
 `# Este es todo el bucle:   ESCRIBIR  →  EJECUTAR (Ctrl+Enter)  →  CAMBIAR  →  otra vez.
 #
 # Adónde ir ahora:
@@ -3402,7 +3631,7 @@ p1 >> pluck([0, {2, 4}, 7, 4], dur=PDur(3, 8), amp=0.5)`, 'ja'),
 #   Ctrl+スペース   オートコンプリート          Ctrl+/   コメント切り替え
 #   Alt+T           つまみの動きをオートメーションとして記録
 #   Ctrl+Alt+P      「アクティブ」なセクションへジャンプ — 今セットが進んでいる場所
-#   Ctrl+Alt+N      新しい scratch バッファ  ·  Alt+1 … Alt+9  バッファ切り替え（レッスン41）
+#   Ctrl+Alt+N      新しい scratch バッファ  ·  Alt+1 … Alt+9  バッファ切り替え（レッスン43）
 #   Shift+Alt+Z     禅モード（UIを隠す）  ·  F1  ドキュメント
 #
 # Ctrl+Alt+P は「コンポジションの現在位置へ」のジャンプ。`, 'ja'),
@@ -3622,7 +3851,62 @@ d1 >> dbass([0, 3, 5], dur=1/2).slider(var([0, 1], [6, 2]))
 # Turn it off with .slider(0, 0). On synths with no pitch-glide (drums/samples)
 # it's a harmless no-op — safe to chain anywhere. Killer on acid basslines & leads.`, 'ja'),
 
-    lesson(41, 'バッファ — セットの隣にある白紙',
+    lesson(41, 'ビジュアル — 映像もコードする',
+`# crashDot は鳴らすだけでなく「描く」。同じエディタで書く。video1, video2, … という名前の
+# プレイヤーは「ビジュアル」プレイヤーで、音のプレイヤーがシンセを取るようにシーンを取る：
+#
+# ▶ 実行しよう — 映像は SCREEN パネル（デスクトップUI）か output() に出る：
+video1 >> plasma()
+#
+# シーンには2種類あり、どちらを使っているかを知る価値がある：
+#
+#   ビデオシンセ  ( 49)  GPU上でピクセルごとに評価される「場」。palette() が色を付ける
+#                       ので hue と pal が効く。ほぼ無料
+#   workshopレイヤー(190) 自前の色を持つ命令的な描画。palette() は効かず、コストは高い
+#
+#  video1 >>  のあとで Ctrl+Space を押すと両方のグループが出る（全つまみ付き）。
+#
+# ▶ どのパラメータも、音と同じ pattern と TimeVar を受け取る：
+video1 >> plasma(hue=sinvar([0, 1], 16), speed=2)
+#
+# ▶ 2つのデッキとクロスフェーダー — ch=0 がA、ch=1 がB、mix() が行き来する：
+video1 >> plasma(ch=0)
+video2 >> doomcorridor(ch=1)
+video9 >> mix(sinvar([0, 1], 32))
+#
+# ▶ エフェクトは + で繋ぐ。音のFXとまったく同じ：
+video1 >> plasma() + bloom(0.5) + scan(0.3)
+#
+# palette("fire") 色のランプ · video1.stop() 停止 · clear() 全消去`, 'ja'),
+
+    lesson(42, '壁に映す — 出力とマッピング',
+`# ノートPCの画面はリハーサル。output() が本番。
+#
+# ▶ 出力ウィンドウを開く（ビジュアルのコードが走るまでは真っ黒）：
+output()
+#
+# 1つの出力 = 1台のプロジェクター。そこに複数の「サーフェス」を持たせると、それぞれが
+# 独立に変形できる面になる — 箱やトラスの見えている各面に平らな四角形をピン留めすれば、
+# 3Dを一切使わずに立体がマッピングされて見える：
+#
+# ▶ プロジェクター1台、マッピング可能な面3つ：
+output(3)
+#
+# 出力ウィンドウの中で：
+#   [w]  四隅のハンドルを表示 — 投影している面に合わせてドラッグ
+#   [m]  4pt → edge → mesh  ·  [ ] と [ ]  メッシュの細かさ  ·  [r] リセット  ·  [f] 全画面
+#
+# 各サーフェスは「ソース」を選べる — マスターミックス、単独のレイヤー、あるいは
+# 「コードバッファ」。だから箱の一面に映像を、別の面に、それを作っているコードを、
+# 打ち込んでいるそのまま映せる。選択は OUTPUTS パネルにある。
+#
+# マッピングは「このマシン」に保存され、決して持ち出されない。部屋のどこに
+# プロジェクターがあるかの情報であって、曲そのものではないから。ジャムでも動かない。
+#
+# ▶ 気に入った絵を残すには — vsnap() が貼り付け可能なコードとして書き出す：
+vsnap()`, 'ja'),
+
+    lesson(43, 'バッファ — セットの隣にある白紙',
 `# コードの上にタブの列がある。最初の SET が君のコンポジション：examples が読み込ま
 # れるバッファ、SHARE がリンクに変換するバッファ、GO LIVE が部屋に渡すバッファ。
 #  +  を押すと SCRATCH バッファが手に入る — 空で、そのどれでもない。
@@ -3642,7 +3926,7 @@ p9 >> pluck([0, 3, 7, 10], dur=1/2, lpf=1800, amp=0.7)
 # scratch バッファは君だけのもの：ジャムで共有されず、共有リンクにも入らないが、
 # リロードしても残る。セッションではそこが肝心 — 部屋に聞かれる前に手探りする場所。`, 'ja'),
 
-    lesson(42, '準備完了 ✨',
+    lesson(44, '準備完了 ✨',
 `# これがすべてのループ：   書く  →  実行（Ctrl+Enter）  →  変える  →  また実行。
 #
 # 次はどこへ：
