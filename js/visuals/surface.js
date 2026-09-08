@@ -135,7 +135,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         const dk = ws.length ? deck() : null;
         if (dk) {
             const { W, H } = r.size;
-            const d = dk.render(ws, W, H, beat * BEAT_SECONDS, aud);
+            const d = dk.render(ws, W, H, beat * BEAT_SECONDS, aud, vst.live);
             r.setWorkshop(d.a, d.b);
         } else r.setWorkshop(null, null);
         r.render(vst, t, aud, fxBundle(vst.layers));

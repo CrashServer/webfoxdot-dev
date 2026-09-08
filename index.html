@@ -266,7 +266,8 @@
     import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
     import { initPiano, togglePiano } from './js/ui/piano.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
-    import { visualBuilders, getVisualPlayer, VSpec, vsnap, clearAll as clearVisuals } from './js/visuals/vlang.js';
+    import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
+             clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
@@ -1326,6 +1327,10 @@
     let _evalDoc = null;
 
     function runCode(raw, opts = {}) {
+        // The live-coding visual layers render the code that RAN — codeFull, liveCode,
+        // instrumentPop and the rest read it from the visual state. A peer's eval goes
+        // in the other performer's slot, so in a jam those layers show both people.
+        try { noteVisualEval(raw, opts.fromRemote ? (opts.author || 'peer') : null); } catch (_) {}
         const prevEvalDoc = _evalDoc;
         _evalDoc = opts.doc || activeSectionDoc()
                  || (opts.fromRemote ? mainEditor.getDoc() : editor.getDoc());

@@ -3,7 +3,7 @@
 // (S). The main window resolves patterns/TimeVars on the audio clock and streams the
 // plain-number `vstate`, so nothing here has to know about patterns.
 
-export const V   = { layers: [], mix: null, palette: null, mode: null, res: null, clearSeq: 0 };   // visual language
+export const V   = { layers: [], mix: null, palette: null, mode: null, res: null, clearSeq: 0, live: null };   // visual language
 export const AUD = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(32).fill(0), bpm: 120, beat: 0, bar: 0, section: '', autoplay: false };
 export const S   = { lastMsg: 0, beatPulse: false, lastBeat: -1 };
 
@@ -13,6 +13,7 @@ chan.onmessage = (e) => {
     if (m.t === 'vstate') {
         V.layers = m.layers || []; V.mix = m.mix || null; V.palette = m.palette || null; V.mode = m.mode || null;
         V.res = (typeof m.res === 'number' && isFinite(m.res)) ? m.res : null;
+        V.live = m.live || null;   // the live-coding feed the code layers render
         if (typeof m.clearSeq === 'number') V.clearSeq = m.clearSeq;
     } else if (m.t === 'audio') {
         AUD.bass = m.bass; AUD.mid = m.mid; AUD.treble = m.treble; AUD.level = m.level;

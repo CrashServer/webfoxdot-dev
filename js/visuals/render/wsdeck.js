@@ -136,7 +136,7 @@ export function createWorkshopDeck() {
      * @param {object} aud     { bass, mid, treble, level, spectrum }
      * @returns {{a: HTMLCanvasElement|null, b: HTMLCanvasElement|null}}
      */
-    function render(layers, w, h, t, aud) {
+    function render(layers, w, h, t, aud, liveCode = null) {
         [w, h] = capSize(Math.max(1, w | 0), Math.max(1, h | 0));
         if (w !== W || h !== H) { W = w; H = h; }
 
@@ -150,7 +150,10 @@ export function createWorkshopDeck() {
         // `extra` is exactly what the workshop's channel.js hands a layer. spectrum is
         // the one that matters — the layers derive their own bass/mid/treble from it
         // with length-relative indices, so crashDot's 32 bins work unchanged.
-        const extra = { spectrum: aud && aud.spectrum, message: null, cam: null, media: null, palette: null, live: null };
+        // `live` here is the live-CODING feed the code layers render, not to be confused
+        // with the set of live LAYERS above — which is exactly the collision that made
+        // this module fail to parse the first time.
+        const extra = { spectrum: aud && aud.spectrum, message: null, cam: null, media: null, palette: null, live: liveCode };
 
         const used = [false, false];
         for (const l of layers) {

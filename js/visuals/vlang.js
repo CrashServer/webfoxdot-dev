@@ -261,6 +261,39 @@ export function isVideoLayer(name) { return layers.has(name) || (!!mixer && mixe
 
 export function clearAll() { layers.clear(); mixer = null; }   // shutup()/panic
 
+// ── The live-coding feed ─────────────────────────────────────────────────────
+//
+// Ten of the workshop's layers — codeFull · codeComic · codeConspiracy · liveCode ·
+// evalSeismograph · ransomEval · instrumentPop · comicPanels · beatCreatures · toonEQ
+// — are ABOUT live coding: they render the code being typed, flash on evaluation, and
+// pull `player >> instrument()` pairs out of the text to give each instrument a colour.
+// They read it from `extra.live`, which in the workshop arrives over a WebSocket from
+// whatever machine is performing. Here the performer IS this window, so the feed is
+// simply the editor — and your code becomes a texture you can put on a wall.
+//
+// Shape is the workshop's, so the layers need no changes: a per-user window of lines
+// (it names two, `svdk` and the other performer), an eval counter the layers latch on,
+// and the beat. In a session the peers' evals arrive through collab and go in the
+// second slot, so a jam shows both people's code.
+const live = { evalCount: 0, lastEvalUser: '', beat: 0, pulse: 0, cpu: 0,
+               svdk: { lines: '' }, zbdm: { lines: '' }, otherUser: '', players: [] };
+
+/**
+ * Record an evaluation. `who` is null for you; a peer name in a session.
+ * The text is what the layers render, so it is the code that RAN, not the buffer.
+ */
+export function noteEval(text, who = null) {
+    live.evalCount++;
+    live.lastEvalUser = who || 'svdk';
+    const slot = who ? 'zbdm' : 'svdk';
+    if (who) live.otherUser = who;
+    live[slot] = { lines: String(text || '').split('\n').slice(0, 200).join('\n') };
+}
+/** The buffer on screen, so the code layers show what you are TYPING, not only evals. */
+export function noteBuffer(text) { if (!live.evalCount) live.svdk = { lines: String(text || '') }; }
+/** Names of the players currently sounding — some layers draw one shape per instrument. */
+export function notedPlayers(names) { live.players = names || []; }
+
 // ── vsnap() — the visual state, as CODE ──────────────────────────────────────
 //
 // The workshop's answer to "save this look" is a preset: a blob of channel state in
@@ -335,7 +368,9 @@ export function hasContent() { return layers.size > 0 || !!mixer; }
 let _lastBeat = 0;
 export function snapshot(beat) {
     _lastBeat = beat;
-    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq };
+    live.beat = beat;
+    live.pulse = beat - Math.floor(beat);
+    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq, live };
     for (const [name, l] of layers) {
         if (!l.scene) continue;
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;
