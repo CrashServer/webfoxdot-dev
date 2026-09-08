@@ -15,6 +15,7 @@ import * as fx from './postfx.js';
 import { RENDER_MODES } from '../vdata.js';
 import { createGLRenderer } from './gl/renderer.js';
 import { WORKSHOP_FX_NAMES } from '../workshop/catalog.js';
+import { attachMapping } from './mapping.js';
 const WS_FX = new Set(WORKSHOP_FX_NAMES);
 import { V, AUD, S } from './state.js';
 
@@ -126,7 +127,7 @@ function idle(t) {
     ctx.restore(); ctx.globalAlpha = 1;
     const waiting = performance.now() - S.lastMsg > 1500;
     ctx.beginPath(); ctx.arc(W - 16, 16, 5, 0, Math.PI * 2); ctx.fillStyle = waiting ? '#3a4750' : '#3fb950'; ctx.fill();
-    hud.textContent = 'idle  ·  no visual code running  ·  run a  video1 >>  line in the editor';
+    setHud('idle  ·  no visual code running  ·  run a  video1 >>  line in the editor   ·   [f]ull  [c]lear  [m]ap');
 }
 
 // CPU path — glyph render modes, or the whole pipeline when WebGL2 is missing.
@@ -141,6 +142,25 @@ function cpuFrame(t, f) {
     if (f.scan > 0.02) fx.scan(ctx, W, H, f.scan);
     if (f.vignette > 0.02) fx.vignette(ctx, W, H, f.vignette);
 }
+
+// ── Projection mapping ───────────────────────────────────────────────────────
+// Corner-pin warp + edge blending on the OUTPUT — press [m]. Both canvases get the
+// same transform: warp only #visgl and the glyph/idle overlay slides off the picture.
+// It is machine-local by design (localStorage, never the vstate), because it describes
+// where a projector sits in a room, not what the piece looks like.
+// The frame loop rewrites the HUD every frame, so a message written from outside it
+// is gone before it is read — which is what happened to the static [f]ull/[c]lear hint
+// in visuals.html, and would have happened to this one. While mapping is open it OWNS
+// the HUD; the loop stands off.
+let mapMsg = null;
+const mapping = attachMapping(document.body, [glCanvas, canvas], (msg) => {
+    mapMsg = /off$/.test(msg) ? null : msg;
+    // Writing "off" here would leave that word on screen until the next frame — and
+    // "until the next frame" is not a promise this can make (a hidden tab, a throttled
+    // rAF). Releasing the HUD is enough; the loop repaints it.
+    if (mapMsg) hud.textContent = mapMsg;
+});
+const setHud = (txt) => { if (mapMsg == null) hud.textContent = txt; };
 
 function loop(ts) {
     const t = ts / 1000;
@@ -173,7 +193,7 @@ function loop(ts) {
             glr.render(V, t, aud, f);
         }
         else cpuFrame(t, f);
-        hud.textContent = hudText();
+        setHud(hudText() + '   ·   [f]ull  [c]lear  [m]ap');
     } else {
         idle(t);
     }

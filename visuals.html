@@ -5,6 +5,9 @@
   <title>crashDot · visuals</title>
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+    /* Projection-mapping mode puts the cursor back (mapping.js sets it on <html>)
+       and its handles must sit above both canvases and the blend overlay. */
+    .wfd-map-ui { cursor: default; }
     #visgl, #vis { position: fixed; inset: 0; display: block; width: 100vw; height: 100vh; }
     #visgl { background: #000; z-index: 1; }          /* WebGL2 backend (pixel/smooth modes) */
     #vis   { background: transparent; z-index: 2; }   /* 2D overlay: glyph modes · idle · fallback */
@@ -19,7 +22,7 @@
   <canvas id="visgl"></canvas>
   <canvas id="vis"></canvas>
   <pre id="hud">crashDot visuals — a 2-channel mixer.  In the main window:
-  video1 &gt;&gt; plasma()   video2 &gt;&gt; tunnel(ch=1)   video9 &gt;&gt; mix(linvar([0,1],8))   palette("fire")   clear()   ·   [f]ull  [c]lear</pre>
+  video1 &gt;&gt; plasma()   video2 &gt;&gt; tunnel(ch=1)   video9 &gt;&gt; mix(linvar([0,1],8))   palette("fire")   clear()   ·   [f]ull  [c]lear  [m]ap</pre>
   <script type="module" src="./js/visuals/render/main.js"></script>
 </body>
 </html>

@@ -202,12 +202,10 @@ you discover what a layer even has.
   be redundant and a multiplayer liability.
 - **`sequencer.js`, `xfader.js`**. `#@` sections and `mix()` already do this, and both
   are code.
-- **`outputs.js` · `warp.js` · `meshWarp.js` · `edgeBlend.js`** (1,077 lines).
-  Multi-projector output with corner-pin and mesh warping. Genuinely useful and
-  genuinely unique, but it is physical-room tooling that needs its own calibration UI
-  and a second window — a project of its own rather than a port, and untestable
-  headlessly. The workshop's own presets deliberately exclude output mapping for the
-  same reason: "tied to the physical room, not a visual look".
+- **`outputs.js`** (536 lines) and **`meshWarp.js`** (367). Multi-window output
+  management and grid warping. The pop-out visuals window already IS the output, and
+  corner-pin covers the common case; a mesh warp is for curved surfaces and wants a
+  grid editor of its own.
 
 ## Keeping it off the audio thread
 
@@ -289,3 +287,39 @@ A few layers touch browser globals at module level (a `Path2D` built once), so t
 generator installs proxy stubs — enough for the module to evaluate, and anything
 genuinely missing still throws with a name rather than silently shipping an empty
 parameter table.
+
+## Projection mapping — done
+
+`render/mapping.js`, from the workshop's `warp.js` + `edgeBlend.js`. Press **[m]** in
+the pop-out visuals window: four corner handles, four edge-blend sliders, **[r]** to
+reset.
+
+**The warp is a CSS `matrix3d`, not a shader** — the workshop's idea, and the right
+one. Solve the homography from the unit square onto four dragged corners, hand it to
+the compositor: no render-pass change, no cost, and it works on any element. That last
+part is what makes it fit here, because crashDot's output is TWO stacked canvases
+(`#visgl` for the GPU path, `#vis` for glyph modes and the idle screen). They get the
+identical matrix, and so does the blend overlay, or the overlay slides off the picture.
+
+**Edge blending is a DOM overlay of four black gradients**, not the workshop's canvas
+gradients: a WebGL canvas has no 2D context to draw into, and a CSS gradient is
+resolution-independent and composited on the GPU. It is warped with everything else so
+the blend edges follow the projected quad rather than the screen.
+
+Corners clamp to [-0.5, 1.5] — a projector often throws beyond its surface, but not far
+enough to invert the quad and lose the picture.
+
+**Machine-local, never shared.** localStorage, never the vstate, never collab. Corners
+and blends describe where a projector sits in a room, not what the piece looks like, so
+joining a jam cannot yank a calibrated projector. Same line the workshop draws, for the
+same reason. It announces itself once on load if a saved warp is active, because a
+crooked picture with no visible handles is a bug report waiting to happen.
+
+### Found on the way
+
+**The visuals HUD is rewritten every frame**, so the static `[f]ull [c]lear` hint in
+`visuals.html` had been invisible for as long as it had existed — the keys worked, the
+reminder never showed. The hints are in the live HUD now. And a message written from
+outside the loop needs to HOLD it: mapping owns the HUD while it is open, and releases
+it rather than writing "off" (which would sit there until a next frame that a hidden
+tab or throttled rAF may never deliver).
