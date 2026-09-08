@@ -291,6 +291,35 @@ export function isVideoLayer(name) { return layers.has(name) || (!!mixer && mixe
 
 export function clearAll() { layers.clear(); mixer = null; }   // shutup()/panic
 
+// ── Live layer inspection & tweaking ─────────────────────────────────────────
+// What the LAYERS panel drives. Reading is easy — snapshot() already resolves
+// everything — but setting needs care: a param the user is holding a knob on must
+// become a plain number, replacing whatever pattern or TimeVar was there. That is
+// the honest behaviour, because a knob cannot represent sinvar([0,1],8) and pretending
+// it can would silently discard the movement on the next frame anyway. vsnap() then
+// writes back what you actually have.
+export function liveLayers() {
+    const out = [];
+    for (const [name, l] of layers) {
+        if (!l.scene) continue;
+        out.push({ name, scene: l.scene, ch: l.ch, params: { ...l.params }, fx: { ...l.fx },
+                   ws: !isScene(l.scene) && WS_SET.has(l.scene) });
+    }
+    return out;
+}
+export function setLayerParam(name, key, value) {
+    const l = layers.get(name);
+    if (!l) return false;
+    if (value == null) delete l.params[key]; else l.params[key] = value;
+    return true;
+}
+export function setLayerChannel(name, ch) {
+    const l = layers.get(name);
+    if (!l) return false;
+    l.ch = Math.max(0, Math.min(1, Math.round(Number(ch) || 0)));
+    return true;
+}
+
 // ── The live-coding feed ─────────────────────────────────────────────────────
 //
 // Ten of the workshop's layers — codeFull · codeComic · codeConspiracy · liveCode ·
@@ -345,11 +374,12 @@ function fmtVal(v) {
     if (!isFinite(n)) return '0';
     return String(Math.round(n * 1000) / 1000);
 }
-export function vsnap(all = false) {
+export function vsnap(all = false, only = null) {
     const beat = _lastBeat;
     const lines = [];
     for (const [name, l] of layers) {
         if (!l.scene) continue;
+        if (only && name !== only) continue;
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;
         const def = l._wsDefaults || null;
         // vsnap(true) writes the layer's own defaults too — the params you never typed,
@@ -367,14 +397,14 @@ export function vsnap(all = false) {
         for (const [k, v] of Object.entries(fx)) if (v != null && v !== false) line += ` + ${k}(${fmtVal(v)})`;
         lines.push(line);
     }
-    if (mixer) {
+    if (mixer && !only) {
         const v = Number(resolveVisual(mixer.value, beat, mixer.dur)) || 0;
         const bl = resolveVisual(mixer.blend, beat, mixer.dur);
         lines.push(`${mixer.owner} >> mix(${fmtVal(v)}${bl ? `, blend=${fmtVal(bl)}` : ''})`);
     }
-    if (master.palette) lines.push(`palette(${JSON.stringify(master.palette)})`);
-    if (master.mode)    lines.push(`vmode(${JSON.stringify(master.mode)})`);
-    if (master.res)     lines.push(`vres(${fmtVal(master.res)})`);
+    if (master.palette && !only) lines.push(`palette(${JSON.stringify(master.palette)})`);
+    if (master.mode && !only)    lines.push(`vmode(${JSON.stringify(master.mode)})`);
+    if (master.res && !only)     lines.push(`vres(${fmtVal(master.res)})`);
     return lines.length ? lines.join('\n') : '# nothing on screen';
 }
 

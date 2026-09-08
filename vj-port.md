@@ -506,3 +506,37 @@ vocabulary caught what reading would not have:
    field scene and a workshop layer: it compared a field-scene line against the
    workshop's ranges. A shared name resolves to the field scene, so its ranges are the
    ones that do not apply.
+
+## The LAYERS panel
+
+`js/ui/desktop/layerspanel.js`. The workshop's `channelPanel.js` in JOB, not in code —
+that one is built on its channel/driver architecture, which crashDot deliberately does
+not have. Porting it literally would have meant taking `channel.js`, `drivers.js` and
+`lfos.js` with it.
+
+The gap it fills is real: 239 scenes with up to twenty params each, and the only way to
+move one was to type a number and re-run. That is right for composing and wrong for
+*finding*.
+
+Every live layer gets a box: its params as rotary knobs from `js/ui/knob.js` (built for
+the piano), ranges from the generated catalog, a deck toggle, and **→ CODE** which runs
+`vsnap(false, name)` for that one layer. Perform with the knobs, keep it as text.
+
+**A param under a pattern or TimeVar gets no knob**, and says `pattern` instead. A knob
+cannot represent `sinvar([0,1],8)`; giving it one would throw the movement away on
+first touch. Saying so is the honest interface.
+
+### Two bugs the tests found
+
+- **The knob list missed params you had actually set.** It was built from the scene's
+  declared params plus a fixed universal list, so `hue` on a field scene — declared
+  nowhere, universal in the compositor — never appeared, and the panel quietly
+  disagreed with your own line about what the layer had. It now unions the declared
+  params, the universal knobs and `Object.keys(params)`.
+- **A rebuild under a dragging finger.** The panel refreshes twice a second; rebuilding
+  the DOM each time would replace the knob you are holding. It rebuilds only when the
+  SET of layers changes (a signature of names, scenes, decks and param KEYS — not
+  values) and otherwise calls `setValue` on the existing knobs.
+
+`vsnap(all, only)` gained the second argument for → CODE, and a single-layer snap
+deliberately omits the crossfader and the palette: those are the set, not the layer.

@@ -23,6 +23,7 @@ import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY } from './panel.js'
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
 import { buildOutputsPanel } from './outputspanel.js';
+import { buildLayersPanel } from './layerspanel.js';
 import { initCanvasMenu } from './menu.js';
 import { initHud } from './hud.js';
 import { changelogHTML } from '../docs.js';
@@ -311,6 +312,9 @@ const PANELS = [
 
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.
+    // Every live video layer, with its parameters as knobs — finding a look by turning
+    // something, rather than by typing a number and re-running the line.
+    { id: 'wfd-layers',   group: 'workspace', title: 'layers',    x:1102, y:1004, w: 400, h: 210, minW: 300, minH: 120, layers: true },
     // The projector desk: outputs and their warped surfaces, built during a set
     // rather than configured before one.
     { id: 'wfd-outputs',  group: 'workspace', title: 'outputs',   x:1524, y: 756, w: 390, h: 300, minW: 300, minH: 140, outputs: true },
@@ -370,6 +374,8 @@ function writePanelOpen(id, open) {
 // nothing about the visual engine.
 let outputsApi = null;
 export function setOutputsApi(a) { outputsApi = a; }
+let layersApi = null;
+export function setLayersApi(a) { layersApi = a; }
 
 export function initDesktop(editor, clock = null, editorFactory = null, onDropEditor = null, log = () => {}, onReady = null) {
     const body = document.body;
@@ -407,7 +413,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     const refresh = () => editor?.refresh?.();
 
     const ownedPanels = new Map();          // id → panel api, for the windows list
-    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog || spec.outputs;
+    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog || spec.outputs || spec.layers;
     for (const spec of PANELS) {
         const src = BUILT(spec) ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
         if (!BUILT(spec) && !src.length) continue;   // not in this build
@@ -424,6 +430,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         if (spec.layouts) buildLayoutsPanel(panelBody, log);
         if (spec.changelog) buildChangelogBody(panelBody);
         if (spec.outputs && outputsApi) buildOutputsPanel(panelBody, outputsApi.api, outputsApi.sources, log);
+        if (spec.layers && layersApi) buildLayersPanel(panelBody, layersApi);
         if (spec.id === 'wfd-editor') {
             // The editor gets a counter-scale layer — see keepEditorUnscaled().
             editorBody = panelBody;

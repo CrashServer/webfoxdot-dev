@@ -268,6 +268,7 @@
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
              setOutputs as setVisualOutputs, setVideoRec as setVisualRec,
+             liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
              clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
@@ -275,9 +276,11 @@
     import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas } from './js/visuals/surface.js';
     import { createVideoRecorder, downloadBlob as downloadVideo } from './js/visuals/render/vrec.js';
     import { vrandLines } from './js/visuals/vrand.js';
+    import { sceneParams as visualSceneParams } from './js/visuals/vdata.js';
+    import { paramRange as wsParamRange } from './js/visuals/workshop/catalog.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
-    import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi } from './js/ui/desktop/desktop.js';
+    import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi, setLayersApi } from './js/ui/desktop/desktop.js';
     import { getLang, setLang } from './js/i18n/lang.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo,
@@ -3727,6 +3730,18 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (!_vrec.start(c)) return log('video: this browser cannot record a canvas (MediaRecorder missing)', 'warn') || 'vrec: unsupported';
         log('\u25cf recording video — vrec() again to save', 'ok');
         return '\u25cf recording video\u2026';
+    });
+
+    // The LAYERS panel turns knobs on whatever is live. It writes plain numbers, and
+    // → CODE hands the line back — perform with the knobs, keep it as text.
+    setLayersApi({
+        liveLayers: visualLayers,
+        setLayerParam: setVisualParam,
+        setLayerChannel: setVisualChannel,
+        sceneParams: visualSceneParams,
+        paramRange: wsParamRange,
+        snapCode: (name) => vsnap(false, name),
+        log: (m, k) => log(m, k || 'info'),
     });
 
     // ── Output windows (projector mapping) ────────────────────────────────────
