@@ -609,3 +609,37 @@ are invisible rather than loud.
 Both now ask the renderer's question in the renderer's words. Verified: `invert` arrives
 as `true` on a video synth and as a number on a workshop layer, and `posterize` picks up
 the workshop's levels range on the layer where the workshop is the one drawing it.
+
+## Per-layer opacity & blend
+
+The workshop gives every channel its own **opacity** and **blend mode**; crashDot had
+neither. Several layers on one deck could only stack by field-MAX, and the only blend
+in the app was the crossfader's — which combines the two finished DECKS, a different
+question.
+
+`opacity` (0–1) and `blend` (`max · add · multiply · screen · difference · over`) are
+ordinary params, so patterns and TimeVars drive them like anything else.
+
+**`max` is the default** because it is precisely what stacking did before this existed.
+An old set has to look identical, and it does.
+
+Three implementations that must agree:
+
+- `blendVal()` in the GL scene shader (`uL5` carries opacity + op)
+- the same function in `compositor.js`, or the glyph modes would show a different
+  picture from the GPU path
+- the Canvas2D composite operation for workshop layers. `max` maps to `lighten` —
+  Canvas2D has no exact equivalent, and per-channel max is the honest match.
+
+**The first layer onto a cleared deck always draws plainly**, whatever its blend says:
+`multiply` against transparent black is black and `difference` against it is a
+negative. A blend mode is a relationship, and the first layer has nothing to be in a
+relationship with yet.
+
+## And: what the SCREEN panel shows
+
+It was already the first row of OUTPUTS, but "what am I looking at" is asked while
+looking at the picture, not at the projector desk. The SCREEN panel now has its own
+picker, top-right, fading in on hover — a permanent widget over the picture is a
+permanent distraction, and this is set rarely. Both drive the same manager, so they
+cannot disagree.

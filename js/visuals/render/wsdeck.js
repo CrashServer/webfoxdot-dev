@@ -24,6 +24,7 @@
 import { WORKSHOP_LAYERS, WORKSHOP_FX } from '../workshop/index.js';
 import { defaults, fxDefaults, fxPrimary } from '../workshop/catalog.js';
 import { capSize } from './wsres.js';
+import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
@@ -192,15 +193,31 @@ export function createWorkshopDeck() {
 
             deckCanvas(d, w, h);
             const g = dctx[d];
-            if (!used[d]) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); used[d] = true; }
+            const first = !used[d];
+            if (first) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); used[d] = true; }
 
             // crashDot's universal knobs, applied on the way into the deck so no layer
-            // has to know about them: zoom/rot/pan as a transform, bright*gain as alpha.
+            // has to know about them: zoom/rot/pan as a transform, bright*gain as
+            // alpha, and now opacity and blend — the same two controls the workshop
+            // gives each of its channels.
+            //
+            // opacity and bright/gain both scale, and they are not the same thing:
+            // bright is how bright the LAYER is, opacity is how much of it reaches the
+            // deck. They multiply, which is what you would expect from a lamp behind a
+            // curtain.
             const zoom = num(p.zoom, 1) || 1, rot = num(p.rot, 0);
             const px = num(p.panx, 0), py = num(p.pany, 0);
-            const alpha = Math.max(0, Math.min(1, num(p.bright, 1) * num(p.gain, 1)));
+            const alpha = Math.max(0, Math.min(1,
+                num(p.bright, 1) * num(p.gain, 1) * num(p.opacity, 1)));
             g.save();
             g.globalAlpha = alpha;
+            // `max` is the default because it is what stacking did before this existed.
+            // The FIRST layer onto a freshly cleared deck draws plainly: `multiply`
+            // against transparent black is black, and `difference` against it is a
+            // negative — a blend mode is a relationship, and the first layer has
+            // nothing to be in a relationship with.
+            g.globalCompositeOperation = first ? 'source-over'
+                : (LAYER_BLEND_OPS[LAYER_BLENDS[layerBlendIndex(p.blend)]] || 'lighten');
             if (zoom !== 1 || rot || px || py) {
                 g.translate(w / 2 + px * w, h / 2 + py * h);
                 if (rot) g.rotate(rot);

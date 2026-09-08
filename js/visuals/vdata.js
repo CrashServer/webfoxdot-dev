@@ -74,6 +74,27 @@ export function sceneParams(name) {
     return WS_SET.has(name) ? wsSceneParams(name) : [];
 }
 
+// ── Per-layer opacity & blend ────────────────────────────────────────────────
+// How a layer combines with the ones under it ON ITS OWN DECK — distinct from the
+// crossfader's blend, which combines the two finished decks. crashDot only ever had
+// the latter, so several layers on one deck could only ever stack by field-max.
+//
+// `max` is first and is the default, because that is exactly what stacking did before
+// this existed: an old set has to look identical.
+export const LAYER_BLENDS = ['max', 'add', 'multiply', 'screen', 'difference', 'over'];
+export function layerBlendIndex(v) {
+    if (v == null) return 0;
+    if (typeof v === 'number' && isFinite(v)) return ((Math.round(v) % LAYER_BLENDS.length) + LAYER_BLENDS.length) % LAYER_BLENDS.length;
+    const i = LAYER_BLENDS.indexOf(String(v).toLowerCase());
+    return i < 0 ? 0 : i;
+}
+// The canvas composite operation for each — what a workshop layer draws with. `max`
+// has no exact Canvas2D equivalent; `lighten` is the honest match (per-channel max).
+export const LAYER_BLEND_OPS = {
+    max: 'lighten', add: 'lighter', multiply: 'multiply',
+    screen: 'screen', difference: 'difference', over: 'source-over',
+};
+
 // (No point-plotted scenes in the field-based renderer — kept as an empty set so any
 //  legacy import still resolves.)
 export const POINT_SCENES = new Set();

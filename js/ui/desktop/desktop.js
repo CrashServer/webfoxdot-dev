@@ -430,7 +430,30 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
             const sc = mountScreen(panelBody, clock);
             // SCREEN is a destination like an output window, so the same manager
             // decides what it shows — see outputs.js.
-            outputsApi?.api?.setScreen?.(sc.overlay);
+            const oapi = outputsApi?.api;
+            oapi?.setScreen?.(sc.overlay);
+            if (sc.picker && oapi?.screenSource) {
+                const fill = () => {
+                    const cur = oapi.screenSource();
+                    // Rebuild only when the SET of sources changed — the list grows and
+                    // shrinks as layers come and go, and replacing the <select> while it
+                    // is open would close it under the pointer.
+                    const want = (outputsApi.sources() || []).map((x) => x.id).join('|');
+                    if (sc.picker.dataset.sig !== want) {
+                        sc.picker.dataset.sig = want;
+                        sc.picker.textContent = '';
+                        for (const src of outputsApi.sources() || []) {
+                            const o = document.createElement('option');
+                            o.value = src.id; o.textContent = src.label;
+                            sc.picker.appendChild(o);
+                        }
+                    }
+                    if (sc.picker.value !== cur) sc.picker.value = cur;
+                };
+                sc.picker.onchange = () => oapi.setScreenSource(sc.picker.value);
+                fill();
+                setInterval(() => { if (panelEl.offsetParent !== null) fill(); }, 1000);
+            }
         }
         if (spec.layouts) buildLayoutsPanel(panelBody, log);
         if (spec.changelog) buildChangelogBody(panelBody);

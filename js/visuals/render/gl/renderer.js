@@ -14,7 +14,7 @@
 // colourise once, value-space crossfade) so switching backends never changes the look.
 
 import { SCENE_GLSL, SCENE_GLSL_ORDER } from './scenes-glsl.js';
-import { PALETTE_NAMES, paletteLut, SCENE_PARAMS } from '../../vdata.js';
+import { PALETTE_NAMES, paletteLut, SCENE_PARAMS, layerBlendIndex } from '../../vdata.js';
 
 const MAXL = 12;                                  // hard cap on simultaneous layers
 const NPAL = PALETTE_NAMES.length;
@@ -73,6 +73,7 @@ uniform vec4  uL1[${MAXL}];     // zoom, rot, panx, pany
 uniform vec4  uL2[${MAXL}];     // bright, gain, contrast, inv
 uniform vec4  uL3[${MAXL}];     // scene-specific params (pp.x..pp.w)
 uniform vec4  uL4[${MAXL}];     // extra scene params (pp2.x..pp2.w) — 8 per scene total
+uniform vec4  uL5[${MAXL}];     // opacity, blend op, -, -
 uniform vec2  uPalA;            // palIndexA, hueA
 uniform vec2  uPalB;            // palIndexB, hueB
 // Workshop layers are the OTHER kind of scene: imperative RGBA draws that own their
@@ -107,6 +108,17 @@ float layerVal(int i, vec2 uv, float t, vec4 a){
     return clamp(f, 0.0, 1.0);
 }
 
+// How a layer combines with the ones already on its deck. op 0 = max, which is what
+// stacking always did — so a set written before per-layer blend existed is untouched.
+float blendVal(int op, float a, float b){
+    if (op == 1) return min(1.0, a + b);            // add
+    if (op == 2) return a * b;                      // multiply
+    if (op == 3) return 1.0 - (1.0 - a) * (1.0 - b);// screen
+    if (op == 4) return abs(a - b);                 // difference
+    if (op == 5) return b;                          // over — the later layer wins
+    return max(a, b);                               // 0 = max
+}
+
 // deck A ↔ deck B crossfade — mirrors blends.js exactly, in 0..1 colour space
 vec3 blendCol(float av, float bv, vec3 ca, vec3 cb, float x, vec2 uv){
     if (uBlend == 1) return clamp(ca + cb*x, 0.0, 1.0);                    // add
@@ -123,8 +135,9 @@ void main(){
     float av = 0.0, bv = 0.0;
     for (int i = 0; i < ${MAXL}; i++){
         if (i >= uN) break;
-        float f = layerVal(i, uv, uTime, uAud);
-        if (uL0[i].w < 0.5) av = max(av, f); else bv = max(bv, f);
+        float f = layerVal(i, uv, uTime, uAud) * uL5[i].x;   // × opacity
+        int op = int(uL5[i].y + 0.5);
+        if (uL0[i].w < 0.5) av = blendVal(op, av, f); else bv = blendVal(op, bv, f);
     }
     vec3 ca = palSample(uPalA.x, av, uPalA.y);
     vec3 cb = palSample(uPalB.x, bv, uPalB.y);
@@ -315,7 +328,7 @@ export function createGLRenderer(canvas) {
     // uniform locations — scene program
     const uLoc = {};
     for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
-        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uPalA', 'uPalB', 'uSpec', 'uWsA', 'uWsB', 'uHasWs']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
+        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uL5', 'uPalA', 'uPalB', 'uSpec', 'uWsA', 'uWsB', 'uHasWs']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
         'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate',
@@ -393,7 +406,7 @@ export function createGLRenderer(canvas) {
     }
 
     // reusable uniform scratch
-    const L0 = new Float32Array(MAXL * 4), L1 = new Float32Array(MAXL * 4), L2 = new Float32Array(MAXL * 4), L3 = new Float32Array(MAXL * 4), L4 = new Float32Array(MAXL * 4);
+    const L0 = new Float32Array(MAXL * 4), L1 = new Float32Array(MAXL * 4), L2 = new Float32Array(MAXL * 4), L3 = new Float32Array(MAXL * 4), L4 = new Float32Array(MAXL * 4), L5 = new Float32Array(MAXL * 4);
     const SPEC = new Float32Array(32);            // FFT spectrum → uSpec[32]
 
     // build one deck's per-layer uniform rows + its palette/hue (last layer on the deck wins)
@@ -407,6 +420,11 @@ export function createGLRenderer(canvas) {
             L0[o] = id; L0[o + 1] = num(p.speed, 1); L0[o + 2] = num(p.scale, 1); L0[o + 3] = base;
             L1[o] = num(p.zoom, 1); L1[o + 1] = num(p.rot, 0); L1[o + 2] = num(p.panx, 0); L1[o + 3] = num(p.pany, 0);
             L2[o] = num(p.bright, 1); L2[o + 1] = num(p.gain, 1); L2[o + 2] = num(p.contrast, 0); L2[o + 3] = (p.inv === true || p.inv === 1) ? 1 : 0;
+            // opacity defaults to 1 and blend to max, so a layer that says nothing
+            // composites exactly as it did before either existed.
+            L5[o] = Math.max(0, Math.min(1, num(p.opacity, 1)));
+            L5[o + 1] = layerBlendIndex(p.blend);
+            L5[o + 2] = L5[o + 3] = 0;
             L3[o] = L3[o + 1] = L3[o + 2] = L3[o + 3] = 0;   // scene params pp.x..pp.w
             L4[o] = L4[o + 1] = L4[o + 2] = L4[o + 3] = 0;   // extra scene params pp2.x..pp2.w
             const specs = SCENE_PARAMS[l.scene];
@@ -456,7 +474,7 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(uLoc.uMix, x);
         gl.uniform1i(uLoc.uBlend, blend);
         gl.uniform1i(uLoc.uN, n);
-        gl.uniform4fv(uLoc.uL0, L0); gl.uniform4fv(uLoc.uL1, L1); gl.uniform4fv(uLoc.uL2, L2); gl.uniform4fv(uLoc.uL3, L3); gl.uniform4fv(uLoc.uL4, L4);
+        gl.uniform4fv(uLoc.uL0, L0); gl.uniform4fv(uLoc.uL1, L1); gl.uniform4fv(uLoc.uL2, L2); gl.uniform4fv(uLoc.uL3, L3); gl.uniform4fv(uLoc.uL4, L4); gl.uniform4fv(uLoc.uL5, L5);
         gl.uniform2f(uLoc.uPalA, da.palIdx, da.hue);
         gl.uniform2f(uLoc.uPalB, db.palIdx, db.hue);
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, palTex); gl.uniform1i(uLoc.uPal, 0);

@@ -22,13 +22,16 @@
 // already does for an unbounded spec.
 
 import { makeKnob } from '../knob.js';
+import { LAYER_BLENDS, layerBlendIndex } from '../../visuals/vdata.js';
 
 // The knobs every layer has whatever it is — the transform and value controls the
 // compositor applies on top of any scene. Matches the documented universal set.
 const UNIVERSAL = ['speed', 'scale', 'bright', 'gain', 'contrast', 'hue', 'zoom', 'rot', 'panx', 'pany'];
 // `dur` is how often a PATTERN on this layer advances, not a look — a knob for it
 // would be a knob for time, and it belongs in the line rather than on the desk.
-const HIDE = new Set(['dur', 'ch', 'pal', 'inv']);
+// opacity and blend have their own row in the header — see render(). dur is how
+// often a PATTERN advances, which is time, not a look.
+const HIDE = new Set(['dur', 'ch', 'pal', 'inv', 'opacity', 'blend']);
 const CAT_RANGE = { hue: { min: 0, max: 1, default: 0 } };
 
 export function buildLayersPanel(container, deps) {
@@ -89,6 +92,34 @@ export function buildLayersPanel(container, deps) {
             code.onclick = () => { const c = snapCode(L.name); if (c) log(c, 'ok'); };
             head.append(nm, sc, chBtn, code);
             box.appendChild(head);
+
+            // Opacity and blend describe how the layer MEETS the others on its deck,
+            // not what it looks like on its own — so they sit in the header with the
+            // deck button rather than among the scene's own knobs.
+            const mixRow = document.createElement('div');
+            mixRow.className = 'wfd-lay-mix';
+            const opLab = document.createElement('span');
+            opLab.className = 'wfd-lay-lab';
+            opLab.textContent = 'opacity';
+            const opKnob = makeKnob({
+                value: Number(L.params.opacity ?? 1), spec: { min: 0, max: 1, default: 1 },
+                rotary: true, title: `${L.name} · opacity — how much of it reaches the deck`,
+                onInput: (v) => setLayerParam(L.name, 'opacity', v),
+            });
+            knobs.set(L.name + ':opacity', opKnob);
+            const blSel = document.createElement('select');
+            blSel.className = 'wfd-lay-blend';
+            blSel.title = 'how this layer combines with the ones under it on the same deck '
+                        + '— not the crossfader, which combines the two finished decks';
+            for (const b2 of LAYER_BLENDS) {
+                const o = document.createElement('option');
+                o.value = b2; o.textContent = b2;
+                if (layerBlendIndex(L.params.blend) === LAYER_BLENDS.indexOf(b2)) o.selected = true;
+                blSel.appendChild(o);
+            }
+            blSel.onchange = () => setLayerParam(L.name, 'blend', blSel.value === 'max' ? null : blSel.value);
+            mixRow.append(opLab, opKnob, blSel);
+            box.appendChild(mixRow);
 
             const grid = document.createElement('div');
             grid.className = 'wfd-lay-knobs';
@@ -221,7 +252,7 @@ export function buildLayersPanel(container, deps) {
         const list = liveLayers();
         // Signature = what would change the SHAPE of the panel. Params are not in it:
         // a value changing must not rebuild the DOM under a finger that is dragging.
-        const sig = list.map((l) => `${l.name}:${l.scene}:${l.ch}:${Object.keys(l.params).sort().join(',')}:${Object.keys(l.fx || {}).join(',')}`).join('|');
+        const sig = list.map((l) => `${l.name}:${l.scene}:${l.ch}:${l.params.blend ?? ''}:${Object.keys(l.params).sort().join(',')}:${Object.keys(l.fx || {}).join(',')}`).join('|');
         if (force || sig !== signature) { signature = sig; render(list); return; }
         for (const l of list) {
             for (const [k, v] of Object.entries(l.params)) {

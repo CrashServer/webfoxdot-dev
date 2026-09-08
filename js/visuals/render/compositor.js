@@ -10,6 +10,7 @@
 import { getScene } from './scenes/index.js';
 import { blendByIndex } from './blends.js';
 import { sample as paletteSample } from './palette.js';
+import { layerBlendIndex } from '../vdata.js';
 
 const _a = [0, 0, 0], _b = [0, 0, 0], _out = [0, 0, 0];
 const cl01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
@@ -27,6 +28,7 @@ function deck(layers, globalPalette) {
             cos: Math.cos(rot), sin: Math.sin(rot), iz: zoom === 0 ? 1 : 1 / zoom,
             px: num(p.panx, 0), py: num(p.pany, 0),
             bright: num(p.bright, 1), gain: num(p.gain, 1), contrast: num(p.contrast, 0), inv: p.inv === true || p.inv === 1,
+            opacity: Math.max(0, Math.min(1, num(p.opacity, 1))), blend: layerBlendIndex(p.blend),
         });
         if (p.pal != null) pal = p.pal;                 // last layer on the deck sets its palette / hue
         if (p.hue != null) hue = num(p.hue, 0);
@@ -45,6 +47,17 @@ function sampleLayer(L, u, v, t, a) {
     return f < 0 ? 0 : f > 1 ? 1 : f;
 }
 
+// Mirrors blendVal() in the GL scene shader exactly — the two backends must not
+// disagree about what stacking means, or switching to a glyph mode changes the picture.
+function blendVal(op, a, b) {
+    if (op === 1) return Math.min(1, a + b);
+    if (op === 2) return a * b;
+    if (op === 3) return 1 - (1 - a) * (1 - b);
+    if (op === 4) return Math.abs(a - b);
+    if (op === 5) return b;
+    return a > b ? a : b;
+}
+
 export function composite(grid, vstate, t, audio) {
     const { cols, rows, val, r, gch, b } = grid;
     const layers = vstate.layers || [];
@@ -61,8 +74,8 @@ export function composite(grid, vstate, t, audio) {
         const row = j * cols;
         for (let i = 0; i < cols; i++) {
             const uu = cols > 1 ? i / (cols - 1) : 0;
-            let av = 0; for (let s = 0; s < nA; s++) { const f = sampleLayer(A.items[s], uu, vv, t, audio); if (f > av) av = f; }
-            let bv = 0; for (let s = 0; s < nB; s++) { const f = sampleLayer(B.items[s], uu, vv, t, audio); if (f > bv) bv = f; }
+            let av = 0; for (let s = 0; s < nA; s++) av = blendVal(A.items[s].blend, av, sampleLayer(A.items[s], uu, vv, t, audio) * A.items[s].opacity);
+            let bv = 0; for (let s = 0; s < nB; s++) bv = blendVal(B.items[s].blend, bv, sampleLayer(B.items[s], uu, vv, t, audio) * B.items[s].opacity);
             const ca = paletteSample(A.pal, av, A.hue); _a[0] = ca[0]; _a[1] = ca[1]; _a[2] = ca[2];
             const cb = paletteSample(B.pal, bv, B.hue); _b[0] = cb[0]; _b[1] = cb[1]; _b[2] = cb[2];
             const mv = blend(av, bv, _a, _b, x, uu, vv, _out);

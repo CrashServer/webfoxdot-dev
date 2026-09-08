@@ -48,6 +48,15 @@ export function mountScreen(body, clock) {
     over.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;z-index:2';
     body.appendChild(over);
     s.overlay = over;
+    // A source picker ON the panel. It is also the first row of OUTPUTS, but the
+    // question "what am I looking at" is asked while looking at this, not while
+    // looking at the projector desk — so it is answered here too. Both drive the
+    // same manager, so they cannot disagree.
+    const pick = document.createElement('select');
+    pick.className = 'wfd-screen-pick';
+    pick.title = 'what this panel shows — the mix, one layer on its own, or a code buffer';
+    body.appendChild(pick);
+    s.picker = pick;
     s.resize();          // now that it has a box, size the backing store to it
     s.start();
     return s;
