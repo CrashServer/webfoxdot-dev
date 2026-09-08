@@ -476,6 +476,53 @@ buffer closes in one click and a buffer with text asks twice.
 **Panels had no DOM id** — only a registry key. `win.dataset.panelId = spec.id` now,
 which is also what makes them addressable from a test.
 
+## The bar, split five ways
+
+One 1900px strip of sixteen buttons is a list, not a grouping — BOOT sat next to
+RUN, GO LIVE next to EXAMPLES, and you learned positions rather than meanings. It
+is five small panels now, grouped by *when* you reach for a thing:
+
+| panel | holds |
+|---|---|
+| `transport` | run · stop · reload · perform |
+| `engine` | status dot · boot · load kit · synth status |
+| `collab` | share · go live · split |
+| `learn` | tour · examples · version |
+| `view` | windows · zen · desktop |
+
+**The rule that decides membership: a bar holds VERBS.** Anything whose button
+only showed or hid a panel — mix, parts, piano, modular, galaxy, docs, layouts —
+is a noun, and nouns are chips in the WINDOWS panel, which also shows whether the
+thing is *currently open*, something a button never did. Keeping both was two
+controls for one state and the pair could disagree. Verified: zero overlap between
+bar button labels and chip names.
+
+The one exception is the WINDOWS button — the index has to be reachable without
+already having found the index. That is also why the windows panel is the only one
+with `closable: false`, and why it has no chip of its own.
+
+`collab`, not `share`: SHARE is a button *inside* it, and a panel called "share"
+holding a button called "SHARE" is one word doing two jobs.
+
+Chips are grouped `workspace · status · tools · learn · collab · bars`, because 23
+of them in one flat run would be a worse index than the row it replaced.
+
+Buttons are ADOPTED, not rebuilt — same elements, ids and listeners, so nothing in
+`index.html` knows. The ones that left the bar stay inside the now-hidden
+`#toolbar`; a programmatic `.click()` still works on an element in a `display:none`
+parent, which is exactly how a WINDOWS chip toggles a hosted module.
+
+`#toolbar` is hidden rather than removed: what is left in it is the app title (the
+canvas wordmark covers that) and the mobile drawer toggle, and a stray
+`getElementById` on either should keep resolving rather than throw in one UI mode
+only. CSS: the uppercase/letter-spacing vocabulary moved from `#toolbar button` to
+`#toolbar button, .wfd-bar button` so it follows the buttons out. Bar bodies are
+`overflow: visible` — the EXAMPLES dropdown hangs out of its panel and `auto` would
+clip it into a scrollbar.
+
+The home rectangle is now `-96 … 1220` so both the bar row above the editor and the
+windows panel below the right-hand column are inside what "reset view" frames.
+
 ## Engine work done from here (portable to dev01)
 
 None of this is desktop-specific — cherry-pick it onto `dev01` when the branch lands.

@@ -250,35 +250,66 @@ export function setDesktopMode(on) {
 // Panels are placed inside the "home" rectangle canvas.js draws (1920×1080), so
 // the default arrangement is findable again after any amount of panning.
 const PANELS = [
-    { id: 'wfd-editor',  title: 'editor',      x:   0, y:   0, w: 1080, h: 620, minW: 420, minH: 200, adopt: ['#editor-tabs', '#editor-wrap'] },
-    { id: 'wfd-log',     title: 'log',         x:   0, y: 642, w: 1080, h: 220, minW: 300, minH: 90,  adopt: ['#log'] },
-    { id: 'wfd-clock',   title: 'clock',       x:1102, y:   0, w:  400, h: 210, minW: 260, minH: 110, adopt: ['#cp-clock'] },
-    { id: 'wfd-players', title: 'players',     x:1102, y: 232, w:  400, h: 300, minW: 260, minH: 110, adopt: ['#cp-players'] },
-    { id: 'wfd-compo',   title: 'composition', x:1102, y: 554, w:  400, h: 420, minW: 260, minH: 140, adopt: ['#cp-compo'] },
-    { id: 'wfd-session', title: 'session',     x:1524, y:   0, w:  390, h: 420, minW: 280, minH: 140, adopt: ['#cp-session', '#cp-link'] },
-    { id: 'wfd-midi',    title: 'midi',        x:1524, y: 442, w:  390, h: 230, minW: 280, minH: 110, adopt: ['#cp-midi'] },
-    { id: 'wfd-settings',title: 'settings',    x:1524, y: 694, w:  390, h: 300, minW: 280, minH: 140, adopt: ['#cp-settings'] },
+    { id: 'wfd-editor',   group: 'workspace', title: 'editor',      x:   0, y:   0, w: 1080, h: 620, minW: 420, minH: 200, adopt: ['#editor-tabs', '#editor-wrap'] },
+    { id: 'wfd-log',      group: 'workspace', title: 'log',         x:   0, y: 642, w: 1080, h: 220, minW: 300, minH: 90,  adopt: ['#log'] },
+    { id: 'wfd-clock',    group: 'status', title: 'clock',       x:1102, y:   0, w:  400, h: 210, minW: 260, minH: 110, adopt: ['#cp-clock'] },
+    { id: 'wfd-players',  group: 'status', title: 'players',     x:1102, y: 232, w:  400, h: 300, minW: 260, minH: 110, adopt: ['#cp-players'] },
+    { id: 'wfd-compo',    group: 'status', title: 'composition', x:1102, y: 554, w:  400, h: 420, minW: 260, minH: 140, adopt: ['#cp-compo'] },
+    { id: 'wfd-session',  group: 'status', title: 'session',     x:1524, y:   0, w:  390, h: 420, minW: 280, minH: 140, adopt: ['#cp-session', '#cp-link'] },
+    { id: 'wfd-midi',     group: 'status', title: 'midi',        x:1524, y: 442, w:  390, h: 230, minW: 280, minH: 110, adopt: ['#cp-midi'] },
+    { id: 'wfd-settings', group: 'status', title: 'settings',    x:1524, y: 694, w:  390, h: 300, minW: 280, minH: 140, adopt: ['#cp-settings'] },
     // A monitor on the canvas: video1 >> plasma() plays HERE, next to the code that
     // drives it, instead of in a pop-out window on another screen.
-    { id: 'wfd-screen',  title: 'screen',      x:   0, y: 884, w: 1080, h: 400, minW: 240, minH: 140, screen: true },
+    { id: 'wfd-screen',   group: 'workspace', title: 'screen',      x:   0, y: 884, w: 1080, h: 400, minW: 240, minH: 140, screen: true },
     // Saved workspaces: panel positions, sizes, colours and the view. A panel like
     // the rest — the toolbar's LAYOUTS button pans to it and raises it, so it stays
     // findable after you have panned somewhere else.
-    { id: 'wfd-layouts', title: 'layouts',     x:1102, y:1004, w:  300, h:  92, minW: 240, minH: 80, layouts: true },
-    // The top bar, as a panel. It sat fixed above the canvas on the reasoning that
-    // STOP is a panic button and must never be somewhere you have to pan to find —
-    // which is still true, and is why stop-all is bound GLOBALLY (Ctrl+; · Ctrl+, ·
-    // Ctrl+.) rather than living only on that button. With the key always there, the
-    // bar has no claim to be the one part of the app that is not a panel. It sits
-    // just above the home rectangle, where a top bar belongs; ⊙ pins it to the
-    // viewport if you want it to stay put while you pan.
-    { id: 'wfd-toolbar', title: 'menu',        x:   0, y: -78, w: 1914, h:  66, minW: 320, minH: 44, adopt: ['#toolbar'] },
+    { id: 'wfd-layouts',  group: 'workspace', title: 'layouts',     x:1102, y:1004, w:  300, h:  92, minW: 240, minH: 80, layouts: true },
+    // ── The top bar, broken into six small panels ────────────────────────────
+    // It sat fixed above the canvas on the reasoning that STOP is a panic button and
+    // must never be somewhere you have to pan to find — which is still true, and is
+    // why stop-all is bound GLOBALLY (Ctrl+; · Ctrl+, · Ctrl+.) rather than living
+    // only on that button. With the key always there, the bar has no claim to be the
+    // one part of the app that is not a panel.
+    //
+    // One 1900px-wide strip of sixteen buttons is a list, not a grouping: it forced
+    // BOOT to sit next to RUN and GO LIVE next to EXAMPLES, and you learned positions
+    // rather than meanings. Split by WHEN you reach for a thing, which is also how
+    // often: engine once at the start, transport constantly, the rest in between.
+    // Each is a panel like any other — move it, tint it, close it, or ⊙ pin the one
+    // you want to keep on screen while you pan (transport is the candidate).
+    //
+    // ONE RULE decides what belongs here: a bar holds VERBS. Anything whose button
+    // only showed or hid a panel — mix, parts, piano, modular, galaxy, docs,
+    // layouts — is a NOUN, and nouns live in the WINDOWS panel as chips that also
+    // show whether the thing is currently open, which a button never did. Keeping
+    // both was two controls for one state, and the pair could disagree. The single
+    // exception is the WINDOWS button itself: the index has to be reachable without
+    // already having found the index.
+    //
+    // The buttons are ADOPTED, not rebuilt: same elements, same ids, same listeners,
+    // so nothing in index.html knows this happened. The ones no longer on a bar stay
+    // in the hidden #toolbar — a programmatic .click() still works on them, which is
+    // exactly how the WINDOWS chips toggle a hosted module.
+    { id: 'wfd-bar-transport',  group: 'bars', title: 'transport', x:   0, y: -78, w: 250, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#btn-run', '#btn-stop', '#btn-reload', '#btn-perform'] },
+    { id: 'wfd-bar-engine',     group: 'bars', title: 'engine',    x: 272, y: -78, w: 330, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#synth-status'] },
+    // Named for the people, not the verb: SHARE is one of the buttons INSIDE it, and
+    // a panel called "share" holding a button called "SHARE" is the same word doing
+    // two jobs.
+    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 624, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#btn-share', '#btn-multiplayer', '#btn-split'] },
+    { id: 'wfd-bar-learn',      group: 'bars', title: 'learn',     x: 926, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#btn-tour', '#examples-dd', '#version-tag'] },
+    { id: 'wfd-bar-view',       group: 'bars', title: 'view',      x:1228, y: -78, w: 300, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#btn-windows', '#btn-zen', '#btn-desktop'] },
     // Every window on the canvas, with a chip to bring it back. The one panel with
     // no × — see windows.js.
-    { id: 'wfd-windows', title: 'windows',     x:1524, y:1004, w:  390, h: 200, minW: 240, minH: 90, windows: true, closable: false },
+    { id: 'wfd-windows', title: 'windows',     x:1418, y:1004, w: 496, h: 210, minW: 260, minH: 110, windows: true, closable: false },
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.
-    { id: 'wfd-changelog', title: 'changelog', x:1802, y:1732, w:  520, h: 580, minW: 320, minH: 200, changelog: true },
+    { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1802, y:1732, w:  520, h: 580, minW: 320, minH: 200, changelog: true },
 ];
 
 // The floating overlays — mixer, modular, parts, room rules, docs, galaxy — get
@@ -297,15 +328,15 @@ const PANELS = [
 // as you would — rather than to reach in and un-hide a root it does not think is
 // showing.
 const FLOATING = [
-    { sel: '#docs-panel',     id: 'wfd-docs',    title: 'docs',       btn: '#docs-toggle-btn', x:1102, y:1106, w: 812, h: 520, minW: 380, minH: 220 },
-    { sel: '#mixer-modal',    id: 'wfd-mixer',   title: 'mixer',      btn: '#btn-mixer',    x:   0, y:1310, w: 760, h: 400, minW: 300, minH: 180 },
-    { sel: '#modular-panel',  id: 'wfd-modular', title: 'modular',    btn: '#btn-modular',  x:   0, y:1732, w: 940, h: 580, minW: 400, minH: 260 },
-    { sel: '#parts-modal',    id: 'wfd-parts',   title: 'parts',      btn: '#btn-parts',    x: 782, y:1310, w: 480, h: 400, minW: 300, minH: 200 },
-    { sel: '#rules-modal',    id: 'wfd-rules',   title: 'room rules', btn: '#btn-rules',    x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
-    { sel: '#piano-modal',    id: 'wfd-piano',   title: 'piano',      btn: '#btn-piano',    x:   0, y:2334, w: 660, h: 260, minW: 340, minH: 200 },
+    { sel: '#docs-panel',     id: 'wfd-docs',    group: 'learn',  title: 'docs',       btn: '#docs-toggle-btn', x:1102, y:1106, w: 812, h: 520, minW: 380, minH: 220 },
+    { sel: '#mixer-modal',    id: 'wfd-mixer',   group: 'tools',  title: 'mixer',      btn: '#btn-mixer',    x:   0, y:1310, w: 760, h: 400, minW: 300, minH: 180 },
+    { sel: '#modular-panel',  id: 'wfd-modular', group: 'tools',  title: 'modular',    btn: '#btn-modular',  x:   0, y:1732, w: 940, h: 580, minW: 400, minH: 260 },
+    { sel: '#parts-modal',    id: 'wfd-parts',   group: 'tools',  title: 'parts',      btn: '#btn-parts',    x: 782, y:1310, w: 480, h: 400, minW: 300, minH: 200 },
+    { sel: '#rules-modal',    id: 'wfd-rules',   group: 'collab', title: 'room rules', btn: '#btn-rules',    x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
+    { sel: '#piano-modal',    id: 'wfd-piano',   group: 'tools',  title: 'piano',      btn: '#btn-piano',    x:   0, y:2334, w: 660, h: 260, minW: 340, minH: 200 },
     // The galaxy paints an absolutely-positioned starfield canvas, so its host needs
     // to be a positioned ancestor — see .wfd-hosted below.
-    { sel: '#galaxy-overlay', id: 'wfd-galaxy',  title: 'galaxy',     btn: '#btn-galaxy',   x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },
+    { sel: '#galaxy-overlay', id: 'wfd-galaxy',  group: 'collab', title: 'galaxy',     btn: '#btn-galaxy',   x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },
 ];
 
 // Whether a panel was open is as much a part of the workspace as where it was —
@@ -377,6 +408,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         const { el: panelEl, body: panelBody } = panelApi;
         ownedPanels.set(spec.id, panelApi);
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
+        if (spec.bar) panelBody.classList.add('wfd-bar');
         if (spec.screen)  mountScreen(panelBody, clock);
         if (spec.layouts) buildLayoutsPanel(panelBody, log);
         if (spec.windows) windowsBody = panelBody;
@@ -403,12 +435,12 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     if (windowsBody) {
         buildWindowsPanel(windowsBody, [
             ...PANELS.filter(p => p.closable !== false && ownedPanels.has(p.id)).map(p => ({
-                id: p.id, title: p.title,
+                id: p.id, title: p.title, group: p.group || 'workspace',
                 isOpen: () => ownedPanels.get(p.id).isOpen(),
                 toggle: () => ownedPanels.get(p.id).setOpen(!ownedPanels.get(p.id).isOpen()),
             })),
             ...FLOATING.map(f => ({
-                id: f.id, title: f.title,
+                id: f.id, title: f.title, group: f.group || 'tools',
                 isOpen: () => floatingIsOpen(f),
                 toggle: () => toggleFloating(f),
             })),
@@ -527,9 +559,14 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         return true;
     }
 
-    // The toolbar is a panel now (wfd-toolbar, adopted above), so the canvas gets
-    // the whole viewport back — nothing is reserved above it any more.
+    // The bar's contents now live in the six panels above, so the canvas gets the
+    // whole viewport back. The element itself is HIDDEN rather than removed: what is
+    // left in it is the app title (the canvas has a wordmark for that) and the mobile
+    // drawer toggle, and a stray getElementById on either should keep resolving
+    // rather than start throwing in one UI mode only.
     document.documentElement.style.setProperty('--toolbar-h', '0px');
+    const bar = document.getElementById('toolbar');
+    if (bar) bar.style.display = 'none';
 
     // Whatever is left of the classic chrome is now empty scaffolding.
     document.getElementById('crash-panel')?.remove();

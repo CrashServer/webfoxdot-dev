@@ -32,8 +32,8 @@ const GRID = 22;
 // ABOVE the origin: the menu bar is a panel now and sits where a top bar belongs,
 // so the rectangle that "reset view" frames has to include it — otherwise the one
 // panel you most need to find on a first run is the one just off the top edge.
-const HOME_Y = -96;
-const HOME_W = 1920, HOME_H = 1080 - HOME_Y;
+const HOME_Y = -96, HOME_BOTTOM = 1220;
+const HOME_W = 1920, HOME_H = HOME_BOTTOM - HOME_Y;
 
 const MIN_ZOOM = 0.15, MAX_ZOOM = 3;
 

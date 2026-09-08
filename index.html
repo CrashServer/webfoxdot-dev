@@ -3683,11 +3683,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         try {
             const _dk = initDesktop(editor, clock, makeEditor, dropEditor, log);
             _desktopApi = _dk;
-            const lb = document.getElementById('btn-layouts');
-            lb.hidden = false;                       // desktop-only: there are no panels to arrange otherwise
-            lb.onclick = () => _dk.showLayouts();
-            // Panels can be closed now, so there has to be a way back that does not
-            // itself depend on having found the WINDOWS panel first.
+            // LAYOUTS keeps its handler but not a place on a bar: a button whose whole
+            // job is to show a panel is a chip in the WINDOWS panel now, and having
+            // both was two controls for one piece of state.
+            document.getElementById('btn-layouts').onclick = () => _dk.showLayouts();
+            // WINDOWS is the deliberate exception — the index has to be reachable
+            // without already having found the index — so it does get a bar button.
             const wb = document.getElementById('btn-windows');
             wb.hidden = false;
             wb.onclick = () => _dk.showWindows();
