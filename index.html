@@ -2612,6 +2612,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Degrees are written in whatever key is live, so a recorded phrase
         // transposes with Scale/Root like everything else in the language.
         scale:    () => ({ scale: Scale.default, root: Root.default, name: Scale.currentName }),
+        // The synth's own definition, so the piano can build a knob per parameter
+        // from the same defaults the engine plays it with. Live-defined synths
+        // (defsynth) are included.
+        synthDef: (name) => SYNTH_DEFS[name] || userSynths[name]?.__def || null,
         log,
     });
 

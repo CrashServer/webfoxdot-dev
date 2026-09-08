@@ -23,6 +23,8 @@
 // for the note's duration in the generated code, but it cannot shorten a voice that
 // is already sounding.
 
+import { makeKnob } from './knob.js';
+
 let _modal = null, _open = false;
 let _ctx = {
     playNote: () => {},        // (synthName, midi, {sus, amp}) → fire a voice now
@@ -31,8 +33,59 @@ let _ctx = {
     bpm:      () => 120,       // clock.bpm — for the un-booted fallback below
     synths:   () => ['pluck'], // available synth names
     scale:    () => ({ scale: [0, 2, 3, 5, 7, 8, 10], root: 0, name: 'minor' }),
+    // name → { defaults, extraParams } for the chosen synth, so its own knobs can
+    // be built from the same definition the engine plays it with.
+    synthDef: () => null,
     log:      () => {},
 };
+
+// ── Parameter ranges ────────────────────────────────────────────────────────
+// A synth definition carries defaults but no ranges — the engine never needed
+// them. Knobs do. Named parameters get a range chosen by ear; anything unknown is
+// derived from its own default, which is a better guess than a fixed 0..1 and is
+// never silently wrong in a way you cannot drag out of.
+const RANGES = {
+    cutoff: { min: 20, max: 20000, curve: 'exp' },
+    lpf:    { min: 20, max: 20000, curve: 'exp' },
+    hpf:    { min: 20, max: 20000, curve: 'exp' },
+    freq:   { min: 20, max: 20000, curve: 'exp' },
+    rq:     { min: 0.01, max: 2, curve: 'exp' },
+    lpr:    { min: 0.01, max: 2, curve: 'exp' },
+    attack: { min: 0.001, max: 4, curve: 'exp' },
+    release:{ min: 0.001, max: 8, curve: 'exp' },
+    decay:  { min: 0.001, max: 8, curve: 'exp' },
+    pan:    { min: -1, max: 1 },
+    dist:   { min: 0, max: 20 },
+    drive:  { min: 0, max: 20 },
+    crush:  { min: 0, max: 16 },
+    squash: { min: 0, max: 20 },
+    room:   { min: 0, max: 1 },
+    reverb: { min: 0, max: 1 },
+    mix:    { min: 0, max: 1 },
+    spin:   { min: 0, max: 4 },
+    sub:    { min: 0, max: 2 },
+    phase:  { min: 0, max: 1 },
+    harm:   { min: 0, max: 8 },
+};
+function rangeFor(name, def) {
+    if (RANGES[name]) return { ...RANGES[name], default: def };
+    const d = Number(def);
+    if (!Number.isFinite(d)) return { default: def };            // unbounded → relative drag
+    if (d === 0)            return { min: 0, max: 1, default: 0 };
+    const mag = Math.abs(d);
+    return { min: d < 0 ? -mag * 4 : 0, max: mag * 4, default: d };
+}
+
+// The parameters worth a knob: the synth's OWN ones, plus the shaping controls
+// every voice has. oct / amp / dur / sus are already controls on the panel itself.
+const SKIP = new Set(['oct', 'amp', 'dur', 'sus', 'degree', 'freq', 'bus', 'out']);
+function paramsOf(def) {
+    if (!def || !def.defaults) return [];
+    const own = new Set(def.extraParams || []);
+    const names = Object.keys(def.defaults).filter(n => !SKIP.has(n));
+    // synth-specific first — they are the ones that make it sound like itself
+    return names.sort((a, b) => (own.has(b) ? 1 : 0) - (own.has(a) ? 1 : 0) || a.localeCompare(b));
+}
 
 const OCT_MIN = 1, OCT_MAX = 8;
 // Tracker/DAW keyboard layout: the home row is white keys, the row above is black.
@@ -44,6 +97,9 @@ const WHITE = [0, 2, 4, 5, 7, 9, 11];
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 let _oct = 5, _synth = 'pluck', _sus = 0.5, _amp = 0.7, _snap = true, _octaves = 2;
+// Live values for the current synth's own parameters, and the defaults they were
+// read from — only what you have actually MOVED goes into the generated line.
+let _params = {}, _paramDefs = {};
 // The take. `armed` is whether new notes are being added; the notes themselves
 // survive disarming, because pressing ● again to STOP and then asking for the code
 // is the obvious order to do things in — throwing the take away there was just a
@@ -106,7 +162,7 @@ function noteOn(midi) {
     // booted, and a phrase played before then would otherwise land on one beat and
     // collapse into a single chord. See toCode().
     _down.set(midi, { beat: _ctx.beat(), t: performance.now(), midi: m });
-    _ctx.playNote(_synth, m, { sus: _sus, amp: _amp });
+    _ctx.playNote(_synth, m, { ..._params, sus: _sus, amp: _amp });
     markKey(midi, true);
 }
 
@@ -176,7 +232,12 @@ function toCode() {
     }
     const allSame = durs.every(d => d === durs[0]);
     const durPart = allSame ? durs[0] : `[${durs.join(', ')}]`;
-    const line = `p1 >> ${_synth}([${degs.join(', ')}], dur=${durPart}, oct=${_oct}, sus=${_sus})`;
+    // Only parameters you actually moved: a line restating every default would be
+    // noise, and the defaults are what the synth does anyway.
+    const moved = Object.entries(_params)
+        .filter(([k, v]) => Number(v) !== Number(_paramDefs[k]))
+        .map(([k, v]) => `, ${k}=${Math.round(v * 1000) / 1000}`).join('');
+    const line = `p1 >> ${_synth}([${degs.join(', ')}], dur=${durPart}, oct=${_oct}, sus=${_sus}${moved})`;
 
     _ctx.insert(line);
     _ctx.log(`piano → code: ${degs.length} step${degs.length === 1 ? '' : 's'} in ${name}`
@@ -210,6 +271,7 @@ function build() {
             <button class="piano-close" title="close">×</button>
         </div>
         <div class="piano-keys"></div>
+        <div class="piano-params"></div>
         <div class="piano-foot">
             <button class="piano-rec" title="record what you play against the clock">● rec</button>
             <button class="piano-code" title="write what you played into the editor as a player line">✎ to code</button>
@@ -232,7 +294,7 @@ function build() {
     q('.piano-amp').oninput = (e) => { _amp = Number(e.target.value); };
     q('.piano-quant').onchange = (e) => { _quant = Number(e.target.value); };
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
-    q('.piano-synth').onchange = (e) => { _synth = e.target.value; };
+    q('.piano-synth').onchange = (e) => { _synth = e.target.value; buildParamKnobs(); };
     q('.piano-rec').onclick = () => {
         if (_rec && _rec.armed) {
             _rec.armed = false;
@@ -266,6 +328,50 @@ function build() {
     initDrag(q('.piano-head'));
 }
 
+// One knob per parameter the chosen synth actually has, rebuilt when the synth
+// changes. They feed the sounding voice AND the generated line, so a sound you
+// found by ear comes out as the code that makes it.
+function buildParamKnobs() {
+    if (!_modal) return;
+    const host = _modal.querySelector('.piano-params');
+    host.textContent = '';
+    _params = {}; _paramDefs = {};
+
+    const def = _ctx.synthDef(_synth);
+    const names = paramsOf(def);
+    if (!names.length) {
+        const none = document.createElement('span');
+        none.className = 'piano-hint';
+        none.textContent = `${_synth} takes no extra parameters`;
+        host.appendChild(none);
+        return;
+    }
+    for (const name of names) {
+        const d = def.defaults[name];
+        _paramDefs[name] = d;
+        _params[name] = d;
+        const spec = rangeFor(name, d);
+
+        const cell = document.createElement('div');
+        cell.className = 'piano-param';
+        const lab = document.createElement('span');
+        lab.className = 'piano-param-name';
+        lab.textContent = name;
+        // Double-click the label to put a parameter back where the synth had it.
+        lab.title = `${name} (default ${d}) — drag the value, Shift for fine; double-click this label to reset`;
+        lab.ondblclick = () => { _params[name] = d; buildParamKnobs(); };
+
+        const knob = makeKnob({
+            value: d, spec,
+            title: `${name} — default ${d}`,
+            onInput: (v) => { _params[name] = v; },
+            onCommit: (v) => { _params[name] = v; },
+        });
+        cell.append(lab, knob);
+        host.appendChild(cell);
+    }
+}
+
 function render() {
     if (!_modal) return;
     const sel = _modal.querySelector('.piano-synth');
@@ -275,6 +381,7 @@ function render() {
     }
     if (!names.includes(_synth)) _synth = names[0] || 'pluck';
     sel.value = _synth;
+    if (!Object.keys(_paramDefs).length) buildParamKnobs();
     _modal.querySelector('.piano-oct').textContent = _oct;
 
     const { scale, root } = _ctx.scale();

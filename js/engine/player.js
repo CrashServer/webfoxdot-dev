@@ -93,7 +93,10 @@ export function setGate(g) { _gate = g; }
 export function playSynthNote(synthName, midi, opts = {}) {
     if (!_sc) return;
     // secPerBeat=1 so buildParams treats sus (default 0.5) as seconds directly.
-    const result = buildParams(synthName, midi, { sus: opts.sus ?? 0.5, amp: opts.amp ?? 0.7 }, 1, 0);
+    // Everything else in opts is passed straight through, so a keyboard voice can
+    // carry the synth's own parameters (cutoff, dist, …) and not just level and
+    // length — buildParams already knows which names that synth accepts.
+    const result = buildParams(synthName, midi, { sus: 0.5, amp: 0.7, ...opts }, 1, 0);
     if (!result) return;
     const id = _sc.nextNodeId();
     try { _sc.sendOSC(osc.encodeSingleBundle(osc.ntpNow(), '/s_new', [result.scName, id, 0, PLAYER_GROUP, ...result.params])); } catch (_) {}

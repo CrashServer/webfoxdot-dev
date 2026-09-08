@@ -314,6 +314,27 @@ before, half an arrangement came back and half did not.
   `getBoundingClientRect()` and `elementFromPoint()` when the thing is supposed to be
   visible.
 
+## Piano
+
+`js/ui/piano.js`, portable (no desktop dependency, cherry-picks onto `dev01`). Plays
+any synth by mouse or computer keyboard, records against the clock, and writes a
+player line in scale degrees.
+
+Under the keyboard is **one drag-knob per parameter the chosen synth actually has**,
+built from `SYNTH_DEFS[name].defaults` and rebuilt when the synth changes. They feed
+the sounding voice and the generated line: only the ones you MOVED are written out,
+so the line stays readable. Double-click a label to reset that parameter.
+
+- `playSynthNote()` used to drop everything except `sus`/`amp`; it spreads opts
+  through to `buildParams` now, which already knows which names a given synth takes.
+  MIDI note-input gets the same benefit.
+- Synth definitions carry defaults but **no ranges** — the engine never needed them.
+  `RANGES` in piano.js gives the common names a range chosen by ear (cutoff/lpf/hpf
+  exponential 20–20k, rq 0.01–2, attack/release exponential, pan −1..1, …) and
+  anything unknown derives one from its own default rather than assuming 0..1.
+- Reuses `makeKnob()` from `js/ui/knob.js` — the modular panel's drag control, so the
+  feel and the exponential curves are the same everywhere.
+
 ## Next: importing features & content from the workshop
 
 Inventory of what is there, roughly in order of value-to-effort:
