@@ -244,7 +244,7 @@ const FLOATING = [
  * @param {object} editor      CodeMirror instance (told to refresh on resize)
  * @param {function} onReady   called with the desktop element once built
  */
-export function initDesktop(editor, clock = null, editorFactory = null, onReady = null) {
+export function initDesktop(editor, clock = null, editorFactory = null, onDropEditor = null, onReady = null) {
     const body = document.body;
     body.classList.add('desktop-ui');
 
@@ -345,8 +345,10 @@ export function initDesktop(editor, clock = null, editorFactory = null, onReady 
         back.title = 'send this buffer back to the tab strip';
         back.addEventListener('click', (e) => {
             e.stopPropagation();
+            clearTimeout(t);
             cm.swapDoc(new CodeMirror.Doc('', 'foxdot'));   // release the doc first
             onReattach?.(name, doc);
+            onDropEditor?.(cm);            // stop it being "the focused editor"
             panel.el.remove();
         });
         panel.el.querySelector('.panel-head')

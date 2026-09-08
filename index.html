@@ -1910,9 +1910,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // inspector and the rest all act on whichever one has focus, with no plumbing.
     // The handlers registered below deliberately use their own `cm` argument instead,
     // because they belong to one specific instance.
-    let editor = CodeMirror(document.getElementById('editor-wrap'),
+    // Keep a stable handle on the main instance: `editor` moves with focus, this
+    // does not, and several things below legitimately mean "the main editor".
+    const mainEditor = CodeMirror(document.getElementById('editor-wrap'),
         { ...EDITOR_OPTS, value: _startValue, autofocus: true });
-    const _allEditors = new Set([editor]);
+    let editor = mainEditor;
+    const _allEditors = new Set([mainEditor]);
 
     /** An editor for a detached buffer: same options, bound to an existing Doc. */
     function makeEditor(container, doc) {
@@ -1922,8 +1925,17 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         _allEditors.add(cm);
         return cm;
     }
-    function dropEditor(cm) { _allEditors.delete(cm); if (editor === cm) editor = [..._allEditors][0]; }
-    editor.on('focus', function () { editor = this; });
+    // Never leave `editor` unset — falling back to the main instance, which is the
+    // one that always exists.
+    function dropEditor(cm) {
+        _allEditors.delete(cm);
+        if (editor === cm) editor = mainEditor;
+    }
+    // CodeMirror invokes handlers with `this` unbound, so the instance has to be
+    // captured in the closure rather than read off `this` — doing the latter set
+    // `editor` to null the first time the main editor was focused, and every timer
+    // that touches the editor threw.
+    mainEditor.on('focus', () => { editor = mainEditor; });
 
     // The reveal callback brings the tour's own buffer back on screen before a lesson is
     // written, so evaluating next() from a scratch tab does not land the lesson there.
@@ -3465,7 +3477,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     };
     if (desktopModeOn()) {
         try {
-            const _dk = initDesktop(editor, clock, makeEditor);
+            const _dk = initDesktop(editor, clock, makeEditor, dropEditor);
             _detachHost = _dk.detachBuffer;
             _tabs.refresh?.();          // reveal the detach buttons now there is a host
             document.getElementById('btn-desktop').classList.add('active');
