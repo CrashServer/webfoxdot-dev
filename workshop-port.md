@@ -333,7 +333,9 @@ so the line stays readable. Double-click a label to reset that parameter.
   exponential 20–20k, rq 0.01–2, attack/release exponential, pan −1..1, …) and
   anything unknown derives one from its own default rather than assuming 0..1.
 - Reuses `makeKnob()` from `js/ui/knob.js` — the modular panel's drag control, so the
-  feel and the exponential curves are the same everywhere.
+  feel and the exponential curves are the same everywhere. `makeKnob({ rotary: true })`
+  draws a real dial (270° sweep, dead zone at the bottom, value arc + pointer) instead
+  of the horizontal bar; only the paint differs, so the two forms cannot drift apart.
 
 ## Next: importing features & content from the workshop
 

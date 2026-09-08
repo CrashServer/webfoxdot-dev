@@ -2830,12 +2830,33 @@ body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
 .wfd-lb-action:hover { color: var(--text-1); border-color: var(--border-2); background: var(--bg-3); }
 .wfd-lb-danger:hover { color: var(--red); border-color: var(--red); }
 
+/* ── Rotary knobs ──────────────────────────────────────────────────────────
+   makeKnob({ rotary: true }) — a real dial: 270° sweep with the dead zone at the
+   bottom, an arc for the value and a pointer. Same drag maths as the bar form. */
+.mod-knob.rotary {
+    width: 42px; height: auto; padding: 0;
+    background: none; border: none;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    cursor: ns-resize;
+}
+.mod-knob-dial { width: 34px; height: 34px; display: block; overflow: visible; }
+.mod-knob.rotary .mk-track   { fill: none; stroke: var(--border-1); stroke-width: 3; stroke-linecap: round; }
+.mod-knob.rotary .mk-arc     { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; }
+.mod-knob.rotary .mk-cap     { fill: var(--bg-3); stroke: var(--border-1); stroke-width: 1; }
+.mod-knob.rotary .mk-pointer { stroke: var(--text-1); stroke-width: 2; stroke-linecap: round; }
+.mod-knob.rotary:hover .mk-cap { stroke: var(--border-2); }
+.mod-knob.rotary.dragging .mk-arc { stroke: var(--green); filter: drop-shadow(0 0 4px var(--glow)); }
+.mod-knob.rotary .mod-knob-val {
+    position: static; font-size: 9px; color: var(--text-2);
+    line-height: 1; text-align: center; width: 100%;
+}
+.mod-knob.rotary .mod-knob-edit { position: absolute; inset: auto; width: 46px; font-size: 9px; }
+
 /* Per-synth parameter knobs under the keyboard (js/ui/piano.js). */
 .piano-params {
-    display: flex; flex-wrap: wrap; gap: 6px 10px;
-    padding: 0 8px 8px; align-items: center;
+    display: flex; flex-wrap: wrap; gap: 4px 8px;
+    padding: 2px 8px 8px; align-items: flex-start;
 }
-.piano-param { display: flex; align-items: center; gap: 5px; }
-.piano-param-name { color: var(--text-2); font-size: 10px; cursor: pointer; }
+.piano-param { display: flex; flex-direction: column; align-items: center; gap: 1px; position: relative; }
+.piano-param-name { color: var(--text-2); font-size: 9px; cursor: pointer; letter-spacing: 0.3px; }
 .piano-param-name:hover { color: var(--text-1); }
-.piano-param .mod-knob { width: 66px; }

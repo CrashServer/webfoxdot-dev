@@ -106,23 +106,72 @@ export function knobTitle(spec) {
  * a slow, careful sweep of a cutoff is still a single gesture, and a window long
  * enough to cover one would also swallow the next deliberate edit.
  */
-export function makeKnob({ value, spec = {}, onInput, onCommit, title }) {
+// Rotary dial geometry: a 270° sweep, the conventional dead zone pointing down so
+// "off" and "full" are visually distinct and the pointer never hides behind itself.
+const SWEEP = 270, START = 135;      // degrees; 135 = bottom-left, running clockwise
+const R = 15, CX = 18, CY = 18;
+const polar = (deg, r) => [
+    CX + r * Math.cos((deg - 90) * Math.PI / 180),
+    CY + r * Math.sin((deg - 90) * Math.PI / 180),
+];
+function arcPath(fromT, toT) {
+    const a0 = START + fromT * SWEEP, a1 = START + toT * SWEEP;
+    const [x0, y0] = polar(a0, R), [x1, y1] = polar(a1, R);
+    return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 ${(a1 - a0) > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
+/**
+ * @param {object} o  value · spec · onInput · onCommit · title
+ *                    rotary: draw a real dial instead of a horizontal bar. Same
+ *                    drag maths, same curves, same type-to-set — only the paint
+ *                    differs, so the two cannot drift apart in feel.
+ */
+export function makeKnob({ value, spec = {}, onInput, onCommit, title, rotary = false }) {
     const el = document.createElement('div');
-    el.className = 'mod-knob' + (isBounded(spec) ? ' bounded' : '');
+    el.className = 'mod-knob' + (isBounded(spec) ? ' bounded' : '') + (rotary ? ' rotary' : '');
     el.title = title || knobTitle(spec);
     el.tabIndex = -1;
 
-    const fill = document.createElement('div');
-    fill.className = 'mod-knob-fill';
     const label = document.createElement('span');
     label.className = 'mod-knob-val';
-    el.appendChild(fill);
-    el.appendChild(label);
+    let fill = null, valArc = null, pointer = null;
+
+    if (rotary) {
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('viewBox', '0 0 36 36');
+        svg.setAttribute('class', 'mod-knob-dial');
+        const track = document.createElementNS(NS, 'path');
+        track.setAttribute('class', 'mk-track');
+        track.setAttribute('d', arcPath(0, 1));
+        valArc = document.createElementNS(NS, 'path');
+        valArc.setAttribute('class', 'mk-arc');
+        const cap = document.createElementNS(NS, 'circle');
+        cap.setAttribute('class', 'mk-cap');
+        cap.setAttribute('cx', CX); cap.setAttribute('cy', CY); cap.setAttribute('r', R - 5);
+        pointer = document.createElementNS(NS, 'line');
+        pointer.setAttribute('class', 'mk-pointer');
+        svg.append(track, valArc, cap, pointer);
+        el.append(svg, label);
+    } else {
+        fill = document.createElement('div');
+        fill.className = 'mod-knob-fill';
+        el.append(fill, label);
+    }
 
     let v = Number.isFinite(value) ? value : 0;
     function paint() {
         label.textContent = formatValue(v);
-        fill.style.width = isBounded(spec) ? (toNorm(v, spec) * 100) + '%' : '0';
+        const t = isBounded(spec) ? toNorm(v, spec) : 0;
+        if (!rotary) { fill.style.width = isBounded(spec) ? (t * 100) + '%' : '0'; return; }
+        // An unbounded parameter has no meaningful position on a dial, so it shows
+        // the value and a centred pointer rather than a lie about where it sits.
+        const tt = isBounded(spec) ? t : 0.5;
+        valArc.setAttribute('d', tt <= 0.001 ? '' : arcPath(0, tt));
+        const [px, py] = polar(START + tt * SWEEP, R - 3);
+        const [ix, iy] = polar(START + tt * SWEEP, R - 9);
+        pointer.setAttribute('x1', ix.toFixed(2)); pointer.setAttribute('y1', iy.toFixed(2));
+        pointer.setAttribute('x2', px.toFixed(2)); pointer.setAttribute('y2', py.toFixed(2));
     }
     paint();
 

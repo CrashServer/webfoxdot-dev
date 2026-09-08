@@ -362,7 +362,7 @@ function buildParamKnobs() {
         lab.ondblclick = () => { _params[name] = d; buildParamKnobs(); };
 
         const knob = makeKnob({
-            value: d, spec,
+            value: d, spec, rotary: true,
             title: `${name} — default ${d}`,
             onInput: (v) => { _params[name] = v; },
             onCommit: (v) => { _params[name] = v; },
