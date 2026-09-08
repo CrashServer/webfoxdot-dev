@@ -1935,11 +1935,31 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     let editor = mainEditor;
     const _allEditors = new Set([mainEditor]);
 
+    // ── Tripwire for text arriving from outside ──────────────────────────────
+    // Chrome text (panel titles, piano key labels, header glyphs) has been turning
+    // up in buffers. Several plausible routes have been closed — dragging chrome,
+    // and the X11 middle-click primary paste — and rather than guess again, this
+    // names the mechanism the next time it happens. It only fires for a paste or a
+    // drop that does not look like code, so ordinary pasting stays silent.
+    function watchForeignInput(cm) {
+        cm.on('beforeChange', (_cm, ch) => {
+            const origin = ch.origin || '';
+            if (origin !== 'paste' && origin !== 'drop') return;
+            const text = (ch.text || []).join('\n');
+            if (text.length < 12) return;
+            if (/[>(){}=]|>>/.test(text)) return;             // looks like code — leave it alone
+            log(`heads-up: a ${origin} of ${text.length} chars that does not look like code — `
+                + JSON.stringify(text.slice(0, 48)) + (text.length > 48 ? '…' : ''), 'warn');
+        });
+    }
+    watchForeignInput(mainEditor);
+
     /** An editor for a detached buffer: same options, bound to an existing Doc. */
     function makeEditor(container, doc) {
         const cm = CodeMirror(container, { ...EDITOR_OPTS });
         cm.swapDoc(doc);
         cm.on('focus', () => { editor = cm; });
+        watchForeignInput(cm);
         _allEditors.add(cm);
         return cm;
     }
