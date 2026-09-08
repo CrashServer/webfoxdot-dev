@@ -2666,6 +2666,9 @@ body.desktop-ui .panel-body > .cp-section + .cp-section > h3 { display: block; }
 }
 .panel-backdrop-btn:hover { background: var(--bg-1); color: var(--text-1); }
 .panel-backdrop-btn.on { color: var(--green); text-shadow: 0 0 6px var(--glow); }
+/* Closing a detached buffer throws its text away — colour it like the tab strip's ×. */
+.wfd-buf-close { font-size: 13px; }
+.wfd-buf-close:hover { background: var(--bg-1); color: var(--red); }
 
 /* The mirrored frame sits behind the panel's own content. The panel background
    goes translucent so the picture reads through it — the code stays first. */

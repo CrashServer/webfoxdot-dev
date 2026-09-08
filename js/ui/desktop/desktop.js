@@ -394,6 +394,20 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         rescale();
         requestAnimationFrame(rescale);
 
+        // Tearing the panel down. Both exits release the doc first — CodeMirror
+        // refuses to hand a document to a second editor while this one still holds
+        // it, and the tab strip is about to do exactly that.
+        const teardown = () => {
+            clearTimeout(t);
+            cm.swapDoc(new CodeMirror.Doc('', 'foxdot'));
+            detached.delete(name);
+            onDropEditor?.(cm);            // stop it being "the focused editor"
+            panel.el.remove();
+        };
+
+        const head = panel.el.querySelector('.panel-head');
+        const before = panel.el.querySelector('.panel-collapse') || null;
+
         // ⤺ sends the buffer back to the strip and takes the panel away with it.
         const back = document.createElement('button');
         back.className = 'panel-backdrop-btn';
@@ -401,15 +415,62 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         back.title = 'send this buffer back to the tab strip';
         back.addEventListener('click', (e) => {
             e.stopPropagation();
-            clearTimeout(t);
-            cm.swapDoc(new CodeMirror.Doc('', 'foxdot'));   // release the doc first
-            detached.delete(name);
-            onReattach?.(name, doc);
-            onDropEditor?.(cm);            // stop it being "the focused editor"
-            panel.el.remove();
+            const returning = name;        // teardown clears the map entry
+            teardown();
+            onReattach?.(returning, doc);
         });
-        panel.el.querySelector('.panel-head')
-             ?.insertBefore(back, panel.el.querySelector('.panel-collapse') || null);
+        head?.insertBefore(back, before);
+
+        // × discards it. A detached buffer had no way out except back to the strip,
+        // so closing one meant reattaching it and then closing it there.
+        const close = document.createElement('button');
+        close.className = 'panel-backdrop-btn wfd-buf-close';
+        close.textContent = '\u00d7';
+        close.title = 'close this buffer — its text is discarded';
+        close.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (doc.getValue().trim() && !confirm(`Close "${name}"? Its text is discarded.`)) return;
+            teardown();
+        });
+        head?.insertBefore(close, before);
+
+        // Double-click the title to rename, exactly as in the strip — same inline
+        // field, so a detached buffer is not a second-class tab.
+        const titleEl = panel.el.querySelector('.panel-title');
+        if (titleEl) titleEl.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            if (titleEl.querySelector('input')) return;
+            const input = document.createElement('input');
+            input.className = 'ed-tab-rename';
+            input.value = name;
+            input.spellcheck = false;
+            input.size = Math.max(4, name.length + 1);
+            titleEl.textContent = '';
+            titleEl.appendChild(input);
+            input.focus(); input.select();
+            let done = false;
+            const finish = (commit) => {
+                if (done) return;
+                done = true;
+                const v = input.value.trim().slice(0, 24);
+                if (commit && v && v !== name) {
+                    detached.delete(name);
+                    name = v;
+                    detached.set(name, doc);
+                }
+                titleEl.textContent = name;
+            };
+            input.addEventListener('keydown', (ev) => {
+                ev.stopPropagation();
+                if (ev.key === 'Enter')  { ev.preventDefault(); finish(true); }
+                if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+            });
+            input.addEventListener('input', () => { input.size = Math.max(4, input.value.length + 1); });
+            input.addEventListener('blur', () => finish(true));
+            for (const k of ['click', 'pointerdown', 'dblclick'])
+                input.addEventListener(k, (ev) => ev.stopPropagation());
+        });
+        if (titleEl) titleEl.title = 'double-click to rename this buffer';
 
         addBackdropButton(panel.el, clock);
         panToReveal(panel.el);

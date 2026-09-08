@@ -420,6 +420,50 @@ tempo/clock, session/collab rooms, audio analysis, a mixer, a preset/parts syste
 
 ---
 
+## Engine work done from here (portable to dev01)
+
+None of this is desktop-specific — cherry-pick it onto `dev01` when the branch lands.
+
+**A latched NaN silenced the whole mix.** Reported as: heavy `#@` set, lines
+evaluate and players show active, no sound, and only a page refresh brings it back.
+`fd_master` ends in `Sanitize.ar`, but that sits at the TAIL and replaces bad
+samples with **zero** — so one NaN reaching `fbdelay`'s or `pong`'s
+`LocalIn`/`LocalOut` loop circulates forever, poisons the summed bus every block,
+and is sanitised to continuous silence. The FX node holding it survives
+re-evaluation, which is why re-running the line does nothing. Fixed in
+`synthdefs/src/fx/fx_effects.scd`: `Sanitize.ar(LocalIn.ar(2))` in both feedback
+loops (a bad sample now flushes on the next block — the delay self-heals), and
+`Sanitize.ar` in `fd_fx_out`, the tail node every player's private bus passes
+through, so a player that blows up silences only itself. Rebuilt with
+`./scripts/build.sh fx_effects` → `fd_fx_fbdelay`, `fd_fx_pong`, `fd_fx_out`.
+
+*Not confirmed by reproduction* — it is the hypothesis that fits every symptom,
+and the guards are correct regardless. Discriminating test next time it happens,
+**before refreshing**: `unsolo()` restores sound → the gate (see below);
+top-bar RELOAD / `softReload()` restores it → a stuck node, i.e. this; neither →
+reload with `?diag` and read `audioHealthPct` / `scsynthWasmErrors`.
+
+**`soloRnd()` wrote gains behind the gate's back.** It set `_amplify = 0` on every
+player directly and relied on a scheduled event 8 beats later to undo it. Nothing
+in the UI showed why the room had gone quiet, and a lost restore (the clock's
+`_tick` returns early when `_running` is false, so pending `_events` freeze) meant
+permanent silence. It goes through `gate.soloOnly()` / `gate.clearSolo()` now, like
+an eval-time `.solo()` — visible in the Players panel and the mixer, and cleared by
+anything that recomputes the gate.
+
+## Detached buffers: close & rename
+
+A detached buffer panel had only ⤺ (back to the strip), so closing one meant
+reattaching it first and then closing it there, and it could not be renamed at all.
+It now carries × (discards it; confirms first if the buffer has text) and a
+double-click-to-rename on the panel title using the same `.ed-tab-rename` field the
+strip uses. Both exits share one `teardown()` that releases the doc with
+`swapDoc(new Doc(''))` before the panel goes — CodeMirror refuses to hand a document
+to a second editor while this one still holds it, and the strip is about to do
+exactly that. Rename rewrites the `detached` map key (so the piano's `to` picker and
+`bufferTargets()` follow it) but deliberately leaves the panel `id` alone, because
+the saved layout is keyed by it.
+
 ## Testing recipe
 
 No test runner in this repo — everything is verified by driving the real app in
