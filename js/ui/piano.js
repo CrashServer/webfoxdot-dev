@@ -28,7 +28,8 @@ import { makeKnob } from './knob.js';
 let _modal = null, _open = false;
 let _ctx = {
     playNote: () => {},        // (synthName, midi, {sus, amp}) → fire a voice now
-    insert:   () => {},        // (code) → put this line in the editor
+    insert:   () => {},        // (code, targetName) → put this line in that buffer
+    targets:  () => [],        // [{ name, active }] — every buffer you could send to
     beat:     () => 0,         // clock.now()
     bpm:      () => 120,       // clock.bpm — for the un-booted fallback below
     synths:   () => ['pluck'], // available synth names
@@ -100,6 +101,11 @@ let _oct = 5, _synth = 'pluck', _sus = 0.5, _amp = 0.7, _snap = true, _octaves =
 // Live values for the current synth's own parameters, and the defaults they were
 // read from — only what you have actually MOVED goes into the generated line.
 let _params = {}, _paramDefs = {};
+// Which buffer "to code" writes into. Chosen explicitly, because with several
+// buffers open — some detached into their own panels — "the current editor" is
+// whichever one you last clicked, and from the keyboard that looks like it picks
+// one at random.
+let _target = null;
 // The take. `armed` is whether new notes are being added; the notes themselves
 // survive disarming, because pressing ● again to STOP and then asking for the code
 // is the obvious order to do things in — throwing the take away there was just a
@@ -239,8 +245,8 @@ function toCode() {
         .map(([k, v]) => `, ${k}=${Math.round(v * 1000) / 1000}`).join('');
     const line = `p1 >> ${_synth}([${degs.join(', ')}], dur=${durPart}, oct=${_oct}, sus=${_sus}${moved})`;
 
-    _ctx.insert(line);
-    _ctx.log(`piano → code: ${degs.length} step${degs.length === 1 ? '' : 's'} in ${name}`
+    const where = _ctx.insert(line, _target);
+    _ctx.log(`piano → ${where ? `"${where}"` : 'the editor'}: ${degs.length} step${degs.length === 1 ? '' : 's'} in ${name}`
         + (offScale ? ` · ${offScale} note${offScale === 1 ? '' : 's'} snapped to the scale` : ''), 'ok');
 }
 
@@ -282,6 +288,7 @@ function build() {
                     <option value="0.125">1/32</option>
                     <option value="1">1/4</option>
                 </select></span>
+            <span class="piano-ctl">to <select class="piano-target" title="which buffer ✎ to code writes into"></select></span>
             <span class="piano-hint">keys: a s d f g h j k · w e t y u · z x octave</span>
         </div>`;
     document.body.appendChild(_modal);
@@ -293,6 +300,7 @@ function build() {
     q('.piano-sus').oninput = (e) => { _sus = Number(e.target.value); };
     q('.piano-amp').oninput = (e) => { _amp = Number(e.target.value); };
     q('.piano-quant').onchange = (e) => { _quant = Number(e.target.value); };
+    q('.piano-target').onchange = (e) => { _target = e.target.value; };
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
     q('.piano-synth').onchange = (e) => { _synth = e.target.value; buildParamKnobs(); };
     q('.piano-rec').onclick = () => {
@@ -326,6 +334,23 @@ function build() {
     _modal.addEventListener('blur', () => { for (const m of [..._down.keys()]) noteOff(m); });
 
     initDrag(q('.piano-head'));
+}
+
+// The destination list, refreshed every time the panel draws — buffers come and go
+// as you add tabs and detach them. Defaults to the one you are looking at, and holds
+// your choice as long as that buffer still exists.
+function renderTargets() {
+    const sel = _modal?.querySelector('.piano-target');
+    if (!sel) return;
+    const list = _ctx.targets() || [];
+    if (!list.length) { sel.innerHTML = '<option value="">editor</option>'; return; }
+    if (!list.some(t => t.name === _target)) _target = (list.find(t => t.active) || list[0]).name;
+    const want = list.map(t => t.name).join('\u0000');
+    if (sel.dataset.names !== want) {
+        sel.dataset.names = want;
+        sel.innerHTML = list.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+    }
+    sel.value = _target;
 }
 
 // One knob per parameter the chosen synth actually has, rebuilt when the synth
@@ -383,6 +408,8 @@ function render() {
     sel.value = _synth;
     if (!Object.keys(_paramDefs).length) buildParamKnobs();
     _modal.querySelector('.piano-oct').textContent = _oct;
+
+    renderTargets();
 
     const { scale, root } = _ctx.scale();
     const keys = _modal.querySelector('.piano-keys');

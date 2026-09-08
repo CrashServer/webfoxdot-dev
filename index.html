@@ -379,6 +379,7 @@
     // panel. Null in the classic layout, where there is nowhere to detach to — the
     // strip hides its detach buttons when this is absent.
     let _detachHost = null;
+    let _desktopApi = null;   // the desktop's API once it is up (null in classic mode)
     let _soloPresence = null;   // solo presence handle → forwards solo evals to the monitor
 
     // Broadcast a non-eval action (solo / composition state / the mix) to peers, if in
@@ -2649,7 +2650,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // envelope ends; `sus` is the audible length, and how long a key is HELD is
         // recorded for the generated code rather than sent as a note-off.
         playNote: (synth, midi, opts) => playSynthNote(synth, midi, opts),
-        insert:   (code) => insertCode(code, { quiet: true }),
+        // The piano writes where you TELL it. With several buffers open — some of
+        // them detached — "the current editor" is whichever one you last clicked,
+        // which from the keyboard feels like it picks one at random.
+        targets:  () => bufferTargets().map(t => ({ name: t.name, active: !!t.active })),
+        insert:   (code, targetName) => {
+            const t = bufferTargets().find(x => x.name === targetName);
+            if (t) { insertCodeInto(t.doc, code); return t.name; }
+            insertCode(code, { quiet: true });
+            return null;
+        },
         beat:     () => clock.now(),
         bpm:      () => clock.bpm,
         synths:   () => [...new Set([...Object.keys(SYNTH_DEFS), ...Object.keys(userSynths)])].sort(),
@@ -2680,6 +2690,27 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // Shared by the modular panel's ▸ use it / ⇱ show in code and by attack(): all
     // three want the code VISIBLE, and appending never disturbs lines someone else
     // (or a #@ section) is sitting on.
+    // Append to a NAMED buffer rather than to "wherever we are". Used by panels that
+    // let you pick a destination — with several buffers open, and some of them
+    // detached into their own panels, "the current editor" is not something you can
+    // point at, so the piano asks you instead.
+    function insertCodeInto(doc, text, { run = false } = {}) {
+        if (!doc) return insertCode(text, { quiet: true, run });
+        const last = doc.lastLine();
+        const atEnd = doc.getValue().trim() === '';
+        doc.replaceRange((atEnd ? '' : '\n\n') + text + '\n',
+                         { line: last, ch: doc.getLine(last).length });
+        if (run) runCode(text, { doc });
+    }
+
+    // Every buffer you could send code to: the tab strip, plus anything detached
+    // into its own panel.
+    function bufferTargets() {
+        const strip = _tabs?.list?.() || [];
+        const loose = _desktopApi?.detachedBuffers?.() || [];
+        return [...strip, ...loose];
+    }
+
     function insertCode(text, opts = {}) {
         // Code written BY a running #@ arrangement — an attack() inside a section,
         // say — belongs in the buffer that arrangement lives in, not in whichever
@@ -3554,6 +3585,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     if (desktopModeOn()) {
         try {
             const _dk = initDesktop(editor, clock, makeEditor, dropEditor, log);
+            _desktopApi = _dk;
             const lb = document.getElementById('btn-layouts');
             lb.hidden = false;                       // desktop-only: there are no panels to arrange otherwise
             lb.onclick = () => _dk.showLayouts();

@@ -357,6 +357,9 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     // it, which is what makes Ctrl+Enter and the nudge keys work in a detached
     // panel without any of the run machinery knowing panels exist.
     let detachedN = 0;
+    // Detached buffers are no longer in the tab strip, so anything offering buffers
+    // as a destination has to be able to see them here instead.
+    const detached = new Map();
     function detachBuffer(name, doc, onReattach) {
         if (!editorFactory) return false;
         const id = 'wfd-buf-' + String(name).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
@@ -400,6 +403,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
             e.stopPropagation();
             clearTimeout(t);
             cm.swapDoc(new CodeMirror.Doc('', 'foxdot'));   // release the doc first
+            detached.delete(name);
             onReattach?.(name, doc);
             onDropEditor?.(cm);            // stop it being "the focused editor"
             panel.el.remove();
@@ -409,6 +413,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
 
         addBackdropButton(panel.el, clock);
         panToReveal(panel.el);
+        detached.set(name, doc);
         return true;
     }
 
@@ -467,6 +472,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     onReady?.(desktop);
     return {
         desktop, canvas, resetView, getZoom, resetAllLayouts, detachBuffer,
+        detachedBuffers: () => [...detached].map(([name, doc]) => ({ name, doc, detached: true })),
         // The toolbar's LAYOUTS button: bring the panel into view and raise it.
         showLayouts() {
             if (!layoutsPanel) return false;

@@ -238,6 +238,9 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         name:    () => tabs[active]?.name,
         count:   () => tabs.length,
         newTab:  (name, text) => add(name, text),
+        // Every buffer in the strip, for anything that needs to offer them as a
+        // destination (the piano's "to" picker).
+        list:    () => tabs.map((t, i) => ({ name: t.name, doc: t.doc, main: !!t.main, active: i === active })),
         // Desktop mode comes up after the strip is built, so it asks for a redraw
         // once there is somewhere to detach TO.
         refresh: () => render(),

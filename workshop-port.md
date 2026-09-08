@@ -310,6 +310,14 @@ pass**.
 
 A scratch buffer should only ever contain what you put there.
 
+The other half is where a PANEL sends code. `codeDoc()`'s fallback is "the editor you
+last focused", which with several buffers open — some detached into their own panels —
+is not something you can point at, so the piano looked like it picked one at random.
+It has a **`to` picker** now, listing every buffer (tab strip + detached), defaulting
+to the one you are looking at and remembering your choice while that buffer exists.
+`insertCodeInto(doc, text)` is the doc-targeted write; `bufferTargets()` merges
+`_tabs.list()` with the desktop's `detachedBuffers()`.
+
 ### Traps found the hard way (desktop)
 
 - **On X11, a selection over chrome becomes a paste waiting to happen.** Selecting

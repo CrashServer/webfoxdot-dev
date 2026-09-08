@@ -2756,7 +2756,7 @@ body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
 .piano-ctl { display: flex; align-items: center; gap: 3px; color: var(--text-2); }
 .piano-ctl b { color: var(--text-1); min-width: 12px; text-align: center; }
 .piano-ctl input[type="range"] { width: 62px; }
-.piano-synth, .piano-quant {
+.piano-synth, .piano-quant, .piano-target {
     background: var(--bg-1); color: var(--text-1);
     border: 1px solid var(--border-1); border-radius: 3px;
     font-family: monospace; font-size: 11px; padding: 1px 3px;
