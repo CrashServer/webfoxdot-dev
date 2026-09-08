@@ -44,7 +44,11 @@ const WHITE = [0, 2, 4, 5, 7, 9, 11];
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 let _oct = 5, _synth = 'pluck', _sus = 0.5, _amp = 0.7, _snap = true, _octaves = 2;
-let _rec = null;              // { startBeat, notes: [{midi, beat, held}] }
+// The take. `armed` is whether new notes are being added; the notes themselves
+// survive disarming, because pressing ● again to STOP and then asking for the code
+// is the obvious order to do things in — throwing the take away there was just a
+// trap.
+let _rec = null;              // { armed, startBeat, startT, notes: [...] }
 let _down = new Map();        // midi → { beat } while held
 let _quant = 0.25;
 
@@ -110,7 +114,7 @@ function noteOff(midi) {
     const held = _down.get(midi);
     _down.delete(midi);
     markKey(midi, false);
-    if (!held || !_rec) return;
+    if (!held || !_rec || !_rec.armed) return;
     _rec.notes.push({
         midi: held.midi, beat: held.beat, t: held.t,
         heldBeats: Math.max(0, _ctx.beat() - held.beat),
@@ -125,6 +129,8 @@ function markKey(midi, on) {
 
 // ── record → code ───────────────────────────────────────────────────────────
 function toCode() {
+    // Still holding keys when you ask for the code? Take those notes too.
+    if (_rec && _rec.armed) for (const m of [..._down.keys()]) noteOff(m);
     if (!_rec || !_rec.notes.length) { _ctx.log('piano: nothing recorded yet — arm ● rec and play something', 'warn'); return; }
     const { scale, root, name } = _ctx.scale();
     const q = _quant;
@@ -228,9 +234,15 @@ function build() {
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
     q('.piano-synth').onchange = (e) => { _synth = e.target.value; };
     q('.piano-rec').onclick = () => {
-        if (_rec) { _rec = null; q('.piano-rec').classList.remove('on'); _ctx.log('piano: recording stopped', 'info'); }
-        else { _rec = { startBeat: _ctx.beat(), startT: performance.now(), notes: [] }; q('.piano-rec').classList.add('on');
-               _ctx.log('piano: recording — play, then press ✎ to code', 'warn'); }
+        if (_rec && _rec.armed) {
+            _rec.armed = false;
+            q('.piano-rec').classList.remove('on');
+            _ctx.log(`piano: stopped — ${_rec.notes.length} note${_rec.notes.length === 1 ? '' : 's'} held, press \u270e to code`, 'info');
+        } else {
+            _rec = { armed: true, startBeat: _ctx.beat(), startT: performance.now(), notes: [] };
+            q('.piano-rec').classList.add('on');
+            _ctx.log('piano: recording \u2014 play, then press \u270e to code', 'warn');
+        }
     };
     q('.piano-code').onclick = toCode;
 
