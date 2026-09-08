@@ -127,6 +127,7 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
         });
         const out = { id: oid, win, surfaces: [] };
         outputs.push(out);
+        ensureLoop();
         return out;
     }
 
@@ -145,17 +146,44 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
         save();
     }
 
+    // ── The master mirror ────────────────────────────────────────────────────
+    // A surface showing `master` needs the renderer's output, and the GL canvas is
+    // created with preserveDrawingBuffer:false — readable only inside the render
+    // callback. So feed() copies it here, and the output loop reads the copy. Same
+    // trick vrec.js uses, and for the same reason.
+    //
+    // It is IN THE DOCUMENT because a detached canvas has bitten this codebase once
+    // already (see vrec.js); here it matters less, but consistency is worth more than
+    // saving one element.
+    let mirror = null, mctx = null;
+    function feed(canvas) {
+        if (!outputs.length || !canvas?.width) return;
+        if (!mirror) {
+            mirror = document.createElement('canvas');
+            mirror.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none';
+            mirror.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(mirror);
+            mctx = mirror.getContext('2d');
+        }
+        if (mirror.width !== canvas.width || mirror.height !== canvas.height) {
+            mirror.width = canvas.width; mirror.height = canvas.height;
+        }
+        mctx.drawImage(canvas, 0, 0);
+    }
+
     /**
-     * Draw every surface. MUST be called from inside the renderer's frame callback —
-     * the GL canvas has preserveDrawingBuffer:false, so reading it any later is black.
+     * Draw every surface once. Driven by the loop below, NOT by the renderer's frame
+     * callback — an output showing a code buffer or a single layer must keep updating
+     * with no visual scene running at all, and the renderer's loop stops early when
+     * there is nothing to draw. That is what made a code-buffer surface show black.
      */
-    function render(master) {
+    function render() {
         if (!outputs.length) return;
         if (outputs.some((o) => o.win.closed)) prune();
         for (const o of outputs) {
             if (o.win.closed || o.win.document.hidden) continue;
             for (const s of o.surfaces) {
-                const src = sourceCanvas(s.source, master);
+                const src = sourceCanvas(s.source, mirror);
                 if (!src || !src.width) continue;
                 s.ctx.clearRect(0, 0, W, H);
                 s.warp.drawMeshWarp(s.ctx, src);          // identity = a straight copy
@@ -164,6 +192,11 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
             }
         }
     }
+
+    // Outputs run their own loop, alive exactly as long as there is an output open.
+    let raf = 0;
+    function tick() { raf = outputs.length ? requestAnimationFrame(tick) : 0; render(); }
+    function ensureLoop() { if (!raf && outputs.length) raf = requestAnimationFrame(tick); }
 
     function restore() {
         let saved = null;
@@ -191,7 +224,7 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
     }
 
     return {
-        addOutput, addSurface, render, prune, reopen, restore, sources,
+        addOutput, addSurface, render, feed, prune, reopen, restore, sources,
         list: () => outputs.map((o) => ({ id: o.id, surfaces: o.surfaces.length, closed: o.win.closed })),
         get: (i) => outputs[i],
         count: () => outputs.length,

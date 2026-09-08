@@ -3779,7 +3779,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             getBuffers: () => bufferTargets().map((t) => ({ name: t.name, text: t.doc.getValue() })),
             onLog: (m, k) => log(m, k || 'info'),
         });
-        eachVisualFrame((canvas, deck) => { deckRef = deck; _outputsDeck = deck; _outputsApi.render(canvas); });
+        // Only the MASTER source needs a frame from the renderer, and only from inside
+        // its callback. Everything else — a single layer, a code buffer — the outputs
+        // read for themselves on their own loop, which is what lets a projected code
+        // buffer keep updating with no visual scene running at all.
+        eachVisualFrame((canvas, deck) => { deckRef = deck; _outputsDeck = deck; _outputsApi.feed(canvas); });
         return _outputsApi;
     }
 

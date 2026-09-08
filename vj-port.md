@@ -540,3 +540,26 @@ first touch. Saying so is the honest interface.
 
 `vsnap(all, only)` gained the second argument for → CODE, and a single-layer snap
 deliberately omits the crossfader and the palette: those are the set, not the layer.
+
+## Fixed: a code buffer on an output showed black
+
+Reported, and a design flaw rather than a slip.
+
+Outputs were driven from `eachFrame` — the renderer's frame callback. That was right
+for the `master` source, which can only be read there (the GL canvas is
+`preserveDrawingBuffer:false`). It was wrong for everything else, because
+`surface.frame()` **returns early when there are no visual layers**, before notifying
+subscribers. So an output showing a code buffer only updated while a visual scene
+happened to be running — and projecting your code is exactly the case where one is not.
+Worse, if no surface was running at all, outputs never rendered.
+
+**Outputs run their own rAF loop now**, alive exactly as long as an output is open.
+Layer canvases and code-buffer canvases are plain 2D and readable at any time, so the
+loop reads them directly. Only `master` still comes from the renderer: `feed(canvas)`
+copies it, inside the callback, into a mirror the loop reads — the same trick `vrec.js`
+uses, and in the document for the same reason.
+
+The general shape of the mistake is worth keeping: **a consumer was bolted onto a
+producer's schedule, and inherited that producer's reasons for stopping.** The
+renderer stops when there is nothing to draw, which is correct for the renderer and
+meaningless for an output whose source is somewhere else entirely.
