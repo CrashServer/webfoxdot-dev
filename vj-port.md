@@ -116,8 +116,95 @@ MEMBERSHIP now, matching how `visualBuilders()` resolves the same collision.
 `wblend`, `wfx`, `wseq`, …). Those drive an EXTERNAL workshop for anyone running
 one. A scene name no longer does.
 
-## Stage 3 — the rest of the workshop
+## Stage 3 — done, and what was deliberately left
 
-`fx/registry.js` (3164) · `lfos.js` · `macros.js` · `randomize.js` · `drivers.js` ·
-`xfader.js` · `sequencer.js` · lut/palette/limiter · `outputs.js` · `warp.js` ·
-`meshWarp.js` · `edgeBlend.js` · the 20 `webscenes/*.json` presets.
+### Ported
+
+**52 per-layer FX** (`fx/registry.js`, vendored whole — it imports nothing). They are
+canvas operations, so they run on the LAYER's canvas before it reaches the deck. That
+is the thing crashDot's own FX cannot do: those are uniforms in the present shader,
+applied once to the finished frame. ~35 are effects crashDot did not have at all —
+vhs · datamosh · oilPaint · neonGlow · ledWall · badSignal · halftone · duotone ·
+thermal · crystalize · displace3d · warholGrid · lensFlare · frameDiff …
+
+The chain ping-pongs two scratch canvases, and the stack ENTRIES are held per layer
+rather than rebuilt each frame — feedback, datamosh, frameDiff and motionBlur keep a
+buffer on their entry between frames.
+
+*Trap*: a workshop-implemented FX on a workshop layer would otherwise run twice, once
+per-layer and once in the global pass — and for `invert`, twice is not at all.
+`fxBundle` skips a key on a `ws` layer when the workshop implements it. The five
+crashDot has that the workshop does not (trails · scan · fold · hueshift · pixelsort)
+still fall through globally.
+
+**Master grade + limiter** (`lut.js`, `limiter.js`) as present-pass uniforms:
+`sat()` `exposure()` `contrast()` `ceiling()`. The originals do a `ctx.filter` blit
+and a `getImageData` loop over the finished frame; as uniforms they are three
+multiplies at the end of a pass that already runs, so there is no readback — which is
+the whole reason a master stage was not worth having before.
+
+These are **neutral at 1**, unlike every other fx key, which forced two rules: a grade
+takes the value FURTHEST FROM NEUTRAL (sat(0) beats sat(1.2) — greyscale is a stronger
+intent than a lift, and `max` would pick the lift), and two ceilings resolve to the
+LOWER one, because a ceiling is a promise not to exceed.
+
+### Multiplayer
+
+**The visual program already syncs**, and always did: `video1 >> doomcorridor()` is
+text in the shared buffer, every peer evaluates it, every peer renders it locally.
+There is no visual state to replicate because there is no visual state — which is why
+this is the right architecture for a jam and why `vsnap()` matters more than a preset
+system would.
+
+**What did NOT sync, and now does: PHASE.** Workshop layers animate from `t`, and a
+machine-local `t` means two peers running the same line see the same scene at
+different phases — a strobe flashing on different frames, a sweep halfway round when
+yours is starting. The workshop hit this first and named it: its `fxStack` passes
+"room time, so every machine in a classroom flashes on the same frame instead of each
+running off its own wall clock". crashDot already has the shared clock, so workshop
+layers now run on **beats converted to seconds at a 120bpm reference** — monotonic
+because the beat is, identical on every peer because the beat is, and
+tempo-proportional, which for music-driven visuals is what you want anyway. Field
+scenes keep wall time: they are pure functions of (u,v,t) in one shader and changing
+their phase would alter every existing set's look.
+
+**What still does not sync, honestly**: layers that call `Math.random()` differ in
+their fine detail per peer — particle positions, glitch placement. This is the SAME
+contract crashDot's audio already has (a `PRand` re-rolls independently on each
+machine), so it is consistent rather than a new wart. The program is shared; the dice
+are not.
+
+**Rule for anything added later**: a visual control that is set by HAND rather than by
+code must go through `shareState` like the mixer and the gate do — share the RESULTING
+state, never the verb. Nothing added so far is in that category, because everything is
+code.
+
+### `vsnap()` — presets, the crashDot way
+
+There are no workshop preset FILES to port: its presets live in localStorage, and
+`webscenes/*.json` turned out to be an IMPORT format from a different tool
+(`webSceneImport.js`), not the workshop's own.
+
+Which is just as well, because a localStorage blob is the wrong shape here. `vsnap()`
+prints the lines you would have typed to get what is on screen — every live layer with
+its params at their current values, its FX chain, the crossfader, the palette. A look
+becomes something you read, edit and paste into a set, and it survives a jam, which a
+preset in your localStorage does not. `vsnap(true)` writes every knob, which is how
+you discover what a layer even has.
+
+### Deliberately NOT ported
+
+- **`lfos.js` + `drivers.js`** (modulation matrix). crashDot already modulates every
+  visual param with the full pattern/TimeVar vocabulary — `hue=sinvar([0,1],8)`,
+  `cells=PRand(4,12)` — on the audio clock, resolved by the same engine the audio
+  players use. That is strictly more expressive than four LFOs, and it is CODE, so it
+  syncs in a jam while an LFO panel would not. Adding a second modulation system would
+  be redundant and a multiplayer liability.
+- **`sequencer.js`, `xfader.js`**. `#@` sections and `mix()` already do this, and both
+  are code.
+- **`outputs.js` · `warp.js` · `meshWarp.js` · `edgeBlend.js`** (1,077 lines).
+  Multi-projector output with corner-pin and mesh warping. Genuinely useful and
+  genuinely unique, but it is physical-room tooling that needs its own calibration UI
+  and a second window — a project of its own rather than a port, and untestable
+  headlessly. The workshop's own presets deliberately exclude output mapping for the
+  same reason: "tied to the physical room, not a visual look".
