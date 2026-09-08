@@ -374,6 +374,10 @@
     let _collab = null;
     // Editor buffers (the set + scratch canvases) — populated once the editor exists
     let _tabs = null;
+    // Set once desktop mode is up: hosts a buffer pulled off the tab strip in its own
+    // panel. Null in the classic layout, where there is nowhere to detach to — the
+    // strip hides its detach buttons when this is absent.
+    let _detachHost = null;
     let _soloPresence = null;   // solo presence handle → forwards solo evals to the monitor
 
     // Broadcast a non-eval action (solo / composition state / the mix) to peers, if in
@@ -1857,8 +1861,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             ['var', 'linvar', 'sinvar', 'expvar', 'lininf', 'expinf', 'Pvar', 'fperlin', 'fi', 'fo', 'fb']);
     } catch (_) {}
 
-    const editor = CodeMirror(document.getElementById('editor-wrap'), {
-        value:            _startValue,
+    // Options split out from the instance so a DETACHED buffer can be given an
+    // editor identical to this one — same keymap, gutters and behaviour.
+    const EDITOR_OPTS = {
         mode:             'foxdot',
         lineNumbers:      true,
         // A second gutter marking which line each LIVE player is actually sounding
@@ -1897,7 +1902,28 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             'Ctrl-Alt-P':     ()   => { _tabs?.goToDoc(activeSectionDoc()); if (!jumpToActive()) log('no active part', 'info'); },
             'Ctrl-/':         (cm) => cm.execCommand('toggleComment'),
         },
-    });
+    };
+
+    // `let`, not `const`: it means "the editor you are typing in". Detaching a buffer
+    // into its own panel creates a second CodeMirror, and every call site in this
+    // module reads this binding at call time — so Ctrl+Enter, the nudge keys, the
+    // inspector and the rest all act on whichever one has focus, with no plumbing.
+    // The handlers registered below deliberately use their own `cm` argument instead,
+    // because they belong to one specific instance.
+    let editor = CodeMirror(document.getElementById('editor-wrap'),
+        { ...EDITOR_OPTS, value: _startValue, autofocus: true });
+    const _allEditors = new Set([editor]);
+
+    /** An editor for a detached buffer: same options, bound to an existing Doc. */
+    function makeEditor(container, doc) {
+        const cm = CodeMirror(container, { ...EDITOR_OPTS });
+        cm.swapDoc(doc);
+        cm.on('focus', () => { editor = cm; });
+        _allEditors.add(cm);
+        return cm;
+    }
+    function dropEditor(cm) { _allEditors.delete(cm); if (editor === cm) editor = [..._allEditors][0]; }
+    editor.on('focus', function () { editor = this; });
 
     // The reveal callback brings the tour's own buffer back on screen before a lesson is
     // written, so evaluating next() from a scratch tab does not land the lesson there.
@@ -1917,6 +1943,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // declared further down (a `let` touched too early throws and takes the rest
         // of the boot with it). There is no top-level await in this module, so one
         // microtask is enough to land after the whole body.
+        canDetach: () => !!_detachHost,
+        onDetach: (name, doc) => _detachHost
+            ? _detachHost(name, doc, (n, d) => _tabs.reattach(n, d))
+            : false,
         onSwitch: (isMain, name) => queueMicrotask(() => {
             // Yjs binds to ONE document, so text sync only runs while the set is up.
             if (_collab) { if (isMain) _collab.resumeSync(); else _collab.pauseSync(); }
@@ -2064,7 +2094,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (_tabs && !_tabs.isMain()) return;   // scratch buffers save themselves
             clearTimeout(_saveTimer);
             _saveTimer = setTimeout(() => {
-                try { localStorage.setItem(SOLO_KEY, editor.getValue()); } catch (_) {}
+                try { localStorage.setItem(SOLO_KEY, cm.getValue()); } catch (_) {}
             }, 400);
         });
     }
@@ -2081,10 +2111,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // Stream the line under the cursor to the visuals window as you type/move it
     // ("instant code"). Throttled inside the bridge.
-    editor.on('cursorActivity', () => {
-        const c = editor.getCursor();
+    editor.on('cursorActivity', (cm) => {
+        const c = cm.getCursor();
         const u = getUser();
-        postInstant(editor.getLine(c.line) || '', c.line, u.name, u.color);
+        postInstant(cm.getLine(c.line) || '', c.line, u.name, u.color);
     });
 
     // ── UI wiring ─────────────────────────────────────────────────────────────
@@ -3435,7 +3465,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     };
     if (desktopModeOn()) {
         try {
-            initDesktop(editor, clock);
+            const _dk = initDesktop(editor, clock, makeEditor);
+            _detachHost = _dk.detachBuffer;
+            _tabs.refresh?.();          // reveal the detach buttons now there is a host
             document.getElementById('btn-desktop').classList.add('active');
             log('desktop UI — drag panel headers to move, corners to resize, Ctrl+scroll to zoom, drag the background to pan (double-click it to reset)', 'info');
         } catch (e) {

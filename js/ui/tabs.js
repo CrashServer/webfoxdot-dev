@@ -25,8 +25,15 @@ const MAX   = 9;            // Alt+1..9 addresses them all
  * @param {Element}  mount      the empty #editor-tabs strip to draw into
  * @param {boolean}  inSession  true in a multiplayer room — see restore()
  * @param {function} onSwitch   (isMain, name) after every switch
+ * @param {function} onDetach   (name, doc) → host this buffer somewhere else.
+ *                              Returning false declines and the tab stays put.
+ * @param {function} canDetach  is there anywhere to detach TO right now? Checked at
+ *                              render time, because desktop mode comes up after this
+ *                              does — and a button that silently does nothing is
+ *                              worse than no button.
  */
-export function initTabs({ editor, mount, inSession = false, onSwitch = () => {} } = {}) {
+export function initTabs({ editor, mount, inSession = false, onSwitch = () => {},
+                           onDetach = null, canDetach = () => false } = {}) {
     const tabs = [{ name: 'set', doc: editor.getDoc(), main: true }];
     let active = 0;
 
@@ -76,6 +83,32 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         return 'scratch';
     }
 
+    // ── detach / re-attach ──────────────────────────────────────────────────
+    // Hand a buffer to whoever can host it (the desktop opens a panel with its own
+    // editor). The doc has to be OFF this editor first — CodeMirror refuses to put
+    // one document in two editors — so switch away before letting go of it.
+    function detach(i) {
+        const t = tabs[i];
+        if (!t || t.main || !onDetach) return;
+        if (active === i) go(0);
+        tabs.splice(i, 1);
+        if (active > i) active--;
+        render();
+        if (onDetach(t.name, t.doc) === false) { tabs.splice(i, 0, t); render(); return; }
+        save();
+    }
+
+    // Take a detached buffer back into the strip.
+    function reattach(name, doc) {
+        if (tabs.length >= MAX) return false;
+        const tab = { name: name || nextName(), doc, main: false };
+        tabs.push(tab);
+        doc.on('change', save);
+        go(tabs.length - 1);
+        save();
+        return true;
+    }
+
     function close(i) {
         if (i <= 0 || i >= tabs.length) return;          // the set is never closeable
         tabs.splice(i, 1);
@@ -122,6 +155,14 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
             label.className = 'ed-tab-name';
             label.textContent = t.name;
             el.appendChild(label);
+            if (!t.main && canDetach()) {
+                const dt = document.createElement('button');
+                dt.className = 'ed-tab-detach';
+                dt.textContent = '\u29c9';
+                dt.title = 'detach — give this buffer its own panel, so you can see it next to the set';
+                dt.onclick = (e) => { e.stopPropagation(); detach(i); };
+                el.appendChild(dt);
+            }
             if (!t.main) {
                 const x = document.createElement('button');
                 x.className = 'ed-tab-close';
@@ -161,6 +202,10 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         name:    () => tabs[active]?.name,
         count:   () => tabs.length,
         newTab:  (name, text) => add(name, text),
+        // Desktop mode comes up after the strip is built, so it asks for a redraw
+        // once there is somewhere to detach TO.
+        refresh: () => render(),
+        reattach,
         go,
     };
 }

@@ -244,7 +244,7 @@ const FLOATING = [
  * @param {object} editor      CodeMirror instance (told to refresh on resize)
  * @param {function} onReady   called with the desktop element once built
  */
-export function initDesktop(editor, clock = null, onReady = null) {
+export function initDesktop(editor, clock = null, editorFactory = null, onReady = null) {
     const body = document.body;
     body.classList.add('desktop-ui');
 
@@ -293,6 +293,69 @@ export function initDesktop(editor, clock = null, onReady = null) {
     }
 
     for (const spec of FLOATING) hostFloating(canvas, spec, clock);
+
+    // ── Detached buffers ────────────────────────────────────────────────────
+    // A scratch buffer pulled off the tab strip gets its own panel with its own
+    // CodeMirror on the SAME document. Two editors, one doc is not allowed by
+    // CodeMirror, which is why the strip switches away before handing it over.
+    //
+    // The new editor is built by index.html's factory, so it carries the identical
+    // options and keymap — and focusing it re-points the app's `editor` binding at
+    // it, which is what makes Ctrl+Enter and the nudge keys work in a detached
+    // panel without any of the run machinery knowing panels exist.
+    let detachedN = 0;
+    function detachBuffer(name, doc, onReattach) {
+        if (!editorFactory) return false;
+        const id = 'wfd-buf-' + String(name).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+        const step = detachedN++ % 4;
+        const panel = createPanel(canvas, {
+            id, title: name,
+            x: 1102 + step * 28, y: 1106 + step * 28, w: 720, h: 440, minW: 320, minH: 160,
+        });
+        panel.body.classList.add('wfd-panel-body', 'wfd-buf-body');
+        const layer = document.createElement('div');
+        layer.className = 'wfd-cm-layer';
+        panel.body.appendChild(layer);
+        const cm = editorFactory(layer, doc);
+
+        // Detached editors are counter-scaled the same way the main one is — see
+        // keepEditorUnscaled(). Their geometry is simpler: they own their whole body.
+        const rescale = () => {
+            const z = getZoom() || 1;
+            const w = panel.body.clientWidth, h = panel.body.clientHeight;
+            if (!w || !h) return;
+            layer.style.width = `${w * z}px`;
+            layer.style.height = `${h * z}px`;
+            layer.style.transform = z === 1 ? '' : `scale(${1 / z})`;
+            layer.style.fontSize = `${baseFontPx * z}px`;
+            cm.refresh();
+            unskewGutter(cm);
+        };
+        let t = null;
+        const schedule = () => { clearTimeout(t); t = setTimeout(rescale, 140); };
+        onViewChange(schedule);
+        cm.on('update', () => unskewGutter(cm));
+        rescale();
+        requestAnimationFrame(rescale);
+
+        // ⤺ sends the buffer back to the strip and takes the panel away with it.
+        const back = document.createElement('button');
+        back.className = 'panel-backdrop-btn';
+        back.textContent = '\u2934';
+        back.title = 'send this buffer back to the tab strip';
+        back.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cm.swapDoc(new CodeMirror.Doc('', 'foxdot'));   // release the doc first
+            onReattach?.(name, doc);
+            panel.el.remove();
+        });
+        panel.el.querySelector('.panel-head')
+             ?.insertBefore(back, panel.el.querySelector('.panel-collapse') || null);
+
+        addBackdropButton(panel.el, clock);
+        panToReveal(panel.el);
+        return true;
+    }
 
     // The toolbar is NOT a panel: STOP is a panic button and must never be
     // somewhere you have to pan to find. Lift it out of the (now empty) editor
@@ -347,5 +410,5 @@ export function initDesktop(editor, clock = null, onReady = null) {
     }
 
     onReady?.(desktop);
-    return { desktop, canvas, resetView, getZoom, resetAllLayouts };
+    return { desktop, canvas, resetView, getZoom, resetAllLayouts, detachBuffer };
 }

@@ -247,6 +247,32 @@ working local scenes alone.
 
 ---
 
+## Detachable buffers
+
+A scratch tab can be pulled off the strip (the ⧉ on the tab) into its own panel with
+its own editor, so you can see two buffers at once. ⤴ in the panel header sends it
+back. Only offered in desktop mode — `canDetach()` is checked at render time, because
+a button that silently does nothing is worse than no button.
+
+The thing that made this cheap: `index.html`'s `const editor` became **`let editor`**,
+reassigned on focus. All 152 runtime references in that module read the binding at
+call time, so Ctrl+Enter, the nudge keys, the inspector and the rest all act on
+whichever editor has focus with no plumbing at all. `EDITOR_OPTS` is split out so a
+detached buffer gets an identical instance, keymap included.
+
+Two things had to be fixed first, and they are the trap if this is ever reworked:
+
+- Only two `editor.on(...)` handlers closed over the outer `editor` — the solo
+  autosave and the visuals cursor feed. Both now use their own `cm` argument, because
+  they belong to one instance rather than to "the focused one". Anything new
+  registered on a specific editor must do the same.
+- CodeMirror refuses to put one Doc in two editors, so the strip switches away from a
+  buffer before handing it over, and the panel swaps in a throwaway Doc before giving
+  it back.
+
+Detached panels get the same counter-scale treatment as the main editor, with the same
+140 ms settle, so they stay cursor-exact and stay off the audio thread.
+
 ## Next: importing features & content from the workshop
 
 Inventory of what is there, roughly in order of value-to-effort:
