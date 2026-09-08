@@ -264,6 +264,7 @@ class VisualPlayer {
                                 // defaults, so it needs to know what those were.
                                 _wsDefaults: (scene && WS_SET.has(scene) && !isScene(scene)) ? wsDefaults(scene) : null });
         if (mixer && mixer.owner === this.name) mixer = null;   // reused a mixer name as a layer
+        _drainPending(this.name, layers.get(this.name));
         return this;
     }
     stop() {
@@ -311,9 +312,24 @@ export function liveLayers() {
     }
     return out;
 }
+// Edits that arrived for a layer this machine has not run yet. A peer joining a room
+// mid-set receives every knob position before it has evaluated the code that creates
+// the layers, and dropping those would mean the picture agreed on the code but not on
+// the performance. Held here and drained the moment the layer appears.
+const pending = new Map();          // name -> { params:{}, fx:{}, ch }
+const _pend = (name) => { let p = pending.get(name); if (!p) pending.set(name, p = { params: {}, fx: {} }); return p; };
+function _drainPending(name, l) {
+    const p = pending.get(name);
+    if (!p) return;
+    pending.delete(name);
+    for (const [k, v] of Object.entries(p.params)) { if (v == null) delete l.params[k]; else l.params[k] = v; }
+    for (const [k, v] of Object.entries(p.fx))     { if (v == null) delete l.fx[k];     else l.fx[k] = v; }
+    if (p.ch != null) l.ch = p.ch;
+}
+
 export function setLayerParam(name, key, value) {
     const l = layers.get(name);
-    if (!l) return false;
+    if (!l) { _pend(name).params[key] = value; return false; }
     if (value == null) delete l.params[key]; else l.params[key] = value;
     return true;
 }
@@ -324,13 +340,13 @@ export function setLayerParam(name, key, value) {
  */
 export function setLayerFx(name, key, value) {
     const l = layers.get(name);
-    if (!l) return false;
+    if (!l) { _pend(name).fx[key] = value; return false; }
     if (value == null) delete l.fx[key]; else l.fx[key] = value;
     return true;
 }
 export function setLayerChannel(name, ch) {
     const l = layers.get(name);
-    if (!l) return false;
+    if (!l) { _pend(name).ch = Math.max(0, Math.min(1, Math.round(Number(ch) || 0))); return false; }
     l.ch = Math.max(0, Math.min(1, Math.round(Number(ch) || 0)));
     return true;
 }

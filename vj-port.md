@@ -643,3 +643,105 @@ looking at the picture, not at the projector desk. The SCREEN panel now has its 
 picker, top-right, fading in on hover — a permanent widget over the picture is a
 permanent distraction, and this is set rarely. Both drive the same manager, so they
 cannot disagree.
+
+## Merging the two multiplayer systems
+
+Both projects have one. crashDot's is `js/collab/` (Yjs + y-websocket); the workshop's
+is `src/net/room.js` + `roomPanel.js` + `roomLocks.js` + `collab.js`.
+
+**The survey reframed the job, so record what it found.** crashDot already had:
+
+- rooms, peers, colours, awareness;
+- **chat**, and persistent — `ydoc.getArray('chat')`, so it replays for a late joiner
+  rather than being a stream you had to be present for;
+- **assignment**, and richer than the workshop's: `CAPS × ROLES` in `permissions.js`,
+  editable live, gated on **receive** as well as send. The workshop's axis is a flat
+  `MODULES` list (`transport · master · mapping · sequencer · presets · lfos · macros ·
+  palette · scenes · xfader · channel:N`), which is a subset of the same idea;
+- **shared visuals**, for free — a video line is text in the shared buffer, so every
+  peer evaluates and renders it. There is no visual state to replicate;
+- **a shared animation phase** — room time on the beat (see above).
+
+The workshop's own `room.js` header names the three things that must agree for two
+machines to draw the same frame: the state, the clock, and **the audio**. The first two
+were already done here. The third was the real gap.
+
+### The gap: every machine analysed its own output
+
+`bridge.js`'s `getVisualAudio()` read the **local** analyser. A laptop driving a
+projector with no audio booted saw a flat spectrum, so every audio-reactive layer —
+`cymatics`, `freqtower`, `chladniplate`, most of the reactive catalogue — froze.
+Identical code, identical clock, dead picture. This is the actual blocker for "some
+doing visuals, some doing music".
+
+Now: whoever is making sound publishes `{bass, mid, treble, level, spectrum[32]}`, and
+a peer whose own analyser is silent consumes the room's.
+
+- **On awareness, not the document.** Awareness is ephemeral and untracked by the CRDT,
+  which is right for a signal worthless a frame later. Fifteen spectra a second in the
+  doc's history would grow it forever to describe a sound nobody can hear any more.
+- **Quantised to bytes.** It comes from a byte analyser; JSON floats would triple the
+  payload for precision the eye cannot use.
+- **Loudest wins, not the beat master.** The machine keeping time is not necessarily
+  the one making the noise.
+- Peers stale by >1.5 s are ignored.
+
+### Stations — one switch, one mechanism
+
+`both · music · visuals`, on the user record (so it persists and rides awareness).
+Its only mechanical effect is the **master gain**, and that is the design rather than a
+shortcut: the analyser taps the master output, so a silent station also has **silent
+ears**, which is exactly the condition that makes `getVisualAudio()` fall back to the
+room. *Muting the machine is what makes it listen.*
+
+Re-applied after `bootAudio()` so it survives a boot. It is a convenience, not a lock —
+`Master().gain = 1` unmutes a visuals station, and should.
+
+The peer list shows `◈` for a visuals station and `♪` for **actually making sound**,
+read from the published analysis rather than the declared station: what you can hear
+beats what anyone claims.
+
+**Watch the redraw rate.** Awareness now updates ~15×/s per sounding peer, and
+`onPeers` rebuilt the peer list *and* the rules panel on every change. `_onPeersChange`
+dedupes on a signature of what the UI actually draws (identity + the two badges), so an
+arriving spectrum redraws nothing.
+
+### Layer edits reach the room, behind a `visuals` capability
+
+The LAYERS panel was purely local — you could dial in a look on a shared set and nobody
+saw it. Params, per-layer FX and the deck button now ride the **sticky-state map**
+(`vl:<layer>:<param>`, `vfx:<layer>:<key>`, `vch:<layer>`), which gives live propagation
+and the join snapshot from one mechanism, throttled because a knob drag is ~60/s.
+
+A **separate capability from `code`**, because turning a knob and rewriting the room's
+set are different amounts of trust: a VJ who may not retype the music should still be
+able to open the strobe. Host and player hold it; listener does not. Both the rules
+panel and the log table build from `CAPS`, so the column appeared on its own.
+
+**The ordering trap.** The join replay arrives *before* the code that creates the
+layers — joining hands you the text but does not run it. Dropping those edits would
+mean the room agreed on the code and disagreed about the performance. `vlang.js` holds
+them in `pending` and `_drainPending()` empties it the moment the layer appears, once.
+
+### Testing two peers headlessly
+
+`node --check` does **not** catch everything — it passed a `docs.js` with `\\'` inside a
+single-quoted string, the same class of miss as the earlier `live` shadowing. Load the
+page and read the console.
+
+The harness that worked (in the scratchpad, not the repo): one headless Chromium with
+`--remote-debugging-port`, driven over CDP by a ~30-line client on Node's global
+`WebSocket`. `Target.createTarget` per peer, `Runtime.evaluate` with
+`returnByValue: true`, and — importantly — subscribe to `Runtime.consoleAPICalled` and
+`Runtime.exceptionThrown` rather than asking the page for a homemade error array: a page
+that fails to boot never installs one, and the empty result reads as a pass.
+
+**Two same-origin pages share `localStorage`.** `collab.js` reads the identity from it
+*after* an `await`, so two peers opened at once race for `wfd-user` and both come up as
+the same person — with the same `user.id`, so `isSelf` is true for both and the peer
+list looks broken. Open them **one at a time**, each fully ready before the next.
+
+Both suites pass: 15 assertions across three live peers against a real
+`collab-server.js` (shared analysis, stale/clear handling, stations on awareness,
+`sounding` from the analysis, layer state live *and* replayed to a late joiner, chat),
+and 7 on `vlang`'s pending-edit drain.

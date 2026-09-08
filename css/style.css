@@ -1473,7 +1473,17 @@ body.zen #docs-panel { display: none !important; }
     display: block; margin-bottom: 4px;
     font-size: 11px; color: var(--red);
 }
+/* Station picker — hidden until initUserBox() reveals it inside a session. */
+#user-station { display: none; }
+#user-station.active {
+    display: block; width: 100%; margin-bottom: 6px;
+    background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-1); padding: 2px 5px;
+    font-family: monospace; font-size: 10px;
+}
 #cp-peers { display: flex; flex-direction: column; gap: 3px; }
+/* ◈ visuals station · ♪ currently making sound. */
+.cp-peer-station { font-size: 10px; color: var(--text-2); flex-shrink: 0; }
 /* Role badge, shown only while the room's rules are switched on. */
 .cp-peer-role {
     margin-left: auto; padding: 0 5px; border-radius: 7px;

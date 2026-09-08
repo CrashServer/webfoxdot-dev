@@ -143,6 +143,11 @@
         <input type="color" id="user-color" title="your cursor colour">
         <input type="text" id="user-name" maxlength="24" placeholder="your name" spellcheck="false">
       </div>
+      <select id="user-station" title="what this machine is here to do — a visuals station stays silent and takes its spectrum from whoever is playing">
+        <option value="both">♪◈ music + visuals</option>
+        <option value="music">♪ music — this machine makes the sound</option>
+        <option value="visuals">◈ visuals — silent, reacts to the room</option>
+      </select>
       <div id="cp-peers"></div>
       <button id="btn-rules" title="room rules — who controls what: roles, capabilities and track ownership (optional, off by default)">⚖ room rules</button>
       <div id="cp-chat-log"></div>
@@ -261,7 +266,7 @@
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
+    import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals, setAudioShareHooks } from './js/visuals/bridge.js';
     import { asciiWord, ASCII_STYLES } from './js/ui/ascii.js';
     import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
     import { initPiano, togglePiano } from './js/ui/piano.js';
@@ -931,6 +936,12 @@
             else if (key.startsWith('level:')) setMixLevel(key.slice(6), value);
             else if (key.startsWith('mute:'))  gate.setMuted(key.slice(5), value);
             else if (key.startsWith('solo:'))  gate.setSoloed(key.slice(5), value);
+            // Layer knobs from a peer's LAYERS panel. vlang holds an edit for a layer
+            // this machine has not evaluated yet and drains it when the layer appears,
+            // so the join replay lands even though it arrives before the code is run.
+            else if (key.startsWith('vl:'))  { const i = key.indexOf(':', 3); setVisualParam(key.slice(3, i), key.slice(i + 1), value); }
+            else if (key.startsWith('vfx:')) { const i = key.indexOf(':', 4); setVisualFx(key.slice(4, i), key.slice(i + 1), value); }
+            else if (key.startsWith('vch:')) setVisualChannel(key.slice(4), value);
             else if (key.startsWith('synth:')) {
                 // A synth someone built in the modular panel. Async, and a peer may be
                 // on an older build without some UGen — warn, don't take the app down.
@@ -1742,6 +1753,7 @@
             // Master safety limiter at the tail of RootNode — sees the summed mix
             // of every player + FX, so stacking loud players can't hard-clip.
             sc.send('/s_new', 'fd_master', MASTER_NODE, 1, 0);
+            applyStation(myStation());        // a visuals station stays silent across a boot
             log('  master limiter ✓', 'ok');
 
             synthStatus.textContent = 'reading sample manifest…';
@@ -3546,23 +3558,56 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         ctx.fillStyle = color || '#888888';
         return ctx.fillStyle;
     }
+    // ── Stations — what each machine in the room is here to DO ─────────────────
+    //
+    // A room can span two laptops, one running the set and one driving a projector,
+    // and the two need different things from the same shared document. The station is
+    // that declaration. It is deliberately ONE switch with ONE effect — the master
+    // gain — because that effect cascades into everything else that matters:
+    //
+    //   the analyser taps the master output, so a silent station also has silent EARS,
+    //   which is exactly the condition under which getVisualAudio() falls back to the
+    //   room's shared analysis. Muting the machine is what makes it listen.
+    //
+    // It is a convenience, not a lock: `Master().gain = 1` on a visuals station will
+    // unmute it, and should, because the person at the keyboard outranks the setting.
+    const STATIONS = ['both', 'music', 'visuals'];
+    function myStation() {
+        const st = getUser().station;
+        return STATIONS.includes(st) ? st : 'both';
+    }
+    function applyStation(st) {
+        masterSet({ gain: st === 'visuals' ? 0 : 1 });
+    }
+
     // Reveal + wire the name/colour box (only shown in a session).
     function initUserBox() {
         const box   = document.getElementById('user-box');
         const nameI = document.getElementById('user-name');
         const colI  = document.getElementById('user-color');
+        const staI  = document.getElementById('user-station');
         const user  = getUser();
         nameI.value = user.name;
         colI.value  = toHexColor(user.color);
+        staI.value  = myStation();
+        staI.classList.add('active');
         box.classList.add('active');
         const save = () => {
-            const u = { ...getUser(), name: nameI.value.trim() || 'anon', color: colI.value };
+            const u = { ...getUser(), name: nameI.value.trim() || 'anon', color: colI.value,
+                        station: STATIONS.includes(staI.value) ? staI.value : 'both' };
             localStorage.setItem('wfd-user', JSON.stringify(u));
             if (_collab) _collab.setUser(u);   // live-update peers' cursors
         };
         nameI.onchange = save;
         nameI.onblur   = save;
         colI.oninput   = save;
+        staI.onchange  = () => {
+            save();
+            applyStation(myStation());
+            log(myStation() === 'visuals'
+                ? 'visuals station — this machine is silent and takes its spectrum from the room'
+                : `${myStation()} station — this machine makes sound`, 'info');
+        };
     }
 
     // Render the connected-peers list (name + colour); marks you as "(you)".
@@ -3584,8 +3629,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // While room rules are on, each peer wears their role; the host gets a ★.
             const showRoles = perms.isEnabled();
             const role = showRoles ? perms.roleOf(u.id) : '';
+            // ◈ visuals · ♪ making sound right now (from their published analysis, not
+            // their declared station — what you hear beats what they claim).
+            const badge = u.station === 'visuals' ? '\u25c8' : (u.sounding ? '\u266a' : '');
             d.innerHTML = `<span class="cp-peer-dot" style="background:${u.color || '#888'}"></span>` +
                 `<span class="cp-peer-name">${escapeHtml(u.name || 'anon')}${u.isSelf ? ' (you)' : ''}</span>` +
+                (badge ? `<span class="cp-peer-station" title="${u.station === 'visuals' ? 'visuals station' : 'making sound'}">${badge}</span>` : '') +
                 (role ? `<span class="cp-peer-role${role === 'host' ? ' is-host' : ''}">${role === 'host' ? '★ ' : ''}${role}</span>` : '');
             el.appendChild(d);
         }
@@ -3681,6 +3730,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             }
         }, applyAction, onPeersChanged, appendChat, _seedText, renderListing, applyPerfState, onConnection, onPermsChanged).then(collab => {
             _collab = collab;
+            // Let the visuals hear the room. A machine making sound publishes its own
+            // analysis; a machine doing visuals only consumes it, so audio-reactive
+            // layers pulse with the set instead of freezing on a dead analyser.
+            setAudioShareHooks({ share: collab.setAudioShare, room: collab.roomAudio });
             // Connected while a scratch buffer is up: the binding must not mirror the
             // room's text into it (see collab.js pauseSync).
             if (_tabs && !_tabs.isMain()) collab.pauseSync();
@@ -3736,11 +3789,17 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // The LAYERS panel turns knobs on whatever is live. It writes plain numbers, and
     // → CODE hands the line back — perform with the knobs, keep it as text.
+    // Turning a knob is a performance, not a rewrite: it rides the sticky-state map
+    // like a fader does, so a peer joining mid-set gets the picture you are actually
+    // showing and not the one the code happens to describe. Gated by the 'visuals'
+    // capability at the writer (see setStateWriter above), throttled because a knob
+    // drag fires ~60x/s, and re-entrant-safe because applyPerfState wraps its own
+    // replay in applyingRemote(), which makes shareStateThrottled a no-op.
     setLayersApi({
         liveLayers: visualLayers,
-        setLayerParam: setVisualParam,
-        setLayerChannel: setVisualChannel,
-        setLayerFx: setVisualFx,
+        setLayerParam: (n, k, v) => { shareStateThrottled(`vl:${n}:${k}`, v); return setVisualParam(n, k, v); },
+        setLayerChannel: (n, c) => { shareState(`vch:${n}`, c); return setVisualChannel(n, c); },
+        setLayerFx: (n, k, v) => { shareStateThrottled(`vfx:${n}:${k}`, v); return setVisualFx(n, k, v); },
         // Two groups, because they are two different things: crashDot's own FX are
         // uniforms over the whole frame, the workshop's run on that layer alone.
         fxNames: () => Object.keys(visualFxDefaults()),

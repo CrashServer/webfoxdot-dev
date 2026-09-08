@@ -123,7 +123,33 @@ export function startVisualsAudio(sc, clock, getMeta) {
 
 // Current audio bands + 32-bin spectrum straight from the analyser — for the
 // in-editor background renderer, which runs in THIS window (no BroadcastChannel).
-export function getVisualAudio() { return _bands(); }
+// The room's ears, injected by index.html once a session exists. Kept as hooks so
+// the visuals never import the collab layer — they work identically offline.
+let _shareAudio = null, _roomAudio = null;
+export function setAudioShareHooks({ share = null, room = null } = {}) { _shareAudio = share; _roomAudio = room; }
+
+// How loud counts as "this machine is making the sound". Below it we are a listener,
+// or a visuals-only machine, and the room's analysis is the better answer.
+const HEARD = 0.012;
+let _lastShare = 0;
+
+/**
+ * What the visuals react to. Your own ears when you have them, the room's when you do
+ * not — so a peer running visuals with no audio booted still pulses with the set,
+ * and a peer making sound reacts to its own output with no network in the path.
+ */
+export function getVisualAudio() {
+    const local = _bands();
+    if (local.level > HEARD) {
+        // Publish at ~15Hz rather than every tick: the consumer smooths anyway, and
+        // awareness updates go to every peer in the room.
+        const now = Date.now();
+        if (_shareAudio && now - _lastShare > 66) { _lastShare = now; try { _shareAudio(local); } catch (_) {} }
+        return local;
+    }
+    if (_roomAudio) { const r = _roomAudio(); if (r) return r; }
+    return local;
+}
 
 const SPEC_BINS = 32;
 function _bands() {
@@ -159,7 +185,8 @@ function _tick() {
     try { meta = _getMeta ? (_getMeta() || {}) : {}; } catch (_) {}
     const audioMsg = {
         t: 'audio',
-        ..._bands(),
+        // Room-aware, so a popped-out visuals window on a silent machine still reacts.
+        ...getVisualAudio(),
         bpm: _clock?.bpm ?? 120,
         beat: now,
         bar: Math.floor(now / 4),

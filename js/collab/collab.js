@@ -340,15 +340,31 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
             // Key on the stable user id so a refresh (new clientID, same id) doesn't
             // double you up; fall back to clientID for older clients without an id.
             out.push({
-                id:     state.user.id || ('c' + clientId),
-                name:   state.user.name,
-                color:  state.user.color,
+                id:      state.user.id || ('c' + clientId),
+                name:    state.user.name,
+                color:   state.user.color,
+                // What this machine is here to do — see STATIONS in index.html.
+                station: state.user.station || 'both',
+                // Are they actually making sound? Their published analysis says so
+                // better than their declared station does.
+                sounding: !!(state.audio && Date.now() - state.audio.at < 1500 && state.audio.l > 3),
                 isSelf: (state.user.id && state.user.id === user.id) || clientId === provider.awareness.clientID,
             });
         });
         return out;
     }
-    const _onPeersChange = () => onPeers?.(getPeers());
+    // Awareness now also carries the shared audio analysis, which updates ~15x/s — so
+    // this fires ~15x/s per sounding peer, and it rebuilds the peer list and the rules
+    // panel. Dedupe on what the UI actually draws: identity plus the two badges. A
+    // spectrum arriving changes nothing visible and must not redraw anything.
+    let _peerSig = '';
+    const _onPeersChange = () => {
+        const peers = getPeers();
+        const sig = peers.map((p) => `${p.id}|${p.name}|${p.color}|${p.station}|${p.sounding ? 1 : 0}`).sort().join(';');
+        if (sig === _peerSig) return;
+        _peerSig = sig;
+        onPeers?.(peers);
+    };
     provider.awareness.on('change', _onPeersChange);
     setTimeout(() => onPeers?.(getPeers()), 300);
 
@@ -400,5 +416,45 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         ydoc.destroy();
     }
 
-    return { broadcastEval, broadcastAction, setPerf, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, pauseSync, resumeSync, destroy };
+    // ── Shared audio analysis ────────────────────────────────────────────────
+    // The room's visuals react to sound, and every machine reads its OWN analyser —
+    // so a peer doing visuals and no audio sees a dead spectrum and every reactive
+    // layer freezes. The workshop hit this too and named it as one of the three things
+    // that must agree for two machines to draw the same frame (the other two being the
+    // state, which Yjs already carries, and the clock, which the beat master settles).
+    //
+    // It rides AWARENESS, not the document. Awareness is ephemeral and untracked by
+    // the CRDT, which is exactly right for a signal that is worthless a frame later —
+    // putting 15 spectra a second into the shared history would grow it forever to
+    // describe a sound nobody can hear any more.
+    //
+    // The spectrum is quantised to bytes because it arrives from a byte analyser and
+    // JSON floats would triple the payload for precision the eye cannot use.
+    function setAudioShare(a) {
+        if (!a) { try { provider.awareness.setLocalStateField('audio', null); } catch (_) {} return; }
+        provider.awareness.setLocalStateField('audio', {
+            b: Math.round(a.bass * 255), m: Math.round(a.mid * 255),
+            t: Math.round(a.treble * 255), l: Math.round(a.level * 255),
+            s: (a.spectrum || []).map((v) => Math.round(v * 255)),
+            at: Date.now(),
+        });
+    }
+    // The freshest analysis from anyone else. Preferring the beat master would be
+    // tidier but wrong: the machine keeping time is not necessarily the one making the
+    // noise, and what a reactive layer wants is whoever is actually loudest.
+    function roomAudio() {
+        let best = null;
+        const now = Date.now();
+        provider.awareness.getStates().forEach((st, cid) => {
+            if (cid === provider.awareness.clientID) return;
+            const a = st && st.audio;
+            if (!a || !a.at || now - a.at > 1500) return;       // stale peer, ignore
+            if (!best || a.l > best.l) best = a;
+        });
+        if (!best) return null;
+        return { bass: best.b / 255, mid: best.m / 255, treble: best.t / 255, level: best.l / 255,
+                 spectrum: (best.s || []).map((v) => v / 255) };
+    }
+
+    return { broadcastEval, broadcastAction, setPerf, setAudioShare, roomAudio, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, pauseSync, resumeSync, destroy };
 }

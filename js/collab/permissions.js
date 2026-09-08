@@ -33,6 +33,7 @@ export const CAPS = [
     ['transport', 'transport',  'tempo · key · section jumps · stop-all · PANIC'],
     ['macros',    'macros',     'perform-mode XY sweep and the momentary FX'],
     ['claim',     'claim',      'take ownership of a track by playing it'],
+    ['visuals',   'visuals',    'layer knobs · opacity · blend · per-layer FX'],
 ];
 export const CAP_KEYS = CAPS.map(c => c[0]);
 
@@ -41,9 +42,9 @@ export const CAP_KEYS = CAPS.map(c => c[0]);
 // running the PA usually wants exactly that and nothing else.
 export const ROLES = ['host', 'player', 'listener'];
 const DEFAULT_CAPS = {
-    host:     { code: 1, mixer: 1, transport: 1, macros: 1, claim: 1 },
-    player:   { code: 1, mixer: 1, transport: 0, macros: 1, claim: 1 },
-    listener: { code: 0, mixer: 1, transport: 0, macros: 0, claim: 0 },
+    host:     { code: 1, mixer: 1, transport: 1, macros: 1, claim: 1, visuals: 1 },
+    player:   { code: 1, mixer: 1, transport: 0, macros: 1, claim: 1, visuals: 1 },
+    listener: { code: 0, mixer: 1, transport: 0, macros: 0, claim: 0, visuals: 0 },
 };
 const DEFAULT_ROLE = 'player';
 
@@ -187,6 +188,10 @@ export function capForStateKey(key) {
     if (key === 'xy') return 'macros';
     if (key.startsWith('level:') || key.startsWith('mute:') || key.startsWith('solo:')) return 'mixer';
     if (key.startsWith('synth:')) return 'code';
+    // Layer knobs, per-layer FX and channel. Separate from 'code' because turning a
+    // knob and rewriting the room's set are different amounts of trust: a VJ who is
+    // not allowed to retype the music should still be able to open the strobe.
+    if (key.startsWith('vl:') || key.startsWith('vfx:') || key.startsWith('vch:')) return 'visuals';
     return null;                                     // perms:* and anything new: ungated
 }
 
