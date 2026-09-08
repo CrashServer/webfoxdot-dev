@@ -79,7 +79,8 @@ export function initCanvas(canvas) {
     // preventDefault on the pointerdown is not enough: the paste is driven by the
     // compatibility mouse events, so refuse those too.
     for (const type of ['mousedown', 'auxclick']) {
-        desktop.addEventListener(type, (e) => { if (e.button === 1) e.preventDefault(); });
+        // Capture, so this runs before anything downstream acts on the button.
+        desktop.addEventListener(type, (e) => { if (e.button === 1) e.preventDefault(); }, true);
     }
 
     desktop.addEventListener('scroll', () => {

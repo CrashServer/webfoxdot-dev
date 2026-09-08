@@ -332,6 +332,15 @@ and this fix belongs on that branch.
 
 ### Traps found the hard way (desktop)
 
+- **Gate the paste, not the gesture.** Text kept arriving in buffers from the system
+  clipboard. Chasing the SOURCE was a losing game — drag, X11 primary selection,
+  middle-click, each guarded in turn and it kept happening. The fix is at the other
+  end: a deliberate paste is always preceded by Ctrl/Cmd+V, Shift+Insert or a context
+  menu, so `guardPaste()` records that intent and refuses any `paste` event without
+  it. Mechanism-independent, and it covers the classic layout too.
+  Note when testing: **CodeMirror calls `preventDefault()` on pastes it handles
+  itself**, so `defaultPrevented` says nothing about whether YOUR guard fired —
+  assert on the guard's own effect instead.
 - **On X11, a selection over chrome becomes a paste waiting to happen.** Selecting
   anything fills the PRIMARY selection, and a middle-click pastes it — and
   middle-drag is the canvas pan gesture. Dragging across the piano's key labels and

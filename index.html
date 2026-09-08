@@ -1960,6 +1960,38 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     let editor = mainEditor;
     const _allEditors = new Set([mainEditor]);
 
+    // ── Only paste when you asked to paste ───────────────────────────────────
+    // On Linux a middle-click pastes the X11 selection, and middle-drag is also the
+    // canvas pan gesture — so panning with the pointer over an editor dropped
+    // whatever was in the clipboard into the code. Preventing the mousedown default
+    // was not enough (and did not cover the classic layout at all), and guessing at
+    // the source is a losing game: text can arrive from anywhere the system offers.
+    //
+    // So gate the paste itself on INTENT. A deliberate paste is always preceded by
+    // Ctrl/Cmd+V, Shift+Insert, or a context menu you opened. Anything else is the
+    // system pasting on your behalf, and the editor refuses it.
+    let _pasteIntent = 0;
+    const _markPasteIntent = () => { _pasteIntent = Date.now(); };
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) _markPasteIntent();
+        else if (e.shiftKey && e.key === 'Insert') _markPasteIntent();
+    }, true);
+    // Right-click → Paste from the browser's own menu.
+    window.addEventListener('contextmenu', _markPasteIntent, true);
+
+    function guardPaste(cm) {
+        cm.getWrapperElement().addEventListener('paste', (e) => {
+            if (Date.now() - _pasteIntent < 3000) return;          // you asked for it
+            e.preventDefault();
+            e.stopPropagation();
+            const txt = (e.clipboardData?.getData('text') || '').replace(/\s+/g, ' ').slice(0, 40);
+            log('blocked a paste nobody asked for'
+                + (txt ? ` — ${JSON.stringify(txt)}` : '')
+                + '  (middle-click pastes the selection on Linux; Ctrl+V still works)', 'warn');
+        }, true);
+    }
+    guardPaste(mainEditor);
+
     // ── Tripwire for text arriving from outside ──────────────────────────────
     // Chrome text (panel titles, piano key labels, header glyphs) has been turning
     // up in buffers. Several plausible routes have been closed — dragging chrome,
@@ -1984,6 +2016,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const cm = CodeMirror(container, { ...EDITOR_OPTS });
         cm.swapDoc(doc);
         cm.on('focus', () => { editor = cm; });
+        guardPaste(cm);
         watchForeignInput(cm);
         _allEditors.add(cm);
         return cm;
