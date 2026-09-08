@@ -70,6 +70,18 @@ export function initCanvas(canvas) {
     // workspace back to itself every time it took focus, which reads as "the view is
     // stuck on that panel and I cannot go anywhere". Pin the scroll at zero: panning
     // is the transform's job, and this container must never scroll on its own.
+    // Middle-button drag is the pan gesture — and on X11 a middle CLICK is also
+    // "paste the primary selection". Selecting anything (dragging across the piano's
+    // key labels, say) fills that selection, and the next middle-click to pan then
+    // pasted it into whatever editor was under the pointer. That is where runs of
+    // "D4 E4 F4 G4…", panel titles and header glyphs were coming from.
+    //
+    // preventDefault on the pointerdown is not enough: the paste is driven by the
+    // compatibility mouse events, so refuse those too.
+    for (const type of ['mousedown', 'auxclick']) {
+        desktop.addEventListener(type, (e) => { if (e.button === 1) e.preventDefault(); });
+    }
+
     desktop.addEventListener('scroll', () => {
         if (desktop.scrollLeft || desktop.scrollTop) { desktop.scrollLeft = 0; desktop.scrollTop = 0; }
     }, { passive: true });

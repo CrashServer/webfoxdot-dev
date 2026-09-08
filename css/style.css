@@ -2575,6 +2575,14 @@ body.desktop-ui #toolbar {
 /* Belt and braces with the dragstart guard in panel.js: header controls are chrome,
    never draggable content. */
 .panel-head, .panel-head * { -webkit-user-drag: none; user-select: none; }
+
+/* Nothing on the canvas is selectable text except real editor content.
+   A selection over chrome is not just useless — on X11 it becomes the PRIMARY
+   selection, which the very next middle-click (the pan gesture) pastes into
+   whatever editor is under the pointer. Keeping chrome unselectable stops that
+   at the source; the middle-button guard in canvas.js is the second line. */
+#desktop { user-select: none; }
+#desktop .CodeMirror, #desktop .CodeMirror * { user-select: text; }
 .panel-title {
     flex: 1; font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.08em;
@@ -2764,7 +2772,7 @@ body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
 
 /* The keyboard: white keys lay out the row, black keys are placed over them, so
    the widths stay right at any panel size. */
-.piano-keys { position: relative; height: 120px; margin: 8px; background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 3px; touch-action: none; }
+.piano-keys { user-select: none; -webkit-user-drag: none; position: relative; height: 120px; margin: 8px; background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 3px; touch-action: none; }
 .pk {
     position: absolute; top: 0; height: 100%;
     background: linear-gradient(var(--bg-3), #d9dde3);

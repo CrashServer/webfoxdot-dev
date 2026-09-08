@@ -293,6 +293,14 @@ before, half an arrangement came back and half did not.
 
 ### Traps found the hard way (desktop)
 
+- **On X11, a selection over chrome becomes a paste waiting to happen.** Selecting
+  anything fills the PRIMARY selection, and a middle-click pastes it — and
+  middle-drag is the canvas pan gesture. Dragging across the piano's key labels and
+  then middle-clicking to pan pasted `D4 E4 F4 G4…` into the editor under the
+  pointer. Two guards: `#desktop` is `user-select: none` with only `.CodeMirror`
+  opted back in, and middle-button `mousedown`/`auxclick` are prevented — the
+  pointerdown's preventDefault is not enough, because the paste rides the
+  compatibility mouse events.
 - **Bailing out of a pointerdown handler without `preventDefault()` leaves the native
   drag alive.** `beginDrag` returns early when the press lands on a header button —
   and the browser then happily started a text drag of that button's own LABEL.
