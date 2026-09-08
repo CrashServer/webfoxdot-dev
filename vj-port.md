@@ -208,3 +208,56 @@ you discover what a layer even has.
   and a second window — a project of its own rather than a port, and untestable
   headlessly. The workshop's own presets deliberately exclude output mapping for the
   same reason: "tied to the physical room, not a visual look".
+
+## Keeping it off the audio thread
+
+Workshop layers draw on the CPU, on the same thread as the note scheduler. Measured
+before assuming anything, and the obvious assumption was wrong.
+
+**Cost is almost independent of resolution.** Per frame, one layer:
+
+| layer | 640×360 | 1280×720 | 1920×1080 | 3840×2160 |
+|---|---|---|---|---|
+| doomcorridor | 0.4 | 0.5 | 0.5 | 0.5 |
+| boids | 0.4 | 0.4 | 0.5 | 0.8 |
+| mandelbulb | 0.1 | 0.1 | 0.1 | 0.1 |
+| matrixrain | 0.5 | 0.1 | 0.1 | 0.2 |
+| **slimemold** | **16.0** | **24.0** | **16.9** | **17.4** |
+
+They do fixed geometry and agent work, not pixel filling. So a resolution cap — the
+first thing I reached for — fixes a cost that does not exist. What costs is the LAYER:
+`slimemold` runs a per-agent simulation and takes ~17ms at every size, more than a
+whole 60fps frame, on the thread the clock runs on.
+
+**The fix is a per-layer frame budget.** Each layer keeps an EMA of its own draw cost
+and redraws every Nth frame, N chosen so its average stays under 4ms; its canvas
+persists, so skipped frames still composite the last picture. A heavy layer runs at 10
+or 20fps inside a 60fps mix instead of dragging the mix down to its own rate. Nearly
+every layer (0.1–0.8ms) never throttles at all.
+
+**Phases are staggered**, and that mattered more than the throttle itself: without it,
+four layers each drawing every 6th frame all draw on frame 0 — a fine average and a
+catastrophic every-sixth-frame. The average was never the thing that makes audio late.
+
+| | before | after |
+|---|---|---|
+| slimemold alone | ~17 ms every frame | avg 2.4 ms |
+| 4 layers incl. slimemold | ~20 ms every frame | avg 6.4 ms, peak 23 ms |
+| 4 layers, unstaggered | — | peak 73 ms |
+
+The residual peak is one draw of one expensive layer; that is irreducible without
+changing the layer.
+
+**`wres(px)`** still exists but for the honest reason: UPLOAD. Each deck reaches the
+GPU via `texImage2D` from its canvas every frame, and 3840×2160 RGBA is 33MB — 2GB/s
+for two decks at 60fps, for a picture that is then filtered down anyway. Default 1280
+on the longest edge; `wres(0)` opts out, which is what text and data-wall layers want.
+
+### Harness trap
+
+**`--virtual-time-budget` freezes `performance.now()`.** Every timing in the first
+benchmark read `0.0`. It has to be dropped for any measurement — and then `--dump-dom`
+fires at the load event, so the benchmark must be synchronous and its imports STATIC
+(a module script's static imports resolve before load; a dynamic `import()` does not).
+Together with the rAF trap in `workshop-port.md`, that is two things this flag silently
+breaks.

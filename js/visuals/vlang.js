@@ -17,6 +17,7 @@
 import { patGet } from '../patterns/sequences.js';
 import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES } from './vdata.js';
 import { defaults as wsDefaults } from './workshop/index.js';
+import { setWorkshopRes, workshopRes } from './render/wsdeck.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);
@@ -123,6 +124,11 @@ export function visualBuilders() {
     // vres(scale) — GPU render resolution as a multiplier of CSS pixels: 1 = native,
     // 0.5 = half (faster, audio stays smooth), 2 = supersampled. vres() / vres(null) → default.
     out.vres    = (s) => { master.res = (s == null) ? null : Number(s); _open(); return s; };
+    // wres(px) — the longest edge the CPU-drawn WORKSHOP layers render at, before the
+    // GPU stretches them over the frame. Separate from vres() because the costs are
+    // different things: vres is GPU shader work, wres is main-thread canvas work, and
+    // main-thread work is what makes the audio late. Default 1280; wres(0) = full size.
+    out.wres    = (px) => { setWorkshopRes(px); _open(); return `wres(${workshopRes() || 'full'})`; };
     // clear() — blank the video: stop every layer + the crossfader and wipe the feedback
     // buffer, a full reset ([c] in the visuals window does the same).
     out.clear   = () => { layers.clear(); mixer = null; clearSeq++; _open(); return 'clear'; };

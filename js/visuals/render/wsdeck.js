@@ -25,6 +25,38 @@ import { WORKSHOP_LAYERS, WORKSHOP_FX, defaults, fxDefaults, fxPrimary } from '.
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
+// ── Render size cap ──────────────────────────────────────────────────────────
+// The deck renders at its own size and the GPU stretches it — it is a TEXTURE sampled
+// in normalised uv, so any size composites correctly and linear filtering is free.
+//
+// Measured first, because the obvious reason turned out to be wrong: these layers cost
+// almost the SAME at 640×360 as at 3840×2160 (doomcorridor 0.4→0.5ms, mandelbulb
+// 0.1→0.1ms). They are doing fixed geometry and agent work, not filling pixels, so
+// resolution is not what makes them expensive — see the throttle below for what does.
+//
+// The cap earns its place on UPLOAD instead. Each deck goes to the GPU with a
+// texImage2D from its canvas every frame, and 3840×2160 RGBA is 33MB — 2GB/s for two
+// decks at 60fps, for a picture that is then filtered down anyway. 1280 is the
+// compromise; wres(0) opts out, which is what you want for text and data-wall layers
+// where the sharpness is the point.
+//
+// wres(px) sets the longest edge; wres(0) matches the GL backing exactly.
+const WS_MAX_DEFAULT = 1280;
+let wsMax = WS_MAX_DEFAULT;
+export function setWorkshopRes(px) {
+    const v = Number(px);
+    wsMax = (px == null || !isFinite(v)) ? WS_MAX_DEFAULT : (v <= 0 ? 0 : Math.max(160, Math.min(4096, Math.round(v))));
+}
+export function workshopRes() { return wsMax; }
+/** The size the deck should draw at for a given output size, keeping the aspect. */
+export function capSize(w, h) {
+    if (!wsMax) return [w, h];
+    const longest = Math.max(w, h);
+    if (longest <= wsMax) return [w, h];
+    const k = wsMax / longest;
+    return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
+}
+
 export function isWorkshopLayer(name) { return !!WORKSHOP_LAYERS[name]; }
 
 export function createWorkshopDeck() {
@@ -35,12 +67,33 @@ export function createWorkshopDeck() {
 
     function sized(c, w, h) { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
 
+    // ── Per-layer frame budget ───────────────────────────────────────────────
+    // What actually costs is the layer, not the size: slimemold runs a per-agent
+    // simulation and takes ~17ms at EVERY resolution — more than a whole 60fps frame,
+    // on the thread the note scheduler runs on. One such layer makes the audio late.
+    //
+    // crashDot's rule is that audio has priority, so a layer that cannot afford a
+    // frame does not get one: each keeps an EMA of its own draw cost and redraws every
+    // Nth frame, N chosen so its average stays under BUDGET_MS. Its canvas persists, so
+    // the skipped frames still composite the last picture — a heavy layer runs at 30
+    // or 20fps under a 60fps mix instead of dragging everything down to its own rate.
+    // Cheap layers (0.1–0.8ms, which is nearly all of them) never throttle at all.
+    const BUDGET_MS = 4;
+    const MAX_SKIP = 6;
+    let frame = 0, phaseSeq = 0;
+
     function slotFor(name, kind, w, h) {
         let s = cache.get(name);
         if (s && s.kind !== kind) { cache.delete(name); s = null; }   // a new kind is a new instance
         if (!s) {
             const canvas = document.createElement('canvas');
-            s = { kind, canvas, ctx: canvas.getContext('2d', { willReadFrequently: false }) };
+            s = { kind, canvas, ctx: canvas.getContext('2d', { willReadFrequently: false }),
+                  // cost EMA + redraw interval + PHASE — see the budget note. The phase
+                  // is what keeps two throttled layers from landing on the same frame:
+                  // without it, four layers each drawing every 6th frame all draw on
+                  // frame 0, and the average is fine while every sixth frame is a
+                  // disaster. The average was never the thing that makes audio late.
+                  cost: null, every: 1, phase: phaseSeq++ };
             cache.set(name, s);
         }
         sized(s.canvas, w, h);
@@ -114,11 +167,12 @@ export function createWorkshopDeck() {
      * @returns {{a: HTMLCanvasElement|null, b: HTMLCanvasElement|null}}
      */
     function render(layers, w, h, t, aud) {
-        w = Math.max(1, w | 0); h = Math.max(1, h | 0);
+        [w, h] = capSize(Math.max(1, w | 0), Math.max(1, h | 0));
         if (w !== W || h !== H) { W = w; H = h; }
 
         // Drop the canvases of layers that are no longer live, so a long session does
         // not accumulate a canvas per name ever used.
+        frame++;
         const live = new Set(layers.map((l) => l.name));
         for (const k of [...cache.keys()]) if (!live.has(k)) cache.delete(k);
         if (!layers.length) return { a: null, b: null };
@@ -142,9 +196,24 @@ export function createWorkshopDeck() {
             s.ctx.globalAlpha = 1;
             s.ctx.globalCompositeOperation = 'source-over';
             s.ctx.setTransform(1, 0, 0, 1, 0, 0);
-            s.ctx.clearRect(0, 0, w, h);
-            try { kind.draw(s.ctx, w, h, p, t, extra); }
-            catch (e) { if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }
+            // Redraw only on this layer's own schedule; otherwise reuse its canvas.
+            const due = ((frame + s.phase) % s.every) === 0 || s.cost == null;
+            if (due) {
+                s.ctx.clearRect(0, 0, w, h);
+                const t0 = performance.now();
+                try { kind.draw(s.ctx, w, h, p, t, extra); }
+                catch (e) { if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }
+                const ms = performance.now() - t0;
+                s.cost = s.cost == null ? ms : s.cost * 0.85 + ms * 0.15;
+                const want = Math.max(1, Math.min(MAX_SKIP, Math.ceil(s.cost / BUDGET_MS)));
+                if (want !== s.every) {
+                    s.every = want;
+                    if (want > 1 && !s.told) {
+                        s.told = true;
+                        console.info(`visuals: "${l.scene}" costs ${s.cost.toFixed(1)}ms a frame — drawing it every ${want} frames so the audio clock keeps its slot`);
+                    }
+                }
+            }
 
             const painted = applyFx(s, l.fx, w, h, t);
 
