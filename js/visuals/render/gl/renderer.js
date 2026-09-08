@@ -151,6 +151,11 @@ uniform sampler2D uTex;
 uniform vec2 uRes;
 uniform float uTime, uGlitch, uScan, uVignette, uInvert, uBlur, uBloom, uPosterize;
 uniform float uDroste, uFold, uHue, uDither, uPixelsort, uMirror, uEdge, uPixelate;
+// Master grade + limiter — the workshop's lut.js and limiter.js, as uniforms. It does
+// them with a ctx.filter blit and a getImageData loop over the finished frame; here
+// they are three multiplies at the end of a pass that is already running, so the
+// neutral case costs nothing and the active case costs nothing either.
+uniform float uSat, uExposure, uContrast, uCeiling;
 out vec4 fragColor;
 
 float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -263,6 +268,15 @@ void main(){
         float d = length(uv - 0.5);
         c *= 1.0 - uVignette * smoothstep(0.35, 0.85, d);
     }
+    // ── master grade, last, over everything ──
+    if (uExposure != 1.0) c *= uExposure;
+    if (uContrast != 1.0) c = (c - 0.5) * uContrast + 0.5;
+    if (uSat != 1.0) c = mix(vec3(luma(c)), c, uSat);
+    // The limiter is the lesson bloom teaches: a 'lighter' blend stacks to solid white
+    // on bright content, and every professional VJ desk gates output brightness for
+    // exactly that reason. Clamped per channel, like the original.
+    // (No backticks in here — this whole shader is a JS template literal.)
+    if (uCeiling < 0.999) c = min(c, vec3(uCeiling));
     fragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
 `;
@@ -304,7 +318,8 @@ export function createGLRenderer(canvas) {
         'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uPalA', 'uPalB', 'uSpec', 'uWsA', 'uWsB', 'uHasWs']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
-        'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate']) pLoc[n] = gl.getUniformLocation(presentProg, n);
+        'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate',
+        'uSat', 'uExposure', 'uContrast', 'uCeiling']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
     const palTex = gl.createTexture();
@@ -477,6 +492,12 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uMirror, num(fx.mirror, 0));
         gl.uniform1f(pLoc.uEdge, num(fx.edge, 0));
         gl.uniform1f(pLoc.uPixelate, num(fx.pixelate, 0));
+        // These four are NEUTRAL AT 1, not at 0 like every other fx key — an absent
+        // grade must leave the picture alone, not black it out.
+        gl.uniform1f(pLoc.uSat, num(fx.sat, 1));
+        gl.uniform1f(pLoc.uExposure, num(fx.exposure, 1));
+        gl.uniform1f(pLoc.uContrast, num(fx.contrast, 1));
+        gl.uniform1f(pLoc.uCeiling, num(fx.ceiling, 1));
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[dst]); gl.uniform1i(pLoc.uTex, 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 

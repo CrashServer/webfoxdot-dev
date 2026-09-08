@@ -58,7 +58,27 @@ function maxFx(key, base = 0) {
     return m;
 }
 function fxBundle() {
+    // The grade keys are neutral at 1 and the ceiling is a LIMIT, so neither follows
+    // the "loudest intent wins from 0" rule the other keys use: a grade defaults to 1
+    // and takes the furthest-from-neutral value, and two layers asking for different
+    // ceilings resolve to the LOWER one, because a ceiling is a promise not to exceed.
+    const grade = (key) => {
+        let m = 1, best = 0;
+        for (const l of V.layers) {
+            const v = l.fx && l.fx[key];
+            if (typeof v !== 'number' || !isFinite(v)) continue;
+            const d = Math.abs(v - 1);
+            if (d > best) { best = d; m = v; }
+        }
+        return m;
+    };
+    const ceiling = () => {
+        let m = 1;
+        for (const l of V.layers) { const v = l.fx && l.fx.ceiling; if (typeof v === 'number' && v < m) m = v; }
+        return m;
+    };
     return {
+        sat: grade('sat'), exposure: grade('exposure'), contrast: grade('contrast'), ceiling: ceiling(),
         trails: maxFx('trails', 0), feedback: maxFx('feedback', 0), glitch: maxFx('glitch', 0),
         scan: maxFx('scan', 0), vignette: maxFx('vignette', 0), invert: maxFx('invert', 0) >= 1,
         blur: maxFx('blur', 0), bloom: maxFx('bloom', 0), posterize: maxFx('posterize', 0),
