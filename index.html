@@ -274,6 +274,7 @@
     import { setVisualHint } from './js/visuals/bridge.js';
     import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas } from './js/visuals/surface.js';
     import { createVideoRecorder, downloadBlob as downloadVideo } from './js/visuals/render/vrec.js';
+    import { vrandLines } from './js/visuals/vrand.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
     import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi } from './js/ui/desktop/desktop.js';
@@ -1204,6 +1205,20 @@
             // g1,g2,… (kept separate from your p1/b1) and PASTE them into the editor
             // as a fresh block. It does NOT run them — review/edit, then evaluate.
             // type: "synth" | "drum".
+            // vrand(n, seed)  paste a random VISUAL look — the twin of chaos(), and
+            // it writes code for the same reason: a picture you can read, edit and
+            // share beats one that only exists in hidden state. Seeded, so
+            // vrand(3, 1234) is the same look on every machine, and an unseeded call
+            // writes the seed it used into the comment.
+            vrand: (n = 2, seed = null) => {
+                const lines = vrandLines(n, seed);
+                const last  = editor.lastLine();
+                const atEnd = editor.getValue().trim() === '';
+                const pre   = atEnd ? '' : '\n\n';
+                editor.replaceRange(pre + lines.join('\n'), { line: last, ch: editor.getLine(last).length });
+                log(`vrand: pasted ${lines.length - 1} layer${lines.length === 2 ? '' : 's'} — review, then run (Ctrl+Alt+↵)`, 'info');
+                return lines[0].replace(/^#\s*/, '');
+            },
             chaos:  (n = 4, type = null) => {
                 const taken = new Set([...clock._players.keys()].filter(k => clock._players.get(k)._active));
                 const lines = chaosLines(n, type, { sampleChars: loadedSampleChars(), taken });

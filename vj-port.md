@@ -473,3 +473,36 @@ the same flags. It produced 10 KB, which turned "the environment cannot do this"
 "my canvas is different from that one" — and then the difference was findable by
 bisecting the differences one at a time (WebGL vs 2D, attached vs detached, GPU flags
 on vs off). Four small pages, and each answered exactly one question.
+
+## vrand() — a random look, as code
+
+`js/visuals/vrand.js`, in the spirit of the workshop's `randomize.js`. It pastes lines
+like `chaos()` does rather than mutating live state, because in crashDot the piece is
+the text: a generator that changes hidden state gives you a picture you cannot keep,
+edit or share.
+
+Two changes from the original, both following from "the output is code":
+
+- **Seeded.** `vrand(3, 1234)` is the same look everywhere, so it can be sent in a
+  message. An unseeded call writes the seed it used into the comment — a happy
+  accident stays reproducible.
+- **Ranges, not 0–1.** Values come from each param's own declared range, which meant
+  teaching `tools/gen-workshop-catalog.mjs` to emit `[base, min, max]` triples:
+  **1,987 ranges across the 206 layers**, catalog 40 KB → 84 KB.
+
+### Three bugs the tests found
+
+Generating 1,800 lines and running every one through the transpiler and the live
+vocabulary caught what reading would not have:
+
+1. **`metaballs(count=1.84)`** — a count emitted as a fraction. Fixed by rounding any
+   param the layer declares as a whole number, where "declares" means its base *and*
+   bounds are all integers. A magnitude threshold (`base >= 2`) was the first attempt
+   and missed `scrollingtext`, which declares `rows` as base 1 over [1,4] — every bit
+   as much a count as a 20.
+2. **A default of 0 carries no scale** — in `mosaic`, `rows: 0` even means "same as
+   cells". Randomising around it produced `rows=0.248`. Those params are left alone.
+3. **The range check itself was wrong** for the sixteen names that exist as both a
+   field scene and a workshop layer: it compared a field-scene line against the
+   workshop's ranges. A shared name resolves to the field scene, so its ranges are the
+   ones that do not apply.

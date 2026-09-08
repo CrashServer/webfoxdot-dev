@@ -31,10 +31,25 @@ for (const m of reg.matchAll(/^import \{ ([^}]*) \} from '\.\/layers\/([^']+)';$
 const flat = (d) => Object.fromEntries(Object.entries(d || {})
     .map(([n, v]) => [n, (v && typeof v === 'object' && 'base' in v) ? v.base : v]));
 
-const params = {};
+// Ranges as well as defaults. A default alone says what a knob sits at; the range
+// says what it can BE, which is what randomising and any future knob UI need. Stored
+// as a compact [base, min, max] triple — spelled-out objects tripled the file for
+// nothing. Params with no declared range (a plain value, not a descriptor) are
+// omitted rather than guessed at.
+const ranges = (d) => {
+    const out = {};
+    for (const [n, v] of Object.entries(d || {}))
+        if (v && typeof v === 'object' && 'base' in v && typeof v.min === 'number' && typeof v.max === 'number')
+            out[n] = [v.base, v.min, v.max];
+    return out;
+};
+
+const params = {}, ranged = {};
 for (const k of kinds) {
     const mod = await import('../js/visuals/workshop/layers/' + files.get(k.mp));
-    params[k.key] = flat(mod[k.mp]());
+    const d = mod[k.mp]();
+    params[k.key] = flat(d);
+    ranged[k.key] = ranges(d);
 }
 const fx = await import('../js/visuals/workshop/fx/registry.js');
 const fxParams = {};
@@ -61,9 +76,14 @@ export const WORKSHOP_LABELS = ${j(Object.fromEntries(kinds.map(k => [k.key, k.l
 export const WORKSHOP_PARAMS = ${JSON.stringify(params)};
 export const WORKSHOP_FX_NAMES = ${j(Object.keys(fxParams))};
 export const WORKSHOP_FX_PARAMS = ${JSON.stringify(fxParams)};
+/** kind → { param: [base, min, max] }. Only params that declare a range. */
+export const WORKSHOP_RANGES = ${JSON.stringify(ranged)};
 
 export function defaults(kind) { return { ...(WORKSHOP_PARAMS[kind] || {}) }; }
 export function fxDefaults(type) { return { ...(WORKSHOP_FX_PARAMS[type] || {}) }; }
+/** [base, min, max] for one param, or null if it declares no range. */
+export function paramRange(kind, name) { return (WORKSHOP_RANGES[kind] || {})[name] || null; }
+
 /** The first declared param — what a bare bloom(0.4) sets. */
 export function fxPrimary(type) { const k = Object.keys(WORKSHOP_FX_PARAMS[type] || {}); return k.length ? k[0] : null; }
 `);
