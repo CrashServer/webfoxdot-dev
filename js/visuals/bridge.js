@@ -13,7 +13,7 @@
 
 import { patGet, isGroup } from '../patterns/sequences.js';
 import { FX_KEYS }         from '../fx/registry.js';
-import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook, setWsOpenHook, wsSnapshot } from './vlang.js';
+import { snapshot as vSnapshot, hasContent as vHasContent, setOpenHook, setWsOpenHook } from './vlang.js';
 import { workshopSend }    from '../net/workshop-bridge.js';
 
 let _chan  = null;
@@ -177,9 +177,12 @@ function _tick() {
         chan().postMessage({ t: 'players', list: _snapshotPlayers() });
     }
 
-    // Forward resolved workshop layer params (handles linvar/P[] patterns)
-    const ws = wsSnapshot(now);
-    if (ws) workshopSend({ t: 'workshop_state', ...ws });
+    // The resolved workshop-layer params used to be mirrored to an external workshop
+    // every tick, from back when a `video1 >> mandelbulb()` line was FORWARDED there
+    // rather than rendered here. Those layers live in this app now, so mirroring them
+    // was 30 messages a second describing a picture crashDot is already drawing. The
+    // w*() commands still reach an external workshop, because those are things you
+    // asked for; this was not.
 }
 
 // A live descriptor of every active player — for the code-truthful mode.

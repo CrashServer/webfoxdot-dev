@@ -19,6 +19,10 @@
 // with everything else, so the blend edges follow the projected quad rather than the
 // screen.
 //
+// [w] shows the handles here, the same key an output window uses, and for the same
+// reason: with two places you can warp — this window, and any output surface — one
+// verb has to mean one thing. ([m] is taken: inside an output it cycles the warp MODE.)
+//
 // NOT SHARED, and that is deliberate. Corners and blends describe a physical room —
 // where this projector sits, what it overlaps. They live in localStorage and never
 // touch the vstate or the collab channel, so joining a jam cannot yank a calibrated
@@ -97,7 +101,7 @@ export function attachMapping(host, targets, onLog = () => {}) {
     panel.style.cssText = 'position:absolute;left:12px;top:12px;padding:8px 10px;background:rgba(0,0,0,.82);'
         + 'border:1px solid #2c3a44;border-radius:5px;font:11px/1.6 monospace;color:#8a97a0;min-width:186px;';
     panel.innerHTML = '<div style="color:#63b982;margin-bottom:4px">PROJECTION MAPPING</div>'
-        + '<div style="margin-bottom:6px">drag the corners · [m] done · [r] reset</div>';
+        + '<div style="margin-bottom:6px">drag the corners · [w] done · [r] reset</div>';
     const rows = {};
     for (const edge of ['left', 'right', 'top', 'bottom']) {
         const row = document.createElement('label');
@@ -169,7 +173,7 @@ export function attachMapping(host, targets, onLog = () => {}) {
         if (editing) for (const e of ['left', 'right', 'top', 'bottom']) {
             rows[e].r.value = String(blend[e]); rows[e].val.textContent = blend[e].toFixed(2);
         }
-        onLog(editing ? 'mapping: drag the corners · [m] done · [r] reset' : 'mapping: off');
+        onLog(editing ? 'mapping: drag the corners · [w] done · [r] reset' : 'mapping: off');
     }
     function reset() { corners = FLAT(); blend = NO_BLEND(); apply(); paintBlend(); save(); setEditing(editing); }
 
@@ -177,7 +181,7 @@ export function attachMapping(host, targets, onLog = () => {}) {
     document.addEventListener('fullscreenchange', apply);
     addEventListener('keydown', (e) => {
         const k = e.key.toLowerCase();
-        if (k === 'm') { setEditing(!editing); e.preventDefault(); }
+        if (k === 'w') { setEditing(!editing); e.preventDefault(); }
         else if (k === 'r' && editing) { reset(); e.preventDefault(); }
         else if (k === 'escape' && editing) setEditing(false);
     });
@@ -186,7 +190,7 @@ export function attachMapping(host, targets, onLog = () => {}) {
     // A warp that survives a reload but has no visible handles is a bug report waiting
     // to happen ("the picture is crooked and I can't fix it"), so say so once.
     const warped = corners.some((c, i) => c.x !== FLAT()[i].x || c.y !== FLAT()[i].y);
-    if (warped) onLog('mapping: a saved projection warp is active — press [m] to adjust, [r] to reset');
+    if (warped) onLog('mapping: a saved projection warp is active — press [w] to adjust, [r] to reset');
 
     return { setEditing, reset, isEditing: () => editing,
              getCorners: () => corners.map(c => ({ ...c })), getBlend: () => ({ ...blend }) };

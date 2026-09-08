@@ -371,17 +371,6 @@ export function vsnap(all = false) {
     return lines.length ? lines.join('\n') : '# nothing on screen';
 }
 
-// Snapshot of all active workshop layers with resolved params (for bridge tick).
-// Returns null when no WS layers are active.
-export function wsSnapshot(beat) {
-    const channels = [];
-    for (const [name, entry] of layers) {
-        if (!entry.scene || !WS_SET.has(entry.scene)) continue;
-        const dur = entry.params?.dur ? resolveVisual(entry.params.dur, beat, 1) : 1;
-        channels.push({ ch: _wsChannel(name), layer: entry.scene, params: resolveMap(entry.params, beat, dur) });
-    }
-    return channels.length ? { channels } : null;
-}
 // Stop one video player by name (its layer or the crossfader it owns) — used by Alt+X /
 // .stop() so video stops like any other player.
 export function stopVisual(name) { layers.delete(name); if (mixer && mixer.owner === name) mixer = null; }

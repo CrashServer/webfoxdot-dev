@@ -127,7 +127,7 @@ function idle(t) {
     ctx.restore(); ctx.globalAlpha = 1;
     const waiting = performance.now() - S.lastMsg > 1500;
     ctx.beginPath(); ctx.arc(W - 16, 16, 5, 0, Math.PI * 2); ctx.fillStyle = waiting ? '#3a4750' : '#3fb950'; ctx.fill();
-    setHud('idle  ·  no visual code running  ·  run a  video1 >>  line in the editor   ·   [f]ull  [c]lear  [m]ap');
+    setHud('idle  ·  no visual code running  ·  run a  video1 >>  line in the editor   ·   [f]ull  [c]lear  [w]arp');
 }
 
 // CPU path — glyph render modes, or the whole pipeline when WebGL2 is missing.
@@ -144,7 +144,8 @@ function cpuFrame(t, f) {
 }
 
 // ── Projection mapping ───────────────────────────────────────────────────────
-// Corner-pin warp + edge blending on the OUTPUT — press [m]. Both canvases get the
+// Corner-pin warp + edge blending on this window — press [w], the same key an
+// output window uses for the same gesture. Both canvases get the
 // same transform: warp only #visgl and the glyph/idle overlay slides off the picture.
 // It is machine-local by design (localStorage, never the vstate), because it describes
 // where a projector sits in a room, not what the piece looks like.
@@ -193,7 +194,7 @@ function loop(ts) {
             glr.render(V, t, aud, f);
         }
         else cpuFrame(t, f);
-        setHud(hudText() + '   ·   [f]ull  [c]lear  [m]ap');
+        setHud(hudText() + '   ·   [f]ull  [c]lear  [w]arp');
     } else {
         idle(t);
     }
