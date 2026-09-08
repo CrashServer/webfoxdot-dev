@@ -316,10 +316,14 @@ export function createPanel(desktop, spec) {
     }, { capture: true });
 
     // ── drag (by header) ──
-    head.addEventListener("pointerdown", (e) => {
+    // Named rather than inline so extra handles can share it — a hosted panel adopts
+    // a module that brought its own header bar, and people grab that bar.
+    const beginDrag = (e) => {
         if (e.target === collapseBtn || e.target === pinBtn || e.target === setHomeBtn || e.target === sendHomeBtn || colorWrap.contains(e.target)) return;
+        if (e.target.closest("button, input, select, textarea, a")) return;
+        const grip = e.currentTarget;
         e.preventDefault();
-        head.setPointerCapture(e.pointerId);
+        try { grip.setPointerCapture(e.pointerId); } catch (_) {}
         const startX = e.clientX, startY = e.clientY;
         const baseX = win.offsetLeft, baseY = win.offsetTop;
         const targets = collectTargets(desktop, win);
@@ -341,8 +345,8 @@ export function createPanel(desktop, spec) {
             win.style.left = `${nx}px`; win.style.top = `${ny}px`;
         };
         const up = () => {
-            head.removeEventListener("pointermove", move);
-            head.removeEventListener("pointerup", up);
+            grip.removeEventListener("pointermove", move);
+            grip.removeEventListener("pointerup", up);
             hideGuides();
             if (win.dataset.pinned) {
                 // Re-anchor at the new screen position after the drag
@@ -354,9 +358,10 @@ export function createPanel(desktop, spec) {
                 saveLayoutEntry(spec.id, { x: win.offsetLeft, y: win.offsetTop });
             }
         };
-        head.addEventListener("pointermove", move);
-        head.addEventListener("pointerup", up);
-    });
+        grip.addEventListener("pointermove", move);
+        grip.addEventListener("pointerup", up);
+    };
+    head.addEventListener("pointerdown", beginDrag);
 
     // ── resize (corner handle) ──
     handle.addEventListener("pointerdown", (e) => {
@@ -442,7 +447,9 @@ export function createPanel(desktop, spec) {
         saveLayoutEntry(spec.id, entry);
     }
 
-    const api = { el: win, body, bringToFront, applyLayout };
+    // Let a hosted module's own header bar move the panel too — see hostFloating().
+    const addDragHandle = (el) => { if (el) el.addEventListener("pointerdown", beginDrag); };
+    const api = { el: win, body, bringToFront, applyLayout, addDragHandle };
     registry.set(spec.id, api);
     return api;
 }

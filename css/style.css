@@ -2691,11 +2691,13 @@ body.desktop-ui .wfd-hosted .mixer-head,
 body.desktop-ui .wfd-hosted .modular-head,
 body.desktop-ui .wfd-hosted .parts-head,
 body.desktop-ui .wfd-hosted .rules-head,
-body.desktop-ui .wfd-hosted #galaxy-head { cursor: default; }
+body.desktop-ui .wfd-hosted .piano-head,
+body.desktop-ui .wfd-hosted #galaxy-head { cursor: move; }
 body.desktop-ui .wfd-hosted .mixer-drag,
 body.desktop-ui .wfd-hosted .modular-drag,
 body.desktop-ui .wfd-hosted .parts-drag,
-body.desktop-ui .wfd-hosted .rules-drag { pointer-events: none; }
+body.desktop-ui .wfd-hosted .rules-drag,
+body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
 
 .wfd-float-body { padding: 0 !important; overflow: hidden !important; }
 

@@ -66,6 +66,13 @@ function hostFloating(canvas, spec, clock) {
         panel.body.classList.add('wfd-panel-body', 'wfd-float-body');
         panel.body.appendChild(el);
         el.classList.add('wfd-hosted');
+        // These modules each brought their own header bar, and it USED to be their
+        // drag handle — so that is what people reach for. Make it move the panel
+        // rather than doing nothing, which reads as "the position was not saved".
+        for (const h of el.querySelectorAll(
+            ':scope > .mixer-head, :scope > .modular-head, :scope > .parts-head, ' +
+            ':scope > .rules-head, :scope > .piano-head, :scope > #galaxy-head'))
+            panel.addDragHandle(h);
         // Its own toggles just add/remove .hidden (or the hidden attribute) — watch
         // for that and move the PANEL, so nothing in those modules has to know.
         new MutationObserver(() => sync(el))
