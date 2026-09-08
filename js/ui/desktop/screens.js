@@ -39,6 +39,15 @@ export function mountScreen(body, clock) {
     const s = surface(clock);
     body.style.cssText += ';position:relative;padding:0;background:#000;overflow:hidden';
     body.appendChild(s.el);
+    // An overlay for showing something OTHER than the master mix — a single layer, or
+    // a code buffer — driven by the outputs loop (see outputs.js setScreen). For the
+    // master source it stays display:none and the GL canvas shows through untouched,
+    // so the default path costs exactly nothing.
+    const over = document.createElement('canvas');
+    over.className = 'wfd-screen-src';
+    over.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;z-index:2';
+    body.appendChild(over);
+    s.overlay = over;
     s.resize();          // now that it has a box, size the backing store to it
     s.start();
     return s;

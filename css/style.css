@@ -2807,6 +2807,10 @@ body.desktop-ui .wfd-body-wfd-controls > .cp-section + .cp-section {
 }
 .wfd-menu-act:hover { background: var(--bg-1); color: var(--green); border-color: var(--border-1); }
 
+/* The SCREEN panel's source overlay — hidden for the master mix so the GL canvas
+   shows through untouched, painted only when it is showing something else. */
+.wfd-screen-src { background: #000; }
+
 /* Layers panel — every live video layer, with its params as knobs. One box per
    layer, because a layer is the unit you reach for. */
 .wfd-lay-wrap { padding: 6px; font-size: 11px; }

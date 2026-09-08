@@ -54,6 +54,30 @@ export function buildOutputsPanel(container, api, getSources, log = () => {}) {
         bar.append(add, reopen);
         root.appendChild(bar);
 
+        // SCREEN first, because it is the destination you already have. It gets a
+        // source picker and nothing else: a warp inside a pan/zoom workspace is
+        // meaningless, and there is no second projector to edge-blend it against.
+        if (api.screenSource) {
+            const box = document.createElement('div');
+            box.className = 'wfd-out-box';
+            const head = document.createElement('div');
+            head.className = 'wfd-out-head';
+            const nm = document.createElement('span');
+            nm.textContent = 'SCREEN panel';
+            head.appendChild(nm);
+            box.appendChild(head);
+            const row = document.createElement('div');
+            row.className = 'wfd-out-row';
+            const src = document.createElement('select');
+            src.className = 'wfd-out-sel';
+            src.title = 'what the SCREEN panel shows — the mix, one layer, or a code buffer';
+            sourceOptions(src, api.screenSource());
+            src.onchange = () => api.setScreenSource(src.value);
+            row.appendChild(src);
+            box.appendChild(row);
+            root.appendChild(box);
+        }
+
         const outs = api.list();
         if (!outs.length) {
             const empty = document.createElement('div');

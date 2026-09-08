@@ -46,6 +46,7 @@ canvas{position:absolute;left:0;top:0;width:100vw;height:100vh;display:block}
  *                    on demand so a surface can show the code itself
  */
 export function createOutputs({ getSources, getBuffers = null, onLog = () => {} } = {}) {
+    let screenSrcInit = 'master';
     // One canvas per buffer, kept between frames: createCodeCanvas only redraws when
     // the text or the size actually changes, and a buffer is static between keystrokes.
     const bufCanvases = new Map();
@@ -60,10 +61,12 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
     const outputs = [];
     let W = 1280, H = 720;
     let restoring = false;
+    try { const v = localStorage.getItem(KEY + '-screen'); if (v) screenSrcInit = v; } catch (_) {}
 
     const save = () => {
         if (restoring) return;
         try {
+            localStorage.setItem(KEY + '-screen', screenSrc);
             localStorage.setItem(KEY, JSON.stringify(outputs.map((o) => ({
                 id: o.id,
                 surfaces: o.surfaces.map((s) => ({ source: s.source, blend: s.blend,
@@ -193,10 +196,44 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
         }
     }
 
+    // ── The SCREEN panel as a destination ────────────────────────────────────
+    // SCREEN was the one place a picture could go that could not be pointed at
+    // anything: it showed the master mix and only the master mix, while any output
+    // surface could show a single layer or a code buffer. It is a destination like
+    // the others, so it belongs in the same list — with fewer controls, honestly,
+    // because a warp inside a pan/zoom workspace is meaningless and there is nothing
+    // to edge-blend it against.
+    //
+    // Mechanically it is an OVERLAY: the GL canvas stays underneath, and for `master`
+    // the overlay is simply hidden so the renderer shows through untouched — no copy,
+    // no cost, exactly as before. Any other source is drawn into the overlay instead.
+    let screenEl = null, screenCtx = null, screenSrc = screenSrcInit;
+    function setScreen(canvas) { screenEl = canvas || null; screenCtx = canvas ? canvas.getContext('2d') : null; ensureLoop(); }
+    function setScreenSource(id) { screenSrc = id || 'master'; save(); ensureLoop(); }
+    function screenSource() { return screenSrc; }
+
+    function drawScreen() {
+        if (!screenEl || !screenCtx) return;
+        if (screenSrc === 'master') { screenEl.style.display = 'none'; return; }
+        const src = sourceCanvas(screenSrc, null);
+        if (!src || !src.width) { screenEl.style.display = 'none'; return; }
+        screenEl.style.display = '';
+        const w = screenEl.clientWidth | 0, h = screenEl.clientHeight | 0;
+        if (!w || !h) return;
+        if (screenEl.width !== w || screenEl.height !== h) { screenEl.width = w; screenEl.height = h; }
+        screenCtx.clearRect(0, 0, w, h);
+        // Fit rather than stretch: a code buffer or a single layer rarely matches the
+        // panel's shape, and squashing text is worse than a letterbox.
+        const k = Math.min(w / src.width, h / src.height);
+        const dw = src.width * k, dh = src.height * k;
+        screenCtx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    }
+
     // Outputs run their own loop, alive exactly as long as there is an output open.
     let raf = 0;
-    function tick() { raf = outputs.length ? requestAnimationFrame(tick) : 0; render(); }
-    function ensureLoop() { if (!raf && outputs.length) raf = requestAnimationFrame(tick); }
+    const needsLoop = () => outputs.length > 0 || (screenEl && screenSrc !== 'master');
+    function tick() { raf = needsLoop() ? requestAnimationFrame(tick) : 0; render(); drawScreen(); }
+    function ensureLoop() { if (!raf && needsLoop()) raf = requestAnimationFrame(tick); }
 
     function restore() {
         let saved = null;
@@ -225,6 +262,7 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
 
     return {
         addOutput, addSurface, render, feed, prune, reopen, restore, sources,
+        setScreen, setScreenSource, screenSource,
         list: () => outputs.map((o) => ({ id: o.id, surfaces: o.surfaces.length, closed: o.win.closed })),
         get: (i) => outputs[i],
         count: () => outputs.length,

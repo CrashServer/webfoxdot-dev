@@ -563,3 +563,20 @@ The general shape of the mistake is worth keeping: **a consumer was bolted onto 
 producer's schedule, and inherited that producer's reasons for stopping.** The
 renderer stops when there is nothing to draw, which is correct for the renderer and
 meaningless for an output whose source is somewhere else entirely.
+
+## SCREEN is a destination too
+
+The asymmetry was worth fixing: every output surface could show a single layer or a
+code buffer, while SCREEN — the picture you actually look at while working — was
+hard-wired to the master mix.
+
+It is the first row of the OUTPUTS panel now, with the same source picker and
+deliberately fewer controls: no warp (meaningless inside a pan/zoom workspace) and no
+edge blend (nothing to blend against).
+
+Mechanically an **overlay** over the GL canvas rather than a change to the renderer, so
+the default path is untouched and free: for `master` the overlay is `display:none` and
+the renderer draws straight through. Anything else is drawn into it FITTED, not
+stretched — a code buffer rarely matches the panel's aspect and squashed text is worse
+than a letterbox. The outputs loop keeps running while SCREEN is on a non-master
+source even with no output window open, which is what `needsLoop()` accounts for.

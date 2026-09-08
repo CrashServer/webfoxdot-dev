@@ -426,7 +426,12 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         ownedPanels.set(spec.id, panelApi);
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
         if (spec.bar) panelBody.classList.add('wfd-bar');
-        if (spec.screen)  mountScreen(panelBody, clock);
+        if (spec.screen) {
+            const sc = mountScreen(panelBody, clock);
+            // SCREEN is a destination like an output window, so the same manager
+            // decides what it shows — see outputs.js.
+            outputsApi?.api?.setScreen?.(sc.overlay);
+        }
         if (spec.layouts) buildLayoutsPanel(panelBody, log);
         if (spec.changelog) buildChangelogBody(panelBody);
         if (spec.outputs && outputsApi) buildOutputsPanel(panelBody, outputsApi.api, outputsApi.sources, log);

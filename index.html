@@ -3758,7 +3758,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                            removeSurface: (o, i) => _outs().removeSurface(o, i), setSource: (o, i, v) => _outs().setSource(o, i, v),
                            setBlend: (o, i, e, v) => _outs().setBlend(o, i, e, v), close: (i) => _outs().close(i),
                            reopen: (i) => _outs().reopen(i), list: () => (_outputsApi ? _outputsApi.list() : []),
-                           get: (i) => _outs().get(i), get MODES() { return _outs().MODES; }, get GRIDS() { return _outs().GRIDS; } },
+                           get: (i) => _outs().get(i), get MODES() { return _outs().MODES; }, get GRIDS() { return _outs().GRIDS; },
+                           setScreen: (c) => _outs().setScreen(c),
+                           setScreenSource: (v) => _outs().setScreenSource(v),
+                           screenSource: () => _outs().screenSource() },
                     sources: () => (_outputsApi ? _outputsApi.sources() : []) });
     setVisualOutputs({
         addOutput()            { return _outs().addOutput(); },
