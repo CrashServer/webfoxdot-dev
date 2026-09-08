@@ -2698,3 +2698,59 @@ body.desktop-ui .wfd-hosted .parts-drag,
 body.desktop-ui .wfd-hosted .rules-drag { pointer-events: none; }
 
 .wfd-float-body { padding: 0 !important; overflow: hidden !important; }
+
+/* ── Virtual piano (js/ui/piano.js) ────────────────────────────────────────
+   Same floating, draggable, non-modal shape as the mixer / parts / rules
+   panels, so it works in the classic layout and gets adopted as a desktop
+   panel with no extra code. */
+#piano-modal {
+    position: fixed; left: 16px; bottom: 46px; z-index: 130;
+    background: var(--bg-2); border: 1px solid var(--border-2);
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5);
+    font-family: monospace; font-size: 11px;
+    display: flex; flex-direction: column;
+    width: 620px; max-width: 96vw;
+    outline: none;
+}
+#piano-modal.hidden { display: none; }
+#piano-modal:focus-within { border-color: var(--green); }
+
+.piano-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--border-1); cursor: move; flex-wrap: wrap; }
+.piano-title { color: var(--green); font-weight: bold; font-size: 12px; }
+.piano-drag { flex: 1; align-self: stretch; min-width: 10px; }
+.piano-ctl { display: flex; align-items: center; gap: 3px; color: var(--text-2); }
+.piano-ctl b { color: var(--text-1); min-width: 12px; text-align: center; }
+.piano-ctl input[type="range"] { width: 62px; }
+.piano-synth, .piano-quant {
+    background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-1); border-radius: 3px;
+    font-family: monospace; font-size: 11px; padding: 1px 3px;
+}
+.piano-head button, .piano-foot button {
+    background: var(--bg-3); color: var(--text-2);
+    border: 1px solid var(--border-1); border-radius: 3px;
+    font-family: monospace; font-size: 11px; padding: 1px 7px; cursor: pointer;
+}
+.piano-head button:hover, .piano-foot button:hover { color: var(--text-1); border-color: var(--border-2); }
+.piano-snap.on { color: var(--green); border-color: var(--green); }
+.piano-rec.on  { color: var(--red);   border-color: var(--red); animation: pulse 1.2s ease-in-out infinite; }
+
+/* The keyboard: white keys lay out the row, black keys are placed over them, so
+   the widths stay right at any panel size. */
+.piano-keys { position: relative; height: 120px; margin: 8px; background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 3px; touch-action: none; }
+.pk {
+    position: absolute; top: 0; height: 100%;
+    background: linear-gradient(var(--bg-3), #d9dde3);
+    border: 1px solid var(--border-1); border-radius: 0 0 3px 3px;
+    box-sizing: border-box; cursor: pointer;
+    display: flex; align-items: flex-end; justify-content: center;
+}
+.pk > span { font-size: 8px; color: #4a5058; padding-bottom: 3px; pointer-events: none; }
+.pk-black { height: 62%; background: linear-gradient(#2a3038, #0d1014); border-color: #000; z-index: 2; border-radius: 0 0 2px 2px; }
+/* Notes that belong to the live Scale/Root — the ones that record as clean degrees. */
+.pk-in:not(.pk-black) { background: linear-gradient(var(--bg-3), #cfe6d4); }
+.pk-in.pk-black       { background: linear-gradient(#24382a, #0d1a11); }
+.pk.on  { background: var(--green) !important; box-shadow: 0 0 10px var(--glow); }
+
+.piano-foot { display: flex; align-items: center; gap: 8px; padding: 0 8px 8px; flex-wrap: wrap; }
+.piano-hint { color: var(--text-2); opacity: 0.7; margin-left: auto; }

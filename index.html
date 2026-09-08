@@ -33,6 +33,7 @@
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">reload</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">mix</button>
       <button id="btn-parts" title="parts — browse every example's #@ sections and click one into your set as a #@ section + attack() line">parts</button>
+      <button id="btn-piano" title="virtual piano — play any synth with the mouse or the computer keyboard, record what you play, and turn it into a player line">piano</button>
       <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">modular</button>
       <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">perform</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">share</button>
@@ -262,6 +263,7 @@
     import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals } from './js/visuals/bridge.js';
     import { asciiWord, ASCII_STYLES } from './js/ui/ascii.js';
     import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
+    import { initPiano, togglePiano } from './js/ui/piano.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, clearAll as clearVisuals } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
@@ -2537,6 +2539,22 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         },
     });
 
+    initPiano({
+        // The engine already has a one-shot voice path — the same one MIDI note-input
+        // uses. crashDot's synthdefs have no gate, so a voice frees itself when its
+        // envelope ends; `sus` is the audible length, and how long a key is HELD is
+        // recorded for the generated code rather than sent as a note-off.
+        playNote: (synth, midi, opts) => playSynthNote(synth, midi, opts),
+        insert:   (code) => insertCode(code, { quiet: true }),
+        beat:     () => clock.now(),
+        bpm:      () => clock.bpm,
+        synths:   () => [...new Set([...Object.keys(SYNTH_DEFS), ...Object.keys(userSynths)])].sort(),
+        // Degrees are written in whatever key is live, so a recorded phrase
+        // transposes with Scale/Root like everything else in the language.
+        scale:    () => ({ scale: Scale.default, root: Root.default, name: Scale.currentName }),
+        log,
+    });
+
     initRulesPanel({
         peers:  () => (_collab ? _collab.getPeers() : []),
         nameOf: (uid) => peerName(uid),
@@ -2544,6 +2562,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     });
     document.getElementById('btn-rules').onclick = () => toggleRules();
     document.getElementById('btn-parts').onclick = () => toggleParts();
+    document.getElementById('btn-piano').onclick = () => togglePiano();
     // The modular panel's "use it" button pastes AND runs a p1 >> line for the
     // just-Defined synth (unlike chaos()'s paste-don't-run — this is a single
     // synth the user just built and asked to hear, not a batch to review

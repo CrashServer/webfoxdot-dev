@@ -50,6 +50,7 @@ self.__WFD_PRECACHE = [
   './js/ui/midipanel.js',
   './js/ui/mixer.js',
   './js/ui/perform.js',
+  './js/ui/piano.js',
   './js/ui/desktop/canvas.js',
   './js/ui/desktop/screens.js',
   './js/ui/desktop/desktop.js',
