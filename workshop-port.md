@@ -289,6 +289,21 @@ place when you eventually open them.
 Panel colour is part of a layout entry, so `applyLayout()` had to restore it too;
 before, half an arrangement came back and half did not.
 
+### Traps found the hard way (desktop)
+
+- **`#desktop` is `overflow:hidden`, and that does NOT stop the browser scrolling
+  it.** Focus landing on anything outside the visible area makes the browser scroll
+  the container, which fights the pan transform. A detached editor panel far down the
+  canvas dragged the whole workspace back to itself every time it took focus — "the
+  view is stuck on that panel". `initCanvas` now pins `scrollLeft/scrollTop` to 0 on
+  any scroll event. Anything else placed far off-origin will hit this.
+- **A new UI module is not done until its CSS exists.** `layoutbar.js` was written and
+  wired and looked fine in a scripted test — which clicked it by selector — while
+  being invisible and unpositioned on screen, because no rules had been written for
+  it. Tests that reach elements by selector cannot see that. Assert on
+  `getBoundingClientRect()` and `elementFromPoint()` when the thing is supposed to be
+  visible.
+
 ## Next: importing features & content from the workshop
 
 Inventory of what is there, roughly in order of value-to-effort:

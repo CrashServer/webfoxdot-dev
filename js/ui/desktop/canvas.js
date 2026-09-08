@@ -64,6 +64,16 @@ export function initCanvas(canvas) {
     canvasEl = canvas;
     desktop  = canvas.parentElement;
 
+    // #desktop is overflow:hidden, but that does NOT stop the browser scrolling it —
+    // and it will, whenever focus lands on something outside the visible area. A
+    // detached editor panel sitting far down the canvas therefore dragged the whole
+    // workspace back to itself every time it took focus, which reads as "the view is
+    // stuck on that panel and I cannot go anywhere". Pin the scroll at zero: panning
+    // is the transform's job, and this container must never scroll on its own.
+    desktop.addEventListener('scroll', () => {
+        if (desktop.scrollLeft || desktop.scrollTop) { desktop.scrollLeft = 0; desktop.scrollTop = 0; }
+    }, { passive: true });
+
     // Restore saved view (ignore stale data gracefully). Nothing saved → frame
     // the default layout, which is wider than most windows.
     let restored = false;
