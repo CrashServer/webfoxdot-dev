@@ -245,6 +245,7 @@ function toCode() {
         .map(([k, v]) => `, ${k}=${Math.round(v * 1000) / 1000}`).join('');
     const line = `p1 >> ${_synth}([${degs.join(', ')}], dur=${durPart}, oct=${_oct}, sus=${_sus}${moved})`;
 
+    renderTargets();                       // in case the list changed since you last looked
     const where = _ctx.insert(line, _target);
     _ctx.log(`piano → ${where ? `"${where}"` : 'the editor'}: ${degs.length} step${degs.length === 1 ? '' : 's'} in ${name}`
         + (offScale ? ` · ${offScale} note${offScale === 1 ? '' : 's'} snapped to the scale` : ''), 'ok');
@@ -301,6 +302,10 @@ function build() {
     q('.piano-amp').oninput = (e) => { _amp = Number(e.target.value); };
     q('.piano-quant').onchange = (e) => { _quant = Number(e.target.value); };
     q('.piano-target').onchange = (e) => { _target = e.target.value; };
+    // Buffers come and go while the panel sits open — a tab added, one detached,
+    // one closed — and nothing about that redraws the piano. Rebuild the list at the
+    // moment you go to use it, which is the only moment it has to be right.
+    for (const ev of ['pointerdown', 'focus']) q('.piano-target').addEventListener(ev, renderTargets);
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
     q('.piano-synth').onchange = (e) => { _synth = e.target.value; buildParamKnobs(); };
     q('.piano-rec').onclick = () => {
