@@ -37,6 +37,10 @@ let _ctx = {
     // name → { defaults, extraParams } for the chosen synth, so its own knobs can
     // be built from the same definition the engine plays it with.
     synthDef: () => null,
+    // MIDI, supplied by index.html so this module stays free of engine imports.
+    onMidiNote: () => {},      // (fn|null) → route note on/off here
+    midiLearn:  () => null,    // (onValue) → arm learn, returns a handle
+    midiUnlearn:() => {},      // (handle)  → drop that binding
     log:      () => {},
 };
 
@@ -106,6 +110,8 @@ let _params = {}, _paramDefs = {};
 // whichever one you last clicked, and from the keyboard that looks like it picks
 // one at random.
 let _target = null;
+let _midiOn = false;                 // is a MIDI keyboard playing this piano?
+const _ccBind = new Map();           // param name → { handle, cc }
 // The take. `armed` is whether new notes are being added; the notes themselves
 // survive disarming, because pressing ● again to STOP and then asking for the code
 // is the obvious order to do things in — throwing the take away there was just a
@@ -153,7 +159,7 @@ function inScale(midi, scale, root) {
 }
 
 // ── playing ─────────────────────────────────────────────────────────────────
-function noteOn(midi) {
+function noteOn(midi, vel = 1) {
     if (_down.has(midi)) return;
     const { scale, root } = _ctx.scale();
     let m = midi;
@@ -168,7 +174,7 @@ function noteOn(midi) {
     // booted, and a phrase played before then would otherwise land on one beat and
     // collapse into a single chord. See toCode().
     _down.set(midi, { beat: _ctx.beat(), t: performance.now(), midi: m });
-    _ctx.playNote(_synth, m, { ..._params, sus: _sus, amp: _amp });
+    _ctx.playNote(_synth, m, { ..._params, sus: _sus, amp: _amp * vel });
     markKey(midi, true);
 }
 
@@ -274,6 +280,7 @@ function build() {
             <span class="piano-ctl">sus <input class="piano-sus" type="range" min="0.05" max="2" step="0.05" value="0.5"></span>
             <span class="piano-ctl">amp <input class="piano-amp" type="range" min="0.05" max="1.2" step="0.05" value="0.7"></span>
             <button class="piano-snap on" title="snap off-scale keys to the current scale — keeps what you record playable as degrees">snap</button>
+            <button class="piano-midi" title="play this piano from a MIDI keyboard — same synth, same knobs, and it records like the on-screen keys">midi</button>
             <div class="piano-drag"></div>
             <button class="piano-close" title="close">×</button>
         </div>
@@ -307,6 +314,7 @@ function build() {
     // moment you go to use it, which is the only moment it has to be right.
     for (const ev of ['pointerdown', 'focus']) q('.piano-target').addEventListener(ev, renderTargets);
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
+    q('.piano-midi').onclick = (e) => setMidi(!_midiOn, e.target);
     q('.piano-synth').onchange = (e) => { _synth = e.target.value; buildParamKnobs(); };
     q('.piano-rec').onclick = () => {
         if (_rec && _rec.armed) {
@@ -341,6 +349,90 @@ function build() {
     initDrag(q('.piano-head'));
 }
 
+// ── MIDI ────────────────────────────────────────────────────────────────────
+// A MIDI keyboard plays the piano itself, not a separate voice: same synth, same
+// knob values, same scale snapping, and the notes are RECORDED, so you can play a
+// phrase in on hardware and press ✎ to code exactly as with the mouse.
+//
+// It takes over the single note handler that midiin() also uses — there is one —
+// so turning this on supersedes midiin(), and turning it off releases it.
+function setMidi(on, btn) {
+    _midiOn = !!on;
+    if (btn) btn.classList.toggle('on', _midiOn);
+    if (!_midiOn) {
+        _ctx.onMidiNote(null);
+        for (const m of [..._down.keys()]) noteOff(m);
+        _ctx.log('piano: MIDI keyboard released', 'info');
+        return;
+    }
+    _ctx.onMidiNote((note, vel, isOn) => {
+        if (isOn) noteOn(note, Math.max(0.05, vel));
+        else noteOff(note);
+    });
+    _ctx.log('piano: MIDI keyboard → this piano (it overrides midiin)', 'ok');
+}
+
+// Bind a hardware knob to a parameter. Arming waits for the next CC you move; the
+// binding then drives the knob, the sounding voice and the generated line together,
+// because they are all the same value.
+function learnCC(name, cell) {
+    const prev = _ccBind.get(name);
+    if (prev) {                                  // already bound → let go
+        _ctx.midiUnlearn(prev.handle);
+        _ccBind.delete(name);
+        cell.querySelector('.piano-cc')?.remove();
+        _ctx.log(`piano: ${name} unbound from CC ${prev.cc}`, 'info');
+        return;
+    }
+    const tag = document.createElement('span');
+    tag.className = 'piano-cc learning';
+    tag.textContent = 'learn…';
+    cell.appendChild(tag);
+    const spec = rangeFor(name, _paramDefs[name]);
+    const handle = _ctx.midiLearn((v, cc) => {
+        // v is 0..1 from the controller; map it through the knob's own range so a
+        // hardware sweep feels like the on-screen one, curve included.
+        const val = spec.min != null ? fromRange(v, spec) : v;
+        _params[name] = val;
+        const b = _ccBind.get(name);
+        if (b && b.cc == null) { b.cc = cc; tag.textContent = `cc ${cc}`; tag.classList.remove('learning'); }
+        const knob = cell.querySelector('.mod-knob-val');
+        if (knob) knob.textContent = fmtVal(val);
+        const arc = cell.querySelector('.mk-arc'), ptr = cell.querySelector('.mk-pointer');
+        if (arc && ptr) paintDial(cell, val, spec);
+    });
+    if (!handle) { tag.remove(); _ctx.log('piano: MIDI is not available', 'warn'); return; }
+    _ccBind.set(name, { handle, cc: null });
+    _ctx.log(`piano: ${name} — move a control on your MIDI device to bind it`, 'warn');
+}
+
+// 0..1 → a value in the knob's range, honouring an exponential curve.
+function fromRange(t, s) {
+    const c = Math.min(1, Math.max(0, t));
+    if (s.curve === 'exp' && s.min > 0 && s.max > 0) return s.min * Math.pow(s.max / s.min, c);
+    return s.min + (s.max - s.min) * c;
+}
+function fmtVal(v) {
+    const a = Math.abs(v);
+    return a >= 100 ? String(Math.round(v)) : a >= 1 ? String(Math.round(v * 10) / 10) : String(Math.round(v * 1000) / 1000);
+}
+// Repaint a dial from outside the knob component (a CC move, not a drag).
+function paintDial(cell, v, s) {
+    const arc = cell.querySelector('.mk-arc'), ptr = cell.querySelector('.mk-pointer');
+    if (!arc || !ptr || s.min == null) return;
+    const t = Math.min(1, Math.max(0, (s.curve === 'exp' && s.min > 0 && s.max > 0)
+        ? Math.log(Math.max(s.min, v) / s.min) / Math.log(s.max / s.min)
+        : (v - s.min) / (s.max - s.min)));
+    const SWEEP = 270, START = 135, R = 15, CX = 18, CY = 18;
+    const pol = (deg, r) => [CX + r * Math.cos((deg - 90) * Math.PI / 180), CY + r * Math.sin((deg - 90) * Math.PI / 180)];
+    const a0 = START, a1 = START + t * SWEEP;
+    const [x0, y0] = pol(a0, R), [x1, y1] = pol(a1, R);
+    arc.setAttribute('d', t <= 0.001 ? '' : `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 ${(a1 - a0) > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`);
+    const [px, py] = pol(a1, R - 3), [ix, iy] = pol(a1, R - 9);
+    ptr.setAttribute('x1', ix.toFixed(2)); ptr.setAttribute('y1', iy.toFixed(2));
+    ptr.setAttribute('x2', px.toFixed(2)); ptr.setAttribute('y2', py.toFixed(2));
+}
+
 // The destination list, refreshed every time the panel draws — buffers come and go
 // as you add tabs and detach them. Defaults to the one you are looking at, and holds
 // your choice as long as that buffer still exists.
@@ -365,6 +457,11 @@ function buildParamKnobs() {
     if (!_modal) return;
     const host = _modal.querySelector('.piano-params');
     host.textContent = '';
+    // The row is about to be replaced, so any hardware bindings pointing into it
+    // have to go with it — otherwise a CC would keep writing to a parameter the
+    // current synth does not have.
+    for (const [, b] of _ccBind) _ctx.midiUnlearn(b.handle);
+    _ccBind.clear();
     _params = {}; _paramDefs = {};
 
     const def = _ctx.synthDef(_synth);
@@ -388,8 +485,9 @@ function buildParamKnobs() {
         lab.className = 'piano-param-name';
         lab.textContent = name;
         // Double-click the label to put a parameter back where the synth had it.
-        lab.title = `${name} (default ${d}) — drag the value, Shift for fine; double-click this label to reset`;
+        lab.title = `${name} (default ${d}) — drag the value, Shift for fine · double-click to reset · right-click to bind a MIDI control`;
         lab.ondblclick = () => { _params[name] = d; buildParamKnobs(); };
+        lab.oncontextmenu = (e) => { e.preventDefault(); learnCC(name, cell); };
 
         const knob = makeKnob({
             value: d, spec, rotary: true,

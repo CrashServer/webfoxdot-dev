@@ -256,7 +256,7 @@
     import { defineFromSource } from './js/modular/codegen.js';
     import { initPerform, togglePerform, applyXY, applyRemoteFX } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
-    import { enableMidi, makeMidi, onMidiNote } from './js/midi/midi.js';
+    import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl } from './js/midi/midi.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
@@ -2666,6 +2666,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Degrees are written in whatever key is live, so a recorded phrase
         // transposes with Scale/Root like everything else in the language.
         scale:    () => ({ scale: Scale.default, root: Root.default, name: Scale.currentName }),
+        // MIDI: notes play the piano itself (its synth, its knobs, and recorded),
+        // and any knob can be bound to a hardware control by learning the next CC.
+        onMidiNote: (fn) => { if (fn) _ensureMidi(); onMidiNote(fn); },
+        midiLearn:  (onValue) => { _ensureMidi(); return midiControl(onValue, null); },
+        midiUnlearn:(h) => { if (h) clearMidiControl(h); },
         // The synth's own definition, so the piano can build a knob per parameter
         // from the same defaults the engine plays it with. Live-defined synths
         // (defsynth) are included.
