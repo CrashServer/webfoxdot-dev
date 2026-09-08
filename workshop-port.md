@@ -198,6 +198,37 @@ heads, so it no longer looks draggable. Needs confirmation from a real mouse.
 
 ---
 
+### 4. Zoom disturbed audio timing — FIXED
+
+Reported as "sound timing gets messy when zooming in and out quickly", and it was
+real. The note scheduler runs on the **main thread** with a 120 ms lookahead, and every
+single wheel tick was doing:
+
+| per wheel tick | before | after |
+|---|---|---|
+| CodeMirror `refresh()` (full re-measure + re-render) | 1 | 0.02 |
+| `localStorage.setItem` — **synchronous** | 1 | 0.02 |
+| forced layout reads | 20 | 1.3 |
+
+A trackpad pinch fires 60+ wheel events a second, so that was ~60 full editor
+relayouts and 60 synchronous disk writes per second, competing with the scheduler.
+
+Two fixes:
+
+- `canvas.js` `save()` is debounced 250 ms. The view only has to survive a reload.
+- The editor relayout is deferred until the gesture **stops** (140 ms). During a
+  gesture the layer keeps its last settled geometry and simply rides the canvas
+  transform — apparent size stays `base × settledZoom × canvasZoom / settledZoom` =
+  `base × canvasZoom`, which is exactly right. Only the internal measurement basis is
+  briefly stale, and nobody places a cursor mid-pinch. Verified cursor still exact at
+  rest, after a fast pinch in/out, and zoomed well out to 35%.
+
+Also throttled the hosted-panel `remeasure()`, which fires a global window resize and
+was being called per pointermove during a panel resize drag.
+
+**General lesson for this branch:** anything wired to `onViewChange` or a panel's
+`onResize` runs at pointer/wheel rate on the audio thread. Coalesce it.
+
 ## Open decision
 
 **"Replace the crashDot GPU stack with the workshop's"** has two readings and the

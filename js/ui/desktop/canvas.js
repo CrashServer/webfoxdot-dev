@@ -302,8 +302,15 @@ function apply() {
     for (const cb of _viewCbs) cb(panX, panY, zoom);
 }
 
+// Debounced. localStorage.setItem is SYNCHRONOUS, and this used to run on every
+// wheel tick — a trackpad pinch fires 60+ a second, on the same thread as the note
+// scheduler, which is how zooming came to affect audio timing. The view only has to
+// survive a reload, so writing it once the gesture stops is enough.
+let _saveTimer = null;
 function save() {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ panX, panY, zoom }));
-    } catch (_) {}
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ panX, panY, zoom })); }
+        catch (_) {}
+    }, 250);
 }

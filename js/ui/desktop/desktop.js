@@ -39,9 +39,12 @@ function hostFloating(canvas, spec, clock) {
     // observer that flips the panel visible only runs afterwards. The immediate
     // dispatch catches that (reading a box here forces the pending layout); the
     // rAF one covers anything that needs a settled frame.
+    let pending = false;
     const remeasure = () => {
         window.dispatchEvent(new Event('resize'));
-        requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+        if (pending) return;                  // a resize DRAG calls this per pointermove
+        pending = true;
+        requestAnimationFrame(() => { pending = false; window.dispatchEvent(new Event('resize')); });
     };
 
     const sync = (el) => {
@@ -116,17 +119,38 @@ function addBackdropButton(panelEl, clock) {
 // layout at a real font size, so every measurement CodeMirror makes is consistent
 // and the cursor lands where you click.
 let editorBody = null, editorLayer = null, baseFontPx = 14;
+// The zoom the layer was last laid out for. Between settles the layer keeps this
+// geometry and simply rides the canvas transform, which costs nothing.
+let settledZoom = 1;
 
+// Re-lay the editor out for the current zoom. This is the expensive path: it writes
+// geometry and then makes CodeMirror re-measure and re-render its whole viewport.
 function keepEditorUnscaled(editor) {
     if (!editorBody || !editorLayer) return;
     const z = getZoom() || 1;
     const w = editorBody.clientWidth, h = editorBody.clientHeight;
     if (!w || !h) return;
+    settledZoom = z;
     editorLayer.style.width  = `${w * z}px`;
     editorLayer.style.height = `${h * z}px`;
     editorLayer.style.transform = z === 1 ? '' : `scale(${1 / z})`;
     editorLayer.style.fontSize  = `${baseFontPx * z}px`;
     editor?.refresh?.();
+}
+
+// While a zoom gesture is running, do NOTHING. The layer's CSS size and font stay at
+// the last settled zoom and its transform stays scale(1/settledZoom), so the canvas's
+// own scale carries it: apparent size is base × settledZoom × canvasZoom / settledZoom
+// = base × canvasZoom, which is exactly right. Only the internal measurement basis is
+// stale — and nobody places a cursor mid-pinch. One relayout when the gesture stops.
+//
+// This is the whole fix for zoom disturbing audio: a wheel tick used to force a full
+// CodeMirror refresh, and wheel ticks arrive faster than the note scheduler's 120ms
+// lookahead can absorb.
+let _scaleTimer = null;
+function scheduleEditorScale(editor) {
+    clearTimeout(_scaleTimer);
+    _scaleTimer = setTimeout(() => keepEditorUnscaled(editor), 140);
 }
 
 // ── CodeMirror under a scaled ancestor ───────────────────────────────────────
@@ -242,7 +266,7 @@ export function initDesktop(editor, clock = null, onReady = null) {
 
         const { el: panelEl, body: panelBody } = createPanel(canvas, {
             ...spec,
-            onResize: spec.id === 'wfd-editor' ? () => keepEditorUnscaled(editor) : undefined,
+            onResize: spec.id === 'wfd-editor' ? () => scheduleEditorScale(editor) : undefined,
         });
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
         if (spec.screen) mountScreen(panelBody, clock);
@@ -300,10 +324,9 @@ export function initDesktop(editor, clock = null, onReady = null) {
             const px = parseFloat(getComputedStyle(editor.getWrapperElement()).fontSize);
             if (px > 0) baseFontPx = px;
         } catch (_) {}
-        const rescale = () => keepEditorUnscaled(editor);
-        onViewChange(rescale);          // every pan/zoom apply()
-        rescale();
-        requestAnimationFrame(rescale);
+        onViewChange(() => scheduleEditorScale(editor));   // coalesced — see above
+        keepEditorUnscaled(editor);
+        requestAnimationFrame(() => keepEditorUnscaled(editor));
 
         // The gutter correction stays: it is cheap, and it is what keeps the editor
         // correct in the one case the counter-scale cannot cover — a panel BACKDROP
@@ -311,7 +334,6 @@ export function initDesktop(editor, clock = null, onReady = null) {
         const fix = () => unskewGutter(editor);
         editor.on('update', fix);
         editor.on('refresh', fix);
-        onViewChange(fix);
         fix();
         setTimeout(fix, 100);
     }
