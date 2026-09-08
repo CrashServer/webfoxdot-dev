@@ -435,6 +435,37 @@ export const WORKSHOP_LAYERS = {
 
 export const WORKSHOP_NAMES = Object.keys(WORKSHOP_LAYERS);
 
+// ── Per-layer FX ─────────────────────────────────────────────────────────────
+// The workshop's effects are CANVAS operations — apply(src, outCtx, w, h, p, entry, t)
+// — so they run per LAYER, on that layer's own canvas, before it reaches the deck.
+// crashDot's own FX are the opposite: uniforms in the present shader, applied once to
+// the whole frame. Both are kept, and they are genuinely different tools — "bloom this
+// one layer" was not previously expressible.
+//
+// `entry` is the stack slot itself, passed through so stateful effects (feedback,
+// datamosh, frameDiff, motionBlur) can keep a buffer on it across frames. That is why
+// a caller must hold its entries rather than rebuild them each frame.
+export { FX_KINDS as WORKSHOP_FX } from './fx/registry.js';
+import { FX_KINDS } from './fx/registry.js';
+export const WORKSHOP_FX_NAMES = Object.keys(FX_KINDS);
+
+/** Flatten one effect's param descriptors to plain defaults. */
+export function fxDefaults(type) {
+    const k = FX_KINDS[type];
+    if (!k) return {};
+    let d = {};
+    try { d = k.makeParams() || {}; } catch (_) { return {}; }
+    const out = {};
+    for (const [n, v] of Object.entries(d)) out[n] = (v && typeof v === 'object' && 'base' in v) ? v.base : v;
+    return out;
+}
+/** The first declared param — what a bare `bloom(0.4)` sets. */
+export function fxPrimary(type) {
+    const d = fxDefaults(type);
+    const k = Object.keys(d);
+    return k.length ? k[0] : null;
+}
+
 /** Flatten a layer's param descriptors to plain defaults: { name: base }. */
 export function defaults(kind) {
     const k = WORKSHOP_LAYERS[kind];

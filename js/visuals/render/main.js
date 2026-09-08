@@ -15,6 +15,7 @@ import * as fx from './postfx.js';
 import { RENDER_MODES } from '../vdata.js';
 import { createGLRenderer } from './gl/renderer.js';
 import { createWorkshopDeck } from './wsdeck.js';
+import { WORKSHOP_FX } from '../workshop/index.js';
 import { V, AUD, S } from './state.js';
 
 const glCanvas = document.getElementById('visgl');
@@ -43,9 +44,14 @@ function resize() {
 addEventListener('resize', resize); resize();
 
 // The strongest value of an fx key across all live layers (fx are additive intents).
+// A workshop layer's FX are applied per-layer, on its own canvas, by wsdeck.js. If
+// they were counted here as well they would run TWICE — and for invert that means not
+// at all, since inverting twice is the identity. So a key is skipped on a `ws` layer
+// when the workshop implements it; anything the workshop does NOT have (trails, scan,
+// fold, hueshift, pixelsort) still falls through to this global pass.
 function maxFx(key, base = 0) {
     let m = base;
-    for (const l of V.layers) { const f = l.fx && l.fx[key]; if (typeof f === 'number' && f > m) m = f; else if (f === true && m < 1) m = 1; }
+    for (const l of V.layers) { if (l.ws && WORKSHOP_FX[key]) continue; const f = l.fx && l.fx[key]; if (typeof f === 'number' && f > m) m = f; else if (f === true && m < 1) m = 1; }
     return m;
 }
 function fxBundle() {

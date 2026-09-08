@@ -15,7 +15,7 @@
 // vocabulary works in visuals identically to audio.
 
 import { patGet } from '../patterns/sequences.js';
-import { SCENES, blendIndex, WS_SET, WS_SCENES } from './vdata.js';
+import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES } from './vdata.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);
@@ -104,6 +104,11 @@ export function visualBuilders() {
     for (const s of SCENES) out[s] = sceneBuilder(s);
     for (const s of WS_SCENES) if (!out[s]) out[s] = sceneBuilder(s);
     for (const [k, d] of Object.entries(VFX)) out[k] = fxBuilder(k, d);
+    // The workshop's 52 canvas effects. A name crashDot already has stays crashDot's —
+    // those run on the GPU over the whole frame, which is cheaper and is what the
+    // existing sets expect — so this adds the ~35 that are genuinely new, and they act
+    // on ONE layer rather than on everything.
+    for (const k of WS_FX_NAMES) if (!out[k]) out[k] = fxBuilder(k, 0.5);
     // mix(value, dur=, blend=) — the A↔B crossfader (value 0=chan0 … 1=chan1)
     out.mix = (value = 0, opts = {}) => new MixSpec(value, opts);
     // palette("fire" | 8 | "off") — global colour ramp (name OR integer index); vmode("shade")

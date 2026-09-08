@@ -21,7 +21,7 @@
 // first frame and rebuild when the size changes, so resizing is cheap but not free —
 // the cache resizes only when the deck size actually changes.
 
-import { WORKSHOP_LAYERS, defaults } from '../workshop/index.js';
+import { WORKSHOP_LAYERS, WORKSHOP_FX, defaults, fxDefaults, fxPrimary } from '../workshop/index.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
@@ -45,6 +45,59 @@ export function createWorkshopDeck() {
         }
         sized(s.canvas, w, h);
         return s;
+    }
+
+    // ── per-layer FX chain ───────────────────────────────────────────────────
+    // A workshop effect is a canvas operation, so it runs on the LAYER's canvas
+    // before it reaches the deck — which is the thing crashDot's own post-fx cannot
+    // do, because those are uniforms applied once to the finished frame.
+    //
+    // The chain ping-pongs between two scratch canvases. They are module-scope in the
+    // workshop because it applies one channel's whole stack before starting the next;
+    // the same holds here (one layer at a time), so a pair per deck is enough.
+    let fxA = null, fxB = null;
+    function scratch(w, h) {
+        if (!fxA) { fxA = document.createElement('canvas'); fxB = document.createElement('canvas'); }
+        sized(fxA, w, h); sized(fxB, w, h);
+        return [fxA, fxB];
+    }
+
+    // Stateful effects (feedback · datamosh · frameDiff · motionBlur) keep a buffer on
+    // their stack ENTRY between frames, so the entries have to be held, not rebuilt.
+    // Keyed by layer name + effect type; dropped with the layer.
+    function entriesFor(s, fx) {
+        const want = Object.keys(fx || {}).filter((k) => WORKSHOP_FX[k] && fx[k] !== false && fx[k] != null);
+        if (!s.fx) s.fx = new Map();
+        for (const k of [...s.fx.keys()]) if (!want.includes(k)) s.fx.delete(k);
+        return want.map((type) => {
+            let e = s.fx.get(type);
+            if (!e) { e = { id: type, type, enabled: true, params: fxDefaults(type) }; s.fx.set(type, e); }
+            // A bare bloom(0.4) sets the effect's FIRST declared param and leaves the
+            // rest at their defaults — the same convention the wfx() bridge command uses.
+            const v = fx[type];
+            if (typeof v === 'number') { const pk = fxPrimary(type); if (pk) e.params[pk] = v; }
+            else if (v && typeof v === 'object') Object.assign(e.params, v);
+            return e;
+        });
+    }
+
+    function applyFx(s, fx, w, h, t) {
+        const chain = entriesFor(s, fx);
+        if (!chain.length) return s.canvas;
+        const [A, B] = scratch(w, h);
+        let read = s.canvas, write = A, spare = B;
+        for (const e of chain) {
+            const kind = WORKSHOP_FX[e.type];
+            const g = write.getContext('2d');
+            g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+            g.setTransform(1, 0, 0, 1, 0, 0);
+            g.clearRect(0, 0, w, h);
+            try { kind.apply(read, g, w, h, e.params, e, t); }
+            catch (err) { if (!e.warned) { e.warned = true; console.warn(`visuals: fx "${e.type}" threw —`, err?.message || err); } continue; }
+            read = write;
+            const tmp = write; write = spare; spare = tmp;
+        }
+        return read;
     }
 
     function deckCanvas(i, w, h) {
@@ -93,6 +146,8 @@ export function createWorkshopDeck() {
             try { kind.draw(s.ctx, w, h, p, t, extra); }
             catch (e) { if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }
 
+            const painted = applyFx(s, l.fx, w, h, t);
+
             deckCanvas(d, w, h);
             const g = dctx[d];
             if (!used[d]) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); used[d] = true; }
@@ -110,7 +165,7 @@ export function createWorkshopDeck() {
                 if (zoom !== 1) g.scale(zoom, zoom);
                 g.translate(-w / 2, -h / 2);
             }
-            g.drawImage(s.canvas, 0, 0);
+            g.drawImage(painted, 0, 0);
             g.restore();
         }
         return { a: used[0] ? deck[0] : null, b: used[1] ? deck[1] : null };

@@ -1,4 +1,4 @@
-import { WORKSHOP_NAMES, defaults as wsDefaults } from './workshop/index.js';
+import { WORKSHOP_NAMES, WORKSHOP_FX_NAMES, defaults as wsDefaults } from './workshop/index.js';
 
 // Shared visual constants — imported by both vlang.js (main window, for routing /
 // validation / autocomplete) and clift.js (pop-out, for rendering). Single source of
@@ -118,6 +118,8 @@ export const RENDER_MODE_NAMES = ['smooth', 'pixel', ...Object.keys(RENDER_MODES
 // A name crashDot already has as a field scene keeps the field scene — those are the
 // GPU-native ones — so 16 collisions resolve in crashDot's favour and 190 names are new.
 export const WS_SCENES = WORKSHOP_NAMES;
+// The workshop's per-layer canvas effects (52) — see workshop/index.js.
+export const WS_FX_NAMES = WORKSHOP_FX_NAMES;
 const SCENE_SET = new Set(SCENES);
 export const WS_SET = new Set(WS_SCENES);
 

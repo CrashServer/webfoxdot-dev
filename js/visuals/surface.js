@@ -16,14 +16,21 @@ import { createGLRenderer } from './render/gl/renderer.js';
 import { createWorkshopDeck } from './render/wsdeck.js';
 import { snapshot }         from './vlang.js';
 import { getVisualAudio }   from './bridge.js';
+import { WORKSHOP_FX }     from './workshop/index.js';
 
 // Post-FX bundle: the max of each FX key across all layers. The renderer takes one
 // bundle for the whole frame, so two layers asking for different amounts of glitch
 // resolve to the louder one.
 export function fxBundle(layers) {
+// A workshop layer's FX are applied per-layer, on its own canvas, by wsdeck.js. If
+// they were counted here as well they would run TWICE — and for invert that means not
+// at all, since inverting twice is the identity. So a key is skipped on a `ws` layer
+// when the workshop implements it; anything the workshop does NOT have (trails, scan,
+// fold, hueshift, pixelsort) still falls through to this global pass.
     const mx = (key, d = 0) => {
         let m = d;
         for (const l of layers) {
+            if (l.ws && WORKSHOP_FX[key]) continue;
             const f = l.fx && l.fx[key];
             if (typeof f === 'number' && f > m) m = f;
             else if (f === true && m < 1) m = 1;
