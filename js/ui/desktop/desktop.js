@@ -251,19 +251,22 @@ export function setDesktopMode(on) {
 const PANELS = [
     { id: 'wfd-editor',   group: 'workspace', title: 'editor',      x:   0, y:   0, w: 1080, h: 620, minW: 420, minH: 200, adopt: ['#editor-tabs', '#editor-wrap'] },
     { id: 'wfd-log',      group: 'workspace', title: 'log',         x:   0, y: 642, w: 1080, h: 220, minW: 300, minH: 90,  adopt: ['#log'] },
-    { id: 'wfd-clock',    group: 'status', title: 'clock',       x:1102, y:   0, w:  400, h: 210, minW: 260, minH: 110, adopt: ['#cp-clock'] },
-    { id: 'wfd-players',  group: 'status', title: 'players',     x:1102, y: 232, w:  400, h: 300, minW: 260, minH: 110, adopt: ['#cp-players'] },
-    { id: 'wfd-compo',    group: 'status', title: 'composition', x:1102, y: 554, w:  400, h: 420, minW: 260, minH: 140, adopt: ['#cp-compo'] },
-    { id: 'wfd-session',  group: 'status', title: 'session',     x:1524, y:   0, w:  390, h: 420, minW: 280, minH: 140, adopt: ['#cp-session', '#cp-link'] },
-    { id: 'wfd-midi',     group: 'status', title: 'midi',        x:1524, y: 442, w:  390, h: 230, minW: 280, minH: 110, adopt: ['#cp-midi'] },
-    { id: 'wfd-settings', group: 'status', title: 'settings',    x:1524, y: 694, w:  390, h: 300, minW: 280, minH: 140, adopt: ['#cp-settings'] },
+    // The control column, as ONE panel rather than six. It was six because every
+    // .cp-section could be one, not because six was the right number — clock,
+    // players and composition are read at a glance and midi and settings are set
+    // once, so they cost six headers, six borders and six rows in the window list to
+    // save nothing. This is what they already were in the classic layout: a single
+    // scrolling column of foldable sections, and the fold headers still work here
+    // because initFoldableSections() wires them before the desktop adopts them.
+    { id: 'wfd-controls', group: 'status', title: 'controls',    x:1102, y:   0, w:  400, h:1220, minW: 280, minH: 160,
+      adopt: ['#cp-clock', '#cp-players', '#cp-compo', '#cp-session', '#cp-link', '#cp-midi', '#cp-settings'] },
     // A monitor on the canvas: video1 >> plasma() plays HERE, next to the code that
     // drives it, instead of in a pop-out window on another screen.
-    { id: 'wfd-screen',   group: 'workspace', title: 'screen',      x:   0, y: 884, w: 1080, h: 400, minW: 240, minH: 140, screen: true },
+    { id: 'wfd-screen',   group: 'workspace', title: 'screen',      x:   0, y: 884, w: 1080, h: 336, minW: 240, minH: 140, screen: true },
     // Saved workspaces: panel positions, sizes, colours and the view. A panel like
     // the rest — the toolbar's LAYOUTS button pans to it and raises it, so it stays
     // findable after you have panned somewhere else.
-    { id: 'wfd-layouts',  group: 'workspace', title: 'layouts',     x:1102, y:1004, w:  300, h:  92, minW: 240, minH: 80, layouts: true },
+    { id: 'wfd-layouts',  group: 'workspace', title: 'layouts',     x:1524, y: 642, w:  390, h:  92, minW: 240, minH: 80, layouts: true },
     // ── The top bar, broken into six small panels ────────────────────────────
     // It sat fixed above the canvas on the reasoning that STOP is a panic button and
     // must never be somewhere you have to pan to find — which is still true, and is
@@ -290,21 +293,23 @@ const PANELS = [
     // so nothing in index.html knows this happened. The ones no longer on a bar stay
     // in the hidden #toolbar — a programmatic .click() still works on them, which is
     // exactly how a menu row toggles a hosted module.
-    { id: 'wfd-bar-transport',  group: 'bars', title: 'transport', x:   0, y: -78, w: 250, h: 66, minW: 110, minH: 44, bar: true,
-      adopt: ['#btn-run', '#btn-stop', '#btn-reload', '#btn-perform'] },
-    { id: 'wfd-bar-engine',     group: 'bars', title: 'engine',    x: 272, y: -78, w: 330, h: 66, minW: 110, minH: 44, bar: true,
-      adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#synth-status'] },
+    // Boot and transport in one bar. They are used at different RATES — the kit
+    // loads once, stop gets hit all night — but they are adjacent in the only order
+    // that matters: boot, load the kit, then run. Splitting them put a panel edge in
+    // the middle of that sentence.
+    { id: 'wfd-bar-run',        group: 'bars', title: 'run',       x:   0, y: -78, w: 560, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status'] },
     // Named for the people, not the verb: SHARE is one of the buttons INSIDE it, and
     // a panel called "share" holding a button called "SHARE" is the same word doing
     // two jobs.
-    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 624, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
+    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 582, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-share', '#btn-multiplayer', '#btn-split'] },
-    { id: 'wfd-bar-learn',      group: 'bars', title: 'learn',     x: 926, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
+    { id: 'wfd-bar-learn',      group: 'bars', title: 'learn',     x: 884, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-tour', '#examples-dd', '#version-tag'] },
 
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.
-    { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1802, y:1732, w:  520, h: 580, minW: 320, minH: 200, changelog: true },
+    { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1524, y:   0, w:  390, h: 620, minW: 320, minH: 200, changelog: true },
 ];
 
 // The floating overlays — mixer, modular, parts, room rules, docs, galaxy — get

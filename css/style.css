@@ -2672,6 +2672,16 @@ body.desktop-ui .panel-body > .cp-section { border: none; padding: 0; margin: 0;
 body.desktop-ui .panel-body > .cp-section > h3 { display: none; }
 body.desktop-ui .panel-body > .cp-section + .cp-section { margin-top: 10px; }
 body.desktop-ui .panel-body > .cp-section + .cp-section > h3 { display: block; }
+/* The merged control column is the exception to the rule above: with seven
+   sections under one panel title, EVERY one needs its own heading — and the
+   heading is also the fold handle, so hiding the first would make clock the one
+   section you cannot collapse. A hairline between them replaces the borders the
+   desktop rules strip off. */
+body.desktop-ui .wfd-body-wfd-controls > .cp-section > h3 { display: block; }
+body.desktop-ui .wfd-body-wfd-controls > .cp-section + .cp-section {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid var(--border-1);
+}
 
 @media (pointer: coarse) {
     .panel-resize { width: 22px; height: 22px; }

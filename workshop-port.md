@@ -476,18 +476,179 @@ buffer closes in one click and a buffer with text asks twice.
 **Panels had no DOM id** — only a registry key. `win.dataset.panelId = spec.id` now,
 which is also what makes them addressable from a test.
 
-## The bar, split four ways — and a right-click menu
+## The bar, split three ways — and a right-click menu
 
 One 1900px strip of sixteen buttons is a list, not a grouping — BOOT sat next to
 RUN, GO LIVE next to EXAMPLES, and you learned positions rather than meanings. It
-is four small panels now, grouped by *when* you reach for a thing:
+is three small panels now, grouped by *when* you reach for a thing:
 
 | panel | holds |
 |---|---|
-| `transport` | run · stop · reload · perform |
-| `engine` | status dot · boot · load kit · synth status |
+| `run` | status dot · boot · load kit · run · stop · reload · perform · synth status |
 | `collab` | share · go live · split |
 | `learn` | tour · examples · version |
+
+Boot and transport share a bar: they are used at very different RATES — the kit
+loads once, stop gets hit all night — but they are adjacent in the only order that
+matters, *boot, load the kit, then run*, and splitting them put a panel edge in the
+middle of that sentence.
+
+**The rule that decides membership: a bar holds VERBS.** Anything whose button only
+showed or hid a panel — mix, parts, piano, modular, galaxy, docs, layouts — is a
+noun, and nouns are rows in the **canvas context menu** (`menu.js`). ZEN and
+CLASSIC UI went the same way: they act on the view, and the menu is where the view
+is managed, which is why the `view` bar exists no more.
+
+`collab`, not `share`: SHARE is a button *inside* it, and a panel called "share"
+holding a button called "SHARE" is one word doing two jobs.
+
+### The menu replaced a WINDOWS panel
+
+A panel whose only job is to list panels is itself a panel — one more thing to
+place, one more row in its own list, and useless until you can already see it. A
+menu costs nothing until asked for and opens where the pointer already is.
+
+Two verbs per row, because they answer different questions: the **row** toggles
+("should this exist right now") and **⊕** goes to it ("where is it" — opens it if
+closed, then `centerOn`). Toggling leaves the menu open so a workspace can be set
+up in one visit; going somewhere closes it. Marks refresh in place rather than
+rebuilding, or the rows move out from under the pointer you are about to click.
+
+It skips `.panel-body`: inside a panel's CONTENT the browser's own menu is the
+right one (spell check in the editor, copy in the log). The canvas and the panel
+chrome are ours.
+
+**Buffers are listed too.** With detachable tabs a buffer is either a tab in the
+strip or a panel on the canvas, and "where did my scratch go" should have one
+answer wherever it currently lives. The strip half comes from `index.html` via
+`_dk.setBuffers({ list, go })` rather than the desktop reaching into the tabs;
+`detached` now stores `{ doc, panel }` so a detached buffer can be centred like any
+window.
+
+`centerOn()` is new in `canvas.js` beside `panToReveal()` — reveal's "go there only
+if you cannot see it" is right for an incidental nudge, but a GO TO you asked for
+should put the thing in front of you even if a corner was already showing.
+
+### Notes
+
+Buttons are ADOPTED, not rebuilt — same elements, ids and listeners, so nothing in
+`index.html` knows. The ones that left the bar stay inside the now-hidden
+`#toolbar`; a programmatic `.click()` still works on an element in a `display:none`
+parent, which is exactly how a menu row toggles a hosted module.
+
+`#toolbar` is hidden rather than removed: what is left in it is the app title (the
+canvas wordmark covers that) and the mobile drawer toggle, and a stray
+`getElementById` on either should keep resolving rather than throw in one UI mode
+only. CSS: the uppercase/letter-spacing vocabulary moved from `#toolbar button` to
+`#toolbar button, .wfd-bar button` so it follows the buttons out. Bar bodies are
+`overflow: visible` — the EXAMPLES dropdown hangs out of its panel and `auto` would
+clip it into a scrollbar.
+
+The home rectangle is `-96 … 1220` so the bar row above the editor is inside what
+"reset view" frames.
+
+### Panel count: 22 → 11
+
+Two consolidations, chosen over two others that were offered:
+
+**The control column is ONE panel again.** clock · players · composition · session ·
+Ableton Link · midi · settings were six panels because every `.cp-section` *could*
+be one, not because six was the right number — the first three are read at a glance
+and the last two are set once, so they cost six headers, six borders and six rows in
+the window list to buy nothing. `wfd-controls` adopts all seven sections, which is
+exactly what they were in the classic layout: one scrolling column of foldable
+sections. The fold headers still work because `initFoldableSections()` wires them
+(line ~2511 of index.html) well before the desktop adopts the elements, and the
+handlers travel with the nodes.
+
+The CSS needed one exception. `body.desktop-ui .panel-body > .cp-section > h3 {
+display: none }` hides a lone section's heading because the panel title already says
+it — correct for a one-section panel, wrong here, and worse than cosmetic: the
+heading IS the fold handle, so hiding the first one made clock the single section you
+could not collapse. `.wfd-body-wfd-controls > .cp-section > h3 { display: block }`
+plus a hairline between sections.
+
+**`transport` + `engine` → `run`.** See above.
+
+Not taken (still available): folding `layouts` into the context menu as a submenu,
+and dropping the `changelog` panel back to being only a docs tab.
+
+The freed right-hand column (x 1524) now holds `changelog` and `layouts`, and
+`screen` was shortened to 336px so it ends on the home rectangle's floor. Verified:
+every default panel sits inside the home rect and is visible at reset.
+
+## Everything is a panel
+
+The last fixed chrome is gone. Panels are **closable** (`×` in the header,
+`spec.closable !== false`), which forced three other things to exist:
+
+- **`windows` panel** (`windows.js`) — a chip per panel, lit when open, click to
+  toggle. The one panel with `closable: false`, because a `×` with no way back is
+  a trap door. Owned panels answer via `panel.isOpen()/setOpen()`; hosted modules
+  are asked and toggled through their **own** button (`spec.btn`), never by hiding
+  the panel behind their back — do that and the module's flag and the panel
+  disagree, and the next press of the toolbar button does nothing. The generic `×`
+  on a hosted panel routes to `closeFloating(spec)` for the same reason. State is
+  polled at 400 ms rather than pushed, since the `×`, the module's own `✕`, Escape
+  and a recalled layout can all change it.
+- **`menu` panel** — `#toolbar`, adopted. It was fixed above the canvas on the
+  grounds that STOP is a panic button; stop-all is bound **globally** (Ctrl+; ·
+  Ctrl+, · Ctrl+.), so the bar had no claim to be the exception. `--toolbar-h` is
+  now `0`. Its body is `overflow: visible` — the EXAMPLES dropdown hangs out of the
+  bar and `auto` clipped it into a scrollbar.
+- **`changelog` panel** — `changelogHTML()` exported from `docs.js`, same builder
+  as the docs tab so the two cannot drift, plus the click-to-expand wiring.
+
+`open` is persisted in the same per-panel entry as position and colour, and
+`applyLayout` restores it — an arrangement that forgets what was put AWAY is only
+half an arrangement.
+
+**The home rectangle now starts at `HOME_Y = -96`**, not at the origin. The menu
+panel sits above y=0 where a top bar belongs, and `fitHome()` has to frame it or
+the one panel a first-time user most needs is just off the top edge. `fitHome`
+solves for the pan that puts `HOME_Y` on the margin rather than assuming the
+origin is the corner.
+
+**Wordmark**: `.canvas-wordmark` inside `#wfd-canvas`, so it pans and zooms with
+the workspace instead of floating over it as chrome. `pointer-events: none`.
+
+## Traps found the hard way (UI)
+
+**A captured pointer retargets the following click.** `beginDrag` calls
+`setPointerCapture` on the panel header, so Chrome dispatches the subsequent
+`dblclick` at the **header**, not at the `.panel-title` you actually hit — and the
+header's own `dblclick` collapses the panel. That is why double-click-to-rename on
+a detached buffer did nothing (it collapsed instead). Synthetic `PointerEvent`s do
+NOT reproduce it, because `setPointerCapture` throws on a synthetic pointerId and
+the capture never happens — the headless test passed while the feature was broken.
+Fix: record the `pointerdown` target (that event is not retargeted; capture starts
+*with* it) and route the dblclick on that. Renaming now lives in `panel.js` as
+`spec.onRename`, so any panel gets it.
+
+**`confirm()` is the wrong weight.** Replaced with `armButton()` in `panel.js`: the
+button itself arms (turns red, reads `×?`), a second click within 3 s commits,
+`pointerleave` or the timeout disarms. `skip()` is asked at CLICK time, so an empty
+buffer closes in one click and a buffer with text asks twice.
+
+**Panels had no DOM id** — only a registry key. `win.dataset.panelId = spec.id` now,
+which is also what makes them addressable from a test.
+
+## The bar, split three ways — and a right-click menu
+
+One 1900px strip of sixteen buttons is a list, not a grouping — BOOT sat next to
+RUN, GO LIVE next to EXAMPLES, and you learned positions rather than meanings. It
+is three small panels now, grouped by *when* you reach for a thing:
+
+| panel | holds |
+|---|---|
+| `run` | status dot · boot · load kit · run · stop · reload · perform · synth status |
+| `collab` | share · go live · split |
+| `learn` | tour · examples · version |
+
+Boot and transport share a bar: they are used at very different RATES — the kit
+loads once, stop gets hit all night — but they are adjacent in the only order that
+matters, *boot, load the kit, then run*, and splitting them put a panel edge in the
+middle of that sentence.
 
 **The rule that decides membership: a bar holds VERBS.** Anything whose button only
 showed or hid a panel — mix, parts, piano, modular, galaxy, docs, layouts — is a
