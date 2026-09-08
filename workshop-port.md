@@ -420,6 +420,62 @@ tempo/clock, session/collab rooms, audio analysis, a mixer, a preset/parts syste
 
 ---
 
+## Everything is a panel
+
+The last fixed chrome is gone. Panels are **closable** (`×` in the header,
+`spec.closable !== false`), which forced three other things to exist:
+
+- **`windows` panel** (`windows.js`) — a chip per panel, lit when open, click to
+  toggle. The one panel with `closable: false`, because a `×` with no way back is
+  a trap door. Owned panels answer via `panel.isOpen()/setOpen()`; hosted modules
+  are asked and toggled through their **own** button (`spec.btn`), never by hiding
+  the panel behind their back — do that and the module's flag and the panel
+  disagree, and the next press of the toolbar button does nothing. The generic `×`
+  on a hosted panel routes to `closeFloating(spec)` for the same reason. State is
+  polled at 400 ms rather than pushed, since the `×`, the module's own `✕`, Escape
+  and a recalled layout can all change it.
+- **`menu` panel** — `#toolbar`, adopted. It was fixed above the canvas on the
+  grounds that STOP is a panic button; stop-all is bound **globally** (Ctrl+; ·
+  Ctrl+, · Ctrl+.), so the bar had no claim to be the exception. `--toolbar-h` is
+  now `0`. Its body is `overflow: visible` — the EXAMPLES dropdown hangs out of the
+  bar and `auto` clipped it into a scrollbar.
+- **`changelog` panel** — `changelogHTML()` exported from `docs.js`, same builder
+  as the docs tab so the two cannot drift, plus the click-to-expand wiring.
+
+`open` is persisted in the same per-panel entry as position and colour, and
+`applyLayout` restores it — an arrangement that forgets what was put AWAY is only
+half an arrangement.
+
+**The home rectangle now starts at `HOME_Y = -96`**, not at the origin. The menu
+panel sits above y=0 where a top bar belongs, and `fitHome()` has to frame it or
+the one panel a first-time user most needs is just off the top edge. `fitHome`
+solves for the pan that puts `HOME_Y` on the margin rather than assuming the
+origin is the corner.
+
+**Wordmark**: `.canvas-wordmark` inside `#wfd-canvas`, so it pans and zooms with
+the workspace instead of floating over it as chrome. `pointer-events: none`.
+
+## Traps found the hard way (UI)
+
+**A captured pointer retargets the following click.** `beginDrag` calls
+`setPointerCapture` on the panel header, so Chrome dispatches the subsequent
+`dblclick` at the **header**, not at the `.panel-title` you actually hit — and the
+header's own `dblclick` collapses the panel. That is why double-click-to-rename on
+a detached buffer did nothing (it collapsed instead). Synthetic `PointerEvent`s do
+NOT reproduce it, because `setPointerCapture` throws on a synthetic pointerId and
+the capture never happens — the headless test passed while the feature was broken.
+Fix: record the `pointerdown` target (that event is not retargeted; capture starts
+*with* it) and route the dblclick on that. Renaming now lives in `panel.js` as
+`spec.onRename`, so any panel gets it.
+
+**`confirm()` is the wrong weight.** Replaced with `armButton()` in `panel.js`: the
+button itself arms (turns red, reads `×?`), a second click within 3 s commits,
+`pointerleave` or the timeout disarms. `skip()` is asked at CLICK time, so an empty
+buffer closes in one click and a buffer with text asks twice.
+
+**Panels had no DOM id** — only a registry key. `win.dataset.panelId = spec.id` now,
+which is also what makes them addressable from a test.
+
 ## Engine work done from here (portable to dev01)
 
 None of this is desktop-specific — cherry-pick it onto `dev01` when the branch lands.

@@ -806,6 +806,11 @@ function buildChangelog() {
         </div>`).join('');
 }
 
+// The changelog as markup, for anywhere that is not the docs overlay — the
+// desktop UI gives it a panel of its own. Same builder, so the two can never
+// drift apart.
+export function changelogHTML() { return buildChangelog(); }
+
 // Overview / copy-paste examples of everything implemented.
 function buildExamples() {
     // Auto-generate one line per registered synth so this never goes stale.

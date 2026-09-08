@@ -2526,14 +2526,31 @@ body.desktop-ui #keybar { z-index: 140; }
 #desktop.panning   { cursor: grabbing !important; }
 #desktop .panel    { cursor: default; }
 
-/* The toolbar stays pinned above the canvas rather than becoming a panel: STOP
-   is a panic button and must never be somewhere you have to pan to find. */
+/* The toolbar is a panel here (wfd-toolbar). Undo the fixed-bar styling so it
+   lays out inside a panel body like any other adopted element; stop-all stays one
+   keystroke away regardless (Ctrl+; · Ctrl+, · Ctrl+.), which is what let the bar
+   stop being the one fixed thing on the canvas. */
 body.desktop-ui #toolbar {
-    position: fixed; left: 0; right: 0; top: 0; z-index: 120;
-    border-bottom: 1px solid var(--border-1);
+    position: static; border-bottom: none;
+    width: 100%; box-sizing: border-box;
 }
+/* overflow:visible, not auto: the EXAMPLES dropdown and the colour/theme menus
+   hang out of the bar, and a scrolling body would clip them into a scrollbar. The
+   bar is sized to fit its panel, so there is nothing to scroll anyway. */
+body.desktop-ui .wfd-body-wfd-toolbar { padding: 0; overflow: visible; }
 
 #wfd-canvas { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; z-index: 0; }
+
+/* The wordmark on the canvas floor: big, dim, and behind every panel. Sized in
+   canvas px so it scales with the zoom like the rest of the workspace. */
+.canvas-wordmark {
+    display: flex; align-items: center; justify-content: center;
+    font: 700 300px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: -0.02em;
+    color: var(--text-1);
+    opacity: 0.045;
+    z-index: 0;
+}
 
 /* Two background zones: the whole workspace, and the "home" rectangle the
    default layout is arranged in — so you can always find your way back. */
@@ -2666,6 +2683,44 @@ body.desktop-ui .panel-body > .cp-section + .cp-section > h3 { display: block; }
 }
 .panel-backdrop-btn:hover { background: var(--bg-1); color: var(--text-1); }
 .panel-backdrop-btn.on { color: var(--green); text-shadow: 0 0 6px var(--glow); }
+
+/* Close. Same weight as the other header buttons — it is not a warning until it
+   is armed, and then it says so in red rather than in a dialog. */
+.panel-close {
+    width: 18px; height: 18px; padding: 0;
+    font-size: 14px; line-height: 1;
+    background: transparent; border: none;
+    color: var(--text-2); cursor: pointer; border-radius: 2px;
+}
+.panel-close:hover { background: var(--bg-1); color: var(--red); }
+.panel-backdrop-btn.armed, .panel-close.armed {
+    color: var(--red); background: var(--bg-1);
+    box-shadow: inset 0 0 0 1px var(--red);
+}
+
+/* Renaming a panel in place — the title IS the field, so there is no dialog and
+   nothing moves. Matches the tab strip's rename field. */
+.panel-title-input {
+    font: inherit; color: var(--green);
+    background: var(--bg-1); border: 1px solid var(--green);
+    border-radius: 2px; padding: 0 3px; margin: -1px 0;
+    outline: none; min-width: 40px;
+}
+
+/* Windows list — one chip per panel, lit when it is open. */
+.wfd-win-wrap { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; align-content: flex-start; }
+.wfd-win-chip {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 3px; cursor: pointer;
+    background: var(--bg-1); color: var(--text-2);
+    border: 1px solid var(--border-1);
+}
+.wfd-win-chip:hover { color: var(--text-1); border-color: var(--text-2); }
+.wfd-win-chip.on { color: var(--green); border-color: var(--green); background: var(--bg-2); }
+
+/* The changelog in a panel reads as a document, not as a dashboard. */
+.wfd-changelog-body { overflow: auto; padding: 8px 10px; }
+.wfd-changelog-body .docs-section { margin-bottom: 14px; }
 /* Closing a detached buffer throws its text away — colour it like the tab strip's ×. */
 .wfd-buf-close { font-size: 13px; }
 .wfd-buf-close:hover { background: var(--bg-1); color: var(--red); }

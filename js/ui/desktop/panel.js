@@ -143,6 +143,7 @@ export function createPanel(desktop, spec) {
 
     const win = document.createElement("div");
     win.className = "panel";
+    win.dataset.panelId = spec.id;
     win.style.left = `${x}px`; win.style.top = `${y}px`;
     win.style.width = `${w}px`; win.style.height = `${h}px`;
     win.style.zIndex = ++zTop;
@@ -227,7 +228,20 @@ export function createPanel(desktop, spec) {
     collapseBtn.className = "panel-collapse";
     collapseBtn.textContent = "▁";
     collapseBtn.title = "collapse/expand";
+
+    // ── close ──
+    // A panel you cannot put away is furniture, not a window. Closing hides it and
+    // records that in the same per-panel entry as position and colour, so an
+    // arrangement remembers what was OUT as well as where it was. Reopening is the
+    // WINDOWS panel's job — which is why the one panel that lists the others passes
+    // closable:false and keeps no ×.
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "panel-close";
+    closeBtn.textContent = "×";
+    closeBtn.title = "close — reopen it from the WINDOWS panel";
+
     head.append(title, colorWrap, setHomeBtn, sendHomeBtn, pinBtn, collapseBtn);
+    if (spec.closable !== false) head.append(closeBtn);
     win.appendChild(head);
 
     const body = document.createElement("div");
@@ -243,6 +257,29 @@ export function createPanel(desktop, spec) {
 
     function bringToFront() { win.style.zIndex = ++zTop; }
     win.addEventListener("pointerdown", bringToFront);
+
+    // Show/hide without destroying anything: the panel keeps its adopted DOM, its
+    // listeners and its geometry, so reopening is instant and nothing inside has to
+    // know it was away. `persist` is off when the caller is only MIRRORING a state it
+    // already owns (a hosted module's own hidden flag), so we never fight it.
+    function setOpen(on, persist = true) {
+        win.style.display = on ? "" : "none";
+        if (persist) saveLayoutEntry(spec.id, { open: !!on });
+        if (on) bringToFront();
+        spec.onOpenChange?.(!!on);
+    }
+    function isOpen() { return win.style.display !== "none"; }
+    closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // A hosted module owns its own open flag and its own toggle button; closing
+        // the PANEL behind its back would leave the two disagreeing, so hand the
+        // close back to whoever adopted it.
+        if (spec.onClose) spec.onClose();
+        else setOpen(false);
+    });
+    // Come back closed if that is how it was left. Hosted panels re-sync from their
+    // module a moment later, so this is only the starting position for them.
+    if (spec.closable !== false && saved.open === false) win.style.display = "none";
 
     // ── pin: lock panel to viewport regardless of canvas pan/zoom ──
     // dpx/dpy are the panel's position in #desktop layout pixels — they stay
@@ -439,10 +476,59 @@ export function createPanel(desktop, spec) {
         saveLayoutEntry(spec.id, { collapsed });
     }
     collapseBtn.addEventListener("click", toggleCollapse);
+
+    // ── rename in place ──
+    // Offered only when the caller supplies onRename — a panel whose title is a
+    // fixed label has nothing to rename.
+    function startRename() {
+        if (!spec.onRename || title.querySelector("input")) return;
+        const was = title.textContent;
+        const input = document.createElement("input");
+        input.className = "panel-title-input";
+        input.value = was;
+        input.spellcheck = false;
+        input.size = Math.max(4, was.length + 1);
+        title.textContent = "";
+        title.appendChild(input);
+        input.focus();
+        input.select();
+        let done = false;
+        const finish = (commit) => {
+            if (done) return;
+            done = true;
+            const v = input.value.trim().slice(0, 24);
+            title.textContent = (commit && v) ? v : was;
+            if (commit && v && v !== was) spec.onRename(v);
+        };
+        input.addEventListener("keydown", (ev) => {
+            ev.stopPropagation();                       // never reaches an editor keymap
+            if (ev.key === "Enter")  { ev.preventDefault(); finish(true); }
+            if (ev.key === "Escape") { ev.preventDefault(); finish(false); }
+        });
+        input.addEventListener("input", () => { input.size = Math.max(4, input.value.length + 1); });
+        input.addEventListener("blur", () => finish(true));
+        // Clicks in the field must not drag the panel or collapse it.
+        for (const t of ["click", "pointerdown", "dblclick"])
+            input.addEventListener(t, (ev) => ev.stopPropagation());
+    }
+
+    // beginDrag takes pointer capture on the HEADER, and a captured pointer makes
+    // the browser retarget the following click/dblclick to the capture element. So
+    // a double-click on the title arrives with e.target === head and a listener that
+    // tests e.target would collapse the panel instead of renaming it — which is
+    // exactly what it did. Remember where the POINTER went down (that event is not
+    // retargeted, capture only starts with it) and route on that instead.
+    let lastDown = null;
+    head.addEventListener("pointerdown", (e) => { lastDown = e.target; }, true);
     head.addEventListener("dblclick", (e) => {
-        if (e.target === collapseBtn) return; // button already handled via click
+        if (e.target === collapseBtn || lastDown === collapseBtn) return; // handled via click
+        if (spec.onRename && lastDown && (lastDown === title || title.contains(lastDown))) {
+            startRename();
+            return;
+        }
         toggleCollapse();
     });
+    if (spec.onRename) title.title = "double-click to rename";
 
     // Push a layout entry onto this ALREADY-BUILT panel immediately (used by
     // named-layout switching) — also persists it as the new "current" layout.
@@ -463,14 +549,43 @@ export function createPanel(desktop, spec) {
             collapsed = entry.collapsed;
             applyCollapsed();
         }
+        if (entry.open != null && spec.closable !== false) setOpen(!!entry.open, false);
         saveLayoutEntry(spec.id, entry);
     }
 
     // Let a hosted module's own header bar move the panel too — see hostFloating().
     const addDragHandle = (el) => { if (el) el.addEventListener("pointerdown", beginDrag); };
-    const api = { el: win, body, bringToFront, applyLayout, addDragHandle };
+    const api = { el: win, body, bringToFront, applyLayout, addDragHandle, setOpen, isOpen, startRename, setTitle(t) { title.textContent = t; } };
     registry.set(spec.id, api);
     return api;
+}
+
+/**
+ * Two-step confirm ON the button, instead of a browser confirm() — an unstyled
+ * modal that stops the world is the wrong weight for "are you sure" about one
+ * panel, and it cannot be themed or dismissed by clicking away. First click arms
+ * (the button says so); a second within `ms` commits; anything else disarms.
+ */
+export function armButton(btn, { armedText = "×?", armedTitle = "click again to confirm", onConfirm, skip, ms = 3000 } = {}) {
+    const text = btn.textContent, title = btn.title;
+    let timer = null;
+    const disarm = () => {
+        clearTimeout(timer); timer = null;
+        btn.classList.remove("armed");
+        btn.textContent = text; btn.title = title;
+    };
+    btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (timer) { disarm(); onConfirm?.(); return; }
+        // Nothing to lose → no ceremony. Asked at click time, not at build time, so
+        // it tracks what the panel holds NOW.
+        if (skip?.()) { onConfirm?.(); return; }
+        btn.classList.add("armed");
+        btn.textContent = armedText; btn.title = armedTitle;
+        timer = setTimeout(disarm, ms);
+    });
+    btn.addEventListener("pointerleave", () => { if (timer) disarm(); });
+    return disarm;
 }
 
 export function resetAllLayouts() {

@@ -52,6 +52,7 @@
       <button id="docs-toggle-btn" title="documentation (F1)">docs</button>
       <button id="btn-split" title="split view — peers' evals below (in a session)">split</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">zen</button>
+      <button id="btn-windows" hidden title="windows — every panel on the canvas, with a chip to show or hide it. Only in desktop mode">windows</button>
       <button id="btn-layouts" hidden title="layouts — saved workspaces: every panel's position, size and colour, plus the view. Only in desktop mode">layouts</button>
       <button id="btn-desktop" title="desktop — experimental: the whole app on an infinite pan/zoom canvas, every part a draggable panel. Ctrl+scroll zooms, drag the background to pan, double-click it to reset.">desktop</button>
       <!-- visuals: a 2-channel video mixer driven by video1/video2/… >> scene players -->
@@ -3685,6 +3686,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             const lb = document.getElementById('btn-layouts');
             lb.hidden = false;                       // desktop-only: there are no panels to arrange otherwise
             lb.onclick = () => _dk.showLayouts();
+            // Panels can be closed now, so there has to be a way back that does not
+            // itself depend on having found the WINDOWS panel first.
+            const wb = document.getElementById('btn-windows');
+            wb.hidden = false;
+            wb.onclick = () => _dk.showWindows();
             _detachHost = _dk.detachBuffer;
             _tabs.refresh?.();          // reveal the detach buttons now there is a host
             document.getElementById('btn-desktop').classList.add('active');

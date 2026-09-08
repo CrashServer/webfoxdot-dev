@@ -19,9 +19,11 @@
 // the mode is persisted, so a reload lands you exactly where you asked to be.
 
 import { initCanvas, resetView, getZoom, onViewChange, panToReveal } from './canvas.js';
-import { createPanel, resetAllLayouts, LAYOUT_KEY } from './panel.js';
+import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
+import { buildWindowsPanel } from './windows.js';
+import { changelogHTML } from '../docs.js';
 
 /**
  * Give one of the floating overlays a panel, whenever its root shows up.
@@ -64,7 +66,15 @@ function hostFloating(canvas, spec, clock) {
 
     const adopt = (el) => {
         if (panel) return;
-        panel = createPanel(canvas, { ...spec, onResize: remeasure });
+        panel = createPanel(canvas, {
+            ...spec,
+            onResize: remeasure,
+            // These modules own their own open flag and their own toggle button.
+            // Hiding the PANEL behind their back would leave the two disagreeing and
+            // the next press of the toolbar button would do nothing — so the × in the
+            // header presses the same button you would.
+            onClose: () => closeFloating(spec),
+        });
         panel.body.classList.add('wfd-panel-body', 'wfd-float-body');
         panel.body.appendChild(el);
         el.classList.add('wfd-hosted');
@@ -91,6 +101,40 @@ function hostFloating(canvas, spec, clock) {
         if (el) { watch.disconnect(); adopt(el); }
     });
     watch.observe(document.body, { childList: true });
+}
+
+// The hosted modules' open state lives in their own root element, not in ours:
+// `hidden` as an attribute for some, a .hidden class for the rest. One reader and
+// one writer for both, so nothing else has to remember which is which.
+function floatingIsOpen(spec) {
+    const el = document.querySelector(spec.sel);
+    if (!el) return false;
+    return !(spec.attr ? el.hasAttribute('hidden') : el.classList.contains('hidden'));
+}
+function toggleFloating(spec) {
+    const btn = document.querySelector(spec.btn);
+    if (btn) { btn.click(); return; }
+    // No button (or not built yet) — fall back to the flag the module itself uses.
+    const el = document.querySelector(spec.sel);
+    if (!el) return;
+    if (spec.attr) el.toggleAttribute('hidden');
+    else el.classList.toggle('hidden');
+}
+function closeFloating(spec) {
+    if (floatingIsOpen(spec)) toggleFloating(spec);
+}
+
+// The changelog, as a panel body rather than a tab behind a small version label.
+// It reuses the docs markup and stylesheet verbatim, so an entry looks the same
+// wherever you read it — including the click-to-expand detail, which is the whole
+// reason the changelog is readable at all.
+function buildChangelogBody(body) {
+    body.classList.add('wfd-changelog-body');
+    body.innerHTML = changelogHTML();
+    body.addEventListener('click', (e) => {
+        const sum = e.target.closest('.cl-summary');
+        if (sum) sum.closest('.cl-item')?.classList.toggle('open');
+    });
 }
 
 // A ▦ button in every panel header: run the visuals behind that panel's content.
@@ -128,7 +172,7 @@ function addBackdropButton(panelEl, clock) {
 // layout at a real font size, so every measurement CodeMirror makes is consistent
 // and the cursor lands where you click.
 let editorBody = null, editorLayer = null, baseFontPx = 14;
-let layoutsPanel = null;   // the layouts panel element, for the toolbar button
+let windowsBody  = null;   // the windows panel body, filled once every panel exists
 // The zoom the layer was last laid out for. Between settles the layer keeps this
 // geometry and simply rides the canvas transform, which costs nothing.
 let settledZoom = 1;
@@ -221,6 +265,20 @@ const PANELS = [
     // the rest — the toolbar's LAYOUTS button pans to it and raises it, so it stays
     // findable after you have panned somewhere else.
     { id: 'wfd-layouts', title: 'layouts',     x:1102, y:1004, w:  300, h:  92, minW: 240, minH: 80, layouts: true },
+    // The top bar, as a panel. It sat fixed above the canvas on the reasoning that
+    // STOP is a panic button and must never be somewhere you have to pan to find —
+    // which is still true, and is why stop-all is bound GLOBALLY (Ctrl+; · Ctrl+, ·
+    // Ctrl+.) rather than living only on that button. With the key always there, the
+    // bar has no claim to be the one part of the app that is not a panel. It sits
+    // just above the home rectangle, where a top bar belongs; ⊙ pins it to the
+    // viewport if you want it to stay put while you pan.
+    { id: 'wfd-toolbar', title: 'menu',        x:   0, y: -78, w: 1914, h:  66, minW: 320, minH: 44, adopt: ['#toolbar'] },
+    // Every window on the canvas, with a chip to bring it back. The one panel with
+    // no × — see windows.js.
+    { id: 'wfd-windows', title: 'windows',     x:1524, y:1004, w:  390, h: 200, minW: 240, minH: 90, windows: true, closable: false },
+    // The changelog was reachable only as a tab inside the docs overlay, behind the
+    // small version label. On a canvas you can just leave it open next to the code.
+    { id: 'wfd-changelog', title: 'changelog', x:1802, y:1732, w:  520, h: 580, minW: 320, minH: 200, changelog: true },
 ];
 
 // The floating overlays — mixer, modular, parts, room rules, docs, galaxy — get
@@ -306,18 +364,23 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     // a frame behind the box it lives in.
     const refresh = () => editor?.refresh?.();
 
+    const ownedPanels = new Map();          // id → panel api, for the windows list
+    const BUILT = (spec) => spec.screen || spec.layouts || spec.windows || spec.changelog;
     for (const spec of PANELS) {
-        const src = (spec.screen || spec.layouts) ? []
-                  : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
-        if (!spec.screen && !spec.layouts && !src.length) continue;   // not in this build
+        const src = BUILT(spec) ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
+        if (!BUILT(spec) && !src.length) continue;   // not in this build
 
-        const { el: panelEl, body: panelBody } = createPanel(canvas, {
+        const panelApi = createPanel(canvas, {
             ...spec,
             onResize: spec.id === 'wfd-editor' ? () => scheduleEditorScale(editor) : undefined,
         });
+        const { el: panelEl, body: panelBody } = panelApi;
+        ownedPanels.set(spec.id, panelApi);
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
         if (spec.screen)  mountScreen(panelBody, clock);
-        if (spec.layouts) { buildLayoutsPanel(panelBody, log); layoutsPanel = panelEl; }
+        if (spec.layouts) buildLayoutsPanel(panelBody, log);
+        if (spec.windows) windowsBody = panelBody;
+        if (spec.changelog) buildChangelogBody(panelBody);
         if (spec.id === 'wfd-editor') {
             // The editor gets a counter-scale layer — see keepEditorUnscaled().
             editorBody = panelBody;
@@ -333,6 +396,24 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     }
 
     for (const spec of FLOATING) hostFloating(canvas, spec, clock);
+
+    // The windows list, built last because it needs every panel to exist first.
+    // Owned panels answer for themselves; hosted ones are asked through their own
+    // module, which is the only thing that actually knows whether they are open.
+    if (windowsBody) {
+        buildWindowsPanel(windowsBody, [
+            ...PANELS.filter(p => p.closable !== false && ownedPanels.has(p.id)).map(p => ({
+                id: p.id, title: p.title,
+                isOpen: () => ownedPanels.get(p.id).isOpen(),
+                toggle: () => ownedPanels.get(p.id).setOpen(!ownedPanels.get(p.id).isOpen()),
+            })),
+            ...FLOATING.map(f => ({
+                id: f.id, title: f.title,
+                isOpen: () => floatingIsOpen(f),
+                toggle: () => toggleFloating(f),
+            })),
+        ]);
+    }
 
     // Reopen whatever was open last time, by pressing the same buttons you would.
     // Deferred a beat so every module has finished wiring its own toggle first.
@@ -367,6 +448,14 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         const panel = createPanel(canvas, {
             id, title: name,
             x: 1102 + step * 28, y: 1106 + step * 28, w: 720, h: 440, minW: 320, minH: 160,
+            // No generic × — a buffer's close DISCARDS a document, so it gets its own
+            // (below) that says so and asks twice.
+            closable: false,
+            // Renaming lives in the panel system now, so a detached buffer renames
+            // exactly like a tab does — double-click the name, type, Enter. All this
+            // has to do is keep the map key (and therefore the piano's "to" picker
+            // and bufferTargets()) pointing at the same document.
+            onRename: (v) => { detached.delete(name); name = v; detached.set(name, doc); },
         });
         panel.body.classList.add('wfd-panel-body', 'wfd-buf-body');
         const layer = document.createElement('div');
@@ -422,55 +511,15 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         head?.insertBefore(back, before);
 
         // × discards it. A detached buffer had no way out except back to the strip,
-        // so closing one meant reattaching it and then closing it there.
+        // so closing one meant reattaching it and then closing it there. Two-step on
+        // the button rather than a confirm() dialog — see armButton().
         const close = document.createElement('button');
         close.className = 'panel-backdrop-btn wfd-buf-close';
         close.textContent = '\u00d7';
         close.title = 'close this buffer — its text is discarded';
-        close.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (doc.getValue().trim() && !confirm(`Close "${name}"? Its text is discarded.`)) return;
-            teardown();
-        });
+        armButton(close, { armedText: '\u00d7?', armedTitle: 'click again to discard this buffer',
+                           skip: () => !doc.getValue().trim(), onConfirm: teardown });
         head?.insertBefore(close, before);
-
-        // Double-click the title to rename, exactly as in the strip — same inline
-        // field, so a detached buffer is not a second-class tab.
-        const titleEl = panel.el.querySelector('.panel-title');
-        if (titleEl) titleEl.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            if (titleEl.querySelector('input')) return;
-            const input = document.createElement('input');
-            input.className = 'ed-tab-rename';
-            input.value = name;
-            input.spellcheck = false;
-            input.size = Math.max(4, name.length + 1);
-            titleEl.textContent = '';
-            titleEl.appendChild(input);
-            input.focus(); input.select();
-            let done = false;
-            const finish = (commit) => {
-                if (done) return;
-                done = true;
-                const v = input.value.trim().slice(0, 24);
-                if (commit && v && v !== name) {
-                    detached.delete(name);
-                    name = v;
-                    detached.set(name, doc);
-                }
-                titleEl.textContent = name;
-            };
-            input.addEventListener('keydown', (ev) => {
-                ev.stopPropagation();
-                if (ev.key === 'Enter')  { ev.preventDefault(); finish(true); }
-                if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
-            });
-            input.addEventListener('input', () => { input.size = Math.max(4, input.value.length + 1); });
-            input.addEventListener('blur', () => finish(true));
-            for (const k of ['click', 'pointerdown', 'dblclick'])
-                input.addEventListener(k, (ev) => ev.stopPropagation());
-        });
-        if (titleEl) titleEl.title = 'double-click to rename this buffer';
 
         addBackdropButton(panel.el, clock);
         panToReveal(panel.el);
@@ -478,19 +527,9 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         return true;
     }
 
-    // The toolbar is NOT a panel: STOP is a panic button and must never be
-    // somewhere you have to pan to find. Lift it out of the (now empty) editor
-    // column so it can be pinned over the canvas.
-    const toolbar = document.getElementById('toolbar');
-    if (toolbar) {
-        document.body.appendChild(toolbar);
-        // The bar wraps to two rows on a narrow window, so measure it rather than
-        // assume — the canvas starts wherever it actually ends.
-        const setH = () => document.documentElement.style.setProperty(
-            '--toolbar-h', toolbar.offsetHeight + 'px');
-        setH();
-        new ResizeObserver(setH).observe(toolbar);
-    }
+    // The toolbar is a panel now (wfd-toolbar, adopted above), so the canvas gets
+    // the whole viewport back — nothing is reserved above it any more.
+    document.documentElement.style.setProperty('--toolbar-h', '0px');
 
     // Whatever is left of the classic chrome is now empty scaffolding.
     document.getElementById('crash-panel')?.remove();
@@ -530,16 +569,26 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         setTimeout(fix, 100);
     }
 
+    // Bring an owned panel back and put it where you can see it.
+    const reveal = (id) => {
+        const p = ownedPanels.get(id);
+        if (!p) return false;
+        p.setOpen(true);
+        panToReveal(p.el);
+        return true;
+    };
+
     onReady?.(desktop);
     return {
         desktop, canvas, resetView, getZoom, resetAllLayouts, detachBuffer,
         detachedBuffers: () => [...detached].map(([name, doc]) => ({ name, doc, detached: true })),
         // The toolbar's LAYOUTS button: bring the panel into view and raise it.
-        showLayouts() {
-            if (!layoutsPanel) return false;
-            layoutsPanel.style.display = '';
-            panToReveal(layoutsPanel);
-            return true;
-        },
+        // Through setOpen, not by poking style.display, so a panel that was CLOSED
+        // comes back properly recorded as open rather than reappearing and then
+        // vanishing again on the next reload.
+        showLayouts() { return reveal('wfd-layouts'); },
+        // The way back to any panel you put away — and the only one that cannot
+        // itself be closed, which is why the toolbar points at it.
+        showWindows() { return reveal('wfd-windows'); },
     };
 }

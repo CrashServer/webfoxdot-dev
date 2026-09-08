@@ -28,8 +28,12 @@ const STORAGE_KEY = "wfd-desktop-view";
 // Fine dot pitch at zoom=1 (matches panel.js GRID for snap alignment).
 const GRID = 22;
 
-// The default layout's footprint, drawn as a faint "home" rectangle.
-const HOME_W = 1920, HOME_H = 1080;
+// The default layout's footprint, drawn as a faint "home" rectangle. It starts
+// ABOVE the origin: the menu bar is a panel now and sits where a top bar belongs,
+// so the rectangle that "reset view" frames has to include it — otherwise the one
+// panel you most need to find on a first run is the one just off the top edge.
+const HOME_Y = -96;
+const HOME_W = 1920, HOME_H = 1080 - HOME_Y;
 
 const MIN_ZOOM = 0.15, MAX_ZOOM = 3;
 
@@ -119,9 +123,22 @@ export function initCanvas(canvas) {
     const stage = document.createElement("div");
     stage.className = "canvas-stage";
     stage.style.cssText =
-        `position:absolute;left:0;top:0;` +
+        `position:absolute;left:0;top:${HOME_Y}px;` +
         `width:${HOME_W}px;height:${HOME_H}px;pointer-events:none;`;
     canvas.appendChild(stage);
+
+    // Wordmark. The canvas is mostly empty space, and empty space with nothing in
+    // it reads as "lost" rather than as "room" — this gives the home rectangle a
+    // face, and tells you at a glance which way is up after a long pan. It lives IN
+    // the canvas, so it pans and zooms with the workspace instead of floating over
+    // it like chrome, and it is pointer-events:none so it never eats a drag.
+    const mark = document.createElement("div");
+    mark.className = "canvas-wordmark";
+    mark.textContent = "crashDot";
+    mark.style.cssText =
+        `position:absolute;left:0;top:${HOME_Y}px;width:${HOME_W}px;height:${HOME_H}px;` +
+        `pointer-events:none;user-select:none;`;
+    canvas.appendChild(mark);
 
     if (restored) apply(); else fitHome();
 
@@ -218,7 +235,9 @@ export function fitHome() {
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM,
         Math.min((vw - M * 2) / HOME_W, (vh - M * 2) / HOME_H)));
     panX = (vw - HOME_W * zoom) / 2;
-    panY = (vh - HOME_H * zoom) / 2;
+    // The rectangle's top is at HOME_Y, not at 0 — solve for the pan that puts it
+    // on the top margin rather than assuming the origin is the corner.
+    panY = (vh - HOME_H * zoom) / 2 - HOME_Y * zoom;
     apply();
 }
 
