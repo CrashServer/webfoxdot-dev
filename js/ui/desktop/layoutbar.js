@@ -61,18 +61,30 @@ export function buildLayoutsPanel(container, log = () => {}) {
         const foot = document.createElement('div');
         foot.className = 'wfd-lb-foot';
 
+        // Naming happens in a field here, not in a browser prompt() — the panel is
+        // already open and pointed at, and a modal to ask one question is a lot.
+        const saveRow = document.createElement('div');
+        saveRow.className = 'wfd-lb-saverow';
+        const nameInput = document.createElement('input');
+        nameInput.className = 'wfd-lb-name';
+        nameInput.placeholder = 'name this workspace…';
+        nameInput.spellcheck = false;
         const save = document.createElement('button');
-        save.className = 'wfd-lb-action';
-        save.textContent = '+ save current…';
-        save.onclick = () => {
-            const name = prompt('name this workspace');
-            if (name == null) return;
-            const n = name.trim();
-            if (!n) return;
+        save.className = 'wfd-lb-action wfd-lb-save';
+        save.textContent = 'save';
+        const commit = () => {
+            const n = nameInput.value.trim();
+            if (!n) { nameInput.focus(); return; }
             saveLayout(n);
             log(`layout: saved "${n}" — panels and the view`, 'ok');
             render();
         };
+        save.onclick = commit;
+        nameInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        });
+        saveRow.append(nameInput, save);
 
         const fit = document.createElement('button');
         fit.className = 'wfd-lb-action';
@@ -88,7 +100,7 @@ export function buildLayoutsPanel(container, log = () => {}) {
             if (confirm('Forget every panel position and size, and reload?')) resetAllLayouts();
         };
 
-        foot.append(save, fit, wipe);
+        foot.append(saveRow, fit, wipe);
         pop.appendChild(foot);
     }
 

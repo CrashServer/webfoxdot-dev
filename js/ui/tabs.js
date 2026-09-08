@@ -132,14 +132,44 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         onSwitch(t.main, t.name);
     }
 
-    function rename(i) {
+    // Rename in place. A browser prompt() is an unstyled modal that stops the world
+    // to ask one question — for renaming a tab you are already pointing at, the tab
+    // itself is the right field.
+    function rename(i, labelEl) {
         const t = tabs[i];
-        if (!t || t.main) return;
-        const name = prompt('name this buffer', t.name);
-        if (name == null) return;
-        t.name = name.trim().slice(0, 24) || t.name;
-        render();
-        save();
+        if (!t || t.main || !labelEl || labelEl.querySelector('input')) return;
+        const input = document.createElement('input');
+        input.className = 'ed-tab-rename';
+        input.value = t.name;
+        input.spellcheck = false;
+        input.size = Math.max(4, t.name.length + 1);
+        labelEl.textContent = '';
+        labelEl.appendChild(input);
+        input.focus();
+        input.select();
+
+        let done = false;
+        const finish = (commit) => {
+            if (done) return;
+            done = true;
+            if (commit) {
+                const v = input.value.trim().slice(0, 24);
+                if (v) t.name = v;
+            }
+            render();
+            save();
+        };
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();                      // never reaches the editor keymap
+            if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+            if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        });
+        // Grow with the text rather than clipping a longer name as you type it.
+        input.addEventListener('input', () => { input.size = Math.max(4, input.value.length + 1); });
+        input.addEventListener('blur', () => finish(true));
+        // Clicks inside the field must not switch or drag the tab underneath.
+        for (const t2 of ['click', 'pointerdown', 'dblclick'])
+            input.addEventListener(t2, (e) => e.stopPropagation());
     }
 
     // ── strip ───────────────────────────────────────────────────────────────
@@ -170,7 +200,7 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
                 x.title = 'close this buffer — its text is discarded';
                 x.onclick = (e) => { e.stopPropagation(); close(i); };
                 el.appendChild(x);
-                el.ondblclick = () => rename(i);
+                el.ondblclick = () => rename(i, label);
             }
             el.onclick = () => go(i);
             mount.appendChild(el);
