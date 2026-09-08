@@ -2779,13 +2779,42 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // Remember which editor line evaluated each player, so the highlight lands on
     // the line that's actually sounding (a name can recur across sections).
+    // Lines that have actually been EVALUATED, per buffer, held by line handle so
+    // they follow edits above them. The var needles read this: an animation on a
+    // line nobody has run is a picture of something that is not happening.
+    const _ranLines = new Map();      // doc → Set<lineHandle>
+
     function recordSourceLines(from, to) {
         const doc = codeDoc();
         const lo = Math.max(0, from), hi = Math.min(doc.lineCount() - 1, to);
+        let ran = _ranLines.get(doc);
+        if (!ran) { ran = new Set(); _ranLines.set(doc, ran); }
         for (let i = lo; i <= hi; i++) {
+            const h = doc.getLineHandle?.(i);
+            if (h) ran.add(h);
             const m = doc.getLine(i).match(_NAME_RE);
             if (m) _srcLine.set(m[1], { line: i, doc });
         }
+        // Running a line changes no TEXT, so none of the editor events that drive the
+        // var scan fire. Ask for one explicitly, or a needle would only appear the
+        // next time you happened to type something.
+        scheduleVarScan?.();
+    }
+
+    /**
+     * Should line `i` of `doc` be showing a live var animation?
+     * It has to have been run — and, if it defines a player, that player has to still
+     * be going. Stop everything and the needles stop with it.
+     */
+    function lineIsLive(doc, i) {
+        const ran = _ranLines.get(doc);
+        if (!ran || !ran.size) return false;
+        const h = doc.getLineHandle?.(i);
+        if (!h || !ran.has(h)) return false;
+        const m = doc.getLine(i).match(_NAME_RE);
+        if (!m) return true;                       // Clock.bpm = linvar(…) and friends
+        const p = clock._players?.get(m[1]);
+        return !!(p && p._active);
     }
     // The line this player is sounding from, IN THE BUFFER ON SCREEN. Returns -1 when
     // it is sounding from a different buffer — the marker belongs over there, not on
@@ -3352,6 +3381,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         for (let i = lo; i < hi; i++) {
             const text = editor.getLine(i);
             if (!text || text.trimStart().startsWith('#')) continue;   // a commented line does not run
+            // …and nor does one you have not evaluated. A needle sweeping across a
+            // var in a line that was never run — pasted by chaos(), sitting in a
+            // scratch buffer, or in a section the arrangement has not reached — shows
+            // a value that nothing is using.
+            if (!lineIsLive(editor.getDoc(), i)) continue;
             for (const v of parseVars(text)) {
                 const el = document.createElement('div');
                 el.className = v.kind === 'step' ? 'wfd-var-box' : 'wfd-var-bar';
@@ -3371,6 +3405,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         for (const it of _varItems) {
             const line = editor.getLineNumber(it.handle);       // follows edits above it
             if (line == null || line < 0 || line >= editor.lineCount()) { it.el.style.display = 'none'; continue; }
+            // Checked every frame, not just at scan time: stopping a player has to
+            // stop its needle straight away, and stopping changes no text either.
+            if (!lineIsLive(editor.getDoc(), line)) { it.el.style.display = 'none'; continue; }
             if (it.kind === 'step') {
                 // Box the element that is live right now. Its own two ends must share a
                 // visual row for the box to mean anything — same wrap guard as below.
