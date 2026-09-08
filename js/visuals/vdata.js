@@ -1,4 +1,6 @@
-import { WORKSHOP_NAMES, WORKSHOP_FX_NAMES, defaults as wsDefaults } from './workshop/index.js';
+// The CATALOG, not the registry: names and defaults only, so a session that never
+// opens a visual does not parse 206 layer modules. See workshop/catalog.js.
+import { WORKSHOP_NAMES, WORKSHOP_FX_NAMES, defaults as wsDefaults } from './workshop/catalog.js';
 
 // Shared visual constants — imported by both vlang.js (main window, for routing /
 // validation / autocomplete) and clift.js (pop-out, for rendering). Single source of

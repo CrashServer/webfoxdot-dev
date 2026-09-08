@@ -14,8 +14,8 @@ import { draw } from './draw.js';
 import * as fx from './postfx.js';
 import { RENDER_MODES } from '../vdata.js';
 import { createGLRenderer } from './gl/renderer.js';
-import { createWorkshopDeck } from './wsdeck.js';
-import { WORKSHOP_FX } from '../workshop/index.js';
+import { WORKSHOP_FX_NAMES } from '../workshop/catalog.js';
+const WS_FX = new Set(WORKSHOP_FX_NAMES);
 import { V, AUD, S } from './state.js';
 
 const glCanvas = document.getElementById('visgl');
@@ -33,7 +33,18 @@ let beatPulse = 0;
 let lastClearSeq = 0;
 let lastRes;                                     // last applied vres() scale
 let overlayOpaque = true;                        // is the 2D canvas currently covering GL?
-let wsd = null;                                  // workshop-layer deck, built on first use
+// The workshop deck — and with it 206 layer modules, 1.6MB — is imported the first
+// time a workshop layer is used, so a set of field scenes never pays for it.
+let wsd = null, wsdPending = false;
+function wsDeck() {
+    if (wsd || wsdPending) return wsd;
+    wsdPending = true;
+    import('./wsdeck.js')
+        .then((m) => { wsd = m.createWorkshopDeck(); })
+        .catch((e) => { console.warn('visuals: workshop layers failed to load —', e?.message || e); })
+        .finally(() => { wsdPending = false; });
+    return null;
+}
 // Workshop layers animate on the SHARED beat, not on this machine's clock — see
 // surface.js. Same line on two peers means the same picture at the same phase.
 const BEAT_SECONDS = 60 / 120;
@@ -54,7 +65,7 @@ addEventListener('resize', resize); resize();
 // fold, hueshift, pixelsort) still falls through to this global pass.
 function maxFx(key, base = 0) {
     let m = base;
-    for (const l of V.layers) { if (l.ws && WORKSHOP_FX[key]) continue; const f = l.fx && l.fx[key]; if (typeof f === 'number' && f > m) m = f; else if (f === true && m < 1) m = 1; }
+    for (const l of V.layers) { if (l.ws && WS_FX.has(key)) continue; const f = l.fx && l.fx[key]; if (typeof f === 'number' && f > m) m = f; else if (f === true && m < 1) m = 1; }
     return m;
 }
 function fxBundle() {
@@ -151,12 +162,12 @@ function loop(ts) {
             // canvas per deck and reach the GPU as a texture. Nothing to do on the glyph
             // path: a glyph ramp is a function of a scalar field, which they are not.
             const ws = V.layers.filter((l) => l.ws);
-            if (ws.length) {
-                if (!wsd) wsd = createWorkshopDeck();
+            const dk = ws.length ? wsDeck() : null;
+            if (dk) {
                 const { W: gw, H: gh } = glr.size;
                 // Room time — see surface.js. The pop-out window has no clock of its
                 // own, but the bridge streams the beat, which is the shared one.
-                const d = wsd.render(ws, gw, gh, AUD.beat * BEAT_SECONDS, aud);
+                const d = dk.render(ws, gw, gh, AUD.beat * BEAT_SECONDS, aud);
                 glr.setWorkshop(d.a, d.b);
             } else glr.setWorkshop(null, null);
             glr.render(V, t, aud, f);

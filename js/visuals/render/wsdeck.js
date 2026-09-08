@@ -21,41 +21,11 @@
 // first frame and rebuild when the size changes, so resizing is cheap but not free —
 // the cache resizes only when the deck size actually changes.
 
-import { WORKSHOP_LAYERS, WORKSHOP_FX, defaults, fxDefaults, fxPrimary } from '../workshop/index.js';
+import { WORKSHOP_LAYERS, WORKSHOP_FX } from '../workshop/index.js';
+import { defaults, fxDefaults, fxPrimary } from '../workshop/catalog.js';
+import { capSize } from './wsres.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
-
-// ── Render size cap ──────────────────────────────────────────────────────────
-// The deck renders at its own size and the GPU stretches it — it is a TEXTURE sampled
-// in normalised uv, so any size composites correctly and linear filtering is free.
-//
-// Measured first, because the obvious reason turned out to be wrong: these layers cost
-// almost the SAME at 640×360 as at 3840×2160 (doomcorridor 0.4→0.5ms, mandelbulb
-// 0.1→0.1ms). They are doing fixed geometry and agent work, not filling pixels, so
-// resolution is not what makes them expensive — see the throttle below for what does.
-//
-// The cap earns its place on UPLOAD instead. Each deck goes to the GPU with a
-// texImage2D from its canvas every frame, and 3840×2160 RGBA is 33MB — 2GB/s for two
-// decks at 60fps, for a picture that is then filtered down anyway. 1280 is the
-// compromise; wres(0) opts out, which is what you want for text and data-wall layers
-// where the sharpness is the point.
-//
-// wres(px) sets the longest edge; wres(0) matches the GL backing exactly.
-const WS_MAX_DEFAULT = 1280;
-let wsMax = WS_MAX_DEFAULT;
-export function setWorkshopRes(px) {
-    const v = Number(px);
-    wsMax = (px == null || !isFinite(v)) ? WS_MAX_DEFAULT : (v <= 0 ? 0 : Math.max(160, Math.min(4096, Math.round(v))));
-}
-export function workshopRes() { return wsMax; }
-/** The size the deck should draw at for a given output size, keeping the aspect. */
-export function capSize(w, h) {
-    if (!wsMax) return [w, h];
-    const longest = Math.max(w, h);
-    if (longest <= wsMax) return [w, h];
-    const k = wsMax / longest;
-    return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
-}
 
 export function isWorkshopLayer(name) { return !!WORKSHOP_LAYERS[name]; }
 

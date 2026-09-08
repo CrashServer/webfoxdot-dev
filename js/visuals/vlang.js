@@ -16,8 +16,8 @@
 
 import { patGet } from '../patterns/sequences.js';
 import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES } from './vdata.js';
-import { defaults as wsDefaults } from './workshop/index.js';
-import { setWorkshopRes, workshopRes } from './render/wsdeck.js';
+import { defaults as wsDefaults } from './workshop/catalog.js';
+import { setWorkshopRes, workshopRes } from './render/wsres.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);

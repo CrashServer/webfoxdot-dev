@@ -261,3 +261,31 @@ fires at the load event, so the benchmark must be synchronous and its imports ST
 (a module script's static imports resolve before load; a dynamic `import()` does not).
 Together with the rAF trap in `workshop-port.md`, that is two things this flag silently
 breaks.
+
+## Boot weight — the registry loads on demand
+
+Vendoring the layers put **220 files / 1,584 KB** on the boot path of every session,
+including one that never opens a visual. The registry has to import all 206 modules to
+build `{ label, makeParams, draw }`, and `vdata.js` imports the registry for the
+vocabulary, and everything imports `vdata`.
+
+Split in two:
+
+- **`workshop/catalog.js`** — GENERATED (`node tools/gen-workshop-catalog.mjs`), 40 KB
+  of pure data: names, labels, and every layer's and effect's parameter defaults,
+  extracted by running each `makeParams()` at build time. This is all the visual
+  LANGUAGE and autocomplete need, and it cannot drift from the registry because it is
+  generated from it.
+- **`workshop/index.js`** — the heavy registry, imported only by `wsdeck.js`, which is
+  itself `import()`ed the first time a workshop layer is actually used.
+
+`wsres.js` exists for the same reason: `wres()` is part of the language, and the
+language must not reach into the deck.
+
+Measured: **1 file / 40 KB at boot**, 207 modules arriving on demand a frame or two
+after the first workshop layer. A field-scene set never loads one.
+
+A few layers touch browser globals at module level (a `Path2D` built once), so the
+generator installs proxy stubs — enough for the module to evaluate, and anything
+genuinely missing still throws with a name rather than silently shipping an empty
+parameter table.

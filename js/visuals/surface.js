@@ -13,10 +13,11 @@
 // literally the same picture.
 
 import { createGLRenderer } from './render/gl/renderer.js';
-import { createWorkshopDeck } from './render/wsdeck.js';
 import { snapshot }         from './vlang.js';
 import { getVisualAudio }   from './bridge.js';
-import { WORKSHOP_FX }     from './workshop/index.js';
+import { WORKSHOP_FX_NAMES } from './workshop/catalog.js';
+
+const WS_FX = new Set(WORKSHOP_FX_NAMES);
 
 // Post-FX bundle: the max of each FX key across all layers. The renderer takes one
 // bundle for the whole frame, so two layers asking for different amounts of glitch
@@ -30,7 +31,7 @@ export function fxBundle(layers) {
     const mx = (key, d = 0) => {
         let m = d;
         for (const l of layers) {
-            if (l.ws && WORKSHOP_FX[key]) continue;
+            if (l.ws && WS_FX.has(key)) continue;
             const f = l.fx && l.fx[key];
             if (typeof f === 'number' && f > m) m = f;
             else if (f === true && m < 1) m = 1;
@@ -95,8 +96,19 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
     const subs = new Set();
     // Workshop layers draw on the CPU into a canvas per deck; the GL renderer takes
-    // those as textures. Built lazily — a set with no workshop layers never makes one.
-    let wsd = null;
+    // those as textures. The deck — and through it all 206 layer modules, 1.6MB — is
+    // imported the first time one is actually used, so an audio-only session never
+    // pays for it. The frame or two before it arrives simply has no workshop pixels.
+    let wsd = null, wsdPending = false;
+    function deck() {
+        if (wsd || wsdPending) return wsd;
+        wsdPending = true;
+        import('./render/wsdeck.js')
+            .then((m) => { wsd = m.createWorkshopDeck(); })
+            .catch((e) => { console.warn('visuals: workshop layers failed to load —', e?.message || e); })
+            .finally(() => { wsdPending = false; });
+        return null;
+    }
 
     try { r = createGLRenderer(canvas); }
     catch (e) { console.warn('visual surface: WebGL2 unavailable —', e?.message || e); }
@@ -120,12 +132,12 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         aud.level  += (a.level  - aud.level)  * 0.35;
         aud.spectrum = a.spectrum;
         const ws = vst.layers.filter((l) => l.ws);
-        if (ws.length) {
-            if (!wsd) wsd = createWorkshopDeck();
+        const dk = ws.length ? deck() : null;
+        if (dk) {
             const { W, H } = r.size;
-            const d = wsd.render(ws, W, H, beat * BEAT_SECONDS, aud);
+            const d = dk.render(ws, W, H, beat * BEAT_SECONDS, aud);
             r.setWorkshop(d.a, d.b);
-        } else if (wsd) { r.setWorkshop(null, null); }
+        } else r.setWorkshop(null, null);
         r.render(vst, t, aud, fxBundle(vst.layers));
         for (const cb of subs) { try { cb(canvas); } catch (_) {} }
     }
