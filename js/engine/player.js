@@ -292,16 +292,26 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
 
 // ── soloRnd(time=8) — solo a random active player on the next `time` boundary,
 // unsolo `time` beats later (beat-aligned). ──────────────────────────────────
+// Routed through the shared gate, exactly as an eval-time .solo() is, rather than
+// writing _amplify directly. Two reasons: the solo SHOWS in the Players panel and
+// the mixer while it lasts, instead of the room going quiet for no visible reason;
+// and it is recoverable — unsolo(), the mixer's S button and anything else that
+// recomputes the gate all clear it, so a restore that never arrives (a stopped
+// clock swallows its pending events) can no longer mean silence until a refresh.
 export function soloRnd(clock, time = 8, log = null) {
     const active = [...clock._players.values()].filter(p => p._active);
     if (active.length === 0) return;
     const pick = active[Math.floor(Math.random() * active.length)];
     const startBeat = nextMod(clock, time);
     clock._schedule(startBeat, () => {
-        clock._players.forEach((q) => { if (q !== pick) q._amplify = 0; });
+        if (_gate) _gate.soloOnly(pick.name);
+        else clock._players.forEach((q) => { if (q !== pick) q._amplify = 0; });
         if (log) log(`soloRnd: ${pick.name} for ${time} beats`);
     });
-    clock._schedule(startBeat + time, () => { if (_gate) _gate.apply(); else clock._players.forEach(q => { q._amplify = 1; }); });
+    clock._schedule(startBeat + time, () => {
+        if (_gate) _gate.clearSolo();
+        else clock._players.forEach(q => { q._amplify = 1; });
+    });
 }
 
 export class Player {

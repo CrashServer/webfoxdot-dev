@@ -10,13 +10,16 @@
 //   ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, gate*2-1))   (gate 0=dry, 1=wet)
 // A few (eb/feed) keep their original non-XFade blend.
 //
-// fd_fx_out is the permanent tail node: copies the bus to the main output.
+// fd_fx_out is the permanent tail node: copies the bus to the main output. It
+// Sanitizes on the way, so a blown-up synth or a poisoned feedback loop silences
+// only ITS OWN player instead of turning the whole summed mix into NaN (which the
+// master's Sanitize would then zero — every track dead until the nodes are freed).
 //
 // After editing: run  scripts/build.sh fx_effects
 
 // ── tail router: private bus → main out ──────────────────────────────────────
 SynthDef(\fd_fx_out, {|out=0, in_bus=64|
-    Out.ar(out, In.ar(in_bus, 2));
+    Out.ar(out, Sanitize.ar(In.ar(in_bus, 2)));
 }).writeDefFile(~outDir);
 
 // ── lpf — low-pass (cutoff Hz, 0 = bypass) ──────────────────────────────────
@@ -143,7 +146,9 @@ SynthDef(\fd_fx_echo, {|in_bus=64, echo=0, echo_time=0.25, echo_dec=0.5|
 SynthDef(\fd_fx_fbdelay, {|in_bus=64, fbdelay=0, fbtime=0.25, fbfeed=0.5, fbcutoff=3000, fbspread=0.02, beat_dur=0.5|
     var sig = In.ar(in_bus, 2), wet, fbDelTime, fb, fbL, fbR;
     fbDelTime = (fbtime * beat_dur).clip(0.001, 2);
-    fb = LocalIn.ar(2) * fbfeed.clip(0, 0.98);
+    // Sanitize the loop: a single NaN/inf arriving from upstream would otherwise
+    // circulate forever, and no re-eval of the line can flush it.
+    fb = Sanitize.ar(LocalIn.ar(2)) * fbfeed.clip(0, 0.98);
     fb = HPF.ar(fb, 80);
     fb = LPF.ar(fb, fbcutoff.clip(80, 18000));
     fb = (fb * 1.1).softclip;
@@ -398,7 +403,7 @@ SynthDef(\fd_fx_spin, {|in_bus=64, spin=0, spinrate=2|
 SynthDef(\fd_fx_pong, {|in_bus=64, pong=0, pongtime=0.25, pongfeed=0.5, beat_dur=0.5|
     var sig = In.ar(in_bus, 2), wet, l, r,
         dt = (pongtime * beat_dur).clip(0.01, 1.5), fb = pongfeed.clip(0, 0.9),
-        fbk = LocalIn.ar(2);
+        fbk = Sanitize.ar(LocalIn.ar(2));   // a NaN must not latch in the loop
     l = DelayL.ar(sig[0] + (fbk[1] * fb), 1.5, dt);
     r = DelayL.ar(sig[1] + (fbk[0] * fb), 1.5, dt);
     LocalOut.ar([l, r]);
