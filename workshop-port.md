@@ -293,6 +293,14 @@ before, half an arrangement came back and half did not.
 
 ### Traps found the hard way (desktop)
 
+- **Bailing out of a pointerdown handler without `preventDefault()` leaves the native
+  drag alive.** `beginDrag` returns early when the press lands on a header button —
+  and the browser then happily started a text drag of that button's own LABEL.
+  Dropped on an editor, CodeMirror inserted it, which is how stray `◉ ⌂ ↩ ⊙ ▦ ▁`
+  characters appeared in buffers with no obvious way to reproduce. Panel chrome now
+  refuses `dragstart` outright; the panel body still allows it, because dragging a
+  selection out of a detached editor is a real gesture.
+
 - **`#desktop` is `overflow:hidden`, and that does NOT stop the browser scrolling
   it.** Focus landing on anything outside the visible area makes the browser scroll
   the container, which fights the pan transform. A detached editor panel far down the

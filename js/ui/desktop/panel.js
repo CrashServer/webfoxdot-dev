@@ -364,6 +364,16 @@ export function createPanel(desktop, spec) {
     };
     head.addEventListener("pointerdown", beginDrag);
 
+    // Panel chrome must never start a NATIVE text drag. beginDrag bails out on a
+    // button without preventing the default, so the browser was free to drag that
+    // button's own label — and dropping it on an editor made CodeMirror insert it.
+    // That is where stray ◉ ⌂ ↩ ⊙ ▦ ▁ characters were coming from in the buffers.
+    // Text inside the panel BODY stays draggable: dragging a selection out of a
+    // detached editor is a real thing to want.
+    win.addEventListener("dragstart", (e) => {
+        if (e.target.closest && e.target.closest(".panel-head, .panel-resize")) e.preventDefault();
+    });
+
     // ── resize (corner handle) ──
     handle.addEventListener("pointerdown", (e) => {
         e.preventDefault(); e.stopPropagation();
