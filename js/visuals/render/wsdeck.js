@@ -237,5 +237,9 @@ export function createWorkshopDeck() {
         // than the finished mix — one face of a box showing the visuals, another
         // showing the code layer that is describing them.
         sources: () => [...cache].map(([name, s]) => ({ id: 'ws:' + name, label: name + ' (' + s.kind + ')', canvas: s.canvas })),
+        // The budget already keeps an EMA of every layer's draw cost and the interval
+        // it was throttled to — reading them back costs nothing, and it is the only
+        // place that knows WHICH layer is expensive.
+        stats: () => [...cache].map(([name, s]) => ({ name, kind: s.kind, cost: s.cost, every: s.every })),
         dispose() { cache.clear(); deck[0] = deck[1] = null; dctx[0] = dctx[1] = null; } };
 }

@@ -106,6 +106,11 @@ const BEAT_SECONDS = 60 / 120;
 const _frameSubs = new Set();
 export function eachFrame(cb) { _frameSubs.add(cb); return () => _frameSubs.delete(cb); }
 
+// The workshop deck of whichever surface last drew, or null if none is running. For
+// readouts: the deck owns the per-layer cost numbers and nothing else can see them.
+let _lastDeck = null;
+export function liveDeck() { return _lastDeck; }
+
 // The canvas that most recently rendered a frame. Which surface is live depends on
 // the UI mode, and a recorder has to point at the one actually drawing — asking here
 // is more honest than making the caller guess between the SCREEN panel, the editor
@@ -132,6 +137,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         return null;
     }
 
+    let lastRes;                                        // undefined ≠ null → applies once
     try { r = createGLRenderer(canvas); }
     catch (e) { console.warn('visual surface: WebGL2 unavailable —', e?.message || e); }
 
@@ -150,6 +156,12 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
             return;
         }
         canvas.style.opacity = '';                      // CSS owns the dim level
+        // vres() had NO EFFECT here. setResolution existed on this surface and nothing
+        // ever called it: the pop-out window applied V.res in its own loop, and the
+        // in-page renderer — the SCREEN panel and the editor background, which is where
+        // most people are looking — never did. The snapshot has carried `res` all
+        // along; this is the line that reads it.
+        if (vst.res !== lastRes) { lastRes = vst.res; r?.setResolution?.(vst.res); }
         const a = getVisualAudio();
         // Smooth the analyser a little so the picture breathes rather than flickers.
         aud.bass   += (a.bass   - aud.bass)   * 0.35;
@@ -168,6 +180,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         for (const cb of subs) { try { cb(canvas); } catch (_) {} }
         _lastCanvas = canvas;
         for (const cb of _frameSubs) { try { cb(canvas, wsd); } catch (_) {} }
+        _lastDeck = wsd;
         noteFrame(performance.now() - t0, ts);
     }
 

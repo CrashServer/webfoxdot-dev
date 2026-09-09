@@ -312,9 +312,15 @@ const PANELS = [
     //
     // The id stays wfd-bar-run so a saved layout keeps its position.
     { id: 'wfd-bar-run',        group: 'bars', title: 'main',      x:   0, y: -84, w: 1100, h: 72, minW: 140, minH: 44, bar: true,
+      // The dividers are adopted like any other element, so the grouping is one list
+      // and not a rule in the stylesheet guessing where a group starts. Four groups:
+      // the transport, the tour, the examples, then what the app looks like and which
+      // shape it is in. They are hidden in the classic toolbar, which has its own.
       adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status',
-              '#btn-tour', '#examples-dd', '#theme-select', '#btn-vperf', '#vperf-status',
-              '#btn-desktop', '#version-tag'] },
+              '#bar-div-1', '#btn-tour',
+              '#bar-div-2', '#examples-dd',
+              '#bar-div-3', '#theme-select', '#btn-vperf', '#vperf-status',
+              '#bar-div-4', '#btn-desktop', '#version-tag'] },
     // Named for the people, not the verb: SHARE is one of the buttons INSIDE it, and
     // a panel called "share" holding a button called "SHARE" is the same word doing
     // two jobs.

@@ -13,12 +13,12 @@
 const FIELDS = [
     ['fps',    'vfps',    'frames per second',       '0 = every frame the browser offers. The biggest single lever: 30 is half the main-thread work of 60.'],
     ['res',    'vres',    'GPU resolution ×',   '1 = native CSS pixels, 0.5 = half (cheaper), 2 = supersampled. Shader work — the pixel-filling half.'],
-    ['wres',   'wres',    'layer size, px',          'Longest edge the CPU-drawn workshop layers render at before the GPU stretches them. 0 = no cap.'],
+    ['wres',   'wres',    'workshop layers, px',     'Longest edge the CPU-drawn WORKSHOP layers render at before the GPU stretches them (0 = no cap). It does nothing to a field scene, which is a shader and has no canvas of its own.'],
     ['budget', 'vbudget', 'ms/frame for layers',     'How long those layers may take before one over budget starts redrawing every Nth frame instead.'],
 ];
 
 export function buildPerfMenu(anchor, deps) {
-    const { modes, current, apply, read, write, stats, log = () => {} } = deps;
+    const { modes, current, apply, read, write, stats, resources, log = () => {} } = deps;
     let el = null;
 
     const close = () => { if (el) { el.remove(); el = null; } };
@@ -32,16 +32,24 @@ export function buildPerfMenu(anchor, deps) {
 
         const head = document.createElement('div');
         head.className = 'wfd-perf-head';
-        head.textContent = 'render load';
+        const title = document.createElement('span');
+        title.textContent = 'render load';
+        const x = document.createElement('button');
+        x.className = 'wfd-perf-x';
+        x.textContent = '\u00d7';
+        x.title = 'close  (Esc)';
+        x.onclick = close;
+        head.append(title, x);
         el.appendChild(head);
 
         const why = document.createElement('p');
         why.className = 'wfd-perf-why';
-        // Said here rather than buried in a tooltip, because it is the thing that makes
-        // the whole control make sense — and the thing people assume the opposite of.
-        why.innerHTML = 'The audio <b>engine</b> is on its own thread and is never starved by drawing. '
-                      + 'What shares this one is the note <b>scheduler</b>, which has ~120ms of slack '
-                      + 'before a note is late. These decide how much of it the picture may spend.';
+        // ONE line. The full version — the AudioWorklet, the 120ms of lookahead, why
+        // lateness rather than fidelity is the thing at stake — is a paragraph, and a
+        // paragraph in a popup is a paragraph nobody reads. It lives on the button's
+        // own tooltip and in vperf()'s entry, where there is room for it.
+        why.innerHTML = 'The picture shares a thread with the note <b>scheduler</b> \u2014 '
+                      + 'not with the audio engine, which is never starved.';
         el.appendChild(why);
 
         const cur = current();
@@ -81,9 +89,50 @@ export function buildPerfMenu(anchor, deps) {
         }
         el.appendChild(grid);
 
+        // ── What it is costing ───────────────────────────────────────────────
+        // Every number here is one the app ALREADY computes for its own reasons — the
+        // frame cost the fps counter keeps, the per-layer EMA the budget throttles on,
+        // the bus count the allocator tracks, the engine's own health counters. So
+        // this reads them, and only while the menu is open: closed, it costs nothing,
+        // which is the whole reason it lives behind a button rather than on the bar.
+        const resHead = document.createElement('div');
+        resHead.className = 'wfd-perf-head wfd-perf-head2';
+        resHead.textContent = 'what it is costing';
+        el.appendChild(resHead);
+
         const foot = document.createElement('div');
         foot.className = 'wfd-perf-foot';
         el.appendChild(foot);
+
+        function renderResources() {
+            const r = resources ? resources() : null;
+            if (!r) { foot.textContent = 'nothing to measure yet'; return; }
+            foot.textContent = '';
+            const row = (label, value, cls) => {
+                const l = document.createElement('span'); l.className = 'wfd-res-k'; l.textContent = label;
+                const v = document.createElement('span'); v.className = 'wfd-res-v' + (cls ? ' ' + cls : ''); v.textContent = value;
+                foot.append(l, v);
+            };
+            row('picture', r.fps ? `${r.fps.toFixed(0)}fps \u00b7 ${r.ms.toFixed(1)}ms/frame` : 'not drawing');
+            row('layers', r.layers ? `${r.layers} (${r.ws} workshop)` : 'none');
+            // Named, because "the visuals are heavy" is not actionable and "slimemold
+            // is 17ms, redrawing every 5th frame" is.
+            // Both names: the LAYER is what you would edit or stop, the SCENE is what
+            // is actually expensive. "the visuals are heavy" is not actionable;
+            // "video2 doomcorridor, 17ms, redrawing every 5th frame" is.
+            for (const l of (r.heavy || []))
+                row('\u00b7 ' + l.name,
+                    `${l.kind || ''} ${l.cost.toFixed(1)}ms${l.every > 1 ? ` \u00b7 every ${l.every}` : ''}`.trim(),
+                    l.every > 1 ? 'warn' : '');
+            row('scheduler', `${r.lag.toFixed(0)}ms late`, r.lag > 30 ? 'bad' : r.lag > 10 ? 'warn' : '');
+            row('voices', String(r.voices));
+            row('buses', `${r.bus.used} / ${r.bus.max}`, r.bus.used > r.bus.max * 0.9 ? 'bad' : r.bus.used > r.bus.max * 0.7 ? 'warn' : '');
+            if (r.engine) row('engine', `${r.engine.health}% \u00b7 queue ${r.engine.depth}`
+                                      + (r.engine.dropped ? ` \u00b7 ${r.engine.dropped} dropped` : ''),
+                              r.engine.health < 90 || r.engine.dropped ? 'warn' : '');
+            else row('engine', 'not booted');
+            if (r.heap) row('js heap', `${r.heap.toFixed(0)} MB`);
+        }
 
         function fill() {
             const v = read();
@@ -99,11 +148,10 @@ export function buildPerfMenu(anchor, deps) {
         el.style.top = Math.min(r.bottom + 4, window.innerHeight - el.offsetHeight - 8) + 'px';
         el.style.left = Math.max(6, Math.min(r.left, window.innerWidth - el.offsetWidth - 8)) + 'px';
 
+        renderResources();
         const timer = setInterval(() => {
             if (!el) { clearInterval(timer); return; }
-            const st = stats();
-            foot.textContent = st.fps ? `drawing ${st.fps.toFixed(0)}fps at ${st.ms.toFixed(1)}ms/frame`
-                                      : 'nothing is drawing right now';
+            renderResources();
             fill();
         }, 700);
     }

@@ -140,7 +140,17 @@ export function visualBuilders() {
     // GPU stretches them over the frame. Separate from vres() because the costs are
     // different things: vres is GPU shader work, wres is main-thread canvas work, and
     // main-thread work is what makes the audio late. Default 1280; wres(0) = full size.
-    out.wres    = (px) => { setWorkshopRes(px); _open(); return `wres(${workshopRes() || 'full'})`; };
+    out.wres    = (px) => {
+        setWorkshopRes(px);
+        _open();
+        // wres caps the WORKSHOP layers' own canvases and nothing else — a field scene
+        // is a shader and never touches one. Set it with only field scenes on screen
+        // and it correctly does nothing at all, which is indistinguishable from broken
+        // unless somebody says so.
+        const anyWs = [...layers.values()].some((l) => l.scene && !isScene(l.scene) && WS_SET.has(l.scene));
+        return `wres(${workshopRes() || 'full'})`
+             + (anyWs ? '' : ' \u2014 workshop layers only; nothing on screen is one right now');
+    };
     // vfps(n) — cap how often the picture is drawn. The biggest single lever there is:
     // 30fps is half the main-thread work of 60 for a picture most sets cannot tell
     // apart. vfps(0) / vfps() = every frame the browser offers.

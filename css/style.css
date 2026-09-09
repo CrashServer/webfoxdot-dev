@@ -474,6 +474,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 #examples-pop {
     position: fixed;          /* lives on <body>, positioned from the button in JS */
     display: flex;            /* two panes: categories | items (items on the right) */
+    flex-wrap: wrap;          /* …with the destination row above them, see .ex-dest */
     align-items: stretch;
     max-height: 72vh;
     background: var(--bg-2);
@@ -2643,9 +2644,17 @@ body.desktop-ui #keybar { z-index: 140; }
     font-family: monospace;
 }
 .wfd-perf-head {
+    display: flex; align-items: center; justify-content: space-between;
     font-size: 9px; letter-spacing: .09em; text-transform: uppercase;
     color: var(--text-2); margin-bottom: 5px;
 }
+/* Esc closes it and so does clicking away, but neither is visible. A popup with no
+   way out that you can SEE reads as one that is stuck. */
+.wfd-perf-x {
+    background: none; border: none; cursor: pointer; padding: 0 2px;
+    color: var(--text-2); font-size: 14px; line-height: 1; font-family: monospace;
+}
+.wfd-perf-x:hover { color: var(--text-1); }
 /* The reason the whole control exists. Reads as prose because it is an explanation,
    not a label — and it is short enough that nobody has to skip it. */
 .wfd-perf-why {
@@ -2680,10 +2689,17 @@ body.desktop-ui #keybar { z-index: 140; }
     font-family: monospace; font-size: 10px; padding: 2px 4px; text-align: right;
 }
 .wfd-perf-num:focus { outline: none; border-color: var(--accent, var(--blue)); }
+.wfd-perf-head2 { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border-1); }
+/* key · value, so the numbers line up down the right edge and a glance reads the
+   column rather than the sentences. */
 .wfd-perf-foot {
-    font-size: 9px; color: var(--text-2);
-    padding-top: 6px; border-top: 1px solid var(--border-1);
+    display: grid; grid-template-columns: auto 1fr;
+    gap: 1px 10px; font-size: 9px; color: var(--text-2);
 }
+.wfd-res-k { white-space: nowrap; }
+.wfd-res-v { text-align: right; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.wfd-res-v.warn { color: var(--yellow); }
+.wfd-res-v.bad  { color: var(--red); }
 
 /* The mode is in the label, so the button only needs to say when it is NOT balanced —
    the default should look like every other button, not like a state you are in. */
@@ -2691,13 +2707,38 @@ body.desktop-ui #keybar { z-index: 140; }
 #btn-vperf.vperf-video { color: var(--blue); border-color: currentColor; }
 /* Hand-set numbers are none of the three presets, and the label says so. */
 #btn-vperf.vperf-custom { color: var(--text-1); border-color: currentColor; }
+/* Group dividers. They exist only on the desktop bar: the classic toolbar wraps and
+   already groups by row, where a vertical rule would land in the middle of nothing. */
+/* Examples: where it lands, above the list rather than after the damage. */
+.ex-dest {
+    /* The popup is a two-pane FLEX row; a full-width first item with wrap on pushes
+       the panes onto the next line, which is how this sits above them without
+       restructuring the layout underneath. */
+    width: 100%; order: -1;
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; border-bottom: 1px solid var(--border-1);
+    font-size: 10px; color: var(--text-2); font-family: monospace;
+}
+.ex-dest-sel {
+    flex: 1; min-width: 0;
+    background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-1); border-radius: 3px;
+    font-family: monospace; font-size: 10px; padding: 1px 4px;
+}
+.bar-div { display: none; }
+.wfd-bar .bar-div {
+    display: block; align-self: stretch;
+    width: 1px; margin: 2px 2px;
+    background: var(--border-1);
+}
+
 /* ── The main bar's two halves ────────────────────────────────────────────────
    Left is the music, right is the app. The separator is the STATUS READOUT between
    them: #synth-status is flex:1, so it takes all the slack and the two groups end up
    at opposite ends of the bar on their own. A drawn divider on top of that was one
    line too many — it gave the first button of the right-hand group an edge that did
    not match its neighbours, to restate a gap you can already see. */
-.wfd-bar #btn-tour { margin-left: 4px; }
+
 
 #wfd-canvas { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; z-index: 0; }
 
