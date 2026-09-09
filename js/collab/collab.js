@@ -161,20 +161,29 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         return true;
     }
 
-    let clockOffset = 0; // ms offset from server time
+    // ONE convention, ONE writer: clockOffset is SERVER TIME MINUS OURS, so
+    // Date.now() + clockOffset is the server's clock. Everything that has to compare
+    // a reading taken on another machine converts into that domain first — two
+    // laptops' Date.now() can differ by seconds, and nothing else here is allowed to
+    // subtract one from the other.
+    //
+    // It used to have two writers with OPPOSITE signs (this one, and beat_sync
+    // deriving it from a peer's wall clock), which is why srvNow() exists rather
+    // than the arithmetic being written out at each site.
+    let clockOffset = 0;
     let beatMaster  = false;
     let beatSyncInterval = null;
+    let clockPingInterval = null;
+
+    /** Now, in the server's clock domain — the one domain every peer shares. */
+    function srvNow() { return Date.now() + clockOffset; }
 
     // ── Clock sync (NTP-style single round-trip) ──────────────────────────
     function syncClock() { wsSend({ type: 'ping', t1: Date.now() }); }
 
-    let lastRtt = 0;
     function handlePong({ t1, t2 }) {
-        const now    = Date.now();
-        const rtt    = now - t1;
-        lastRtt      = rtt;
-        const offset = t2 - (t1 + rtt / 2); // our clock is offset ms behind server
-        clockOffset  = offset;
+        const rtt   = Date.now() - t1;
+        clockOffset = t2 - (t1 + rtt / 2);   // server time − ours
     }
 
     // ── Beat master election via Yjs awareness ────────────────────────────
@@ -191,7 +200,14 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         const lowest = Math.min(...entries.map(([id]) => id));
         if (aw.clientID !== lowest) return;
         beatMaster = true;
-        beatOffset = 0;                 // the master's own beat IS the room's beat
+        // Adopt the room's beat domain rather than REPLACING it with our own counter.
+        // beatOffset = 0 says "my local beat is the room beat", which is true for the
+        // first master and false for every one after it: when a master leaves, the
+        // successor would re-base the room onto its own boot-relative count and every
+        // follower would spend the next dozen syncs easing toward an unrelated number,
+        // sliding the picture the shared beat exists to keep in step. If we already
+        // know the room's offset, we keep it; only a peer that never synced starts at 0.
+        if (beatOffset == null) beatOffset = 0;
         aw.setLocalStateField('beatMaster', true);
         startBeatSync();
     }
@@ -201,10 +217,16 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         // Broadcast clock state roughly every 8 beats
         beatSyncInterval = setInterval(() => {
             wsSend({
-                type:     'beat_sync',
-                bpm:      clock.bpm,
-                beat:     clock.now(),
-                wallTime: Date.now(),
+                type:    'beat_sync',
+                bpm:     clock.bpm,
+                // The ROOM's beat, not our local counter — see electBeatMaster.
+                beat:    roomBeat() ?? clock.now(),
+                // Stamped in the server's domain so the receiver can subtract it from
+                // its own srvNow() and get elapsed time. `wallTime` (raw Date.now())
+                // is deliberately not sent any more: a receiver comparing it against
+                // its own Date.now() was measuring the two machines' clock skew and
+                // calling it elapsed time.
+                srvTime: srvNow(),
             });
         }, Math.round((60_000 / (clock.bpm || 120)) * 8));
     }
@@ -233,7 +255,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     /** A room beat as a LOCAL beat, for clock._schedule. Null if not yet synced. */
     function toLocalBeat(rb) { return (beatOffset == null || rb == null) ? null : rb - beatOffset; }
 
-    function handleBeatSync({ bpm, beat, wallTime }) {
+    function handleBeatSync({ bpm, beat, srvTime }) {
         if (beatMaster) return; // masters ignore incoming sync
         // Tempo repair. The shared 'bpm' state key is what actually carries a knob turn
         // around the room (and gives a late joiner the right tempo); this is the safety
@@ -243,23 +265,27 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         // assigning a sampled NUMBER over a tempo automation (Clock.bpm = linvar(…))
         // would freeze it, and that var rides the eval broadcast anyway.
         if (bpm && !clock._bpmVar && Math.abs(bpm - clock.bpm) > 0.01) clock.bpm = bpm;
-        // Where the master's beat has reached by now: its reading, plus the time since
-        // it took it, at its tempo. lastRtt/2 is the one-way hop the reading spent in
-        // flight — the same correction the wall-clock offset makes below.
-        if (beat != null && wallTime) {
-            const aheadMs = Math.max(0, Date.now() - wallTime - lastRtt / 2);
+        // Where the master's beat has reached by now: its reading, plus however long
+        // ago it took it. BOTH times are in the server's domain, which is the whole
+        // point — the previous version did `Date.now() - wallTime`, subtracting the
+        // master's clock from ours, so what it called "elapsed" was really elapsed
+        // PLUS the two machines' clock skew. Two laptops a few seconds apart (routine,
+        // nothing keeps them in step) put the room beat out by skew × bpm/60 — four
+        // seconds is eight beats at 120, two whole bars. And when the follower's clock
+        // ran ahead, Math.max(0, …) clamped the whole thing to zero and threw the real
+        // elapsed time away. It never showed up in testing because two tabs on ONE
+        // machine have a skew of exactly zero.
+        //
+        // The transit time is not subtracted either. It used to lose half the RTT as a
+        // latency correction, but the master's beat really did advance while the
+        // message was in flight, so that time belongs in the total.
+        if (beat != null && srvTime) {
+            const aheadMs = Math.max(0, srvNow() - srvTime);
             const target  = beat + (aheadMs / 60000) * (bpm || clock.bpm || 120) - clock.now();
             // Snap on the first sync, then ease. beat_sync arrives every 8 beats over a
             // jittery link, and an offset that twitches re-times every eval that lands
             // near it — worse than an offset that is a few milliseconds stale.
             beatOffset = beatOffset == null ? target : beatOffset + (target - beatOffset) * 0.25;
-        }
-        const drift = Math.abs(Date.now() - wallTime - clockOffset);
-        if (drift > 5) {
-            // Followers realign when drift exceeds 5 ms. Compensate for the one-way
-            // master→follower latency with half the last measured RTT (the raw
-            // Date.now()-wallTime baked the full network delay into the offset).
-            clockOffset = Date.now() - wallTime - lastRtt / 2;
         }
     }
 
@@ -294,6 +320,12 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         _wasConnected = true; _everConnected = true;
         onConnection?.(true, rejoin);
         syncClock();
+        // Keep it current. Wall clocks drift, and clockOffset is now the ONLY bridge
+        // between one machine's readings and another's — beat_sync used to refresh it
+        // as a side effect (from a peer's clock, with the sign inverted); a round trip
+        // to the server is both correct and cheap at this rate.
+        clearInterval(clockPingInterval);
+        clockPingInterval = setInterval(syncClock, 15000);
         reportListing();                          // the server forgot us while we were gone
         // Elect beat master once awareness has settled
         setTimeout(electBeatMaster, 500);
@@ -435,6 +467,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         _destroyed = true;              // stop the reconnect loop before closing
         clearTimeout(_wsTimer);
         clearInterval(beatSyncInterval);
+        clearInterval(clockPingInterval);
         window.removeEventListener('beforeunload', _onBeforeUnload);
         try { provider.awareness.off('change', electBeatMaster); } catch (_) {}
         try { provider.awareness.off('change', _onPeersChange); } catch (_) {}
