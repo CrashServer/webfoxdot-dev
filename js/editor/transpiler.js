@@ -7,6 +7,15 @@
 //   var(...)    → _var(...)    (JS reserved word)
 //   linvar(...) → _linvar(...) etc.
 
+// Every pass below that walks the line character by character has to skip string
+// literals, and each one used to hand-roll it. Three of the fourteen handled a
+// backslash escape and eleven did not; six knew about backticks and eight did not.
+// So the CONTENTS of a string were rewritten by whichever passes happened to be
+// blind to it. One primitive now, from the same module the editor's gutter uses.
+import { skipString, splitArgs } from './scan.js';
+
+const QUOTE = (c) => c === '"' || c === "'" || c === '`';
+
 // Hoisted regexes (built once, not per line per eval).
 const RE_COMMENT  = /^(\s*)#/;
 const RE_DOT_REST = /(?<=[,\[(]\s*)\.(?=\s*[,\]\)])/g;
@@ -27,12 +36,11 @@ function rewriteP(s) {
     const idChar = (c) => c && /[\w$]/.test(c);
     while (i < s.length) {
         const c = s[i];
-        if (c === '"' || c === "'" || c === '`') {          // copy a string literal whole
-            const q = c; out += c; i++;
-            while (i < s.length) { out += s[i]; const done = s[i] === q && s[i - 1] !== '\\'; i++; if (done) break; }
-            continue;
-        }
-        const m = (c === 'P' && !idChar(s[i - 1])) ? /^P(\s*\*)?\s*([[(])/.exec(s.slice(i)) : null;
+        if (QUOTE(c)) { const j = skipString(s, i); out += s.slice(i, j); i = j; continue; }
+        // Not after an identifier char AND not after a '.': obj.P[0] is a member
+        // access on somebody's object, not FoxDot's P.
+        const m = (c === 'P' && !idChar(s[i - 1]) && s[i - 1] !== '.')
+            ? /^P(\s*\*)?\s*([[(])/.exec(s.slice(i)) : null;
         if (m) {
             const isRand = !!m[1], open = m[2];
             const openIdx = i + m[0].length - 1;           // the [ or ( char
@@ -52,11 +60,10 @@ function rewriteP(s) {
 // bracket — honouring nested ()[]{} and skipping string literals ('/"/`, \-escapes).
 // Returns -1 if unmatched. The one shared scanner behind rewriteP/convertCurly/findSlice.
 function scanToMatch(s, openIdx) {
-    let depth = 0, q = '';
+    let depth = 0;
     for (let j = openIdx; j < s.length; j++) {
         const c = s[j];
-        if (q) { if (c === q && s[j - 1] !== '\\') q = ''; continue; }
-        if (c === '"' || c === "'" || c === '`') { q = c; continue; }
+        if (QUOTE(c)) { j = skipString(s, j) - 1; continue; }
         if ('([{'.includes(c)) depth++;
         else if (')]}'.includes(c)) { depth--; if (depth === 0) return j; }
     }
@@ -70,6 +77,16 @@ function maskStrings(s) {
     const strs = [];
     const masked = s.replace(/(["'`])(?:\\.|(?!\1)[\s\S])*?\1/g, m => `\x00${strs.push(m) - 1}\x00`);
     return { masked, restore: (t) => t.replace(/\x00(\d+)\x00/g, (_, i) => strs[+i]) };
+}
+
+// Run a whole-line regex pass with string literals hidden, so a rewrite can never
+// reach INSIDE a quoted string. The character-by-character passes skip strings as
+// they walk; the regex ones have no such option, and used to rewrite the contents of
+// any string that happened to look like code — Server.log("p1.stop()") came out as
+// Server.log("__p('p1').stop()").
+function maskedReplace(text, fn) {
+    const { masked, restore } = maskStrings(text);
+    return restore(fn(masked));
 }
 
 export function transpile(code) {
@@ -97,8 +114,8 @@ export function transpile(code) {
         // is written with, and it threw "p1 is not defined" before the call was even
         // made. Quote it. Only a bare identifier is touched — a string, a number or
         // anything with a dot or a bracket in it is left exactly as written.
-        main = main.replace(/\.(follow|accompany)\(\s*([A-Za-z_]\w*)\s*(?=[,)])/g,
-                            (all, meth, name) => `.${meth}('${name}'`);
+        main = maskedReplace(main, (t) => t.replace(/\.(follow|accompany)\(\s*([A-Za-z_]\w*)\s*(?=[,)])/g,
+                                                   (all, meth, name) => `.${meth}('${name}'`));
 
         // Rest substitutions in array/argument positions — but NOT inside string
         // literals (mask them first so foo="(.)" / play("x.o") are left alone):
@@ -146,7 +163,7 @@ export function transpile(code) {
         }
 
         // p1.method(...) → __p('p1').method(...)
-        main = main.replace(RE_METHOD, (_, name, method) => `__p('${name}').${method}(`);
+        main = maskedReplace(main, (t) => t.replace(RE_METHOD, (_, name, method) => `__p('${name}').${method}(`));
 
         // kwargify the rest too, so kwargs in any call work — Server.addFx(lpf=800),
         // p1.every(4, "stutter", mverb=0.5), drop(...), etc.
@@ -156,11 +173,11 @@ export function transpile(code) {
 
 // Apply TimeVar renames so runCode can eval safely
 export function applyRenames(js) {
-    return js
+    return maskedReplace(js, (t) => t
         .replace(/\bvar\(/g,    '_var(')
         .replace(/\blinvar\(/g, '_linvar(')
         .replace(/\bsinvar\(/g, '_sinvar(')
-        .replace(/\bexpvar\(/g, '_expvar(');
+        .replace(/\bexpvar\(/g, '_expvar('));
 }
 
 // Transpile a bare pattern EXPRESSION (not a statement) — used by the Alt+I inspector.
@@ -179,12 +196,7 @@ function convertAlt(s) {
     let out = '', i = 0;
     while (i < s.length) {
         const c = s[i];
-        if (c === '"' || c === "'") {                 // copy quoted region verbatim
-            const q = c; out += c; i++;
-            while (i < s.length && s[i] !== q) out += s[i++];
-            if (i < s.length) out += s[i++];
-            continue;
-        }
+        if (QUOTE(c)) { const j = skipString(s, i); out += s.slice(i, j); i = j; continue; }
         // a lone '<' (not <<, <=) opening a flat <…> with content → alternation
         if (c === '<' && s[i + 1] !== '<' && s[i + 1] !== '=') {
             const close = s.indexOf('>', i + 1);
@@ -206,11 +218,10 @@ function convertAlt(s) {
 // arrow bodies). Strings are skipped; nested {...} convert recursively. Run on a
 // player RHS / attr value only, before kwargify.
 function convertCurly(s) {
-    let out = '', i = 0, inStr = '';
+    let out = '', i = 0;
     while (i < s.length) {
         const c = s[i];
-        if (inStr) { out += c; if (c === inStr) inStr = ''; i++; continue; }
-        if (c === '"' || c === "'") { inStr = c; out += c; i++; continue; }
+        if (QUOTE(c)) { const j = skipString(s, i); out += s.slice(i, j); i = j; continue; }
         if (c !== '{') { out += c; i++; continue; }
         const j = scanToMatch(s, i);                       // matching }
         if (j === -1) { out += s.slice(i); break; }        // unmatched — leave rest
@@ -224,11 +235,10 @@ function convertCurly(s) {
 // True if "{inner}" is a FoxDot random-choice group rather than a dict / code block.
 function isRandChoice(inner) {
     if (!inner.trim()) return false;
-    let depth = 0, q = '';
+    let depth = 0;
     for (let i = 0; i < inner.length; i++) {
         const c = inner[i];
-        if (q) { if (c === q) q = ''; continue; }
-        if (c === '"' || c === "'") { q = c; continue; }
+        if (QUOTE(c)) { i = skipString(inner, i) - 1; continue; }
         if ('([{'.includes(c)) depth++;
         else if (')]}'.includes(c)) depth--;
         else if (depth === 0) {
@@ -258,11 +268,9 @@ function convertSlice(s) {
 
 // First slice bracket in s → { openIdx, closeIdx, start, stop } (or null).
 function findSlice(s) {
-    let inStr = '';
     for (let i = 0; i < s.length; i++) {
         const c = s[i];
-        if (inStr) { if (c === inStr) inStr = ''; continue; }
-        if (c === '"' || c === "'") { inStr = c; continue; }
+        if (QUOTE(c)) { i = skipString(s, i) - 1; continue; }
         if (c !== '[') continue;
         const j = scanToMatch(s, i);          // matching ]
         if (j === -1) continue;               // unmatched — give up on this one
@@ -277,11 +285,10 @@ function findSlice(s) {
 
 // "[:8]" inner "…" → { start, stop } ('null' when omitted), or null if not a slice.
 function parseSliceInner(inner) {
-    let depth = 0, q = '', hasComma = false, hasQ = false; const colons = [];
+    let depth = 0, hasComma = false, hasQ = false; const colons = [];
     for (let i = 0; i < inner.length; i++) {
         const c = inner[i];
-        if (q) { if (c === q) q = ''; continue; }
-        if (c === '"' || c === "'") { q = c; continue; }
+        if (QUOTE(c)) { i = skipString(inner, i) - 1; continue; }
         if ('([{'.includes(c)) depth++;
         else if (')]}'.includes(c)) depth--;
         else if (depth === 0) {
@@ -330,14 +337,9 @@ function convertPlayerRefs(s) {
     let out = '', i = 0;
     while (i < s.length) {
         const c = s[i];
-        if (c === '"' || c === "'") {                 // copy quoted region verbatim
-            const q = c; out += c; i++;
-            while (i < s.length && s[i] !== q) out += s[i++];
-            if (i < s.length) out += s[i++];
-            continue;
-        }
+        if (QUOTE(c)) { const j = skipString(s, i); out += s.slice(i, j); i = j; continue; }
         let run = '';
-        while (i < s.length && s[i] !== '"' && s[i] !== "'") run += s[i++];
+        while (i < s.length && !QUOTE(s[i])) run += s[i++];
         out += run.replace(READABLE_ATTRS, (_, n, a) => `__p('${n}').getAttr('${a}')`);
     }
     return out;
@@ -360,12 +362,14 @@ function splitAltItems(inner) {
 }
 
 function findCommentChar(line) {
-    let inStr = false, ch = '';
     for (let i = 0; i < line.length; i++) {
         const c = line[i];
-        if (inStr)           { if (c === ch) inStr = false; }
-        else if (c === '"' || c === "'") { inStr = true; ch = c; }
-        else if (c === '#')  { return i; }
+        // Escapes matter MOST here. A line like  pluck([0], t="a\\"b") # tail  ended
+        // its string one character early, so the '#' looked quoted, no comment was
+        // stripped, and the '#' went into the JavaScript — a syntax error on a line
+        // that is perfectly legal FoxDot.
+        if (QUOTE(c)) { i = skipString(line, i) - 1; continue; }
+        if (c === '#') return i;
     }
     return -1;
 }
@@ -413,11 +417,10 @@ function compilePatternMath(s) {
 // Rightmost top-level binary +,-,*,/ in `opChars`, skipping bracketed/quoted
 // regions, unary +/-, and ** . Returns its index, or -1.
 function findTopLevelBinaryOp(s, opChars) {
-    let depth = 0, inStr = '', found = -1;
+    let depth = 0, found = -1;
     for (let i = 0; i < s.length; i++) {
         const c = s[i];
-        if (inStr) { if (c === inStr) inStr = ''; continue; }
-        if (c === '"' || c === "'") { inStr = c; continue; }
+        if (QUOTE(c)) { i = skipString(s, i) - 1; continue; }
         if ('([{'.includes(c)) { depth++; continue; }
         if (')]}'.includes(c)) { depth--; continue; }
         if (depth !== 0 || !opChars.includes(c)) continue;
@@ -446,11 +449,10 @@ function kwargify(expr) {
         result += expr.slice(i, parenIdx);  // everything up to (but not incl) '('
 
         // Find matching close paren (skip brackets that sit inside string literals)
-        let depth = 1, j = parenIdx + 1, inStr = '';
+        let depth = 1, j = parenIdx + 1;
         while (j < expr.length && depth > 0) {
             const c = expr[j];
-            if (inStr) { if (c === inStr && expr[j - 1] !== '\\') inStr = ''; j++; continue; }
-            if (c === '"' || c === "'" || c === '`') { inStr = c; j++; continue; }
+            if (QUOTE(c)) { j = skipString(expr, j); continue; }
             if ('([{'.includes(c)) depth++;
             else if (')]}'. includes(c)) depth--;
             j++;
@@ -526,11 +528,10 @@ function autoQuotePlay(rhs) {
 // it's BINARY (preceded by an operand-ender) so unary minus inside a term is left alone;
 // brackets and string literals are skipped so `saw([0], amp=1-0.2)` / `play("a-b")` stay whole.
 function splitTopLevelAddSub(s) {
-    const segs = []; let depth = 0, cur = '', inStr = '', op = '';
+    const segs = []; let depth = 0, cur = '', op = '';
     for (let i = 0; i < s.length; i++) {
         const c = s[i];
-        if (inStr) { cur += c; if (c === inStr && s[i - 1] !== '\\') inStr = ''; continue; }
-        if (c === '"' || c === "'" || c === '`') { inStr = c; cur += c; continue; }
+        if (QUOTE(c)) { const j = skipString(s, i); cur += s.slice(i, j); i = j - 1; continue; }
         if ('([{'.includes(c)) { depth++; cur += c; continue; }
         if (')]}'.includes(c)) { depth--; cur += c; continue; }
         if (depth === 0 && (c === '+' || c === '-')) {
@@ -543,18 +544,3 @@ function splitTopLevelAddSub(s) {
     return segs;
 }
 
-function splitArgs(str) {
-    const args = [];
-    let cur = '', depth = 0, inStr = '';
-    for (let i = 0; i < str.length; i++) {
-        const c = str[i];
-        if (inStr) { cur += c; if (c === inStr && str[i - 1] !== '\\') inStr = ''; continue; }  // inside a string: copy verbatim
-        if (c === '"' || c === "'" || c === '`') { inStr = c; cur += c; continue; }
-        if ('([{'.includes(c)) depth++;
-        else if (')]}'. includes(c)) depth--;
-        else if (c === ',' && depth === 0) { args.push(cur); cur = ''; continue; }
-        cur += c;
-    }
-    if (cur.trim()) args.push(cur);
-    return args;
-}
