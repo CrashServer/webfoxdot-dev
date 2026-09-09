@@ -296,28 +296,30 @@ const PANELS = [
     // so nothing in index.html knows this happened. The ones no longer on a bar stay
     // in the hidden #toolbar — a programmatic .click() still works on them, which is
     // exactly how a menu row toggles a hosted module.
-    // Boot and transport in one bar. They are used at different RATES — the kit
-    // loads once, stop gets hit all night — but they are adjacent in the only order
-    // that matters: boot, load the kit, then run. Splitting them put a panel edge in
-    // the middle of that sentence.
-    { id: 'wfd-bar-run',        group: 'bars', title: 'run',       x:   0, y: -78, w: 560, h: 66, minW: 110, minH: 44, bar: true,
-      adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status'] },
+    // MAIN — the transport and the app's own settings in one bar.
+    //
+    // They were two, and the split had a rationale: run holds VERBS you press during
+    // a set, menu holds decisions you make between them. True, and it still cost more
+    // than it bought — two bars for fourteen controls meant two headers, two edges and
+    // two things to move whenever the workspace was rearranged, to separate things
+    // nobody confuses anyway. One bar, with a rule inside it instead of a panel edge:
+    // everything to the left of the divider is the music, everything to the right is
+    // the app.
+    //
+    // Order inside the left half is the order you do it in — boot, load the kit, then
+    // run — which is why the kit sits between two things used far more often than it
+    // is. Splitting them would put a gap in the middle of a sentence.
+    //
+    // The id stays wfd-bar-run so a saved layout keeps its position.
+    { id: 'wfd-bar-run',        group: 'bars', title: 'main',      x:   0, y: -84, w: 1100, h: 72, minW: 140, minH: 44, bar: true,
+      adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status',
+              '#btn-tour', '#examples-dd', '#theme-select', '#btn-vperf', '#vperf-status',
+              '#btn-desktop', '#version-tag'] },
     // Named for the people, not the verb: SHARE is one of the buttons INSIDE it, and
     // a panel called "share" holding a button called "SHARE" is the same word doing
     // two jobs.
-    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 582, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
+    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 1122, y: -84, w: 280, h: 72, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-share', '#btn-multiplayer', '#btn-split'] },
-    // MENU — the app itself, as opposed to the music. Everything here is a decision
-    // you make BETWEEN things rather than during them: what to learn from, what the
-    // app looks like, which layout it is in, and how much of the machine the picture
-    // may have. None of it is a performance control, which is exactly why it is not on
-    // the run bar next to stop.
-    //
-    // The id stays wfd-bar-learn so saved layouts keep their position; only the name
-    // changed, because "learn" stopped describing what is in it.
-    { id: 'wfd-bar-learn',      group: 'bars', title: 'menu',      x: 884, y: -78, w: 470, h: 66, minW: 110, minH: 44, bar: true,
-      adopt: ['#btn-tour', '#examples-dd', '#theme-select', '#btn-vperf', '#vperf-status',
-              '#btn-desktop', '#version-tag'] },
 
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.

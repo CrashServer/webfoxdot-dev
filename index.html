@@ -31,8 +31,8 @@
       <button id="btn-run"  disabled title="run  (Ctrl+↵)">run</button>
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">stop</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">reload</button>
-      <button id="btn-vperf" title="how much of the main thread the picture may take. The audio ENGINE runs on its own thread and is never starved; what shares this one is the note SCHEDULER, which has 120ms of slack. Click to cycle: audio · balanced · video">⚡ balanced</button>
-      <span id="vperf-status" title="what the visuals are actually costing right now"></span>
+      <button id="btn-vperf" title="how much of the main thread the picture may take. The audio ENGINE runs on its own thread and is never starved; what shares this one is the note SCHEDULER, which has 120ms of slack before a note is late. Click to cycle: balanced &#183; audio first &#183; video first">perf: balanced</button>
+      <span id="vperf-status" title="what the visuals are actually costing right now &#8212; frames drawn per second, and the milliseconds each one takes off the note scheduler"></span>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">mix</button>
       <button id="btn-parts" title="parts — browse every example's #@ sections and click one into your set as a #@ section + attack() line">parts</button>
       <button id="btn-piano" title="virtual piano — play any synth with the mouse or the computer keyboard, record what you play, and turn it into a player line">piano</button>
@@ -266,7 +266,9 @@
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl } from './js/midi/midi.js';
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
-    import { visualStats } from './js/visuals/render/vperf.js';
+    import { visualStats, setVisualFps, visualFps, setVisualBudget, visualBudget } from './js/visuals/render/vperf.js';
+    import { setWorkshopRes, workshopRes } from './js/visuals/render/wsres.js';
+    import { buildPerfMenu } from './js/ui/perfmenu.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
@@ -278,6 +280,7 @@
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
              setOutputs as setVisualOutputs, setVideoRec as setVisualRec,
+             visualRes,
              liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
              setLayerFx as setVisualFx, VFX_DEFAULTS as visualFxDefaults,
              clearAll as clearVisuals } from './js/visuals/vlang.js';
@@ -3986,38 +3989,97 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // does" — and a bar is for decisions you make with one hand while something else
     // is playing. The readout beside it is the part that makes the choice honest:
     // it says what the visuals are costing, so this is not a guess.
-    const VPERF_MODES = ['audio', 'balanced', 'video'];
+    // Ordered so a first click goes somewhere useful from the default, and labelled in
+    // words: an icon here would be one more thing to learn for a control that is only
+    // pressed a handful of times, and the whole point of the readout beside it is that
+    // this is a decision you make with your eyes open.
+    const VPERF_MODES = ['balanced', 'audio', 'video'];
+    const VPERF_LABEL = { balanced: 'perf: balanced', audio: 'perf: audio first',
+                          video: 'perf: video first', custom: 'perf: custom' };
     const VPERF_KEY = 'wfd-vperf';
-    function vperfMode() {
-        try { const m = localStorage.getItem(VPERF_KEY); if (VPERF_MODES.includes(m)) return m; } catch (_) {}
-        return 'balanced';
+    // Stored as { mode, v? }. `custom` carries its four numbers, because a value you
+    // set by hand is a decision and a reload that silently threw it away and put a
+    // preset back would be the app overruling you. Reads the old plain-string form
+    // too — it shipped, and someone has one.
+    function vperfSaved() {
+        try {
+            const raw = localStorage.getItem(VPERF_KEY);
+            if (!raw) return { mode: 'balanced' };
+            if (raw[0] === '{') { const o = JSON.parse(raw); return (o && o.mode) ? o : { mode: 'balanced' }; }
+            return { mode: VPERF_MODES.includes(raw) ? raw : 'balanced' };
+        } catch (_) { return { mode: 'balanced' }; }
+    }
+    function vperfMode() { return vperfSaved().mode; }
+    function vperfValues() {
+        return { fps: visualFps(), res: visualRes() ?? 1, wres: workshopRes(), budget: visualBudget() };
+    }
+    function applyVperfValues(v) {
+        if (!v) return;
+        setVisualFps(v.fps); visualBuilders().vres(v.res > 0 ? v.res : null);
+        setWorkshopRes(v.wres); setVisualBudget(v.budget);
+    }
+    function setVperfLabel(mode) {
+        const btn = document.getElementById('btn-vperf');
+        if (!btn) return;
+        btn.textContent = VPERF_LABEL[mode] || ('perf: ' + mode);
+        btn.classList.toggle('vperf-audio', mode === 'audio');
+        btn.classList.toggle('vperf-video', mode === 'video');
+        btn.classList.toggle('vperf-custom', mode === 'custom');
     }
     function applyVperf(mode, announce) {
-        try { localStorage.setItem(VPERF_KEY, mode); } catch (_) {}
+        try { localStorage.setItem(VPERF_KEY, JSON.stringify({ mode })); } catch (_) {}
         const msg = visualBuilders().vperf(mode);
-        const btn = document.getElementById('btn-vperf');
-        if (btn) {
-            btn.textContent = '\u26a1 ' + mode;
-            btn.classList.toggle('vperf-audio', mode === 'audio');
-            btn.classList.toggle('vperf-video', mode === 'video');
-        }
+        setVperfLabel(mode);
         if (announce) log(msg, 'info');
+    }
+    // A hand-set value is none of the three presets. Recorded as 'custom' with the
+    // numbers, so nothing tries to restore it as a preset and the label says what is
+    // true — including on the next reload.
+    function saveVperfCustom() {
+        try { localStorage.setItem(VPERF_KEY, JSON.stringify({ mode: 'custom', v: vperfValues() })); } catch (_) {}
+        setVperfLabel('custom');
     }
     {
         const btn = document.getElementById('btn-vperf');
         // Restored quietly: it is a preference about this machine, not an event.
-        applyVperf(vperfMode(), false);
-        btn.onclick = () => {
-            const next = VPERF_MODES[(VPERF_MODES.indexOf(vperfMode()) + 1) % VPERF_MODES.length];
-            applyVperf(next, true);
-        };
+        const saved = vperfSaved();
+        if (saved.mode === 'custom' && saved.v) { applyVperfValues(saved.v); setVperfLabel('custom'); }
+        else applyVperf(saved.mode, false);
+        // The button opens the menu rather than cycling. Cycling was fewer keystrokes
+        // and told you nothing: three presets you cannot see, over four settings you
+        // cannot reach. The menu is where vfps/vres/wres/vbudget actually live.
+        buildPerfMenu(btn, {
+            modes: [
+                { id: 'balanced', label: 'balanced',    detail: 'every frame \u00b7 auto \u00b7 1280px \u00b7 4ms' },
+                { id: 'audio',    label: 'audio first', detail: '30fps \u00b7 0.75\u00d7 \u00b7 960px \u00b7 2ms' },
+                { id: 'video',    label: 'video first', detail: 'every frame \u00b7 1\u00d7 \u00b7 1920px \u00b7 8ms' },
+            ],
+            current: vperfMode,
+            apply: (mode) => applyVperf(mode, true),
+            stats: visualStats,
+            read: () => ({ fps: visualFps(), res: visualRes() ?? 1, wres: workshopRes(), budget: visualBudget() }),
+            // A hand-set value is no longer any of the three presets, so the mode is
+            // recorded as 'custom' — which is not in VPERF_MODES, so nothing tries to
+            // restore it as one and the label says what is true.
+            write: (key, raw) => {
+                const v = Number(raw);
+                if (key === 'fps')    setVisualFps(v);
+                if (key === 'res')    visualBuilders().vres(v > 0 ? v : null);
+                if (key === 'wres')   setWorkshopRes(v);
+                if (key === 'budget') setVisualBudget(v);
+                saveVperfCustom();
+            },
+            log: (m, k) => log(m, k || 'info'),
+        });
         const out = document.getElementById('vperf-status');
         // Once a second: this is a readout, and a readout that redraws sixty times a
         // second is itself part of the problem it is reporting on.
         setInterval(() => {
             if (!out.offsetParent) return;                   // nobody is looking
             const st = visualStats();
-            out.textContent = st.fps ? `${st.fps.toFixed(0)}fps \u00b7 ${st.ms.toFixed(1)}ms` : '';
+            // "idle" rather than blank: an empty readout reads as a gap in the bar,
+            // and "nothing is drawing" is a real answer to what the visuals cost.
+            out.textContent = st.fps ? `${st.fps.toFixed(0)}fps \u00b7 ${st.ms.toFixed(1)}ms` : 'idle';
         }, 1000);
     }
 

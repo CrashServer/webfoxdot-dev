@@ -2633,9 +2633,71 @@ body.desktop-ui #keybar { z-index: 140; }
     font-family: monospace; font-size: 10px; color: var(--text-2);
     min-width: 74px; white-space: nowrap;
 }
-/* The mode is in the label, so the button only needs to say when it is NOT balanced. */
+/* ── The render-load menu (js/ui/perfmenu.js) ─────────────────────────────── */
+.wfd-perf-menu {
+    position: fixed; z-index: 10002;
+    width: 330px; max-width: calc(100vw - 16px);
+    background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 5px;
+    padding: 9px 10px 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+    font-family: monospace;
+}
+.wfd-perf-head {
+    font-size: 9px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--text-2); margin-bottom: 5px;
+}
+/* The reason the whole control exists. Reads as prose because it is an explanation,
+   not a label — and it is short enough that nobody has to skip it. */
+.wfd-perf-why {
+    margin: 0 0 9px; font-size: 10px; line-height: 1.5;
+    color: var(--text-2); font-family: inherit;
+}
+.wfd-perf-why b { color: var(--text-1); font-weight: normal; }
+.wfd-perf-mode {
+    display: block; width: 100%; text-align: left;
+    background: none; border: 1px solid transparent; border-radius: 4px;
+    padding: 4px 7px; margin-bottom: 3px; cursor: pointer;
+    font-family: inherit;
+}
+.wfd-perf-mode:hover { background: var(--bg-1); }
+.wfd-perf-mode.on { border-color: var(--accent, var(--blue)); background: var(--bg-1); }
+.wfd-perf-mode-name { display: block; font-size: 11px; color: var(--text-1); }
+.wfd-perf-mode.on .wfd-perf-mode-name { color: var(--accent, var(--blue)); }
+.wfd-perf-mode-sub  { display: block; font-size: 9px; color: var(--text-2); margin-top: 1px; }
+/* label · field · what it means — three columns so the numbers line up and the
+   explanation sits beside the thing it explains rather than in a tooltip. */
+.wfd-perf-grid {
+    display: grid; grid-template-columns: auto 62px 1fr;
+    align-items: center; gap: 4px 7px;
+    margin: 9px 0 7px; padding-top: 8px;
+    border-top: 1px solid var(--border-1);
+}
+.wfd-perf-lab  { font-size: 10px; color: var(--text-1); white-space: nowrap; }
+.wfd-perf-note { font-size: 9px;  color: var(--text-2); }
+.wfd-perf-num {
+    width: 100%; background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-1); border-radius: 3px;
+    font-family: monospace; font-size: 10px; padding: 2px 4px; text-align: right;
+}
+.wfd-perf-num:focus { outline: none; border-color: var(--accent, var(--blue)); }
+.wfd-perf-foot {
+    font-size: 9px; color: var(--text-2);
+    padding-top: 6px; border-top: 1px solid var(--border-1);
+}
+
+/* The mode is in the label, so the button only needs to say when it is NOT balanced —
+   the default should look like every other button, not like a state you are in. */
 #btn-vperf.vperf-audio { color: var(--yellow); border-color: currentColor; }
 #btn-vperf.vperf-video { color: var(--blue); border-color: currentColor; }
+/* Hand-set numbers are none of the three presets, and the label says so. */
+#btn-vperf.vperf-custom { color: var(--text-1); border-color: currentColor; }
+/* ── The main bar's two halves ────────────────────────────────────────────────
+   Left is the music, right is the app. The separator is the STATUS READOUT between
+   them: #synth-status is flex:1, so it takes all the slack and the two groups end up
+   at opposite ends of the bar on their own. A drawn divider on top of that was one
+   line too many — it gave the first button of the right-hand group an edge that did
+   not match its neighbours, to restate a gap you can already see. */
+.wfd-bar #btn-tour { margin-left: 4px; }
 
 #wfd-canvas { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; z-index: 0; }
 

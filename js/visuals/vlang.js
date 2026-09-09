@@ -320,6 +320,9 @@ export function getVisualPlayer(name) {
     if (!p) { p = new VisualPlayer(name); _players.set(name, p); }
     return p;
 }
+/** The GPU resolution multiplier vres() set, or null for the default. A getter so a
+ *  panel can SHOW what the language was told, instead of keeping its own copy. */
+export function visualRes() { return master.res; }
 export function isVisualName(name) { return /^video\d*$/i.test(name); }   // convention: video1, video2, …
 export function isScene(name) { return SCENE_SET.has(name); }
 // True if `name` is CURRENTLY a live video layer or the crossfader — any name can be
