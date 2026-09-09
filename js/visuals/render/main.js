@@ -14,9 +14,8 @@ import { draw } from './draw.js';
 import * as fx from './postfx.js';
 import { RENDER_MODES } from '../vdata.js';
 import { createGLRenderer } from './gl/renderer.js';
-import { WORKSHOP_FX_NAMES } from '../workshop/catalog.js';
+import { fxBundle } from './fxbundle.js';
 import { attachMapping } from './mapping.js';
-const WS_FX = new Set(WORKSHOP_FX_NAMES);
 import { V, AUD, S } from './state.js';
 import { allowFrame, noteFrame } from './vperf.js';
 
@@ -58,47 +57,6 @@ function resize() {
     if (glr) glr.resize();
 }
 addEventListener('resize', resize); resize();
-
-// The strongest value of an fx key across all live layers (fx are additive intents).
-// A workshop layer's FX are applied per-layer, on its own canvas, by wsdeck.js. If
-// they were counted here as well they would run TWICE — and for invert that means not
-// at all, since inverting twice is the identity. So a key is skipped on a `ws` layer
-// when the workshop implements it; anything the workshop does NOT have (trails, scan,
-// fold, hueshift, pixelsort) still falls through to this global pass.
-function maxFx(key, base = 0) {
-    let m = base;
-    for (const l of V.layers) { if (l.ws && WS_FX.has(key)) continue; const f = l.fx && l.fx[key]; if (typeof f === 'number' && f > m) m = f; else if (f === true && m < 1) m = 1; }
-    return m;
-}
-function fxBundle() {
-    // The grade keys are neutral at 1 and the ceiling is a LIMIT, so neither follows
-    // the "loudest intent wins from 0" rule the other keys use: a grade defaults to 1
-    // and takes the furthest-from-neutral value, and two layers asking for different
-    // ceilings resolve to the LOWER one, because a ceiling is a promise not to exceed.
-    const grade = (key) => {
-        let m = 1, best = 0;
-        for (const l of V.layers) {
-            const v = l.fx && l.fx[key];
-            if (typeof v !== 'number' || !isFinite(v)) continue;
-            const d = Math.abs(v - 1);
-            if (d > best) { best = d; m = v; }
-        }
-        return m;
-    };
-    const ceiling = () => {
-        let m = 1;
-        for (const l of V.layers) { const v = l.fx && l.fx.ceiling; if (typeof v === 'number' && v < m) m = v; }
-        return m;
-    };
-    return {
-        sat: grade('sat'), exposure: grade('exposure'), contrast: grade('contrast'), ceiling: ceiling(),
-        trails: maxFx('trails', 0), feedback: maxFx('feedback', 0), glitch: maxFx('glitch', 0),
-        scan: maxFx('scan', 0), vignette: maxFx('vignette', 0), invert: maxFx('invert', 0) >= 1,
-        blur: maxFx('blur', 0), bloom: maxFx('bloom', 0), posterize: maxFx('posterize', 0),
-        droste: maxFx('droste', 0), fold: maxFx('fold', 0), hueshift: maxFx('hueshift', 0), dither: maxFx('dither', 0),
-        pixelsort: maxFx('pixelsort', 0), mirror: maxFx('mirror', 0), edge: maxFx('edge', 0), pixelate: maxFx('pixelate', 0),
-    };
-}
 
 function hudText() {
     const names = V.layers.map((l) => l.name + (l.ch ? ':B' : ':A')).join(' ');
@@ -178,7 +136,7 @@ function loop(ts) {
     if (V.clearSeq !== lastClearSeq) { lastClearSeq = V.clearSeq; if (glr) glr.clear(); ctx.clearRect(0, 0, W, H); overlayOpaque = false; }
 
     if (V.layers.length) {
-        const f = fxBundle();
+        const f = fxBundle(V.layers);
         const mode = V.mode || 'smooth';
         const isGlyph = !!RENDER_MODES[mode];        // glyph ramp → CPU; pixel/smooth → GPU
         if (glr && !isGlyph) {

@@ -1,8 +1,8 @@
 // surface.js — run the visuals renderer on ANY canvas in the main window.
 //
 // The pop-out window (render/main.js) and the editor background (editorbg.js) were
-// each carrying their own copy of the frame loop and of fxBundle(); the desktop's
-// SCREEN panel would have made a third. This is the one copy: hand it a canvas and
+// each carrying their own copy of the frame loop; the desktop's SCREEN panel would
+// have made a third. This is the one copy: hand it a canvas and
 // a clock and it drives the same GL renderer, reading the authoritative vlang
 // snapshot and the live audio each frame.
 //
@@ -16,68 +16,13 @@ import { createGLRenderer } from './render/gl/renderer.js';
 import { snapshot }         from './vlang.js';
 import { getVisualAudio, sharedBeat } from './bridge.js';
 import { allowFrame, noteFrame } from './render/vperf.js';
-import { WORKSHOP_FX_NAMES } from './workshop/catalog.js';
+import { fxBundle } from './render/fxbundle.js';
 
-const WS_FX = new Set(WORKSHOP_FX_NAMES);
-
-// Post-FX bundle: the max of each FX key across all layers. The renderer takes one
-// bundle for the whole frame, so two layers asking for different amounts of glitch
-// resolve to the louder one.
-export function fxBundle(layers) {
-// A workshop layer's FX are applied per-layer, on its own canvas, by wsdeck.js. If
-// they were counted here as well they would run TWICE — and for invert that means not
-// at all, since inverting twice is the identity. So a key is skipped on a `ws` layer
-// when the workshop implements it; anything the workshop does NOT have (trails, scan,
-// fold, hueshift, pixelsort) still falls through to this global pass.
-    const mx = (key, d = 0) => {
-        let m = d;
-        for (const l of layers) {
-            if (l.ws && WS_FX.has(key)) continue;
-            const f = l.fx && l.fx[key];
-            if (typeof f === 'number' && f > m) m = f;
-            else if (f === true && m < 1) m = 1;
-        }
-        return m;
-    };
-    // The grade keys are neutral at 1 and the ceiling is a LIMIT, so neither follows
-    // the "loudest intent wins from 0" rule the other keys use: a grade defaults to 1
-    // and takes the furthest-from-neutral value, and two layers asking for different
-    // ceilings resolve to the LOWER one, because a ceiling is a promise not to exceed.
-    const grade = (key) => {
-        let m = 1, best = 0;
-        for (const l of layers) {
-            const v = l.fx && l.fx[key];
-            if (typeof v !== 'number' || !isFinite(v)) continue;
-            const d = Math.abs(v - 1);
-            if (d > best) { best = d; m = v; }
-        }
-        return m;
-    };
-    const ceiling = () => {
-        let m = 1;
-        for (const l of layers) { const v = l.fx && l.fx.ceiling; if (typeof v === 'number' && v < m) m = v; }
-        return m;
-    };
-    return {
-        sat: grade('sat'), exposure: grade('exposure'), contrast: grade('contrast'), ceiling: ceiling(),
-        trails: mx('trails'), feedback: mx('feedback'), glitch: mx('glitch'), scan: mx('scan'),
-        vignette: mx('vignette'), invert: mx('invert') >= 1, blur: mx('blur'), bloom: mx('bloom'),
-        posterize: mx('posterize'), droste: mx('droste'), fold: mx('fold'), hueshift: mx('hueshift'),
-        dither: mx('dither'), pixelsort: mx('pixelsort'), mirror: mx('mirror'), edge: mx('edge'),
-        pixelate: mx('pixelate'),
-        // Deck-to-deck and the frame recolour. lut is an INDEX, not an amount, so the
-        // loudest-intent rule would be wrong for it in principle — but with one value
-        // per frame and no meaningful ordering between palettes, "the last layer to
-        // ask wins" and "the highest index wins" are equally arbitrary, and mx() is
-        // the one every other key already uses.
-        displace: mx('displace'), lumakey: mx('lumakey'), matte: mx('matte'),
-        freeze: mx('freeze'), lut: mx('lut'),
-        // lutmix is NEUTRAL AT 1 like the grade keys, not at 0 like everything else:
-        // mx() only ever takes a value LARGER than what it has, so a lutmix of 0.5
-        // could never win against its own default and a partial tint was impossible.
-        lutmix: grade('lutmix'),
-    };
-}
+// fxBundle moved to render/fxbundle.js — the pop-out window (render/main.js) is a
+// separate document that needs it too, and importing THIS module to get it would
+// drag vlang and the bridge along with it. Re-exported because callers already
+// import it from here.
+export { fxBundle } from './render/fxbundle.js';
 
 // ── Room time ────────────────────────────────────────────────────────────────
 // Workshop layers animate from `t`, and a machine-local `t` is the one thing that
