@@ -259,6 +259,14 @@
     import { chaosLines, JamBot } from './js/engine/generator.js';
     import { pbuild, pkit, genres } from './js/engine/drumpatterns.js';
     import { transpile, applyRenames, transpileExpr }   from './js/editor/transpiler.js';
+    // One string-aware scanner for source text — see js/editor/scan.js. The gutter
+    // carried its own, weaker copy, so a line could transpile perfectly and still be
+    // highlighted at the wrong step.
+    import { matchBracket as _matchBracket, topArgs, skipString } from './js/editor/scan.js';
+    // <…> IS a bracket in a player line (a subdivision), which is why the gutter
+    // counts it — but as a genuine alternation only, never an arrow, a comparison
+    // or the >> operator itself.
+    const matchBracket = (text, open) => _matchBracket(text, open, true);
     import { triggerAutocomplete }       from './js/editor/autocomplete.js';
     import { inspect, initInspect }      from './js/editor/inspect.js';
     import { incrementValue, stopPlayerAtCursor, silence,
@@ -3066,12 +3074,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // Element spans of one [...] array opening at `open`; returns {spans,end}.
     function arraySpans(text, open) {
-        let depth = 0, j = open;
-        for (; j < text.length; j++) { const c = text[j]; if (c === '[') depth++; else if (c === ']') { depth--; if (depth === 0) break; } }
-        if (j >= text.length) return null;
+        const j = matchBracket(text, open);
+        if (j < 0) return null;
         const spans = []; let d = 0, start = open + 1;
         for (let k = open + 1; k <= j; k++) {
             const c = text[k];
+            // A comma inside a string is not a separator: play(["x,o", "b"]) is two
+            // elements, not three. This loop keeps its own body rather than calling
+            // topArgs because it trims and recurses into nested <…>.
+            if ('"\'`'.includes(c)) { k = skipString(text, k) - 1; continue; }
             if (k === j || (c === ',' && d === 0)) {
                 let s = start, e = k;
                 while (s < e && /\s/.test(text[s])) s++;
@@ -3082,16 +3093,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             else if (c === ')' || c === ']' || c === '}' || c === '>') d--;
         }
         return { spans, end: j };
-    }
-    // Index of the bracket that closes the one opening at `open` (any type).
-    function matchBracket(text, open) {
-        let depth = 0;
-        for (let j = open; j < text.length; j++) {
-            const c = text[j];
-            if ('([{<'.includes(c)) depth++;
-            else if (')]}>'.includes(c)) { depth--; if (depth === 0) return j; }
-        }
-        return -1;
     }
     // Element spans of a <…> alternation (split on top-level spaces/commas), so the
     // highlight can move through the alternated items like a [...] sequence.
@@ -3124,17 +3125,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // arp([…], mode, octaves) plays its base array in a mode-dependent order, so the
     // live highlight must step through the SOURCE elements in that same order.
     const _ARP_MODES = ['up', 'down', 'updown', 'downup', 'random'];
-    // Top-level (comma-separated) arg substrings between the '(' at `open` and its ')'.
-    function topArgs(text, open, close) {
-        const args = []; let d = 0, start = open + 1;
-        for (let k = open + 1; k <= close; k++) {
-            const c = text[k];
-            if (k === close || (c === ',' && d === 0)) { args.push(text.slice(start, k)); start = k + 1; }
-            else if ('([{<'.includes(c)) d++;
-            else if (')]}>'.includes(c)) d--;
-        }
-        return args;
-    }
     // A mode arg → mode name. "downup"/'downup' → name; an integer → index into
     // _ARP_MODES; anything else (a var/expr) → 'up' (a sensible default order).
     function parseArpMode(s) {
