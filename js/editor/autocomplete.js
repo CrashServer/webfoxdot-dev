@@ -830,12 +830,18 @@ function rowEl(node, onEnter, onClick) {
 
 // Hover row j of column i: cut deeper columns, select it, and (if a category)
 // unfold its child column — so the mouse cascades through the tree.
+//
+// `follow: false` — do NOT scroll the column to the selection. The row is already
+// under the pointer, so scrolling to it moves the list out from under the mouse, the
+// pointer lands on a different row, that fires mouseenter, and the column races away
+// on its own. With 190 workshop layers in one column that made everything past the
+// first screenful unreachable.
 function hoverTo(s, i, j) {
     s.cols.length = i + 1;
     s.cols[i].sel = j;
     const node = s.cols[i].entries[j];
     if (node.kind === 'cat') s.cols.push({ entries: node.children, sel: 0 });
-    render(s);
+    render(s, false);
 }
 
 function clickRow(s, i, j) {
@@ -844,20 +850,44 @@ function clickRow(s, i, j) {
     else hoverTo(s, i, j);
 }
 
-function render(s) {
-    (s.colDivs || []).forEach(d => d.remove());
-    s.colDivs = []; s.colEls = [];
+/**
+ * Draw the open columns.
+ *
+ * A column is REUSED while it is still showing the same entries, and only its active
+ * row moves. It used to rebuild every column from scratch on every hover and every
+ * keypress, and a fresh div starts at scrollTop 0 — so a long column (the workshop
+ * layers are one list of 190) was yanked back to the top by any mouse movement over
+ * it, and nothing past the first screenful could be reached at all.
+ *
+ * @param {boolean} follow  scroll the active row into view. True for the keyboard,
+ *                          which moves a selection you cannot see; false for the
+ *                          mouse, where the selection is under the pointer already.
+ */
+function render(s, follow = true) {
+    if (!s.colDivs) { s.colDivs = []; s.colEls = []; s.colKeys = []; }
+    // Columns the tree no longer has (you moved back up a level).
+    for (let i = s.cols.length; i < s.colDivs.length; i++) s.colDivs[i].remove();
+    s.colDivs.length = s.colEls.length = s.colKeys.length = s.cols.length;
+
     for (let i = 0; i < s.cols.length; i++) {
         const col = s.cols[i];
-        const div = document.createElement('div');
-        div.className = 'cd-menu' + (i > 0 ? ' cd-submenu' : '');
-        const rows = col.entries.map((node, j) => {
-            const r = rowEl(node, () => hoverTo(s, i, j), () => clickRow(s, i, j));
-            r.classList.toggle('active', j === col.sel);
-            div.appendChild(r); return r;
-        });
-        document.body.appendChild(div);
-        s.colDivs.push(div); s.colEls.push(rows);
+        let div = s.colDivs[i], rows = s.colEls[i];
+        // Identity, not contents: unfolding the same category hands back the same
+        // children array, so this is exactly "is it still the same list".
+        if (!div || s.colKeys[i] !== col.entries) {
+            if (div) div.remove();
+            div = document.createElement('div');
+            div.className = 'cd-menu' + (i > 0 ? ' cd-submenu' : '');
+            rows = col.entries.map((node, j) => {
+                const r = rowEl(node, () => hoverTo(s, i, j), () => clickRow(s, i, j));
+                div.appendChild(r); return r;
+            });
+            document.body.appendChild(div);
+            s.colDivs[i] = div; s.colEls[i] = rows; s.colKeys[i] = col.entries;
+        }
+        for (let j = 0; j < rows.length; j++) rows[j].classList.toggle('active', j === col.sel);
+        // A submenu hangs off its parent's ACTIVE row, so every column still has to be
+        // repositioned when the selection moves, reused or not.
         if (i === 0) {
             // position:fixed → use viewport ('window') coords so where the menu is
             // PAINTED matches where the browser hit-tests a click (page/scroll coords
@@ -872,7 +902,7 @@ function render(s) {
         }
         // Keep the active row visible when the column overflows (scroll the div,
         // not the page) — so ↑/↓ past the fold works and wrap-around is visible.
-        const arow = rows[col.sel];
+        const arow = follow && rows[col.sel];
         if (arow) {
             const rt = arow.offsetTop, rb = rt + arow.offsetHeight;
             if (rt < div.scrollTop) div.scrollTop = rt;
