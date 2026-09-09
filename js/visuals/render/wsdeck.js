@@ -58,7 +58,15 @@ export function createWorkshopDeck() {
     const dctx = [null, null];
     let W = 0, H = 0;
 
-    function sized(c, w, h) { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
+    // Returns TRUE if it actually resized. It used to return the canvas, which is
+    // always truthy — so `if (sized(c,w,h) && !s.opened)` read like "if it resized"
+    // and tested only the second half. It happened to do the right thing; it just
+    // did not mean what it said.
+    function sized(c, w, h) {
+        if (c.width === w && c.height === h) return false;
+        c.width = w; c.height = h;
+        return true;
+    }
 
     // ── Per-layer frame budget ───────────────────────────────────────────────
     // What actually costs is the layer, not the size: slimemold runs a per-agent
@@ -109,7 +117,11 @@ export function createWorkshopDeck() {
         }
         // Resizing a canvas already blanks it; this covers the first frame of a slot
         // whose size happens not to change. After that it is the layer's own surface.
-        if (sized(s.canvas, w, h) && !s.opened) { s.opened = true; s.ctx.clearRect(0, 0, w, h); }
+        // Resizing a canvas already blanks it, so the clear is only for a slot whose
+        // size happens not to change on its first frame.
+        const resized = sized(s.canvas, w, h);
+        if (!resized && !s.opened) s.ctx.clearRect(0, 0, w, h);
+        s.opened = true;
         return s;
     }
 
@@ -255,7 +267,13 @@ export function createWorkshopDeck() {
             // layer, on its 30th frame, and only while the analyser is actually silent,
             // read the canvas. One getImageData per layer per session, at the single
             // moment the answer is interesting.
-            if (!s.silentChecked && ++s.frames === 30 && (!aud || (aud.level || 0) < 0.01)) {
+            // >= 30, not === 30. The check needs the analyser to be SILENT to mean
+            // anything, so it is conditional on two things at once — and with an exact
+            // frame number, a layer that happened to start while something was playing
+            // missed its one chance and the hint could never fire again, however long
+            // the room stayed quiet afterwards. Now frame 30 is the earliest it can
+            // fire, not the only time.
+            if (!s.silentChecked && ++s.frames >= 30 && (!aud || (aud.level || 0) < 0.01)) {
                 s.silentChecked = true;
                 try {
                     const px = s.ctx.getImageData(0, 0, Math.min(64, w), Math.min(64, h)).data;

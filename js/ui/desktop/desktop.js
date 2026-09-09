@@ -488,6 +488,11 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
                 };
                 sc.picker.onchange = () => oapi.setScreenSource(sc.picker.value);
                 fill();
+                // Panels are built once and live as long as the page, so this poller —
+                // like the layers/outputs/perf ones, whose returned dispose() is never
+                // called either — runs for the session. It costs one offsetParent read a
+                // second while hidden. Noted rather than "fixed": adding a teardown
+                // protocol for something nothing tears down would be the bigger mistake.
                 setInterval(() => { if (panelEl.offsetParent !== null) fill(); }, 1000);
             }
         }

@@ -126,11 +126,20 @@ export class Clock {
 
     now()                      { return this._beat; }
     // lead (seconds): dispatch fn this far before `b`, for timestamped audio events.
-    _schedule(b, fn, lead = 0) { this._events.push({ beat: b, fn, lead }); }
+    //
+    // A non-finite beat is refused rather than queued. `evt.beat <= horizon` is false
+    // for NaN at every horizon there will ever be, so such an event never fires AND
+    // never leaves — it just sits in _events being re-examined a hundred times a
+    // second, forever, one more each time somebody calls future(NaN) again.
+    _schedule(b, fn, lead = 0) {
+        if (!isFinite(b)) return false;
+        this._events.push({ beat: b, fn, lead });
+        return true;
+    }
 
     // ── User-facing scheduling ────────────────────────────────────────────────
     // Run fn `dur` beats from now (one-shot). Clock.future(8, () => p1.stop())
-    future(dur, fn)     { if (typeof fn === 'function') this._schedule(this._beat + Math.max(0, dur), fn); }
+    future(dur, fn)     { if (typeof fn === 'function') this._schedule(this._beat + Math.max(0, Number(dur) || 0), fn); }
     // Run fn at an absolute beat.
     schedule(beat, fn)  { if (typeof fn === 'function') this._schedule(beat, fn); }
     // Run fn at the next beat that is a multiple of n (+ optional offset).
@@ -145,7 +154,8 @@ export class Clock {
     // Current bar index and beats-per-bar.
     bar()               { return Math.floor(this._beat / this._meter); }
     get meter()         { return this._meter; }
-    set meter(n)        { this._meter = Math.max(1, Math.round(n)); }
+    // Math.max(1, Math.round(NaN)) is NaN, not 1 — bar() would return NaN forever.
+    set meter(n)        { const m = Math.round(Number(n)); if (isFinite(m)) this._meter = Math.max(1, m); }
 
     get bpm()  { return this._bpm; }
     set bpm(v) {
@@ -155,7 +165,14 @@ export class Clock {
             return;
         }
         this._bpmVar = null;
-        this._bpm = Number(v);
+        // The TimeVar path below already validates (isFinite && > 0); this one did not,
+        // and the two failure modes are both terminal. Clock.bpm = 0 makes beatToNTP
+        // divide by zero, so every note gets an infinite timetag. Clock.bpm = NaN makes
+        // `_beat += dt * NaN / 60` turn the beat itself into NaN, and the clock never
+        // advances again — no error, no sound, nothing to do but reload.
+        const n = Number(v);
+        if (!isFinite(n) || n <= 0) return;
+        this._bpm = n;
         this._bpmShown = Math.round(this._bpm);
         if (this._onBpm) this._onBpm(this._bpm);
     }
