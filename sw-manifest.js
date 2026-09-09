@@ -10,6 +10,7 @@ self.__WFD_PRECACHE = [
   './icons/icon.svg',
   './index.html',
   './js/collab/actions.js',
+  './js/collab/identity.js',
   './js/collab/collab.js',
   './js/collab/permissions.js',
   './js/collab/presence.js',

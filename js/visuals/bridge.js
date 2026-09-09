@@ -128,6 +128,17 @@ export function startVisualsAudio(sc, clock, getMeta) {
 let _shareAudio = null, _roomAudio = null;
 export function setAudioShareHooks({ share = null, room = null } = {}) { _shareAudio = share; _roomAudio = room; }
 
+// The room's beat number, when there is a room. clock.now() starts at 0 when THIS
+// machine boots, so it is the wrong thing to animate a shared picture from — see
+// roomBeat() in js/collab/collab.js.
+let _roomBeat = null;
+export function setRoomBeatHook(fn) { _roomBeat = fn; }
+/** The beat every peer agrees on; falls back to the local one when solo. */
+export function sharedBeat(localBeat) {
+    if (!_roomBeat) return localBeat;
+    try { const b = _roomBeat(); return b == null ? localBeat : b; } catch (_) { return localBeat; }
+}
+
 // How loud counts as "this machine is making the sound". Below it we are a listener,
 // or a visuals-only machine, and the room's analysis is the better answer.
 const HEARD = 0.012;
@@ -189,6 +200,9 @@ function _tick() {
         ...getVisualAudio(),
         bpm: _clock?.bpm ?? 120,
         beat: now,
+        // The pop-out window has no clock of its own and no session of its own, so the
+        // shared beat has to be computed here and sent.
+        roomBeat: sharedBeat(now),
         bar: Math.floor(now / 4),
         section: meta.section || '',
         autoplay: !!meta.autoplay,

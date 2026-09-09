@@ -1482,6 +1482,18 @@ body.zen #docs-panel { display: none !important; }
     font-family: monospace; font-size: 10px;
 }
 #cp-peers { display: flex; flex-direction: column; gap: 3px; }
+/* Why nobody else is here. Only shown while you are alone in a room. */
+#cp-lan-warn {
+    margin-top: 5px; padding: 4px 6px;
+    border-left: 2px solid var(--yellow);
+    background: var(--bg-1);
+    font-size: 10px; line-height: 1.45; color: var(--text-2);
+}
+#cp-lan-warn b { color: var(--text-1); }
+#cp-lan-warn code {
+    font-family: monospace; color: var(--yellow);
+    background: transparent; padding: 0;
+}
 /* ◈ visuals station · ♪ currently making sound. */
 .cp-peer-station { font-size: 10px; color: var(--text-2); flex-shrink: 0; }
 /* Role badge, shown only while the room's rules are switched on. */

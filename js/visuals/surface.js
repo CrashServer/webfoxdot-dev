@@ -14,7 +14,7 @@
 
 import { createGLRenderer } from './render/gl/renderer.js';
 import { snapshot }         from './vlang.js';
-import { getVisualAudio }   from './bridge.js';
+import { getVisualAudio, sharedBeat } from './bridge.js';
 import { WORKSHOP_FX_NAMES } from './workshop/catalog.js';
 
 const WS_FX = new Set(WORKSHOP_FX_NAMES);
@@ -84,6 +84,12 @@ export function fxBundle(layers) {
 // Field scenes keep wall time. They are pure functions of (u,v,t) evaluated in one
 // shader, so their phase is already whatever `t` says and changing it would alter
 // every existing set's look.
+//
+// One correction to the story above: the beat was NOT in fact shared. clock.now() is a
+// local counter started at boot, and beat_sync only ever repaired the tempo — so two
+// peers ran the same layer on unrelated phases, which is precisely what this was meant
+// to prevent. collab.js derives the room's beat properly now, and sharedBeat() is what
+// that arrives through.
 const BEAT_SECONDS = 60 / 120;
 
 /**
@@ -150,7 +156,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         const dk = ws.length ? deck() : null;
         if (dk) {
             const { W, H } = r.size;
-            const d = dk.render(ws, W, H, beat * BEAT_SECONDS, aud, vst.live);
+            const d = dk.render(ws, W, H, sharedBeat(beat) * BEAT_SECONDS, aud, vst.live);
             r.setWorkshop(d.a, d.b);
         } else r.setWorkshop(null, null);
         r.render(vst, t, aud, fxBundle(vst.layers));

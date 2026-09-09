@@ -2,12 +2,9 @@
 // Multiplayer collaboration layer — connects to collab server,
 // syncs editor text via Yjs, broadcasts eval events, syncs clock.
 
+import { loadUser, saveUser } from './identity.js';
 import { collabWsBase } from '../net/serverUrls.js';
 
-function randomColor() {
-    const hue = Math.floor(Math.random() * 360);
-    return `hsl(${hue}, 70%, 60%)`;
-}
 
 /**
  * Initialize multiplayer collaboration for a session.
@@ -87,13 +84,9 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         setTimeout(seedIfEmpty, 1800);
     }
 
-    // User identity — persisted across reloads. A stable `id` (separate from the
-    // per-connection Yjs clientID) survives refreshes, so peers de-dupe on it and
-    // a reload doesn't spawn a ghost copy of you.
-    const user = JSON.parse(localStorage.getItem('wfd-user') || 'null')
-        || { name: 'user' + Math.floor(Math.random() * 99), color: randomColor() };
-    if (!user.id) user.id = 'u' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-    localStorage.setItem('wfd-user', JSON.stringify(user));
+    // Name and colour are yours and shared by every tab; the id is this TAB's, so two
+    // windows of one browser are two peers rather than one — see identity.js.
+    const user = loadUser();
     provider.awareness.setLocalStateField('user', user);
 
     // Clear our awareness on unload so the ghost vanishes immediately (not after
@@ -104,7 +97,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
     // Update identity live — peers see the new name/colour on your cursor at once.
     function setUser(u) {
         if (!u.id) u.id = user.id;
-        localStorage.setItem('wfd-user', JSON.stringify(u));
+        saveUser(u);
         provider.awareness.setLocalStateField('user', u);
     }
 
@@ -198,6 +191,7 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         const lowest = Math.min(...entries.map(([id]) => id));
         if (aw.clientID !== lowest) return;
         beatMaster = true;
+        beatOffset = 0;                 // the master's own beat IS the room's beat
         aw.setLocalStateField('beatMaster', true);
         startBeatSync();
     }
@@ -215,6 +209,30 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         }, Math.round((60_000 / (clock.bpm || 120)) * 8));
     }
 
+    // ── The room's beat NUMBER ────────────────────────────────────────────────
+    //
+    // clock.now() is a purely LOCAL counter: it starts at 0 when this machine boots
+    // audio (clock.start() lives in bootAudio), so two peers who booted a minute apart
+    // are ~120 beats apart and neither number means anything on the other machine.
+    // beat_sync repaired the TEMPO and a wall-clock offset and left the beat number
+    // alone, so "our beat clocks are aligned" was never true — and everything built on
+    // it was quietly broken: an eval sent with the sender's beat was scheduled by the
+    // receiver for a beat minutes away and simply never ran, and workshop layers, which
+    // take room time from the beat so a strobe fires on the same frame everywhere, were
+    // running on unrelated phases.
+    //
+    // The master's beat domain IS recoverable — beat_sync already carries its beat and
+    // the wall time that reading was taken at, and clockOffset already aligns our wall
+    // clocks — so that is the domain the room agrees on. Kept as an OFFSET rather than
+    // by jumping our own beat: _beat is what every scheduled event, every() phase and
+    // running player is timed against, and moving it would re-time the whole set.
+    let beatOffset = null;      // roomBeat = clock.now() + beatOffset. null until synced.
+
+    /** This machine's beat expressed in the room's domain, or null if not yet synced. */
+    function roomBeat() { return beatOffset == null ? null : clock.now() + beatOffset; }
+    /** A room beat as a LOCAL beat, for clock._schedule. Null if not yet synced. */
+    function toLocalBeat(rb) { return (beatOffset == null || rb == null) ? null : rb - beatOffset; }
+
     function handleBeatSync({ bpm, beat, wallTime }) {
         if (beatMaster) return; // masters ignore incoming sync
         // Tempo repair. The shared 'bpm' state key is what actually carries a knob turn
@@ -225,6 +243,17 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
         // assigning a sampled NUMBER over a tempo automation (Clock.bpm = linvar(…))
         // would freeze it, and that var rides the eval broadcast anyway.
         if (bpm && !clock._bpmVar && Math.abs(bpm - clock.bpm) > 0.01) clock.bpm = bpm;
+        // Where the master's beat has reached by now: its reading, plus the time since
+        // it took it, at its tempo. lastRtt/2 is the one-way hop the reading spent in
+        // flight — the same correction the wall-clock offset makes below.
+        if (beat != null && wallTime) {
+            const aheadMs = Math.max(0, Date.now() - wallTime - lastRtt / 2);
+            const target  = beat + (aheadMs / 60000) * (bpm || clock.bpm || 120) - clock.now();
+            // Snap on the first sync, then ease. beat_sync arrives every 8 beats over a
+            // jittery link, and an offset that twitches re-times every eval that lands
+            // near it — worse than an offset that is a few milliseconds stale.
+            beatOffset = beatOffset == null ? target : beatOffset + (target - beatOffset) * 0.25;
+        }
         const drift = Math.abs(Date.now() - wallTime - clockOffset);
         if (drift > 5) {
             // Followers realign when drift exceeds 5 ms. Compensate for the one-way
@@ -456,5 +485,5 @@ export async function initCollab(sessionSlug, clock, editor, onEvalReceived, onA
                  spectrum: (best.s || []).map((v) => v / 255) };
     }
 
-    return { broadcastEval, broadcastAction, setPerf, setAudioShare, roomAudio, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, pauseSync, resumeSync, destroy };
+    return { broadcastEval, broadcastAction, roomBeat, toLocalBeat, setPerf, setAudioShare, roomAudio, setPerm, getPerm, permEntries, setUser, getPeers, sendChat, getClockOffset, isConnected, myId: () => user.id, isListed, setListed, pauseSync, resumeSync, destroy };
 }

@@ -188,7 +188,7 @@ function loop(ts) {
                 const { W: gw, H: gh } = glr.size;
                 // Room time — see surface.js. The pop-out window has no clock of its
                 // own, but the bridge streams the beat, which is the shared one.
-                const d = dk.render(ws, gw, gh, AUD.beat * BEAT_SECONDS, aud, V.live);
+                const d = dk.render(ws, gw, gh, AUD.roomBeat * BEAT_SECONDS, aud, V.live);
                 glr.setWorkshop(d.a, d.b);
             } else glr.setWorkshop(null, null);
             glr.render(V, t, aud, f);

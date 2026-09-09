@@ -149,6 +149,7 @@
         <option value="visuals">◈ visuals — silent, reacts to the room</option>
       </select>
       <div id="cp-peers"></div>
+      <div id="cp-lan-warn" hidden></div>
       <button id="btn-rules" title="room rules — who controls what: roles, capabilities and track ownership (optional, off by default)">⚖ room rules</button>
       <div id="cp-chat-log"></div>
       <input id="cp-chat-input" type="text" placeholder="chat…  (Enter)" maxlength="280" spellcheck="false">
@@ -266,7 +267,7 @@
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
-    import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals, setAudioShareHooks } from './js/visuals/bridge.js';
+    import { openVisuals, startVisualsAudio, getVisualAudio, postCode, postStep, postInstant, initVisuals, setAudioShareHooks, setRoomBeatHook } from './js/visuals/bridge.js';
     import { asciiWord, ASCII_STYLES } from './js/ui/ascii.js';
     import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
     import { initPiano, togglePiano } from './js/ui/piano.js';
@@ -294,7 +295,8 @@
              activeSectionDoc } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import { setActionSender, setStateWriter, applying as applyingRemote, isApplying, shareState, shareStateThrottled } from './js/collab/actions.js';
-    import { navUrl, roomLink } from './js/net/appurl.js';
+    import { navUrl, roomLink, isLoopbackOrigin } from './js/net/appurl.js';
+    import { loadUser, saveUser } from './js/collab/identity.js';
     import * as perms from './js/collab/permissions.js';
     import { initRulesPanel, toggleRules, renderRulesPanel } from './js/ui/rulespanel.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
@@ -481,6 +483,10 @@
     // How late a peer's eval may land before it's worth saying so, in beats. Below
     // this it's ordinary network jitter; above it the room has genuinely drifted.
     const LATE_EVAL_BEATS = 0.25;
+    // The most an eval may be held for the beat it was meant for. A peer's line should
+    // land within a bar or it is not the same musical moment any more, and holding it
+    // longer trades a small timing error for a missing line.
+    const MAX_EVAL_WAIT_BEATS = 4;
     let _lateWarnAt = 0;
     function warnLateEval(author, lag) {
         const now = Date.now();
@@ -1437,7 +1443,10 @@
         if (!fromRemote && _collab) {
             if (!perms.can('code')) return denied('code');   // it ran here; it just stays here
             const user = getUser();
-            _collab.broadcastEval(raw, [], user.name, user.color, clock.now());
+            // In the ROOM's beat domain, not ours — see roomBeat() in collab.js. Null
+            // until the first beat_sync lands, and a null beatTime means "run it on
+            // arrival", which is what every peer did before any of this existed.
+            _collab.broadcastEval(raw, [], user.name, user.color, _collab.roomBeat());
         } else if (!fromRemote && _soloPresence) {
             // Solo: forward the eval to the server's live monitor (not relayed anywhere).
             const user = getUser();
@@ -2347,6 +2356,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             mpBtn.title = "copy this live session's link to share with others";
             mpBtn.onclick = async () => {
                 const url = roomLink(_sessionSlug);
+                if (isLoopbackOrigin())
+                    log('heads up: this link points at 127.0.0.1, which on someone else\'s computer means THEIR machine — run `python3 serve-lan.py` and share the https://<your-ip>:8765 link instead', 'warn');
                 try { await navigator.clipboard.writeText(url); log(`session link copied — ${url}`, 'success'); }
                 // Logged rather than pushed into the address bar: the shareable link
                 // deliberately drops ?ui= and ?diag=, so putting it in the bar would
@@ -3547,16 +3558,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     scanVars();
 
     // ── User identity (multiplayer) — name + cursor colour ────────────────────
-    function userRandomColor() { return `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`; }
-    function getUser() {
-        let u = null;
-        try { u = JSON.parse(localStorage.getItem('wfd-user') || 'null'); } catch (_) {}
-        if (!u || !u.name) u = { name: 'user' + Math.floor(Math.random() * 99), color: userRandomColor() };
-        // Stable id survives refreshes so peers don't double you up on reload.
-        if (!u.id) u.id = 'u' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-        localStorage.setItem('wfd-user', JSON.stringify(u));
-        return u;
-    }
+    // Name/colour/station from this browser, connection id from this tab — see
+    // js/collab/identity.js for why those are two different lifetimes.
+    const getUser = loadUser;
     // <input type=color> needs #rrggbb — normalise any CSS colour (e.g. hsl()) via canvas.
     function toHexColor(color) {
         if (/^#[0-9a-f]{6}$/i.test(color)) return color;
@@ -3601,7 +3605,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const save = () => {
             const u = { ...getUser(), name: nameI.value.trim() || 'anon', color: colI.value,
                         station: STATIONS.includes(staI.value) ? staI.value : 'both' };
-            localStorage.setItem('wfd-user', JSON.stringify(u));
+            saveUser(u);
             if (_collab) _collab.setUser(u);   // live-update peers' cursors
         };
         nameI.onchange = save;
@@ -3623,10 +3627,14 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (!el) return;
         if (!peers || peers.length === 0) {
             el.innerHTML = '<div style="font-size:10px;color:var(--text-2)">connecting…</div>';
+            lanWarning(1);          // still connecting — do not accuse the network yet
             return;
         }
         const seen = new Set();
         el.innerHTML = '';
+        // "Am I alone, or is this broken?" is the first question in an empty room, and
+        // the list answering it with one row saying your own name is not an answer.
+        lanWarning(peers.filter((u) => !u.isSelf).length);
         for (const u of peers) {
             if (!u || seen.has(u.id)) continue;
             seen.add(u.id);
@@ -3644,6 +3652,23 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 (role ? `<span class="cp-peer-role${role === 'host' ? ' is-host' : ''}">${role === 'host' ? '★ ' : ''}${role}</span>` : '');
             el.appendChild(d);
         }
+    }
+
+    // Nobody else here yet? Say so — and, if this page is served from loopback, say
+    // WHY it may never change. serve.py binds 127.0.0.1, so the link in the address bar
+    // resolves on anyone else's computer to their own localhost: a different server, a
+    // different relay, a room with the same name and none of the same people. Both ends
+    // look connected and neither sees the other, which is the worst kind of failure —
+    // it presents as a bug in the app rather than as an address that cannot travel.
+    function lanWarning(others) {
+        const el = document.getElementById('cp-lan-warn');
+        if (!el) return;
+        if (others > 0 || !_sessionSlug) { el.hidden = true; return; }
+        el.hidden = false;
+        el.innerHTML = isLoopbackOrigin()
+            ? 'just you here so far. This page is served from <b>127.0.0.1</b>, so the link works on this machine only — '
+              + 'run <code>python3 serve-lan.py</code> and share the <code>https://&lt;your-ip&gt;:8765</code> link to invite anyone else.'
+            : 'just you here so far — share the session link to invite someone.';
     }
 
     // ── Session chat ──────────────────────────────────────────────────────────
@@ -3728,11 +3753,20 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // can't go back, and it runs now exactly as before. What's new is that the
             // lateness is measurable, so a room that has drifted badly says so instead
             // of just sounding loose.
-            const lag = msg.beatTime != null ? clock.now() - msg.beatTime : 0;
-            if (msg.beatTime != null && lag < -0.001) clock._schedule(msg.beatTime, run);
+            // A room beat has to come back into OUR beat domain before the clock can
+            // schedule it. Null (not synced yet, or an older peer) means run now.
+            const target = msg.beatTime != null ? _collab?.toLocalBeat(msg.beatTime) : null;
+            const delay  = target != null ? target - clock.now() : 0;
+            // Only wait for a beat that is genuinely just ahead and that the clock will
+            // actually reach. Everything else runs NOW — a stopped clock never fires a
+            // scheduled event, and a delay of minutes is not a phase correction, it is a
+            // sign the domains disagree. That case used to swallow the eval whole: it
+            // was logged, shown in the feed, and silently deferred past the end of the
+            // set. Running late is a small musical error; not running at all is not.
+            if (delay > 0.001 && delay <= MAX_EVAL_WAIT_BEATS && clock._running) clock._schedule(target, run);
             else {
                 run();
-                if (lag > LATE_EVAL_BEATS) warnLateEval(msg.author, lag);
+                if (-delay > LATE_EVAL_BEATS) warnLateEval(msg.author, -delay);
             }
         }, applyAction, onPeersChanged, appendChat, _seedText, renderListing, applyPerfState, onConnection, onPermsChanged).then(collab => {
             _collab = collab;
@@ -3740,6 +3774,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // analysis; a machine doing visuals only consumes it, so audio-reactive
             // layers pulse with the set instead of freezing on a dead analyser.
             setAudioShareHooks({ share: collab.setAudioShare, room: collab.roomAudio });
+            // …and let them animate from the beat the room agrees on, not this
+            // machine's counter, so a strobe fires on the same frame everywhere.
+            setRoomBeatHook(collab.roomBeat);
             // Connected while a scratch buffer is up: the binding must not mirror the
             // room's text into it (see collab.js pauseSync).
             if (_tabs && !_tabs.isMain()) collab.pauseSync();

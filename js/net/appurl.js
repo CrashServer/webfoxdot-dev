@@ -40,3 +40,19 @@ export function navUrl(slug, search = location.search, pathname = location.pathn
 export function roomLink(slug, origin = location.origin, pathname = location.pathname) {
     return origin + pathname + '?session=' + encodeURIComponent(slug);
 }
+
+/**
+ * Is this page served from the loopback interface? Then the URL in the address bar
+ * names THIS machine and nothing else: handing it to someone resolves, on their
+ * computer, to their own localhost — a different server, a different collab relay and
+ * therefore a different room that happens to have the same name. Both sides connect,
+ * both look healthy, and neither sees the other's peers, chat or code.
+ *
+ * `serve.py` binds 127.0.0.1 by default, so this is the normal state, not an edge case.
+ * `serve-lan.py` is the one that serves an address other machines can reach (over TLS,
+ * because the WASM engine needs SharedArrayBuffer and that needs a secure context).
+ */
+export function isLoopbackOrigin(host = location.hostname) {
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]'
+        || /^127\./.test(host);
+}

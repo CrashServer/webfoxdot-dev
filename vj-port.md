@@ -779,3 +779,87 @@ It is also a real button on the canvas now (learn bar), not only a right-click m
 — the one control that gets you out of an experimental layout should be visible from
 inside it. It names its destination, not its state (`desktop` in classic, `classic` on
 the canvas), and carries no `.active`, which would have read as "classic is on".
+
+## The beat was never shared (and what it broke)
+
+Reported as "if one player evaluates code the evaluation is not happening on the other
+connected peers". Reproduced by speaking the app protocol directly from Node — a raw
+`ws://…/<room>?app=1` socket sending an `eval` frame — which sidesteps the
+`#btn-run`-is-disabled-until-boot trap entirely and is the cheapest way to test a
+receive path.
+
+    beatTime = null    → "[ghost] # NOW"    + "eval: # NOW"     ✓ ran
+    beatTime = 100000  → "[ghost] # AHEAD"  and nothing else    ✗ swallowed
+    beatTime = 1       → "[ghost] # BEHIND" and nothing else    ✗ swallowed
+
+**`clock.now()` is a local counter.** `clock.start()` is called from `bootAudio()`, so
+`_beat` is "beats since THIS machine booted". Two peers who booted a minute apart are
+~120 beats apart. `handleBeatSync` looks like it settles this and does not: it repairs
+the tempo and a wall-clock offset, and never touches the beat number. Nothing else
+assigns `_beat`.
+
+So `clock.now() - msg.beatTime` was meaningless, and the receiver scheduled a peer's
+line for a beat minutes away — logged, shown in the feed, silently deferred past the end
+of the set. With the sender behind instead, it ran immediately *and* warned about a lag
+that was not real.
+
+**It also broke the visuals**, which is worth recording because the claim had already
+shipped: `surface.js`'s room time was documented as "identical on every peer because the
+beat is". It wasn't. Two peers ran the same workshop layer on unrelated phases.
+
+### The fix: a room-beat offset
+
+`beat_sync` already carries the master's `beat` and the `wallTime` it was read at, and
+`clockOffset` already aligns wall clocks. So where the master's beat has reached *now*
+is arithmetic: its reading, plus elapsed wall time, at its tempo, minus `lastRtt / 2`
+for the one-way hop.
+
+    roomBeat = clock.now() + beatOffset
+
+Held as an **offset, not a jump**: `_beat` is what every scheduled event, `every()`
+phase and running player is timed against, so moving it would re-time the whole set.
+The master sets `beatOffset = 0` — its beat *is* the room's. Followers snap on the first
+sync and then ease at 0.25, because beat_sync arrives every 8 beats and a twitching
+offset re-times every eval that lands near it.
+
+`broadcastEval` sends `roomBeat()`; the receiver converts back with `toLocalBeat()`.
+**The wait is bounded**: only a delay in `(0, 4]` beats on a *running* clock is
+scheduled — everything else runs now. A stopped clock never fires a scheduled event, and
+a delay of minutes is not a phase correction, it is proof the domains disagree. Running
+late is a small musical error; not running at all is not.
+
+Visuals take the same beat via `sharedBeat()`; the pop-out window has no clock and no
+session of its own, so it is sent `roomBeat` over the bridge beside the audio.
+
+Measured with two peers whose local counters were **1000 beats apart**: they agree on
+the room beat to within **0.004 beats (~4 ms)**, and one peer's room beat lands within
+0.01 beats of "now" on the other.
+
+## Two tabs were one peer
+
+`user.id` lived in localStorage beside the name, so two tabs of one browser shared it:
+the peer list collapsed to a single row wearing your own name, `isSelf` was true for
+both, and "nobody has joined" was indistinguishable from "someone joined and the app is
+merging us". That is how everyone tests a jam.
+
+`js/collab/identity.js` splits the lifetimes. Name, colour and station are **yours** —
+localStorage, shared by every tab. The id answers "which connection is this" — it is
+what peers de-duplicate on and what a role or claim attaches to — and lives in
+**sessionStorage**: one per tab, kept across reloads of that tab, so a refresh still
+does not spawn a ghost (the reason it was stable in the first place).
+
+Caveat: Chrome *copies* sessionStorage into a duplicated tab, so "Duplicate tab" brings
+the collapse back. Opening the link in a new tab, window or browser does not.
+
+## `127.0.0.1` cannot be shared
+
+`serve.py` binds loopback, so the URL in the address bar names *this* machine. Handed to
+someone else it resolves, on their computer, to their own localhost: a different server,
+a different relay, a room with the same name and none of the same people. Both ends
+connect, both look healthy, neither sees the other. It presents as a bug in the app
+rather than as an address that cannot travel.
+
+While you are alone in a room the session panel now says so, and on loopback says why
+and names `serve-lan.py`. The copy-link action warns too. It clears the moment anyone
+joins. (serve-lan.py speaks TLS because SharedArrayBuffer needs a secure context, and
+`http://localhost` counts as one while `http://<LAN-IP>` does not.)
