@@ -18,6 +18,7 @@ import { toggleMute, toggleSolo, isMuted, isSoloed } from '../engine/gate.js';
 import { getSections, runSection } from '../engine/sections.js';
 import { share, shareStateThrottled } from '../collab/actions.js';
 import { heldByUser } from './controls.js';
+import { draggable } from './dragpanel.js';
 
 let _clock = null, _editor = null, _runCode = null;
 const _levels = {};            // player name → volume (persists even before it's launched)
@@ -340,27 +341,9 @@ function build() {
     };
     _modal.querySelector('.mixer-prev').onclick = () => actOrArm('prev', () => nextPart(-1));
     _modal.querySelector('.mixer-next').onclick = () => actOrArm('next', () => nextPart(1));
-    initDrag(_modal.querySelector('.mixer-head'));
+    draggable(_modal.querySelector('.mixer-head'), _modal, 'button');
 }
 
-// Drag the panel by its header (non-modal — move it off your code).
-function initDrag(handle) {
-    let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
-    handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button')) return;   // let head buttons (close/prev/next/learn) click
-        on = true; const r = _modal.getBoundingClientRect();
-        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
-        _modal.style.left = ox + 'px'; _modal.style.top = oy + 'px';
-        _modal.style.right = 'auto'; _modal.style.bottom = 'auto';
-        e.preventDefault();
-    });
-    window.addEventListener('pointermove', (e) => {
-        if (!on) return;
-        _modal.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
-        _modal.style.top  = Math.max(0, oy + e.clientY - sy) + 'px';
-    });
-    window.addEventListener('pointerup', () => { on = false; });
-}
 
 // Source-part picker: 'auto' + one chip per part OCCURRENCE (keyed by line, so two
 // #@intro parts each get their own chip). Selected = launch source; ● = playing now.

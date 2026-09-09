@@ -27,58 +27,59 @@ import { WORKSHOP_FX_NAMES } from '../workshop/catalog.js';
 
 const WS_FX = new Set(WORKSHOP_FX_NAMES);
 
+// ── The keys, and which rule each follows ────────────────────────────────────
+// AMOUNT keys are neutral at 0 → loudest intent wins.
+const AMOUNT = ['trails', 'feedback', 'glitch', 'scan', 'vignette', 'invert', 'blur', 'bloom',
+                'posterize', 'droste', 'fold', 'hueshift', 'dither', 'pixelsort', 'mirror',
+                'edge', 'pixelate', 'displace', 'lumakey', 'matte', 'freeze', 'lut'];
+// GRADE keys are neutral at 1 → furthest from neutral wins. lutmix is one of these:
+// max() only ever takes a LARGER value, so a lutmix of 0.5 could never beat its own
+// default and a partial tint was impossible.
+const GRADE  = ['sat', 'exposure', 'contrast', 'lutmix'];
+const IS_GRADE = new Set(GRADE);
+
 /**
  * @param {Array} layers  the live layers ({ ws, fx } each)
  * @returns {object}      one bundle of resolved FX values for the frame
  */
 export function fxBundle(layers) {
-    // A workshop layer's FX are applied per-layer, on its own canvas, by wsdeck.js. If
-    // they were counted here as well they would run TWICE — and for invert that means
-    // not at all, since inverting twice is the identity. So a key is skipped on a `ws`
-    // layer when the workshop implements it; anything the workshop does NOT have
-    // (trails, scan, fold, hueshift, pixelsort) still falls through to this global pass.
-    const mx = (key, d = 0) => {
-        let m = d;
-        for (const l of layers) {
-            if (l.ws && WS_FX.has(key)) continue;
-            const f = l.fx && l.fx[key];
-            if (typeof f === 'number' && f > m) m = f;
-            else if (f === true && m < 1) m = 1;
+    // ONE pass over the layers. This used to run a closure per key — 26 of them, each
+    // walking the whole layer list — plus a fresh 27-key object, on every frame of
+    // every surface. Now each layer is visited once and only the keys it actually
+    // declares are touched, which for a typical stack is a handful rather than 26xN.
+    const out = {};
+    for (const k of AMOUNT) out[k] = 0;
+    for (const k of GRADE)  out[k] = 1;
+    out.ceiling = 1;
+    const best = { sat: 0, exposure: 0, contrast: 0, lutmix: 0 };   // distance from neutral
+
+    for (const l of layers) {
+        const fx = l.fx;
+        if (!fx) continue;
+        for (const key in fx) {
+            const v = fx[key];
+            if (v == null) continue;
+            if (IS_GRADE.has(key)) {
+                if (typeof v !== 'number' || !isFinite(v)) continue;
+                const d = Math.abs(v - 1);
+                if (d > best[key]) { best[key] = d; out[key] = v; }
+            } else if (key === 'ceiling') {
+                // A ceiling is a promise not to exceed, so two layers asking for
+                // different ones resolve to the LOWER.
+                if (typeof v === 'number' && v < out.ceiling) out.ceiling = v;
+            } else if (out[key] !== undefined) {
+                // A workshop layer's FX are applied per-layer, on its own canvas, by
+                // wsdeck.js. Counting them here as well would run them TWICE — and for
+                // invert that means not at all, since inverting twice is the identity.
+                // Anything the workshop does NOT have (trails, scan, fold, hueshift,
+                // pixelsort) still falls through to this global pass.
+                if (l.ws && WS_FX.has(key)) continue;
+                if (typeof v === 'number') { if (v > out[key]) out[key] = v; }
+                else if (v === true && out[key] < 1) out[key] = 1;
+            }
         }
-        return m;
-    };
-    const grade = (key) => {
-        let m = 1, best = 0;
-        for (const l of layers) {
-            const v = l.fx && l.fx[key];
-            if (typeof v !== 'number' || !isFinite(v)) continue;
-            const d = Math.abs(v - 1);
-            if (d > best) { best = d; m = v; }
-        }
-        return m;
-    };
-    const ceiling = () => {
-        let m = 1;
-        for (const l of layers) { const v = l.fx && l.fx.ceiling; if (typeof v === 'number' && v < m) m = v; }
-        return m;
-    };
-    return {
-        sat: grade('sat'), exposure: grade('exposure'), contrast: grade('contrast'), ceiling: ceiling(),
-        trails: mx('trails'), feedback: mx('feedback'), glitch: mx('glitch'), scan: mx('scan'),
-        vignette: mx('vignette'), invert: mx('invert') >= 1, blur: mx('blur'), bloom: mx('bloom'),
-        posterize: mx('posterize'), droste: mx('droste'), fold: mx('fold'), hueshift: mx('hueshift'),
-        dither: mx('dither'), pixelsort: mx('pixelsort'), mirror: mx('mirror'), edge: mx('edge'),
-        pixelate: mx('pixelate'),
-        // Deck-to-deck and the frame recolour. lut is an INDEX, not an amount, so the
-        // loudest-intent rule would be wrong for it in principle — but with one value
-        // per frame and no meaningful ordering between palettes, "the last layer to
-        // ask wins" and "the highest index wins" are equally arbitrary, and mx() is
-        // the one every other key already uses.
-        displace: mx('displace'), lumakey: mx('lumakey'), matte: mx('matte'),
-        freeze: mx('freeze'), lut: mx('lut'),
-        // lutmix is NEUTRAL AT 1 like the grade keys, not at 0 like everything else:
-        // mx() only ever takes a value LARGER than what it has, so a lutmix of 0.5
-        // could never win against its own default and a partial tint was impossible.
-        lutmix: grade('lutmix'),
-    };
+    }
+    // invert is a switch, not an amount — the renderer wants a boolean.
+    out.invert = out.invert >= 1;
+    return out;
 }

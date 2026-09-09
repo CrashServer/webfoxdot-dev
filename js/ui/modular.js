@@ -15,6 +15,7 @@ import { makeKnob } from './knob.js';
 import { playSynthNote } from '../engine/player.js';
 import { generateSource, compileAndDefine } from '../modular/codegen.js';
 import { TEMPLATES } from '../modular/templates.js';
+import { draggable } from './dragpanel.js';
 
 const BLOCK_W = 180, HEADER_H = 26, ROW_H = 22;
 const CANVAS_W = 2400, CANVAS_H = 1400;
@@ -379,7 +380,7 @@ function build() {
         _fileInput.value = '';
     };
 
-    initDrag(_panel.querySelector('.modular-head'));
+    draggable(_panel.querySelector('.modular-head'), _panel, 'button, input');
     initCanvasPan();
     initKeys();
     initNodeDragShared();
@@ -432,24 +433,6 @@ function initCanvasPan() {
     });
 }
 
-// Drag the panel by its header (non-modal — move it off your code).
-function initDrag(handle) {
-    let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
-    handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button, input')) return;
-        on = true; const r = _panel.getBoundingClientRect();
-        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
-        _panel.style.left = ox + 'px'; _panel.style.top = oy + 'px';
-        _panel.style.right = 'auto'; _panel.style.bottom = 'auto';
-        e.preventDefault();
-    });
-    window.addEventListener('pointermove', (e) => {
-        if (!on) return;
-        _panel.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
-        _panel.style.top  = Math.max(0, oy + e.clientY - sy) + 'px';
-    });
-    window.addEventListener('pointerup', () => { on = false; });
-}
 
 function renderPalette() {
     const paletteEl = _panel.querySelector('.modular-palette-blocks');

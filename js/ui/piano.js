@@ -24,6 +24,7 @@
 // is already sounding.
 
 import { makeKnob } from './knob.js';
+import { draggable } from './dragpanel.js';
 
 let _modal = null, _open = false;
 let _ctx = {
@@ -346,7 +347,7 @@ function build() {
     });
     _modal.addEventListener('blur', () => { for (const m of [..._down.keys()]) noteOff(m); });
 
-    initDrag(q('.piano-head'));
+    draggable(q('.piano-head'), _modal, 'button, input, select');
 }
 
 // ── MIDI ────────────────────────────────────────────────────────────────────
@@ -550,20 +551,3 @@ function mkKey(midi, black, left, width, scale, root) {
     return el;
 }
 
-function initDrag(handle) {
-    let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
-    handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button, input, select')) return;
-        on = true; const r = _modal.getBoundingClientRect();
-        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
-        _modal.style.left = ox + 'px'; _modal.style.top = oy + 'px';
-        _modal.style.right = 'auto'; _modal.style.bottom = 'auto';
-        e.preventDefault();
-    });
-    window.addEventListener('pointermove', (e) => {
-        if (!on) return;
-        _modal.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
-        _modal.style.top  = Math.max(0, oy + e.clientY - sy) + 'px';
-    });
-    window.addEventListener('pointerup', () => { on = false; });
-}

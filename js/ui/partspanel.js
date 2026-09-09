@@ -15,6 +15,8 @@
 // Same floating, draggable, non-modal shape as the mixer and the rules panel, so it
 // can sit open while you keep coding.
 
+import { draggable } from './dragpanel.js';
+
 let _modal = null, _open = false;
 let _ctx = { list: () => [], partsOf: () => [], insert: () => {} };
 let _sel = null;      // the block whose parts are showing
@@ -53,7 +55,7 @@ function build() {
     _modal.querySelector('.parts-play').onclick = () => { _play = !_play; render(); };
     const search = _modal.querySelector('.parts-search');
     search.oninput = () => { _filter = search.value.trim().toLowerCase(); render(true); };
-    initDrag(_modal.querySelector('.parts-head'));
+    draggable(_modal.querySelector('.parts-head'), _modal, 'button, input');
 }
 
 export function renderPartsPanel() { if (_open) render(); }
@@ -113,21 +115,3 @@ function render(keepFocus) {
     }
 }
 
-// Drag by the header — same as the mixer and the rules panel.
-function initDrag(handle) {
-    let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
-    handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button, input')) return;
-        on = true; const r = _modal.getBoundingClientRect();
-        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
-        _modal.style.left = ox + 'px'; _modal.style.top = oy + 'px';
-        _modal.style.right = 'auto'; _modal.style.bottom = 'auto';
-        e.preventDefault();
-    });
-    window.addEventListener('pointermove', (e) => {
-        if (!on) return;
-        _modal.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
-        _modal.style.top  = Math.max(0, oy + e.clientY - sy) + 'px';
-    });
-    window.addEventListener('pointerup', () => { on = false; });
-}

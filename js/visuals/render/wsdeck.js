@@ -29,6 +29,17 @@ import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
+const EMPTY = Object.freeze({});
+/** Shallow value equality — cheaper than rebuilding the merge every frame. */
+function sameParams(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (const k of ka) if (a[k] !== b[k]) return false;
+    return true;
+}
+
 export function isWorkshopLayer(name) { return !!WORKSHOP_LAYERS[name]; }
 
 // Somewhere to say a thing once. index.html installs the app log; without it this
@@ -38,6 +49,7 @@ export function setWorkshopLog(fn) { if (fn) _log = fn; }
 // Said once per SCENE, not once per deck: the editor background and the SCREEN panel
 // are two surfaces with two decks, and the same sentence twice reads like a stutter.
 const _said = new Set();
+const NO_FX = [];   // shared empty chain — applyFx only reads .length on it
 function sayOnce(key, msg) { if (_said.has(key)) return; _said.add(key); _log(msg); }
 
 export function createWorkshopDeck() {
@@ -62,6 +74,24 @@ export function createWorkshopDeck() {
     const BUDGET_MS = () => visualBudget();
     const MAX_SKIP = 6;
     let frame = 0, phaseSeq = 0;
+
+    // The layer's params, merged over its defaults — CACHED on the slot.
+    //
+    // This is `{ ...defaults(l.scene), ...l.params }`, and defaults() spreads a second
+    // time, so it was two clones of a 10-to-20-key object per layer per frame: six
+    // layers at 60fps is ~720 objects a second, allocated inside a budget this module
+    // measures in single milliseconds and on the thread the note scheduler runs on.
+    // The inputs only change when a line is re-evaluated, so the merge only has to.
+    // l.params is rebuilt by the language each snapshot, hence an identity check on
+    // the object plus its values rather than ===.
+    function paramsFor(s, l) {
+        const src = l.params || EMPTY;
+        if (s.pCache && s.pKind === l.scene && sameParams(s.pSrc, src)) return s.pCache;
+        s.pKind  = l.scene;
+        s.pSrc   = { ...src };
+        s.pCache = { ...defaults(l.scene), ...src };
+        return s.pCache;
+    }
 
     function slotFor(name, kind, w, h) {
         let s = cache.get(name);
@@ -102,9 +132,14 @@ export function createWorkshopDeck() {
     // their stack ENTRY between frames, so the entries have to be held, not rebuilt.
     // Keyed by layer name + effect type; dropped with the layer.
     function entriesFor(s, fx) {
-        const want = Object.keys(fx || {}).filter((k) => WORKSHOP_FX[k] && fx[k] !== false && fx[k] != null);
+        // Nearly every layer has no per-layer FX at all, and this used to allocate an
+        // Object.keys array, a filtered copy, a spread of the Map's keys and a mapped
+        // result for each of them, every frame, to arrive at nothing.
+        if (!fx) { if (s.fx && s.fx.size) s.fx.clear(); return NO_FX; }
+        const want = Object.keys(fx).filter((k) => WORKSHOP_FX[k] && fx[k] !== false && fx[k] != null);
+        if (!want.length) { if (s.fx && s.fx.size) s.fx.clear(); return NO_FX; }
         if (!s.fx) s.fx = new Map();
-        for (const k of [...s.fx.keys()]) if (!want.includes(k)) s.fx.delete(k);
+        for (const k of s.fx.keys()) if (!want.includes(k)) s.fx.delete(k);
         return want.map((type) => {
             let e = s.fx.get(type);
             if (!e) { e = { id: type, type, enabled: true, params: fxDefaults(type) }; s.fx.set(type, e); }
@@ -174,7 +209,7 @@ export function createWorkshopDeck() {
             if (!kind) continue;
             const d = l.ch === 1 ? 1 : 0;
             const s = slotFor(l.name, l.scene, w, h);
-            const p = { ...defaults(l.scene), ...(l.params || {}) };
+            const p = paramsFor(s, l);
             if (extra.message == null && typeof p.text === 'string') extra.message = p.text;
 
             // Reset the context the way channel.js does: layers that leak globalAlpha or

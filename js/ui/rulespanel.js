@@ -10,6 +10,7 @@
 // the point: everyone should be able to see the rules they are playing under.
 
 import * as perms from '../collab/permissions.js';
+import { draggable } from './dragpanel.js';
 
 let _modal = null, _open = false;
 let _ctx = { peers: () => [], nameOf: () => '', inRoom: () => false };
@@ -35,7 +36,7 @@ function build() {
         <div class="rules-body"></div>`;
     document.body.appendChild(_modal);
     _modal.querySelector('.rules-close').onclick = () => closeRules();
-    initDrag(_modal.querySelector('.rules-head'));
+    draggable(_modal.querySelector('.rules-head'), _modal, 'button');
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -140,21 +141,3 @@ function render() {
     });
 }
 
-// Drag by the header — same as the mixer, so it can be moved off your code.
-function initDrag(handle) {
-    let ox = 0, oy = 0, sx = 0, sy = 0, on = false;
-    handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button')) return;
-        on = true; const r = _modal.getBoundingClientRect();
-        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
-        _modal.style.left = ox + 'px'; _modal.style.top = oy + 'px';
-        _modal.style.right = 'auto'; _modal.style.bottom = 'auto';
-        e.preventDefault();
-    });
-    window.addEventListener('pointermove', (e) => {
-        if (!on) return;
-        _modal.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
-        _modal.style.top  = Math.max(0, oy + e.clientY - sy) + 'px';
-    });
-    window.addEventListener('pointerup', () => { on = false; });
-}
