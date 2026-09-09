@@ -7,6 +7,11 @@ import { levelOf, setLevel } from './mixer.js';
 import { heldByUser } from './controls.js';
 
 let _clock = null;
+// The live video layers, injected so this panel never imports the visual language —
+// see setVideoApi. Without it the list behaves exactly as it did.
+let _video = null;
+/** { list: () => [{name, scene, ch, ws}], stop: (name) => void } */
+export function setVideoApi(api) { _video = api; }
 let _timer  = null;
 let _tapTimes = [];
 let _tapTimer = null;
@@ -81,10 +86,43 @@ function _updatePlayers() {
     if (!container || !_clock._players) return;
     const now = Date.now();
 
+    // A video layer IS a player — same name space, same >>, stopped the same way —
+    // and it was the one kind that never appeared here, so a set with three scenes
+    // running looked like a set with nothing running. It gets a row of its own shape
+    // rather than a copy of the audio one: there is no fader, solo or mute, because a
+    // layer has no level to ride and muting a picture is not a thing. What it does
+    // have is which DECK it is on, which is the thing you actually want to see.
+    const vids = (_video && _video.list && _video.list()) || [];
+    const vidNames = new Set(vids.map((v) => v.name));
+
     // Stopped/gone players drop out of the list entirely.
     for (const row of [...container.querySelectorAll('.cp-player-row')]) {
-        const p = _clock._players.get(row.dataset.name);
+        const nm = row.dataset.name;
+        if (row.classList.contains('is-video')) { if (!vidNames.has(nm)) row.remove(); continue; }
+        const p = _clock._players.get(nm);
         if (!p || !p._active) row.remove();
+    }
+
+    for (const v of vids) {
+        let row = container.querySelector(`[data-name="${v.name}"].is-video`);
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'cp-player-row active is-video';
+            row.dataset.name = v.name;
+            row.innerHTML = `
+                <div class="cp-player-top">
+                    <span class="cp-player-name" title="a video layer">${v.name}</span>
+                    <span class="cp-player-synth"></span>
+                    <span class="cp-player-deck" title="which deck — what mix() crossfades between"></span>
+                    <button class="cp-player-stop" title="stop this layer">\u25a0</button>
+                </div>`;
+            row.querySelector('.cp-player-stop').onclick = () => { _video.stop?.(v.name); _update(); };
+            container.appendChild(row);
+        }
+        const sc = row.querySelector('.cp-player-synth');
+        if (sc) { sc.textContent = v.scene; sc.title = v.ws ? 'a workshop layer — brings its own colour' : 'a video synth — a field on the GPU, coloured by palette()'; }
+        const dk = row.querySelector('.cp-player-deck');
+        if (dk) dk.textContent = 'ch' + (v.ch || 0);
     }
 
     for (const [name, p] of _clock._players.entries()) {

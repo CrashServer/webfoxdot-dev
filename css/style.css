@@ -2710,6 +2710,15 @@ body.desktop-ui #keybar { z-index: 140; }
     border: 1px solid var(--border-1); border-radius: 3px;
     font-family: monospace; font-size: 10px; padding: 1px 4px;
 }
+/* A VIDEO row in the players list. It is a player — same name space, same >> — but it
+   has no level to ride and no reason to be muted, so it is a shorter row rather than
+   an audio row with three dead controls on it. */
+.cp-player-row.is-video .cp-player-name { color: var(--blue); }
+.cp-player-deck {
+    font-family: monospace; font-size: 9px; color: var(--text-2);
+    border: 1px solid var(--border-1); border-radius: 7px; padding: 0 5px;
+}
+
 /* Group labels. Desktop bars only: the classic toolbar wraps and already groups by
    row, where a heading would land in the middle of nothing. */
 .bar-lab { display: none; }

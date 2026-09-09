@@ -264,7 +264,7 @@
     import { incrementValue, stopPlayerAtCursor, silence,
              soloPlayerAtCursor, soloDropAtCursor, midiLearnAtCursor } from './js/editor/keybindings.js';
     import { autoRec }                   from './js/editor/autorec.js';
-    import { initCrashPanel, panelStop } from './js/ui/crashpanel.js';
+    import { initCrashPanel, panelStop, setVideoApi } from './js/ui/crashpanel.js';
     import { initMixer, toggleMixer, onSectionActive, setLevel as setMixLevel, stopPlayer as mixStopPlayer } from './js/ui/mixer.js';
     import { initModular, toggleModular, savePatch as savePatchImpl, loadPatch as loadPatchImpl } from './js/ui/modular.js';
     import { defineFromSource } from './js/modular/codegen.js';
@@ -288,7 +288,7 @@
              visualRes, setVisualRes,
              liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
              setLayerFx as setVisualFx, VFX_DEFAULTS as visualFxDefaults,
-             clearAll as clearVisuals } from './js/visuals/vlang.js';
+             clearAll as clearVisuals, stopVisual as stopVisualLayer } from './js/visuals/vlang.js';
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
     import { setVisualHint } from './js/visuals/bridge.js';
@@ -2663,6 +2663,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── Crashpanel ────────────────────────────────────────────────────────────
     initCrashPanel(clock);
+    // Video layers belong in the players list too — same names, same >>, same stop.
+    setVideoApi({ list: () => visualLayers().map(({ name, scene, ch, ws }) => ({ name, scene, ch, ws })),
+                  stop: (name) => stopVisualLayer(name) });
     initMidiPanel();
     initLink(clock);
     initLinkPanel();
