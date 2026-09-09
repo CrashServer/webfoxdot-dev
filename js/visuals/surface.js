@@ -65,6 +65,17 @@ export function fxBundle(layers) {
         posterize: mx('posterize'), droste: mx('droste'), fold: mx('fold'), hueshift: mx('hueshift'),
         dither: mx('dither'), pixelsort: mx('pixelsort'), mirror: mx('mirror'), edge: mx('edge'),
         pixelate: mx('pixelate'),
+        // Deck-to-deck and the frame recolour. lut is an INDEX, not an amount, so the
+        // loudest-intent rule would be wrong for it in principle — but with one value
+        // per frame and no meaningful ordering between palettes, "the last layer to
+        // ask wins" and "the highest index wins" are equally arbitrary, and mx() is
+        // the one every other key already uses.
+        displace: mx('displace'), lumakey: mx('lumakey'), matte: mx('matte'),
+        freeze: mx('freeze'), lut: mx('lut'),
+        // lutmix is NEUTRAL AT 1 like the grade keys, not at 0 like everything else:
+        // mx() only ever takes a value LARGER than what it has, so a lutmix of 0.5
+        // could never win against its own default and a partial tint was impossible.
+        lutmix: grade('lutmix'),
     };
 }
 

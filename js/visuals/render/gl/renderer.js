@@ -84,6 +84,15 @@ uniform vec2  uPalB;            // palIndexB, hueB
 uniform sampler2D uWsA;
 uniform sampler2D uWsB;
 uniform vec2  uHasWs;           // x: deck A carries workshop pixels · y: deck B
+// ── Deck-to-deck ─────────────────────────────────────────────────────────────
+// The mixer has had two decks from the start and the only thing it could do with them
+// was crossfade: seven blend modes, all answering "how much of B do I see". These read
+// deck B as DATA for deck A instead, which is what turns mix() from a fader into a
+// router — and it is nearly free, because both decks are already being evaluated in
+// this same fragment.
+uniform float uDisplace;        // B's red/green push where A is sampled from
+uniform float uLumakey;         // A shows through where B is brighter than this
+uniform float uMatte;           // B's luminance as A's alpha, over black
 out vec4 fragColor;
 
 float luma3(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -130,23 +139,53 @@ vec3 blendCol(float av, float bv, vec3 ca, vec3 cb, float x, vec2 uv){
     return mix(ca, cb, x);                                               // 0 = classic mix
 }
 
-void main(){
-    vec2 uv = vec2(gl_FragCoord.x/uRes.x, 1.0 - gl_FragCoord.y/uRes.y);   // v down (matches CPU scenes)
-    float av = 0.0, bv = 0.0;
+// One deck, evaluated at an ARBITRARY uv. Split out of main so deck A can be read
+// somewhere other than the fragment it is being drawn to, which is all a displacement
+// map is. Same loop as before; the deck argument picks which layers take part.
+// (No backticks in this shader source — it is a JS template literal.)
+float deckVal(int deck, vec2 uv){
+    float v = 0.0;
     for (int i = 0; i < ${MAXL}; i++){
         if (i >= uN) break;
-        float f = layerVal(i, uv, uTime, uAud) * uL5[i].x;   // × opacity
-        int op = int(uL5[i].y + 0.5);
-        if (uL0[i].w < 0.5) av = blendVal(op, av, f); else bv = blendVal(op, bv, f);
+        int d = uL0[i].w < 0.5 ? 0 : 1;
+        if (d == deck){
+            float f = layerVal(i, uv, uTime, uAud) * uL5[i].x;   // × opacity
+            v = blendVal(int(uL5[i].y + 0.5), v, f);
+        }
     }
-    vec3 ca = palSample(uPalA.x, av, uPalA.y);
+    return v;
+}
+
+void main(){
+    vec2 uv = vec2(gl_FragCoord.x/uRes.x, 1.0 - gl_FragCoord.y/uRes.y);   // v down (matches CPU scenes)
+    // Deck B FIRST: with displace on it is the map deck A is read through, so it has
+    // to exist before A is sampled.
+    float bv = deckVal(1, uv);
     vec3 cb = palSample(uPalB.x, bv, uPalB.y);
     // Workshop pixels over the field colour, by their own alpha. av/bv are raised too:
     // the crossfade blends in VALUE space as well as colour, so a deck that is entirely
     // workshop would otherwise read as empty and wipe/dissolve would misbehave.
-    if (uHasWs.x > 0.5){ vec4 w = texture(uWsA, uv); ca = mix(ca, w.rgb, w.a); av = max(av, w.a * luma3(w.rgb)); }
     if (uHasWs.y > 0.5){ vec4 w = texture(uWsB, uv); cb = mix(cb, w.rgb, w.a); bv = max(bv, w.a * luma3(w.rgb)); }
+
+    // Red pushes x and green pushes y — the convention every displacement map uses. It
+    // means a COLOURED layer on deck B pushes diagonally while a monochrome one pushes
+    // only along the diagonal, which is why the palette on B is worth changing here.
+    vec2 auv = uv;
+    if (uDisplace > 0.001) auv = clamp(uv + (cb.rg - 0.5) * uDisplace * 0.4, 0.0, 1.0);
+    float av = deckVal(0, auv);
+    vec3 ca = palSample(uPalA.x, av, uPalA.y);
+    if (uHasWs.x > 0.5){ vec4 w = texture(uWsA, auv); ca = mix(ca, w.rgb, w.a); av = max(av, w.a * luma3(w.rgb)); }
+
     vec3 col = blendCol(av, bv, ca, cb, uMix, uv);
+    // Luma key: A shows through where B is brighter than the threshold. Not a fade — a
+    // decision per pixel, with a soft edge so it does not alias into a jagged mask.
+    if (uLumakey > 0.001){
+        float k = smoothstep(uLumakey - 0.12, uLumakey + 0.12, luma3(cb));
+        col = mix(cb, ca, k);
+    }
+    // Matte: B's luminance IS A's alpha, over black. A text or grid layer on deck B
+    // becomes a stencil for whatever is on deck A.
+    if (uMatte > 0.001) col = mix(col, ca * luma3(cb), clamp(uMatte, 0.0, 1.0));
     vec2 tc = gl_FragCoord.xy / uRes;
     col = max(col, texture(uPrev, tc).rgb * uTrails);            // trails = static feedback
     if (uFeedback > 0.001){                                      // feedback = zooming echo
@@ -169,6 +208,13 @@ uniform float uDroste, uFold, uHue, uDither, uPixelsort, uMirror, uEdge, uPixela
 // they are three multiplies at the end of a pass that is already running, so the
 // neutral case costs nothing and the active case costs nothing either.
 uniform float uSat, uExposure, uContrast, uCeiling;
+// lut — the finished frame's luminance, read through a palette ramp.
+// palette() only ever steered FIELD scenes: a workshop layer brings its own colour and
+// nothing could recolour it, which left 206 of the 255 scenes outside the palette
+// system entirely. This is the way in. 1-based, because 0 has to mean off and palette
+// index 0 is a real palette.
+uniform sampler2D uPal;
+uniform float uNPal, uLut, uLutMix;
 out vec4 fragColor;
 
 float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -285,6 +331,11 @@ void main(){
     if (uExposure != 1.0) c *= uExposure;
     if (uContrast != 1.0) c = (c - 0.5) * uContrast + 0.5;
     if (uSat != 1.0) c = mix(vec3(luma(c)), c, uSat);
+    if (uLut > 0.5){
+        float y = (floor(uLut - 1.0) + 0.5) / uNPal;
+        vec3 mapped = texture(uPal, vec2(clamp(luma(c), 0.0, 0.999999), y)).rgb;
+        c = mix(c, mapped, clamp(uLutMix, 0.0, 1.0));
+    }
     // The limiter is the lesson bloom teaches: a 'lighter' blend stacks to solid white
     // on bright content, and every professional VJ desk gates output brightness for
     // exactly that reason. Clamped per channel, like the original.
@@ -328,11 +379,13 @@ export function createGLRenderer(canvas) {
     // uniform locations — scene program
     const uLoc = {};
     for (const n of ['uRes', 'uTime', 'uAud', 'uPal', 'uNPal', 'uPrev', 'uTrails', 'uFeedback', 'uMix', 'uBlend',
-        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uL5', 'uPalA', 'uPalB', 'uSpec', 'uWsA', 'uWsB', 'uHasWs']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
+        'uN', 'uL0', 'uL1', 'uL2', 'uL3', 'uL4', 'uL5', 'uPalA', 'uPalB', 'uSpec', 'uWsA', 'uWsB', 'uHasWs',
+        'uDisplace', 'uLumakey', 'uMatte']) uLoc[n] = gl.getUniformLocation(sceneProg, n);
     const pLoc = {};
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
         'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate',
-        'uSat', 'uExposure', 'uContrast', 'uCeiling']) pLoc[n] = gl.getUniformLocation(presentProg, n);
+        'uSat', 'uExposure', 'uContrast', 'uCeiling',
+        'uPal', 'uNPal', 'uLut', 'uLutMix']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
     const palTex = gl.createTexture();
@@ -455,10 +508,17 @@ export function createGLRenderer(canvas) {
         const trails = Math.max(0, Math.min(0.995, num(fx.trails, 0)));
         const feedback = Math.max(0, Math.min(0.995, num(fx.feedback, 0)));
 
-        const src = cur, dst = 1 - cur;                // read src (last frame), write dst
+        // freeze — hold the frame that is already in the buffer. The cheapest effect
+        // here by a distance: pass 1 is simply not run, so the scene costs nothing
+        // while it is held, and the post-fx and the grade still run over the held
+        // frame. freeze(var([0,1],[7,1])) is a stutter on the beat; a held frame is
+        // also the only way to look at one.
+        const frozen = num(fx.freeze, 0) >= 0.5 && !needClear;
+        const src = cur, dst = frozen ? cur : 1 - cur;   // read src (last frame), write dst
         gl.bindVertexArray(vao);
 
         // ── pass 1: scene + feedback → dst FBO ──
+        if (!frozen) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, fb[dst]);
         gl.viewport(0, 0, W, H);
         if (needClear) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.bindFramebuffer(gl.FRAMEBUFFER, fb[src]); gl.clear(gl.COLOR_BUFFER_BIT); gl.bindFramebuffer(gl.FRAMEBUFFER, fb[dst]); needClear = false; }
@@ -483,6 +543,9 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(uLoc.uFeedback, feedback);
         gl.uniform1f(uLoc.uMix, x);
         gl.uniform1i(uLoc.uBlend, blend);
+        gl.uniform1f(uLoc.uDisplace, num(fx.displace, 0));
+        gl.uniform1f(uLoc.uLumakey, num(fx.lumakey, 0));
+        gl.uniform1f(uLoc.uMatte, num(fx.matte, 0));
         gl.uniform1i(uLoc.uN, n);
         gl.uniform4fv(uLoc.uL0, L0); gl.uniform4fv(uLoc.uL1, L1); gl.uniform4fv(uLoc.uL2, L2); gl.uniform4fv(uLoc.uL3, L3); gl.uniform4fv(uLoc.uL4, L4); gl.uniform4fv(uLoc.uL5, L5);
         gl.uniform2f(uLoc.uPalA, da.palIdx, da.hue);
@@ -498,6 +561,7 @@ export function createGLRenderer(canvas) {
         }
         gl.uniform2f(uLoc.uHasWs, wsSrc[0] ? 1 : 0, wsSrc[1] ? 1 : 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
 
         // ── pass 2: present dst → screen + post-fx ──
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -526,6 +590,12 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uExposure, num(fx.exposure, 1));
         gl.uniform1f(pLoc.uContrast, num(fx.contrast, 1));
         gl.uniform1f(pLoc.uCeiling, num(fx.ceiling, 1));
+        // lut() carries the palette in its VALUE (1-based), and how much of it in
+        // lutmix — so lut(3) is a full recolour and lut(3) + lutmix(0.4) is a tint.
+        gl.uniform1f(pLoc.uLut, num(fx.lut, 0));
+        gl.uniform1f(pLoc.uLutMix, num(fx.lutmix, 1));
+        gl.uniform1f(pLoc.uNPal, NPAL);
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, palTex); gl.uniform1i(pLoc.uPal, 1);
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[dst]); gl.uniform1i(pLoc.uTex, 0);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
 

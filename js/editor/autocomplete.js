@@ -321,6 +321,7 @@ const GLOBALS = [
     // The visual globals. Same story as the line above: every one is documented and
     // none of them was offered, so you had to already know the name to find it.
     'palette(','vmode(','vres(','wres(','vfps(','vbudget(','vperf(','vsnap(','vrand(',
+    'displace(','lumakey(','matte(','freeze(','lut(','lutmix(',
     'output(','outclose(','outlist()','vrec(',
     'softReload()','savePatch(','loadPatch(','tour()','vbg(','cancelSection()',
     'rules(','role(','grant(','tracks()','release(',

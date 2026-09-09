@@ -15,7 +15,7 @@
 // vocabulary works in visuals identically to audio.
 
 import { patGet } from '../patterns/sequences.js';
-import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES } from './vdata.js';
+import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES, PALETTE_NAMES } from './vdata.js';
 import { defaults as wsDefaults } from './workshop/catalog.js';
 import { setWorkshopRes, workshopRes } from './render/wsres.js';
 import { setVisualFps, visualFps, setVisualBudget, visualBudget, visualStats } from './render/vperf.js';
@@ -101,7 +101,19 @@ function sceneBuilder(name) {
         return new VSpec(name, params, {});
     };
 }
-function fxBuilder(key, dflt) { return (v) => new VSpec(null, {}, { [key]: v === undefined ? dflt : v }); }
+function fxBuilder(key, dflt) {
+    return (v) => {
+        let x = v === undefined ? dflt : v;
+        // lut() names a palette, the way palette() does, because "which colours" is a
+        // question you answer with a word. It is stored as a 1-BASED index: the shader
+        // needs 0 to mean off, and palette index 0 is a real palette.
+        if (key === 'lut' && typeof x === 'string') {
+            const i = PALETTE_NAMES.indexOf(x.toLowerCase());
+            x = i < 0 ? 0 : i + 1;
+        }
+        return new VSpec(null, {}, { [key]: x });
+    };
+}
 
 // Video FX chained with `+` (like synth FX). trails/feedback are frame-feedback; blur/
 // bloom/scan/vignette/glitch/invert/posterize are post-process. Values are the default
@@ -112,6 +124,19 @@ function fxBuilder(key, dflt) { return (v) => new VSpec(null, {}, { [key]: v ===
 export const VFX_DEFAULTS = () => ({ ...VFX });
 const VFX = { trails: 0.7, feedback: 0.8, blur: 0.5, bloom: 0.6, scan: 0.5, vignette: 0.5, glitch: 1, invert: true,
               posterize: 3, droste: 0.6, fold: 0.6, hueshift: 0.5, dither: 0.7, pixelsort: 0.6, mirror: 0.8, edge: 0.8, pixelate: 0.5,
+              // ── Deck-to-deck ──────────────────────────────────────────────
+              // The mixer had two decks and could only ever crossfade them. These
+              // three read deck B as DATA for deck A, which is what turns mix() from
+              // a fader into a router. They cost almost nothing: both decks are
+              // already being evaluated in the same fragment.
+              displace: 0.5, lumakey: 0.5, matte: 1,
+              // Hold the frame that is already on screen. The cheapest effect here —
+              // the scene pass simply does not run — and the only way to look at one.
+              freeze: 1,
+              // Recolour the FINISHED frame through a palette. palette() steers field
+              // scenes only, so until now 206 of the 255 scenes could not be recoloured
+              // at all; this is the way in. lut("fire") or lut(2); lutmix fades it.
+              lut: 1, lutmix: 1,
               // Master grade + limiter, ported from the workshop's lut.js / limiter.js.
               // NEUTRAL AT 1, unlike everything above it: sat(0) is greyscale, sat(2)
               // is lurid, sat() on its own is a small lift. ceiling(0.8) caps output
