@@ -91,6 +91,15 @@ export function transpile(code) {
         //   P(a,b,c)  → __group(a,b,c)   (simultaneous group)
         main = rewriteP(main);
 
+        // .follow(p1) / .accompany(p1) — the NAME of another player, written bare.
+        // Both are documented as taking a name and both do String(name) on it, so the
+        // quoted form has always worked; the bare form is what every set in the wild
+        // is written with, and it threw "p1 is not defined" before the call was even
+        // made. Quote it. Only a bare identifier is touched — a string, a number or
+        // anything with a dot or a bracket in it is left exactly as written.
+        main = main.replace(/\.(follow|accompany)\(\s*([A-Za-z_]\w*)\s*(?=[,)])/g,
+                            (all, meth, name) => `.${meth}('${name}'`);
+
         // Rest substitutions in array/argument positions — but NOT inside string
         // literals (mask them first so foo="(.)" / play("x.o") are left alone):
         //   dbass([0, ., 4]) → [0, null, 4]  (null → degree 0, still sounds)
