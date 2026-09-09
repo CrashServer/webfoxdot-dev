@@ -31,6 +31,15 @@ const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n
 
 export function isWorkshopLayer(name) { return !!WORKSHOP_LAYERS[name]; }
 
+// Somewhere to say a thing once. index.html installs the app log; without it this
+// falls back to the console, which is where the throttle notice already goes.
+let _log = (m) => console.info('visuals: ' + m);
+export function setWorkshopLog(fn) { if (fn) _log = fn; }
+// Said once per SCENE, not once per deck: the editor background and the SCREEN panel
+// are two surfaces with two decks, and the same sentence twice reads like a stutter.
+const _said = new Set();
+function sayOnce(key, msg) { if (_said.has(key)) return; _said.add(key); _log(msg); }
+
 export function createWorkshopDeck() {
     const cache = new Map();          // player name → { kind, canvas, ctx }
     const deck = [null, null];        // the two composite canvases, made on demand
@@ -65,7 +74,7 @@ export function createWorkshopDeck() {
                   // without it, four layers each drawing every 6th frame all draw on
                   // frame 0, and the average is fine while every sixth frame is a
                   // disaster. The average was never the thing that makes audio late.
-                  cost: null, every: 1, phase: phaseSeq++ };
+                  cost: null, every: 1, phase: phaseSeq++, frames: 0, silentChecked: false };
             cache.set(name, s);
         }
         // Resizing a canvas already blanks it; this covers the first frame of a slot
@@ -198,6 +207,28 @@ export function createWorkshopDeck() {
                         console.info(`visuals: "${l.scene}" costs ${s.cost.toFixed(1)}ms a frame — drawing it every ${want} frames so the audio clock keeps its slot`);
                     }
                 }
+            }
+
+            // ── "why is it black?" ────────────────────────────────────────────
+            // A good part of the catalogue is a spectrum visualiser: ikedadots skips
+            // every dot whose bin is under its threshold and paints the rest black, so
+            // with nothing playing it is a black rectangle — and a black rectangle on
+            // a deck also hides whatever is under it. Run the line before booting the
+            // audio, or on a visuals-only machine, and it reads as broken.
+            //
+            // Rather than keep a list of which layers those are, MEASURE it: once per
+            // layer, on its 30th frame, and only while the analyser is actually silent,
+            // read the canvas. One getImageData per layer per session, at the single
+            // moment the answer is interesting.
+            if (!s.silentChecked && ++s.frames === 30 && (!aud || (aud.level || 0) < 0.01)) {
+                s.silentChecked = true;
+                try {
+                    const px = s.ctx.getImageData(0, 0, Math.min(64, w), Math.min(64, h)).data;
+                    let lit = 0;
+                    for (let i = 0; i < px.length; i += 4) if (px[i] + px[i + 1] + px[i + 2] > 24) lit++;
+                    if (lit === 0) sayOnce('silent:' + l.scene,
+                        `"${l.scene}" draws from the audio spectrum \u2014 it stays black until something is playing`);
+                } catch (_) {}
             }
 
             const painted = applyFx(s, l.fx, w, h, t);

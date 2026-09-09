@@ -111,6 +111,13 @@ export function eachFrame(cb) { _frameSubs.add(cb); return () => _frameSubs.dele
 let _lastDeck = null;
 export function liveDeck() { return _lastDeck; }
 
+// Where the deck's one-shot notes go. Held here rather than set from index.html
+// directly, because reaching wsdeck from there means IMPORTING wsdeck from there, and
+// that pulls the 1.6MB layer registry into every audio-only session. This module
+// already loads the deck on demand; the logger goes along for the ride.
+let _deckLog = null;
+export function setDeckLog(fn) { _deckLog = fn; }
+
 // The canvas that most recently rendered a frame. Which surface is live depends on
 // the UI mode, and a recorder has to point at the one actually drawing — asking here
 // is more honest than making the caller guess between the SCREEN panel, the editor
@@ -131,7 +138,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         if (wsd || wsdPending) return wsd;
         wsdPending = true;
         import('./render/wsdeck.js')
-            .then((m) => { wsd = m.createWorkshopDeck(); })
+            .then((m) => { if (_deckLog) m.setWorkshopLog(_deckLog); wsd = m.createWorkshopDeck(); })
             .catch((e) => { console.warn('visuals: workshop layers failed to load —', e?.message || e); })
             .finally(() => { wsdPending = false; });
         return null;

@@ -292,7 +292,8 @@
     import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
     import { setVisualHint } from './js/visuals/bridge.js';
-    import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas, liveDeck as liveVisualDeck } from './js/visuals/surface.js';
+    import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas, liveDeck as liveVisualDeck, setDeckLog } from './js/visuals/surface.js';
+
     import { createVideoRecorder, downloadBlob as downloadVideo } from './js/visuals/render/vrec.js';
     import { vrandLines } from './js/visuals/vrand.js';
     import { sceneParams as visualSceneParams, fxPrimaryRange as visualFxRange,
@@ -2090,10 +2091,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             if (Date.now() - _pasteIntent < 3000) return;          // you asked for it
             e.preventDefault();
             e.stopPropagation();
-            const txt = (e.clipboardData?.getData('text') || '').replace(/\s+/g, ' ').slice(0, 40);
-            log('blocked a paste nobody asked for'
-                + (txt ? ` — ${JSON.stringify(txt)}` : '')
-                + '  (middle-click pastes the selection on Linux; Ctrl+V still works)', 'warn');
+            // Silently. On Linux the middle button pastes the primary selection, so on
+            // a machine where that fires often this logged a warning for something the
+            // user did not do and did not want — a line about a non-event, several
+            // times a session. The block is the whole point; the commentary was noise.
         }, true);
     }
     guardPaste(mainEditor);
@@ -4034,6 +4035,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         eachVisualFrame((canvas, deck) => { deckRef = deck; _outputsDeck = deck; _outputsApi.feed(canvas); });
         return _outputsApi;
     }
+
+    // The deck says one thing out loud — see its "why is it black?" note. It goes to
+    // the log rather than the console, handed over through surface.js so nothing here
+    // has to import the deck (and with it the 1.6MB layer registry).
+    setDeckLog((msg) => log('visuals: ' + msg, 'info'));
 
     // ── What the app is costing ───────────────────────────────────────────────
     // Read on demand, from numbers that already exist. Nothing here starts a timer,
