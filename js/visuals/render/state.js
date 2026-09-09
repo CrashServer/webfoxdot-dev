@@ -6,7 +6,7 @@
 import { setVisualFps, setVisualBudget } from './vperf.js';
 
 export const V   = { layers: [], mix: null, palette: null, mode: null, res: null, fps: 0, budget: 4, clearSeq: 0, live: null };   // visual language
-export const AUD = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(32).fill(0), bpm: 120, beat: 0, roomBeat: 0, bar: 0, section: '', autoplay: false };
+export const AUD = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(64).fill(0), bpm: 120, beat: 0, roomBeat: 0, bar: 0, section: '', autoplay: false };
 export const S   = { lastMsg: 0, beatPulse: false, lastBeat: -1 };
 
 const chan = new BroadcastChannel('crashdot-visuals');

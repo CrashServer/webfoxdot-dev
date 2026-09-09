@@ -68,7 +68,9 @@ export function createWorkshopDeck() {
                   cost: null, every: 1, phase: phaseSeq++ };
             cache.set(name, s);
         }
-        sized(s.canvas, w, h);
+        // Resizing a canvas already blanks it; this covers the first frame of a slot
+        // whose size happens not to change. After that it is the layer's own surface.
+        if (sized(s.canvas, w, h) && !s.opened) { s.opened = true; s.ctx.clearRect(0, 0, w, h); }
         return s;
     }
 
@@ -172,9 +174,17 @@ export function createWorkshopDeck() {
             s.ctx.globalCompositeOperation = 'source-over';
             s.ctx.setTransform(1, 0, 0, 1, 0, 0);
             // Redraw only on this layer's own schedule; otherwise reuse its canvas.
+            //
+            // And do NOT clear first. These layers were written against a canvas that
+            // PERSISTS between frames: coralBranch paints `rgba(0,0,0,0.08)` over the
+            // whole frame as its own fade and only redraws the coral every ~86th frame,
+            // matrixrain and boidsTrails have `fade`/`trailFade` params, several carry a
+            // `bgAlpha`. Clearing under them left coralBranch blank on almost every
+            // frame and visible on one — which is exactly what "it blinks" means.
+            // A layer that wants a clean frame paints its own background, which the ones
+            // with bgAlpha do; the canvas is cleared once when the slot is made.
             const due = ((frame + s.phase) % s.every) === 0 || s.cost == null;
             if (due) {
-                s.ctx.clearRect(0, 0, w, h);
                 const t0 = performance.now();
                 try { kind.draw(s.ctx, w, h, p, t, extra); }
                 catch (e) { if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }

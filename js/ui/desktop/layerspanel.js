@@ -105,8 +105,8 @@ export function buildLayersPanel(container, deps) {
         const binLab = document.createElement('span');
         binLab.textContent = 'bin';
         const bin = document.createElement('input');
-        bin.type = 'number'; bin.min = '0'; bin.max = '31'; bin.value = '4';
-        bin.title = 'one FFT bin, 0 (lowest) to 31 (highest)';
+        bin.type = 'number'; bin.min = '0'; bin.max = '63'; bin.value = '8';
+        bin.title = 'one FFT bin, 0 (lowest) to 63 (highest)';
         const binGo = document.createElement('button');
         binGo.textContent = 'bind'; binGo.className = 'wfd-bind-go';
         binGo.onmousedown = (e) => { e.preventDefault(); const n = Number(bin.value); closePopup(); onAudio(n); };

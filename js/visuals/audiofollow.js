@@ -16,14 +16,14 @@
 // room's shared one, so a machine doing visuals with no audio booted still follows the
 // set — see getVisualAudio().
 //
-// Four named bands plus the 32 spectrum bins. The bands are what you reach for; a bin
+// Four named bands plus the 64 spectrum bins. The bands are what you reach for; a bin
 // is for when you want one narrow slice — a kick, a hat — rather than a third of the
 // spectrum.
 import { getVisualAudio } from './bridge.js';
 import { shapeValue }     from '../midi/midi.js';
 
 export const AUD_BANDS = ['level', 'bass', 'mid', 'treble'];
-export const AUD_BINS   = 32;
+export const AUD_BINS   = 64;
 
 /** Normalise the first argument into either a band name or a bin index. */
 export function audBand(band) {
@@ -44,7 +44,7 @@ function read(band) {
 }
 
 /**
- * @param {string|number} band   'level' | 'bass' | 'mid' | 'treble', or a bin 0–31
+ * @param {string|number} band   'level' | 'bass' | 'mid' | 'treble', or a bin 0–63
  * @param {number} lo,hi         the range to map into (default 0–1, like midi())
  * @param {string} curve         lin · exp · log · quad · cubic · sqrt · s
  * @param {number} smooth        follower time constant in SECONDS. 0 is the raw

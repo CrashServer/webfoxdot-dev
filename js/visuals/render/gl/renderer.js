@@ -466,7 +466,17 @@ export function createGLRenderer(canvas) {
         gl.uniform2f(uLoc.uRes, W, H);
         gl.uniform1f(uLoc.uTime, tSec);
         gl.uniform4f(uLoc.uAud, aud.bass || 0, aud.mid || 0, aud.treble || 0, aud.level || 0);
-        const sp = aud.spectrum; if (sp) { for (let i = 0; i < 32; i++) SPEC[i] = sp[i] || 0; }
+        // The analyser hands out 64 bins for the workshop layers; the shader's uSpec is
+        // 32, so fold pairs rather than taking the lower half — which would have shown
+        // the field scenes only the bottom two octaves.
+        const sp = aud.spectrum;
+        if (sp) {
+            const n = sp.length | 0;
+            if (n === 32) { for (let i = 0; i < 32; i++) SPEC[i] = sp[i] || 0; }
+            else { const k = n / 32; for (let i = 0; i < 32; i++) {
+                let a2 = 0, c = 0; for (let j = Math.floor(i * k); j < Math.floor((i + 1) * k); j++) { a2 += sp[j] || 0; c++; }
+                SPEC[i] = c ? a2 / c : 0; } }
+        }
         gl.uniform1fv(uLoc.uSpec, SPEC);
         gl.uniform1f(uLoc.uNPal, NPAL);
         gl.uniform1f(uLoc.uTrails, trails);

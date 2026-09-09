@@ -2,7 +2,9 @@
 // the live spectrum, thin gaps between them. (adapted from stars / CLIFT)
 function specAt(a, u) {
     const s = a && a.spectrum;
-    if (s) return s[Math.max(0, Math.min(31, Math.floor(u * 32)))] || 0;
+    // Length-aware: the analyser's bin count is 64 now (the workshop layers need
+    // it) and hard-coding 32 here would sample only the bottom half of the range.
+    if (s && s.length) return s[Math.max(0, Math.min(s.length - 1, Math.floor(u * s.length)))] || 0;
     return a ? (u < 0.34 ? a.bass : u < 0.67 ? a.mid : a.treble) : 0;
 }
 export default {

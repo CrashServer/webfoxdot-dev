@@ -162,7 +162,13 @@ export function getVisualAudio() {
     return local;
 }
 
-const SPEC_BINS = 32;
+// 64, because that is what the WORKSHOP LAYERS were written against. 80 of the 206
+// index the spectrum at 38, 48 and 50 to get their treble; at 32 bins those reads are
+// undefined, `undefined + undefined` is NaN, and the NaN lands in an hsla() — ten
+// layers threw outright and the rest quietly drew nothing, or drew intermittently.
+// (The workshop's own FX registry loops i < 64 over it, which settles the question.)
+// crashDot's shader still wants 32 and re-bins on the way in — see renderer.js.
+const SPEC_BINS = 64;
 function _bands() {
     if (!_an) return { bass: 0, mid: 0, treble: 0, level: 0, spectrum: new Array(SPEC_BINS).fill(0) };
     _an.getByteFrequencyData(_freq);

@@ -279,7 +279,7 @@ const LIVE_TEMPLATES = [
     ["aud('mid')",                    'aud mid'],
     ["aud('treble')",                 'aud treble'],
     ["aud('level')",                  'aud level'],
-    ["aud(4)",                        'aud bin 0-31'],
+    ["aud(4)",                        'aud bin 0-63'],
     ["aud('bass', 0, 1)",             'aud + range'],
     ["aud('bass', 0, 1, 'exp')",      'aud + curve'],
     ["aud('bass', 0, 1, 'lin', 0.2)", 'aud + smoothing'],
@@ -290,7 +290,7 @@ const LIVE_TEMPLATES = [
 // Which of those belong to which control. Same mechanism the synth and FX families
 // use — grouping is by displayText, so these must match the labels above.
 const LIVE_SUBCATS = [
-    ['aud — follow the sound', ['aud bass', 'aud mid', 'aud treble', 'aud level', 'aud bin 0-31',
+    ['aud — follow the sound', ['aud bass', 'aud mid', 'aud treble', 'aud level', 'aud bin 0-63',
                                 'aud + range', 'aud + curve', 'aud + smoothing']],
     ['midi — a controller',    ['midi cc', 'midi + range', 'mlearn — next control touched']],
 ];
