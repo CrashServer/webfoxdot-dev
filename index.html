@@ -1683,10 +1683,18 @@
     }
 
     // ── Flash highlight ───────────────────────────────────────────────────────
-    function flashLines(from, to) {
-        // Line numbers are the SET's; painting them onto a scratch buffer would
-        // flash whatever happens to sit on those lines.
-        if (_tabs && !_tabs.isMain()) return;
+    /**
+     * Paint the lines that just ran.
+     *
+     * `remote` marks a peer's eval. Their line numbers are the SET's, so painting them
+     * while you are looking at a scratch buffer would flash whatever happens to sit on
+     * those lines — a different piece of code entirely. That was the reason for the
+     * guard here, but it was applied to EVERY flash, so running your own line in your
+     * own scratch buffer did not flash either: the one case where the numbers are
+     * unambiguously right. Your own eval always flashes now, wherever you typed it.
+     */
+    function flashLines(from, to, remote = false) {
+        if (remote && _tabs && !_tabs.isMain()) return;
         const marks = [];
         for (let i = from; i <= to; i++) {
             marks.push(editor.addLineClass(i, 'background', 'flash-highlight'));
@@ -3840,7 +3848,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
         initCollab(_sessionSlug, clock, editor, (msg) => {
             // Peer eval received — flash lines and run without re-broadcasting
-            if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1]);
+            if (msg.lines?.length === 2) flashLines(msg.lines[0], msg.lines[1], true);
             log(`[${msg.author}] ${msg.code.split('\n')[0].slice(0, 60)}`, 'eval');
             appendPeerEval(msg.author, msg.color, msg.code);   // split-view feed
             const run = () => runCode(msg.code, { fromRemote: true, author: msg.author, color: msg.color, authorId: msg.authorId });

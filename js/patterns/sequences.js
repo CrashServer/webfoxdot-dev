@@ -535,8 +535,19 @@ export function _sub(...items) { return { __sub: items }; }
 // into Pmath(a, op, b). If both operands are plain scalars it computes eagerly
 // (so 1/4 stays 0.25); otherwise it returns a lazy pattern resolved per step.
 const _OPS = { '+': (a, b) => a + b, '-': (a, b) => a - b, '*': (a, b) => a * b, '/': (a, b) => a / b };
+// A missing operand must never become NaN. `p2 >> saw(p1.degree + 7)` run BEFORE the
+// p1 line is ordinary live-coding order, and getAttr on a player that has not played
+// resolves to undefined — which used to make the whole expression NaN, and a NaN
+// degree or amp poisons the summed bus: the master limiter sanitises it to zero and
+// the mix goes silent until a page refresh. So a term that is not there contributes
+// nothing, and the other side comes through unchanged.
+//
+// Only undefined/null and actual NaN count as missing. Strings are left alone, so
+// '+' still concatenates and a named blend or curve still arrives intact.
+const _absent = (v) => v == null || (typeof v === 'number' && !isFinite(v));
 export function Pmath(a, op, b) {
-    const f = _OPS[op] ?? ((x) => x);
+    const raw = _OPS[op] ?? ((x) => x);
+    const f = (x, y) => (_absent(x) ? (_absent(y) ? 0 : y) : _absent(y) ? x : raw(x, y));
     const lazy = (v) => v != null && (typeof v.get === 'function' || Array.isArray(v) || isGroup(v) || isEnv(v));
     if (!lazy(a) && !lazy(b)) return f(a, b);
     const scalar = (v, step) => { const r = patGet(v, step, v); return isEnv(r) ? envValue(r) : r; };
