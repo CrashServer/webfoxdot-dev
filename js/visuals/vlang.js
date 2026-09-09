@@ -18,6 +18,7 @@ import { patGet } from '../patterns/sequences.js';
 import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES } from './vdata.js';
 import { defaults as wsDefaults } from './workshop/catalog.js';
 import { setWorkshopRes, workshopRes } from './render/wsres.js';
+import { setVisualFps, visualFps, setVisualBudget, visualBudget, visualStats } from './render/vperf.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
 const SCENE_SET = new Set(SCENES);
@@ -140,6 +141,37 @@ export function visualBuilders() {
     // different things: vres is GPU shader work, wres is main-thread canvas work, and
     // main-thread work is what makes the audio late. Default 1280; wres(0) = full size.
     out.wres    = (px) => { setWorkshopRes(px); _open(); return `wres(${workshopRes() || 'full'})`; };
+    // vfps(n) — cap how often the picture is drawn. The biggest single lever there is:
+    // 30fps is half the main-thread work of 60 for a picture most sets cannot tell
+    // apart. vfps(0) / vfps() = every frame the browser offers.
+    out.vfps    = (n) => `vfps(${setVisualFps(n) || 'uncapped'})`;
+    // vbudget(ms) — how long the CPU-drawn workshop layers may take per frame before
+    // they start redrawing every Nth frame instead. See wsdeck.js's per-layer budget.
+    out.vbudget = (ms) => `vbudget(${setVisualBudget(ms)}ms)`;
+    // vperf(mode) — the four knobs at once, as one decision about what matters.
+    //
+    // "Which gets CPU priority, audio or video" has a precise answer here and it is
+    // worth stating rather than implying: the audio ENGINE is not on this thread at
+    // all. scsynth is WASM in an AudioWorklet, on the browser's real-time audio
+    // thread, so no amount of drawing can starve the DSP. What shares the main thread
+    // with the picture is the CLOCK, and notes are dispatched 120ms early with a
+    // timetag — so the main thread can stall for that long and nothing is late. Past
+    // it, notes miss their timetag. These modes decide how much of that slack the
+    // visuals are allowed to spend.
+    out.vperf = (mode) => {
+        const m = String(mode ?? '').toLowerCase();
+        const set = (fps, res, ws, budget) => {
+            setVisualFps(fps); master.res = res; setWorkshopRes(ws); setVisualBudget(budget); _open();
+        };
+        if (m === 'audio' || m === 'music')  set(30, 0.75, 960,  2);
+        else if (m === 'video' || m === 'visuals') set(0, 1, 1920, 8);
+        else if (m === 'balanced' || m === 'default') set(0, null, 1280, 4);
+        else if (m) return `vperf: "${mode}"? try audio · balanced · video`;
+        const st = visualStats();
+        return `vperf: ${visualFps() ? visualFps() + 'fps cap' : 'no fps cap'} \u00b7 vres ${master.res ?? 'auto'} \u00b7 `
+             + `wres ${workshopRes() || 'full'} \u00b7 budget ${visualBudget()}ms`
+             + (st.fps ? ` \u2014 drawing ${st.fps.toFixed(0)}fps at ${st.ms.toFixed(1)}ms/frame` : '');
+    };
     // ── Output windows ────────────────────────────────────────────────────
     // output()       open a projector window (one full-frame surface)
     // output(2)      …with 2 independently warped surfaces — one per face of the
@@ -447,6 +479,9 @@ export function vsnap(all = false, only = null) {
     if (master.palette && !only) lines.push(`palette(${JSON.stringify(master.palette)})`);
     if (master.mode && !only)    lines.push(`vmode(${JSON.stringify(master.mode)})`);
     if (master.res && !only)     lines.push(`vres(${fmtVal(master.res)})`);
+    if (visualFps() && !only)    lines.push(`vfps(${fmtVal(visualFps())})`);
+    if (visualBudget() !== 4 && !only) lines.push(`vbudget(${fmtVal(visualBudget())})`);
+    if (workshopRes() !== 1280 && !only) lines.push(`wres(${fmtVal(workshopRes())})`);
     return lines.length ? lines.join('\n') : '# nothing on screen';
 }
 
@@ -461,7 +496,10 @@ export function snapshot(beat) {
     _lastBeat = beat;
     live.beat = beat;
     live.pulse = beat - Math.floor(beat);
-    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res, clearSeq, live };
+    const out = { layers: [], mix: null, palette: master.palette, mode: master.mode, res: master.res,
+                  // The pop-out window has no language of its own, so the settings
+                  // travel with the state — see state.js.
+                  fps: visualFps(), budget: visualBudget(), clearSeq, live };
     for (const [name, l] of layers) {
         if (!l.scene) continue;
         const dur = Number(resolveVisual(l.params.dur, beat, 1)) || 1;

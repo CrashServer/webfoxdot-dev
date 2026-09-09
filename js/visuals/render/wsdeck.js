@@ -22,6 +22,7 @@
 // the cache resizes only when the deck size actually changes.
 
 import { WORKSHOP_LAYERS, WORKSHOP_FX } from '../workshop/index.js';
+import { visualBudget } from './vperf.js';
 import { defaults, fxDefaults, fxPrimary } from '../workshop/catalog.js';
 import { capSize } from './wsres.js';
 import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
@@ -49,7 +50,7 @@ export function createWorkshopDeck() {
     // the skipped frames still composite the last picture — a heavy layer runs at 30
     // or 20fps under a 60fps mix instead of dragging everything down to its own rate.
     // Cheap layers (0.1–0.8ms, which is nearly all of them) never throttle at all.
-    const BUDGET_MS = 4;
+    const BUDGET_MS = () => visualBudget();
     const MAX_SKIP = 6;
     let frame = 0, phaseSeq = 0;
 
@@ -179,7 +180,7 @@ export function createWorkshopDeck() {
                 catch (e) { if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }
                 const ms = performance.now() - t0;
                 s.cost = s.cost == null ? ms : s.cost * 0.85 + ms * 0.15;
-                const want = Math.max(1, Math.min(MAX_SKIP, Math.ceil(s.cost / BUDGET_MS)));
+                const want = Math.max(1, Math.min(MAX_SKIP, Math.ceil(s.cost / BUDGET_MS())));
                 if (want !== s.every) {
                     s.every = want;
                     if (want > 1 && !s.told) {

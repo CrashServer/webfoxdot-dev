@@ -15,6 +15,7 @@
 import { createGLRenderer } from './render/gl/renderer.js';
 import { snapshot }         from './vlang.js';
 import { getVisualAudio, sharedBeat } from './bridge.js';
+import { allowFrame, noteFrame } from './render/vperf.js';
 import { WORKSHOP_FX_NAMES } from './workshop/catalog.js';
 
 const WS_FX = new Set(WORKSHOP_FX_NAMES);
@@ -137,6 +138,10 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     function frame(ts) {
         if (!on) return;
         raf = requestAnimationFrame(frame);
+        // The gate goes AFTER re-arming: a capped loop still rides real frame
+        // boundaries, it just skips most of them. See vperf.js.
+        if (!allowFrame(ts)) return;
+        const t0 = performance.now();
         const t = ts / 1000;
         const beat = clock ? clock.now() : t;          // beat → resolves TimeVars/patterns
         const vst = snapshot(beat);
@@ -163,6 +168,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         for (const cb of subs) { try { cb(canvas); } catch (_) {} }
         _lastCanvas = canvas;
         for (const cb of _frameSubs) { try { cb(canvas, wsd); } catch (_) {} }
+        noteFrame(performance.now() - t0, ts);
     }
 
     return {

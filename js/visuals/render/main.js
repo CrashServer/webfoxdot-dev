@@ -18,6 +18,7 @@ import { WORKSHOP_FX_NAMES } from '../workshop/catalog.js';
 import { attachMapping } from './mapping.js';
 const WS_FX = new Set(WORKSHOP_FX_NAMES);
 import { V, AUD, S } from './state.js';
+import { allowFrame, noteFrame } from './vperf.js';
 
 const glCanvas = document.getElementById('visgl');
 const canvas = document.getElementById('vis');
@@ -164,6 +165,9 @@ const mapping = attachMapping(document.body, [glCanvas, canvas], (msg) => {
 const setHud = (txt) => { if (mapMsg == null) hud.textContent = txt; };
 
 function loop(ts) {
+    requestAnimationFrame(loop);
+    if (!allowFrame(ts)) return;
+    const t0 = performance.now();
     const t = ts / 1000;
     aud.bass += (AUD.bass - aud.bass) * 0.35; aud.mid += (AUD.mid - aud.mid) * 0.35;
     aud.treble += (AUD.treble - aud.treble) * 0.35; aud.level += (AUD.level - aud.level) * 0.35;
@@ -198,7 +202,7 @@ function loop(ts) {
     } else {
         idle(t);
     }
-    requestAnimationFrame(loop);
+    noteFrame(performance.now() - t0, ts);
 }
 requestAnimationFrame(loop);
 

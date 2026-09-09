@@ -147,6 +147,7 @@ self.__WFD_PRECACHE = [
   './js/visuals/render/scenes/wave.js',
   './js/visuals/render/state.js',
   './js/visuals/render/wsdeck.js',
+  './js/visuals/render/vperf.js',
   './js/visuals/render/wsres.js',
   './js/visuals/surface.js',
   './js/visuals/vdata.js',

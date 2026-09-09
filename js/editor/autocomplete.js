@@ -318,6 +318,10 @@ const GLOBALS = [
     // but none of them was offered, so the completion never fired because you had
     // to type the whole name to get to it.
     'ascii_gen(','audiviz(','audioviz(','theme(','language(','attack(','modular()','panic()',
+    // The visual globals. Same story as the line above: every one is documented and
+    // none of them was offered, so you had to already know the name to find it.
+    'palette(','vmode(','vres(','wres(','vfps(','vbudget(','vperf(','vsnap(','vrand(',
+    'output(','outclose(','outlist()','vrec(',
     'softReload()','savePatch(','loadPatch(','tour()','vbg(','cancelSection()',
     'rules(','role(','grant(','tracks()','release(',
 ];
