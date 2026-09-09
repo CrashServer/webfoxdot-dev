@@ -497,7 +497,6 @@ export class Player {
         this._degreeAdds = null;
         this._modifiers  = null;
         this._unison     = null;
-        this._teardownGen = 0;   // supersedes a pending deferred teardown if we restart
         this._stutterN   = 0;
         this._strum      = 0;
         this._multiply   = 1;
@@ -1092,16 +1091,20 @@ export class Player {
         // recycled bus for one note's tail. Capped, so a drone on sus=64 can't hold one
         // indefinitely — past the cap it clicks as before, which needs a fade in
         // fd_fx_out (a synthdef change + an sclang rebuild) rather than a client fix.
+        // Captured here and cleared from `this` in the same breath, so this closure is
+        // the ONLY thing that still refers to them: a restart allocates a fresh bus and
+        // builds a fresh chain, and the freed bus does not re-enter the pool until the
+        // free below. That makes the pair unconditionally ours to release — there is no
+        // "someone else will do it" case, and a generation check that skipped the free
+        // was simply losing them (see the note on _teardownGen's removal in the commit).
         const chain = this._fxChain, bus = this._bus;
         this._fxChain = null;
         this._bus = null;
-        const gen = ++this._teardownGen;
         const secPerBeat = 60 / (this._clock?.bpm || 120);
         const susBeats = Number(this._args?.sus ?? this._args?.dur ?? this._playOpts?.dur ?? 1) || 1;
         const relSec   = Number(this._args?.release ?? 0.5) || 0.5;
         const graceMs  = Math.min(8000, (susBeats * secPerBeat + relSec) * 1000 + 120);
         const tearDown = () => {
-            if (gen !== this._teardownGen) return;   // re-started meanwhile — its chain is not ours to free
             if (chain && _sc) chain.free(_sc);
             freeBus(bus);                            // recycle the private bus for the next player
         };
