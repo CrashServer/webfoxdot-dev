@@ -263,6 +263,7 @@
     import { initPerform, togglePerform, applyXY, applyRemoteFX } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl } from './js/midi/midi.js';
+    import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
@@ -1281,6 +1282,14 @@
             // via assignment: p1.lpf = midi(74, 100, 8000, 'exp')
             midi:   (cc, lo = 0, hi = 1, curve = 'lin') => { _ensureMidi(); return makeMidi(cc, lo, hi, curve); },
             mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
+            // aud(band,lo,hi[,curve[,smooth]]) — the SOUND as a value, same shape as
+            // midi() so it works on every param in the language, audio and visual:
+            //   video1 >> plasma(speed=aud('bass', 0.2, 3))
+            //   video2 >> freqtower(scale=aud(4))     # FFT bin 4 — one "EQ channel"
+            // Reads the same analyser as audiviz() and the visuals, which in a session
+            // is the room's — so a visuals machine follows whoever is playing.
+            aud: (band = 'level', lo = 0, hi = 1, curve = 'lin', smooth = 0.06) =>
+                     makeAud(band, lo, hi, curve, smooth),
             // midiin(synth, opts) — play incoming MIDI keyboard notes through a synth.
             // opts: amp (velocity scale), sus (note length secs), transpose (semitones).
             // Notes are fixed-length (synths self-release); pass 0/false to unbind.
@@ -3832,6 +3841,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // The LAYERS panel turns knobs on whatever is live. It writes plain numbers, and
     // → CODE hands the line back — perform with the knobs, keep it as text.
+    // Is this value a live control rather than a plain number? Both midi() and aud()
+    // answer by knowing how to write themselves back as source.
+    const isBinding = (v) => !!(v && typeof v === 'object' && typeof v.toCode === 'function');
+
     // Turning a knob is a performance, not a rewrite: it rides the sticky-state map
     // like a fader does, so a peer joining mid-set gets the picture you are actually
     // showing and not the one the code happens to describe. Gated by the 'visuals'
@@ -3840,9 +3853,39 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // replay in applyingRemote(), which makes shareStateThrottled a no-op.
     setLayersApi({
         liveLayers: visualLayers,
-        setLayerParam: (n, k, v) => { shareStateThrottled(`vl:${n}:${k}`, v); return setVisualParam(n, k, v); },
+        // A live control — midi(), aud() — is a LOCAL binding and is deliberately not
+        // shared. Yjs would carry the object's fields and none of its behaviour, so a
+        // peer would receive a husk with no get() and land on zero; and a CC number is
+        // a fact about the hardware on THIS desk. The way a binding reaches the room is
+        // the way everything else does — as code. That is what → code is for.
+        setLayerParam: (n, k, v) => { if (!isBinding(v)) shareStateThrottled(`vl:${n}:${k}`, v); return setVisualParam(n, k, v); },
         setLayerChannel: (n, c) => { shareState(`vch:${n}`, c); return setVisualChannel(n, c); },
-        setLayerFx: (n, k, v) => { shareStateThrottled(`vfx:${n}:${k}`, v); return setVisualFx(n, k, v); },
+        setLayerFx: (n, k, v) => { if (!isBinding(v)) shareStateThrottled(`vfx:${n}:${k}`, v); return setVisualFx(n, k, v); },
+        // Bind a param to the sound, or to the next MIDI control you touch. Both go in
+        // as the very object the language would have built, so the panel and a typed
+        // line produce exactly the same layer.
+        bindAudio: (band, lo, hi) => makeAud(band, lo, hi),
+        bindMidi:  (lo, hi) => {
+            _ensureMidi();
+            const b = makeMidi(null, lo, hi);
+            // makeMidi starts at the middle of its range so a fresh patch is not
+            // silent, which is right for a typed line and wrong here: the panel binds
+            // lo to the value the param already has, so 0 is the position that leaves
+            // the picture exactly as it was until you touch the controller.
+            b._norm = 0;
+            return b;
+        },
+        audBands:  () => AUD_BANDS,
+        // Where → code writes. Same list, and the same reasoning, as the piano panel:
+        // with several buffers open — some detached — "the current editor" is whichever
+        // one you last clicked, which from a panel feels like it picks one at random.
+        targets: () => bufferTargets().map((t) => ({ name: t.name, active: !!t.active })),
+        insert:  (code, targetName) => {
+            const t = bufferTargets().find((x) => x.name === targetName);
+            if (t) { insertCodeInto(t.doc, code); return t.name; }
+            insertCode(code, { quiet: true, run: false });
+            return null;
+        },
         // Two groups, because they are two different things: crashDot's own FX are
         // uniforms over the whole frame, the workshop's run on that layer alone.
         fxNames: () => Object.keys(visualFxDefaults()),

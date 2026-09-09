@@ -36,16 +36,105 @@ const CAT_RANGE = { hue: { min: 0, max: 1, default: 0 } };
 
 export function buildLayersPanel(container, deps) {
     const { liveLayers, setLayerParam, setLayerChannel, setLayerFx, sceneParams, paramRange,
-            fxNames, wsFxNames, wsImplements, fxPrimaryRange, ownFxDefaults, snapCode, log = () => {} } = deps;
+            fxNames, wsFxNames, wsImplements, fxPrimaryRange, ownFxDefaults, snapCode,
+            bindAudio, bindMidi, audBands, targets, insert, log = () => {} } = deps;
+
+    // ── Where → code writes ──────────────────────────────────────────────────
+    // It used to only LOG the line, which in the desktop layout means it landed in a
+    // panel you may not even have open — the button looked broken because nothing you
+    // could see happened. A generated line belongs in a buffer, and with several open
+    // the panel has to ask which, exactly as the piano does.
+    const bar = document.createElement('div');
+    bar.className = 'wfd-lay-bar';
+    const barLab = document.createElement('span');
+    barLab.className = 'wfd-lay-lab';
+    barLab.textContent = '\u2192 code into';
+    const dest = document.createElement('select');
+    dest.className = 'wfd-lay-dest';
+    dest.title = 'which buffer \u2192 code appends to';
+    bar.append(barLab, dest);
+    container.appendChild(bar);
+    let destName = null;
+    function renderTargets() {
+        const list = (targets ? targets() : []) || [];
+        if (!list.length) { dest.innerHTML = '<option value="">editor</option>'; return; }
+        if (!list.some((t) => t.name === destName)) destName = (list.find((t) => t.active) || list[0]).name;
+        const want = list.map((t) => t.name).join('\u0000');
+        if (dest.dataset.names !== want) {
+            dest.dataset.names = want;
+            dest.innerHTML = list.map((t) => `<option value="${t.name}">${t.name}</option>`).join('');
+        }
+        dest.value = destName;
+    }
+    dest.onchange = () => { destName = dest.value; };
+
     const root = document.createElement('div');
     root.className = 'wfd-lay-wrap';
     container.appendChild(root);
+
+    // ── The bind menu ────────────────────────────────────────────────────────
+    // One popup, reused, rather than a control per parameter: a layer can carry twenty
+    // params and there is no sense building twenty pickers for a choice made rarely.
+    let popup = null;
+    const closePopup = () => { if (popup) { popup.remove(); popup = null; } };
+    document.addEventListener('mousedown', (e) => { if (popup && !popup.contains(e.target)) closePopup(); }, true);
+
+    function openBindMenu(btn, { onAudio, onMidi, onClear, bound }) {
+        closePopup();
+        popup = document.createElement('div');
+        popup.className = 'wfd-bind-menu';
+        const row = (label, title, fn) => {
+            const b = document.createElement('button');
+            b.className = 'wfd-bind-row';
+            b.textContent = label; b.title = title;
+            b.onmousedown = (e) => { e.preventDefault(); closePopup(); fn(); };
+            popup.appendChild(b);
+            return b;
+        };
+        const head = document.createElement('div');
+        head.className = 'wfd-bind-head'; head.textContent = 'follow the sound';
+        popup.appendChild(head);
+        for (const band of (audBands ? audBands() : ['level', 'bass', 'mid', 'treble']))
+            row(band, `map this param to the ${band} of whatever is playing`, () => onAudio(band));
+        // A bin is one narrow slice of the spectrum rather than a third of it — the
+        // "EQ channel" you want when a kick and a snare should not move the same knob.
+        const binRow = document.createElement('div');
+        binRow.className = 'wfd-bind-bin';
+        const binLab = document.createElement('span');
+        binLab.textContent = 'bin';
+        const bin = document.createElement('input');
+        bin.type = 'number'; bin.min = '0'; bin.max = '31'; bin.value = '4';
+        bin.title = 'one FFT bin, 0 (lowest) to 31 (highest)';
+        const binGo = document.createElement('button');
+        binGo.textContent = 'bind'; binGo.className = 'wfd-bind-go';
+        binGo.onmousedown = (e) => { e.preventDefault(); const n = Number(bin.value); closePopup(); onAudio(n); };
+        binRow.append(binLab, bin, binGo);
+        popup.appendChild(binRow);
+        const head2 = document.createElement('div');
+        head2.className = 'wfd-bind-head'; head2.textContent = 'hardware';
+        popup.appendChild(head2);
+        row('MIDI learn', 'bind the next control you touch on your controller', onMidi);
+        if (bound) row('\u00d7 unbind', 'back to a plain number you can turn', onClear);
+        document.body.appendChild(popup);
+        const r = btn.getBoundingClientRect();
+        popup.style.top = Math.min(r.bottom + 2, window.innerHeight - popup.offsetHeight - 6) + 'px';
+        popup.style.left = Math.min(r.left, window.innerWidth - popup.offsetWidth - 6) + 'px';
+    }
 
     // Rebuilding on every poll would fight the pointer: a knob you are dragging must
     // not be replaced under your finger. So the DOM is rebuilt only when the SET of
     // layers changes, and existing knobs are updated in place otherwise.
     let signature = '';
     const knobs = new Map();          // "layer:param" → knob element
+
+    // What a value reads right now — a plain number, or whatever a live control is
+    // currently putting out. Used so rebinding and unbinding both start from what you
+    // can actually see rather than from a default you never chose.
+    function curOf(v, fallback) {
+        try { if (v && typeof v.get === 'function') { const n = Number(v.get(0)); if (Number.isFinite(n)) return n; } } catch (_) {}
+        const n = Number(v);
+        return Number.isFinite(n) ? n : Number(fallback) || 0;
+    }
 
     function specFor(scene, key, current) {
         const r = paramRange(scene, key);
@@ -89,7 +178,12 @@ export function buildLayersPanel(container, deps) {
             code.className = 'wfd-lay-small wfd-lay-code';
             code.textContent = '→ code';
             code.title = 'write this layer back out as a line, with everything you have dialled in';
-            code.onclick = () => { const c = snapCode(L.name); if (c) log(c, 'ok'); };
+            code.onclick = () => {
+                const c = snapCode(L.name);
+                if (!c) return;
+                const where = insert ? insert(c, destName) : null;
+                log(where ? `\u2192 ${where}: ${c}` : c, 'ok');
+            };
             head.append(nm, sc, chBtn, code);
             box.appendChild(head);
 
@@ -138,10 +232,18 @@ export function buildLayersPanel(container, deps) {
                 const cur = L.params[k] ?? dflt ?? (k === 'bright' || k === 'speed' || k === 'scale' || k === 'zoom' ? 1 : 0);
                 // A pattern or TimeVar cannot sit on a knob. Show it, disabled, saying so.
                 const live = L.params[k];
-                const isPat = live != null && typeof live === 'object';
+                const isObj  = live != null && typeof live === 'object';
+                // Three kinds of object, and they are not the same thing. A live
+                // CONTROL (midi/aud) knows how to write itself back as source and can
+                // be unbound from here. A pattern or TimeVar cannot: its source is not
+                // recoverable from the object, so the panel says so and sends you to
+                // the line, which is the same honesty the knob rule has always had.
+                const bound  = isObj && typeof live.toCode === 'function';
+                const isPat  = isObj && !bound;
+                const spec   = specFor(L.scene, k, cur);
 
                 const cell = document.createElement('div');
-                cell.className = 'wfd-lay-cell' + (isPat ? ' patterned' : '');
+                cell.className = 'wfd-lay-cell' + (isPat ? ' patterned' : '') + (bound ? ' bound' : '');
                 const lab = document.createElement('span');
                 lab.className = 'wfd-lay-lab';
                 lab.textContent = k;
@@ -154,8 +256,16 @@ export function buildLayersPanel(container, deps) {
                     tag.title = 'this param is driven by a pattern or TimeVar — turning a knob would '
                               + 'replace it with a fixed number, so edit the line instead';
                     cell.appendChild(tag);
+                } else if (bound) {
+                    const tag = document.createElement('button');
+                    tag.className = 'wfd-lay-bound';
+                    tag.dataset.p = L.name + ':' + k;
+                    tag.textContent = live.label ? live.label() : 'bound';
+                    tag.title = `${k} follows ${live.toCode()} — click to rebind or unbind. `
+                              + '\u2192 code writes the binding out as it stands.';
+                    tag.onclick = () => openMenuFor(tag, L, k, spec, true, curOf(live, cur));
+                    cell.appendChild(tag);
                 } else {
-                    const spec = specFor(L.scene, k, cur);
                     const kn = makeKnob({
                         value: Number(cur) || 0, spec, rotary: true,
                         title: `${L.name} · ${k}`,
@@ -163,6 +273,13 @@ export function buildLayersPanel(container, deps) {
                     });
                     knobs.set(L.name + ':' + k, kn);
                     cell.appendChild(kn);
+                    // A param you can turn is a param you can hand to something else.
+                    const bindBtn = document.createElement('button');
+                    bindBtn.className = 'wfd-lay-bind';
+                    bindBtn.textContent = '\u223f';
+                    bindBtn.title = `bind ${k} to the sound or to a MIDI control`;
+                    bindBtn.onclick = () => openMenuFor(bindBtn, L, k, spec, false, cur);
+                    cell.appendChild(bindBtn);
                 }
                 grid.appendChild(cell);
             }
@@ -248,16 +365,81 @@ export function buildLayersPanel(container, deps) {
         }
     }
 
+    /**
+     * The range a new binding sweeps. It runs from the value the param HAS RIGHT NOW to
+     * the top of its declared range — not from the bottom.
+     *
+     * Two reasons, and the first is the one that matters: silence must leave the param
+     * where you left it. Binding then adds movement on top of the look you dialled in
+     * instead of replacing it, and nothing jumps at the instant you bind. Starting at
+     * the declared minimum would mean a quiet moment slams `speed` to -2 on a plasma —
+     * the scene runs backwards at full tilt whenever nobody is playing.
+     *
+     * A param already AT the top has nowhere to go up, so the sound pulls it down
+     * instead — still no jump at silence, just inverted. It stops at the param's own
+     * default rather than at its minimum, because a symmetric range like plasma's
+     * speed of [-2, 2] would otherwise turn a loud bar into full reverse, which is a
+     * much bigger claim than "make this follow the bass".
+     *
+     * None of this has to be perfect: the point of → code is that the numbers land in
+     * the buffer where you can change them. This only has to be a sane place to start.
+     * The declared bounds come from the generated catalog — what those 1,987 are for.
+     */
+    function bindRange(spec, cur) {
+        const min = Number.isFinite(spec.min) ? spec.min : 0;
+        const at  = Number.isFinite(Number(cur)) ? Number(cur) : Number(spec.default) || 0;
+        const max = Number.isFinite(spec.max) ? spec.max : Math.max(1, at);
+        if (max > at) return [at, max];
+        const dflt = Number(spec.default);
+        const floor = Number.isFinite(dflt) && dflt < at ? dflt : min;
+        if (at > floor) return [at, floor];
+        return [min, max];                      // min === max: nothing to sweep
+    }
+
+    function openMenuFor(btn, L, k, spec, bound, cur) {
+        const [lo, hi] = bindRange(spec, cur);
+        const set = (v) => { setLayerParam(L.name, k, v); refresh(true); };
+        openBindMenu(btn, {
+            bound,
+            onAudio: (band) => {
+                set(bindAudio ? bindAudio(band, lo, hi) : null);
+                log(`${L.name}.${k} follows ${typeof band === 'number' ? 'bin ' + band : band} \u2014 `
+                  + `silent ${lo}, loud ${hi}. \u2192 code writes it out.`, 'ok');
+            },
+            onMidi: () => {
+                set(bindMidi ? bindMidi(lo, hi) : null);
+                log(`${L.name}.${k}: MIDI learn armed \u2014 touch a control on your controller`, 'info');
+            },
+            // Back to the number it is showing right now, so unbinding does not jump.
+            // Back to the number it is showing right now, so unbinding does not jump
+            // either — the look you are looking at is the look you keep.
+            onClear: () => set(curOf(L.params[k], spec.default ?? 0)),
+        });
+    }
+
     function refresh(force) {
+        renderTargets();
         const list = liveLayers();
         // Signature = what would change the SHAPE of the panel. Params are not in it:
         // a value changing must not rebuild the DOM under a finger that is dragging.
-        const sig = list.map((l) => `${l.name}:${l.scene}:${l.ch}:${l.params.blend ?? ''}:${Object.keys(l.params).sort().join(',')}:${Object.keys(l.fx || {}).join(',')}`).join('|');
+        // Binding a param swaps its knob for a tag, so WHICH params are objects is part
+        // of the panel's shape — without it the knob would stay put over a bound value.
+        const kindOf = (v) => (v && typeof v === 'object' ? (typeof v.toCode === 'function' ? 'b' : 'p') : 'n');
+        const sig = list.map((l) => `${l.name}:${l.scene}:${l.ch}:${l.params.blend ?? ''}:`
+            + Object.keys(l.params).sort().map((k) => k + kindOf(l.params[k])).join(',')
+            + ':' + Object.keys(l.fx || {}).join(',')).join('|');
         if (force || sig !== signature) { signature = sig; render(list); return; }
         for (const l of list) {
             for (const [k, v] of Object.entries(l.params)) {
                 const kn = knobs.get(l.name + ':' + k);
                 if (kn && typeof v === 'number' && kn.getValue() !== v) kn.setValue(v);
+            }
+            // A MIDI learn resolves the moment you touch a control, and the tag has to
+            // stop saying "learn…" when it does.
+            for (const [k, v] of Object.entries(l.params)) {
+                if (!v || typeof v.label !== 'function') continue;
+                const tag = root.querySelector(`.wfd-lay-bound[data-p="${l.name}:${k}"]`);
+                if (tag && tag.textContent !== v.label()) tag.textContent = v.label();
             }
             for (const [k, v] of Object.entries(l.fx || {})) {
                 const kn = knobs.get(l.name + ':fx:' + k);
@@ -268,5 +450,5 @@ export function buildLayersPanel(container, deps) {
 
     refresh(true);
     const timer = setInterval(() => { if (container.offsetParent !== null) refresh(false); }, 500);
-    return { refresh, dispose: () => clearInterval(timer) };
+    return { refresh, dispose: () => { clearInterval(timer); closePopup(); } };
 }

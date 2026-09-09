@@ -78,6 +78,7 @@ self.__WFD_PRECACHE = [
   './js/ui/tabs.js',
   './js/ui/tour.js',
   './js/ui/undostack.js',
+  './js/visuals/audiofollow.js',
   './js/visuals/bridge.js',
   './js/visuals/editorbg.js',
   './js/visuals/render/blends.js',

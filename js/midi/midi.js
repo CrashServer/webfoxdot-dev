@@ -135,6 +135,9 @@ export function clearMidiControl(c) {
     const i = _learnCtrlQ.indexOf(c); if (i >= 0) _learnCtrlQ.splice(i, 1);
 }
 
+// Round for source output — a binding's bounds are typed numbers, not measurements.
+const num = (v) => String(Math.round(Number(v) * 1000) / 1000);
+
 // Response curves (4th arg to midi()/mlearn()): lin (default), exp (geometric,
 // needs lo,hi>0), log, quad, cubic, sqrt, s (smoothstep). See curvePos below.
 // Shape the normalized 0..1 position (linear mapping to [lo,hi] happens in shape()).
@@ -153,13 +156,19 @@ function curvePos(curve, n) {
 // frequency, but only valid when both ends are >0; on a 0-based range it falls back
 // to 'quad' (ease-in), the closest single-curve approximation. Other curves shape
 // the 0..1 position via curvePos, then map linearly into [lo,hi].
-function shape(b) {
-    const n = b._norm;
-    if (b.curve === 'exp') {
-        if (b.lo > 0 && b.hi > 0) return b.lo * Math.pow(b.hi / b.lo, n);
-        return b.lo + (b.hi - b.lo) * (n * n);              // ease-in fallback
+function shape(b) { return shapeValue(b.lo, b.hi, b.curve, b._norm); }
+
+/**
+ * Map a 0..1 position into [lo,hi] through a response curve. Exported because a
+ * knob-shaped value is not a MIDI idea — an audio follower wants the same seven
+ * curves for the same reason, and two copies of a curve table drift.
+ */
+export function shapeValue(lo, hi, curve, n) {
+    if (curve === 'exp') {
+        if (lo > 0 && hi > 0) return lo * Math.pow(hi / lo, n);
+        return lo + (hi - lo) * (n * n);                    // ease-in fallback
     }
-    return b.lo + (b.hi - b.lo) * curvePos(b.curve, n);
+    return lo + (hi - lo) * curvePos(curve, n);
 }
 
 // Factory. cc == null arms MIDI learn (binds to the next control touched).
@@ -170,6 +179,17 @@ export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin') {
         lo, hi, curve,
         _norm: 0.5,                              // start mid so a fresh patch isn't silent
         get() { return shape(this); },
+        // What this binding would be if you had typed it. vsnap() and the panels write
+        // this instead of the number it happens to read right now — freezing a live
+        // control into a constant is the one thing "write it back as code" must not do.
+        toCode() {
+            const tail = (this.lo === 0 && this.hi === 1 && this.curve === 'lin') ? ''
+                       : `${this.cc == null ? '' : ', '}${num(this.lo)}, ${num(this.hi)}`
+                         + (this.curve === 'lin' ? '' : `, ${JSON.stringify(this.curve)}`);
+            return this.cc == null ? `mlearn(${tail.replace(/^, /, '')})` : `midi(${this.cc}${tail})`;
+        },
+        /** Short label for a panel row — "midi cc7", or "learn…" while unbound. */
+        label() { return this.cc == null ? 'learn\u2026' : 'midi cc' + this.cc; },
     };
     if (b.cc != null && _last.has(b.cc)) b._norm = _last.get(b.cc);
     _bindings.add(b);

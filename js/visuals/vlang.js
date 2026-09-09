@@ -415,17 +415,28 @@ export function vsnap(all = false, only = null) {
         const def = l._wsDefaults || null;
         // vsnap(true) writes the layer's own defaults too — the params you never typed,
         // which is how you find out a layer HAS them.
-        const p = { ...(all && def ? def : {}), ...resolveMap(l.params, beat, dur) };
+        const p = { ...(all && def ? def : {}), ...l.params };
         const args = [];
-        for (const [k, v] of Object.entries(p)) {
+        for (const [k, rv] of Object.entries(p)) {
+            if (rv == null) continue;
+            // A LIVE CONTROL — midi(), mlearn(), aud() — writes itself back as the
+            // control, not as the number it happens to read at this instant. Freezing
+            // one is the single thing "write it back as code" must not do: the whole
+            // point of the binding is that it moves, and a snapshot of it is a look you
+            // cannot get back. Anything else is sampled, as it always was.
+            if (rv && typeof rv.toCode === 'function') { args.push(`${k}=${rv.toCode()}`); continue; }
+            const v = resolveVisual(rv, beat, dur);
             if (v == null) continue;
             if (!all && def && def[k] !== undefined && Number(def[k]) === Number(v)) continue;  // unchanged
             args.push(`${k}=${fmtVal(v)}`);
         }
         if (l.ch) args.push('ch=1');
         let line = `${name} >> ${l.scene}(${args.join(', ')})`;
-        const fx = resolveMap(l.fx, beat, dur);
-        for (const [k, v] of Object.entries(fx)) if (v != null && v !== false) line += ` + ${k}(${fmtVal(v)})`;
+        for (const [k, rv] of Object.entries(l.fx)) {
+            if (rv && typeof rv.toCode === 'function') { line += ` + ${k}(${rv.toCode()})`; continue; }
+            const v = resolveVisual(rv, beat, dur);
+            if (v != null && v !== false) line += ` + ${k}(${fmtVal(v)})`;
+        }
         lines.push(line);
     }
     if (mixer && !only) {

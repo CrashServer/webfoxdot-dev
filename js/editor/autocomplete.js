@@ -259,12 +259,26 @@ const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','lininf(','expinf(',
 // Shared list for value/degree positions: pattern generators (auto-grouped into
 // families by toTree) then time-varying values. Timevars get their OWN separator
 // so the "— patterns —" category is purely hint-pattern (→ family-grouped).
+// Live controls — values that come from OUTSIDE the composition. Their own group,
+// because a timevar is a function of the beat and knowable in advance, while these
+// two are the sound in the room and a hand on a knob. A param value is exactly where
+// you want them, and they were reachable only by already knowing they existed.
+const LIVE_TEMPLATES = [
+    ["aud('bass')", 'aud'],
+    ["aud('level', 0, 1)", 'aud range'],
+    ["aud(4)", 'aud bin'],
+    ['midi(1)', 'midi'],
+    ['mlearn(0, 1)', 'mlearn'],
+];
+
 function patternValueItems() {
     return [
         sep('— patterns —'),
         ...PATTERN_NAMES.map(patItem),
         sep('— timevars —'),
         ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
+        sep('— live —'),
+        ...LIVE_TEMPLATES.map(([text, label]) => item(text, 'hint-timevar', label)),
     ];
 }
 
@@ -273,7 +287,7 @@ const GLOBALS = [
     'drop(','soloRnd(','unsolo()','rest()','print(','loadsample(','loadpack(','defsynth(',
     'loop(','loadloop(','pbuild(','pkit(','genres()','chaos(','son()','soff()','linbpm(','dropbpm(',
     'say(','darker()','lighter()','shutup()','swap(','melody(',
-    'midi(','midiin(','mlearn(','midiout(','link(',
+    'midi(','midiin(','mlearn(','midiout(','link(','aud(',
     'midi_rec()','midi_save(','midi_map(',
     // The app's OWN commands. These were reachable only by knowing they existed:
     // every one is documented and several take an argument the menu can complete,
