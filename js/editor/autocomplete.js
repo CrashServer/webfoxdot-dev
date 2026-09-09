@@ -263,12 +263,36 @@ const TIMEVAR_NAMES = ['var(','linvar(','sinvar(','expvar(','lininf(','expinf(',
 // because a timevar is a function of the beat and knowable in advance, while these
 // two are the sound in the room and a hand on a knob. A param value is exactly where
 // you want them, and they were reachable only by already knowing they existed.
+//
+// Listed as the CHOICE you are actually making rather than as one generic template.
+// "which band" is the whole question when you reach for aud(), so the bands are the
+// rows; the extra arguments are variants underneath, in the order you tend to want
+// them (a range first, because the default 0–1 is rarely the range of the param you
+// are putting it on).
+// Every label starts with the function it inserts, and that is not cosmetic: typing
+// filters on displayText with startsWith, so rows labelled `bass` and `treble` would
+// be invisible to anyone who types `aud` — which is what you type when you are looking
+// for this. Under the category the prefix reads as mild repetition; in the filtered
+// list it is the only thing that says what the row will insert.
 const LIVE_TEMPLATES = [
-    ["aud('bass')", 'aud'],
-    ["aud('level', 0, 1)", 'aud range'],
-    ["aud(4)", 'aud bin'],
-    ['midi(1)', 'midi'],
-    ['mlearn(0, 1)', 'mlearn'],
+    ["aud('bass')",                   'aud bass'],
+    ["aud('mid')",                    'aud mid'],
+    ["aud('treble')",                 'aud treble'],
+    ["aud('level')",                  'aud level'],
+    ["aud(4)",                        'aud bin 0-31'],
+    ["aud('bass', 0, 1)",             'aud + range'],
+    ["aud('bass', 0, 1, 'exp')",      'aud + curve'],
+    ["aud('bass', 0, 1, 'lin', 0.2)", 'aud + smoothing'],
+    ['midi(1)',                       'midi cc'],
+    ['midi(1, 0, 1)',                 'midi + range'],
+    ['mlearn(0, 1)',                  'mlearn — next control touched'],
+];
+// Which of those belong to which control. Same mechanism the synth and FX families
+// use — grouping is by displayText, so these must match the labels above.
+const LIVE_SUBCATS = [
+    ['aud — follow the sound', ['aud bass', 'aud mid', 'aud treble', 'aud level', 'aud bin 0-31',
+                                'aud + range', 'aud + curve', 'aud + smoothing']],
+    ['midi — a controller',    ['midi cc', 'midi + range', 'mlearn — next control touched']],
 ];
 
 function patternValueItems() {
@@ -278,7 +302,7 @@ function patternValueItems() {
         sep('— timevars —'),
         ...TIMEVAR_NAMES.map(n => item(n, 'hint-timevar', n.replace('(', ''))),
         sep('— live —'),
-        ...LIVE_TEMPLATES.map(([text, label]) => item(text, 'hint-timevar', label)),
+        ...LIVE_TEMPLATES.map(([text, label]) => item(text, 'hint-live', label)),
     ];
 }
 
@@ -806,7 +830,11 @@ function toTree(list, subgroup) {
         const allSynth = node.items.length > 10 && node.items.every(i => i.className === 'hint-synth');
         const allPat   = node.items.length > 10 && node.items.every(i => i.className === 'hint-pattern');
         const allAttack = node.items.length > 0 && node.items.every(i => i.className === 'hint-attack');
-        const children = (subgroup && allAttack) ? groupByKey(node.items)
+        // The live group splits by CONTROL — aud and midi are two different questions,
+        // and running eleven rows together made you read the list to find either.
+        const allLive  = node.items.length > 1  && node.items.every(i => i.className === 'hint-live');
+        const children = (subgroup && allLive)  ? groupByFamily(node.items, LIVE_SUBCATS)
+                       : (subgroup && allAttack) ? groupByKey(node.items)
                        : (subgroup && allFx)    ? groupByFamily(node.items, FX_SUBCATS)
                        : (subgroup && allSynth) ? groupByFamily(node.items, SYNTH_SUBCATS)
                        : (subgroup && allPat)   ? groupByFamily(node.items, PATTERN_SUBCATS)

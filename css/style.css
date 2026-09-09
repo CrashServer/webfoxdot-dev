@@ -1110,6 +1110,9 @@ body.zen #docs-panel { display: none !important; }
 .hint-pattern  { color: var(--pattern-col); }
 .hint-attack   { color: var(--yellow); }   /* attack() — prepared blocks + their #@ parts */
 .hint-timevar  { color: var(--timevar-col); }
+/* aud()/midi() — a value from outside the composition, so it wears the timevar
+   colour it behaves like rather than a colour of its own. */
+.hint-live     { color: var(--timevar-col); }
 .hint-method   { color: var(--blue); }
 .hint-param    { color: var(--text-1); }
 .hint-sep {

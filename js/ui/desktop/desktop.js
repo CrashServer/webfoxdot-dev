@@ -453,7 +453,10 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
                             sc.picker.appendChild(o);
                         }
                     }
-                    if (sc.picker.value !== cur) sc.picker.value = cur;
+                    // Never while it is open: setting .value on a select whose popup
+                    // is showing snaps the highlight back under the pointer, which is
+                    // the same "it resets before I can click" the outputs panel had.
+                    if (sc.picker.value !== cur && document.activeElement !== sc.picker) sc.picker.value = cur;
                 };
                 sc.picker.onchange = () => oapi.setScreenSource(sc.picker.value);
                 fill();

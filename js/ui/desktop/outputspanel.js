@@ -36,7 +36,26 @@ export function buildOutputsPanel(container, api, getSources, log = () => {}) {
         return sel.value;
     }
 
-    function render() {
+    // What the panel would DRAW: the outputs, their surfaces, what each shows and how
+    // it is warped, plus the list of sources available to pick from. Everything else
+    // (a blend slider mid-drag) is state you are already holding.
+    function shape() {
+        const src = (getSources?.() || []).map((x) => x.id).join('|');
+        const outs = (api.list() || []).map((o, oi) => {
+            const out = api.get(oi);
+            if (!out) return o.id;
+            return o.id + ':' + out.surfaces.map((s) => `${s.source}/${s.warp.getMode()}`).join(',');
+        }).join(';');
+        return `${src}#${outs}#${api.screenSource ? api.screenSource() : ''}`;
+    }
+
+    let sig = null;
+
+    // sig is taken AFTER drawing, not before: sourceOptions() repoints a surface whose
+    // source has disappeared, so the shape can change during the draw that reads it.
+    function render() { draw(); sig = shape(); }
+
+    function draw() {
         root.textContent = '';
 
         const bar = document.createElement('div');
@@ -159,8 +178,32 @@ export function buildOutputsPanel(container, api, getSources, log = () => {}) {
     }
 
     render();
-    // The source list grows and shrinks as layers come and go, and a panel showing a
-    // stale list is worse than one that costs a few reads a second.
-    const timer = setInterval(() => { if (container.offsetParent !== null) render(); }, 1500);
+    // The source list grows and shrinks as layers come and go, so the panel has to keep
+    // looking. What it must NOT do is rebuild itself while you are using it: this used
+    // to blow the whole panel away every 1.5 seconds, and a native <select> whose
+    // element is removed closes instantly — so opening a source picker gave you at most
+    // a second and a half, usually far less, before the list vanished under the pointer.
+    //
+    // Two guards, because they cover different halves of the problem. The panel only
+    // rebuilds when what it would DRAW has actually changed, which is almost never
+    // (nothing here animates). And even then it waits while a control in the panel has
+    // focus — clicking a select focuses it before the popup opens, so this covers the
+    // exact moment the old code was destroying. A change or a blur runs the render that
+    // was skipped, so nothing stays stale once you are done.
+    const busy = () => {
+        const a = document.activeElement;
+        return !!a && root.contains(a) && (a.tagName === 'SELECT' || a.tagName === 'INPUT');
+    };
+    let missed = false;
+    const timer = setInterval(() => {
+        if (container.offsetParent === null) return;
+        if (sig !== null && shape() === sig) return;      // nothing to redraw
+        if (busy()) { missed = true; return; }            // not while you are in it
+        render();
+    }, 1500);
+    // The moment you let go of a control, catch up if the world moved while you held it.
+    const done = () => { if (missed) { missed = false; render(); } };
+    root.addEventListener('change', done);
+    root.addEventListener('focusout', () => setTimeout(done, 0));
     return { render, dispose: () => clearInterval(timer) };
 }

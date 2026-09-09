@@ -56,6 +56,8 @@ export function buildLayersPanel(container, deps) {
     container.appendChild(bar);
     let destName = null;
     function renderTargets() {
+        // Not while you are choosing — see the outputs panel. This runs twice a second.
+        if (document.activeElement === dest) return;
         const list = (targets ? targets() : []) || [];
         if (!list.length) { dest.innerHTML = '<option value="">editor</option>'; return; }
         if (!list.some((t) => t.name === destName)) destName = (list.find((t) => t.active) || list[0]).name;
