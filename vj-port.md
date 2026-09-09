@@ -745,3 +745,37 @@ Both suites pass: 15 assertions across three live peers against a real
 `collab-server.js` (shared analysis, stale/clear handling, stations on awareness,
 `sounding` from the analysis, layer state live *and* replayed to a late joiner, chat),
 and 7 on `vlang`'s pending-edit drain.
+
+## Navigating without losing the layout
+
+`?ui=desktop` → **go live** → classic layout. Reported, reproduced, fixed.
+
+Every in-app navigation was `location.pathname + '?session=' + slug`, which drops the
+whole rest of the query string. `desktopModeOn()` reads `?ui=` first and localStorage
+second, so anyone in the desktop UI via the URL (not the persisted toggle) fell back to
+classic on go live, on a galaxy join, and on the blocked-clipboard `replaceState`.
+
+The query string carries **two kinds of thing**:
+
+- `session` — which ROOM. Belongs to the jam; it is what a shared link is about.
+- `ui`, `diag` — how THIS machine runs the app. Belongs to you, and nobody you send a
+  link to wants them.
+
+`js/net/appurl.js` splits them: `navUrl(slug)` keeps your setup and replaces the room
+(clearing all three session spellings — `session`, `s`, and the bare `?=NAME` the boot
+path accepts — so the old room cannot win on the next read); `roomLink(slug)` is the
+absolute, clean link for the clipboard. The blocked-clipboard fallback now **logs** the
+session link rather than pushing it into the address bar, since that URL is deliberately
+stripped and parking it there changes how the machine boots next time.
+
+### The toggle that did nothing
+
+`?ui=` outranks the stored mode. So with `ui=desktop` in the bar, the desktop/classic
+button wrote `classic` to storage, reloaded, read `?ui=desktop` again and stayed. It
+now navigates to `navUrl(session)` with `ui=` stripped: pressing a toggle means the
+toggle decides.
+
+It is also a real button on the canvas now (learn bar), not only a right-click menu row
+— the one control that gets you out of an experimental layout should be visible from
+inside it. It names its destination, not its state (`desktop` in classic, `classic` on
+the canvas), and carries no `.active`, which would have read as "classic is on".

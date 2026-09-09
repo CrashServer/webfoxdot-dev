@@ -294,6 +294,7 @@
              activeSectionDoc } from './js/engine/sections.js';
     import { initCollab }                from './js/collab/collab.js';
     import { setActionSender, setStateWriter, applying as applyingRemote, isApplying, shareState, shareStateThrottled } from './js/collab/actions.js';
+    import { navUrl, roomLink } from './js/net/appurl.js';
     import * as perms from './js/collab/permissions.js';
     import { initRulesPanel, toggleRules, renderRulesPanel } from './js/ui/rulespanel.js';
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
@@ -2345,9 +2346,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             mpBtn.textContent = '⧉ session link';
             mpBtn.title = "copy this live session's link to share with others";
             mpBtn.onclick = async () => {
-                const url = location.origin + location.pathname + '?session=' + _sessionSlug;
+                const url = roomLink(_sessionSlug);
                 try { await navigator.clipboard.writeText(url); log(`session link copied — ${url}`, 'success'); }
-                catch (_) { history.replaceState(null, '', url); log(`session link is in the address bar — copy it manually`, 'info'); }
+                // Logged rather than pushed into the address bar: the shareable link
+                // deliberately drops ?ui= and ?diag=, so putting it in the bar would
+                // quietly change how this machine runs the app on the next reload.
+                catch (_) { log(`clipboard blocked — the session link is: ${url}`, 'info'); }
             };
         } else {
             mpBtn.onclick = () => {
@@ -2356,7 +2360,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                 // navigate — the ?session= boot path picks it up and seeds the room.
                 try { localStorage.setItem('wfd-seed', JSON.stringify({ slug, code: editor.getValue() })); } catch (_) {}
                 log(`starting live session "${slug}" with this composition…`, 'info');
-                location.href = location.pathname + '?session=' + slug;   // origin-relative
+                // navUrl keeps ?ui= and ?diag= — starting a jam must not change the
+                // shape of the app under you (see js/net/appurl.js).
+                location.href = navUrl(slug);
             };
         }
     }
@@ -3870,7 +3876,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const on = !desktopModeOn();
         setDesktopMode(on);
         log(on ? 'switching to the desktop UI…' : 'back to the classic layout…', 'info');
-        setTimeout(() => location.reload(), 150);
+        // Reload to the SAME room with ?ui= stripped. A plain reload would keep it,
+        // and ?ui= outranks the stored mode — so with ui=desktop in the address bar
+        // the button wrote 'classic' to storage, reloaded, and landed on the desktop
+        // again: a switch that visibly did nothing. Dropping the override hands the
+        // decision back to the toggle, which is what pressing the toggle means.
+        const dest = navUrl(_sessionSlug).replace(/([?&])ui=[^&]*&?/, '$1').replace(/[?&]$/, '');
+        setTimeout(() => { location.href = dest; }, 150);
     };
     if (desktopModeOn()) {
         try {
@@ -3889,7 +3901,13 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             });
             _detachHost = _dk.detachBuffer;
             _tabs.refresh?.();          // reveal the detach buttons now there is a host
-            document.getElementById('btn-desktop').classList.add('active');
+            // It names where it takes you, not where you are — "desktop" in the
+            // classic layout, "classic" once you are on the canvas.
+            // No .active here: the label carries the state now, and a highlighted
+            // button reading "classic" would claim the opposite of what is true.
+            const _dkBtn = document.getElementById('btn-desktop');
+            _dkBtn.textContent = 'classic';
+            _dkBtn.title = 'back to the fixed classic layout';
             log('desktop UI — drag panel headers to move, corners to resize, Ctrl+scroll to zoom, drag the background to pan (double-click it to reset)', 'info');
         } catch (e) {
             setDesktopMode(false);

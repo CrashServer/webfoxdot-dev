@@ -9,6 +9,7 @@
 // + idle time only — no eval code). Polled every couple of seconds.
 
 import { collabHttpBase } from '../net/serverUrls.js';
+import { navUrl }           from '../net/appurl.js';
 import { exampleList }    from '../ui/docs.js';
 
 function hash(str) {
@@ -377,7 +378,7 @@ export function initGalaxy(onPickExample) {
         if (!n) return;
         if (n.isExample) { onPickExample?.(n.exId); hide(); return; }
         if (n.slug === currentSlug) { hide(); return; }
-        location.href = location.pathname + '?session=' + encodeURIComponent(n.slug);
+        location.href = navUrl(n.slug);   // keeps ?ui= — joining a jam is not a mode change
     });
     canvas.addEventListener('mousemove', (e) => {
         if (dragging) { if (tip) tip.hidden = true; return; }

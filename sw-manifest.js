@@ -39,6 +39,7 @@ self.__WFD_PRECACHE = [
   './js/modular/codegen.js',
   './js/modular/graph.js',
   './js/modular/templates.js',
+  './js/net/appurl.js',
   './js/net/serverUrls.js',
   './js/net/workshop-bridge.js',
   './js/patterns/rest.js',
