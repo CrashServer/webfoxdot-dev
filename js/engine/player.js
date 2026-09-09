@@ -1047,7 +1047,9 @@ export class Player {
     _trigger(midi, r, whenNTP, outBus = this._bus, secPerBeat = 60 / this._clock.bpm) {
         if (!_sc || this._bus == null) return;   // bus freed (player stopped)
         const result     = buildParams(this._synth, midi, r, secPerBeat, outBus);
-        if (!result) { console.error(`Unknown synth: ${this._synth}`); return; }
+        // null = unknown synth, or a pitch that wasn't a number (buildParams says
+        // which in the log). Either way there is no note to send.
+        if (!result) { if (!SYNTH_DEFS[this._synth]) console.error(`Unknown synth: ${this._synth}`); return; }
 
         const id = _sc.nextNodeId();
         try {

@@ -9,6 +9,11 @@ export function patGet(val, step, def) {
     if (typeof val?.get === 'function') return val.get(step);
     if (Array.isArray(val)) {
         const len = val.length;
+        // An empty list has no element to return — and `val[NaN]` is undefined, which
+        // is NOT the default: it flows on as a param and arrives at the synth as NaN.
+        // A missing value is a missing value however it went missing, so it takes the
+        // same road as null/undefined above.
+        if (!len) return def;
         const el  = val[((step % len) + len) % len];
         // Resolve a pattern nested inside the list (e.g. [0, {2,4}] → PRand picks
         // each step) so {…}/P*[…] work in degree lists, like they do in play().

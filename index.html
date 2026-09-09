@@ -242,7 +242,7 @@
     import * as gate from './js/engine/gate.js';
     import { Scale, Root }    from './js/engine/scale.js';
     import { FX_SYNTHDEFS }   from './js/fx/registry.js';
-    import { SYNTH_DEFS, makeSynth } from './js/synths/registry.js';
+    import { SYNTH_DEFS, makeSynth, setNaNWarn } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
              PEuclid, PEuclid2, PEuclidR, PRange, PStep, PSine, PTri,
@@ -365,6 +365,7 @@
     };
     setClockRef(clock);
     setWarn((msg) => log(msg, 'warn'));
+    setNaNWarn((msg, kind) => log(msg, kind || 'warn'));
 
     // ── Eval context ──────────────────────────────────────────────────────────
     const SYNTHS = Object.fromEntries(Object.keys(SYNTH_DEFS).map(n => [n, makeSynth(n)]));

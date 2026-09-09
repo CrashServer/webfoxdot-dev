@@ -598,34 +598,57 @@ SynthCall.prototype.stutter = function (n = 2) { (this._calls ??= []).push(['mul
 // .sometimes / .often / .rarely / .always / … — chainable probability modifiers
 attachModifiers(SynthCall);
 
+// ── The NaN sink ─────────────────────────────────────────────────────────────
+// Every synth note in the app is built here, which makes this the one place a
+// non-finite value can be stopped before it reaches scsynth — and it has to be
+// stopped, because downstream there is no recovery. A NaN amp reaching the summed
+// bus is zeroed by the master's Sanitize and the whole mix goes quiet; a NaN sus
+// means the voice's Env never completes, so doneAction:2 never frees it and it
+// emits NaN forever. Only a page reload clears that.
+//
+// fd_fx_out Sanitizes each player's private bus, but a player with no FX chain
+// sends out=0 — straight to the main output, past that guard entirely.
+//
+// The NaN SOURCES have been chased one at a time (a blown feedback loop, aud()*1
+// missing from the transpiler's pattern list, an absent cross-player read) and
+// each was a real fix. This is the guard that makes the next one — from whatever
+// new direction — cost a wrong note instead of a dead set.
+//
+// `??` is not enough on its own: it catches null/undefined and passes NaN.
+const fin = (v, d) => (typeof v === 'number' && Number.isFinite(v)) ? v : (Number.isFinite(+v) ? +v : d);
+
 // Generic param builder — works for any entry in SYNTH_DEFS.
 // outBus: player's private audio bus (0 = direct to output, no FX)
 export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     const def = SYNTH_DEFS[synthName];
     if (!def) return null;
+    // A pitch that isn't a number is not a note to fix up, it's a note not to play:
+    // sanitising it to 0 would sound a very low C on every step of a broken pattern.
+    if (!Number.isFinite(midi)) { warnDropped(synthName, midi); return null; }
     // leg (legato) scales the note length relative to the step: 1 fills the step,
     // >1 overlaps (pad-like), <1 staccato.
-    const sus   = (r.sus ?? r.dur ?? 1) * (r.leg ?? 1);
-    const atkS  = r.attack  ?? def.defaults.attack  ?? 0.01;
-    const relS  = r.release ?? Math.min(0.3, sus * secPerBeat * 0.3);
+    const spb   = fin(secPerBeat, 0.5);
+    const sus   = fin(fin(r.sus ?? r.dur, 1) * fin(r.leg, 1), 1);
+    const atkS  = fin(r.attack  ?? def.defaults.attack, 0.01);
+    const relS  = fin(r.release, Math.min(0.3, sus * spb * 0.3));
 
     let base;
     if (def.rawSus) {
         // Synths like donk use sus as raw decay seconds (no atk/rel envelope subtraction)
         base = [
             'out', outBus, 'note', midi,
-            'amp', Math.min(1.5, r.amp ?? def.defaults.amp ?? 0.8),
-            'pan', r.pan ?? 0,
-            'sus', Math.max(0.001, sus * secPerBeat),
+            'amp', Math.min(1.5, fin(r.amp ?? def.defaults.amp, 0.8)),
+            'pan', fin(r.pan, 0),
+            'sus', Math.max(0.001, sus * spb),
         ];
     } else {
         // SynthDefs expect sus = total duration in seconds; they subtract attack+release internally
-        const susS = Math.max(atkS + relS + 0.001, sus * secPerBeat);
+        const susS = Math.max(atkS + relS + 0.001, sus * spb);
         base = [
             'out',     outBus,
             'note',    midi,
-            'amp',     Math.min(1.5, r.amp ?? def.defaults.amp ?? 0.8),
-            'pan',     r.pan  ?? 0,
+            'amp',     Math.min(1.5, fin(r.amp ?? def.defaults.amp, 0.8)),
+            'pan',     fin(r.pan, 0),
             'attack',  atkS,
             'sus',     susS,
             'release', relS,
@@ -634,7 +657,7 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     // .slider() glissando params — only sent when actually used (a synth that has the
     // fd_ glide preamble reads them; others ignore the extra controls). Default no-op.
     if (r.slide != null || r.slidefrom != null || r.slidedelay != null) {
-        base.push('slide', r.slide ?? 0, 'slidefrom', r.slidefrom ?? 1, 'slidedelay', r.slidedelay ?? 1);
+        base.push('slide', fin(r.slide, 0), 'slidefrom', fin(r.slidefrom, 1), 'slidedelay', fin(r.slidedelay, 1));
     }
     // Enum-typed params (declared via def.enums.<param> = [names...]) accept a
     // string ("pink"), an int index, or a var/pattern of either — resolved here
@@ -646,9 +669,44 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
             const i = names.indexOf(optName(v, names));
             v = i < 0 ? 0 : i;
         }
-        return [p, v];
+        return [p, fin(v, fin(def.defaults[p], 0))];
     });
-    return { scName: def.scName, params: [...base, ...extras] };
+
+    // Last line of defence. The wrapping above covers every param this function
+    // NAMES, but extraParams is open-ended and a synth added later would not be —
+    // so sweep the finished array too. Values sit at the odd indices; a name is
+    // never a number. Nothing here should ever fire: if it does, the note is worth
+    // more than the silence, and the log says which synth to go and look at.
+    const params = [...base, ...extras];
+    for (let i = 1; i < params.length; i += 2) {
+        const v = params[i];
+        if (typeof v === 'number' && !Number.isFinite(v)) {
+            warnNonFinite(synthName, params[i - 1], v);
+            params[i] = 0;
+        }
+    }
+    return { scName: def.scName, params };
+}
+
+// Once per synth.param — a bad pattern fires every step and would flood the log.
+const _nanWarned = new Set();
+let _nanLog = null;
+/** index.html installs the app log here; until then this goes to the console. */
+export function setNaNWarn(fn) { _nanLog = fn; }
+function say(key, msg) {
+    if (_nanWarned.has(key)) return;
+    _nanWarned.add(key);
+    (_nanLog || ((m) => console.warn('crashDot: ' + m)))(msg, 'warn');
+}
+function warnNonFinite(synth, param, v) {
+    say(synth + '.' + param,
+        `${synth}: ${param} was ${v} — sent 0 instead. A non-finite value here used to `
+      + `silence the whole mix until reload; check the pattern feeding ${param}.`);
+}
+function warnDropped(synth, v) {
+    say(synth + '.note',
+        `${synth}: a note had pitch ${v} — skipped. Check the degree/oct pattern; a NaN `
+      + `pitch used to silence the whole mix until reload.`);
 }
 
 // Factory: returns a callable synth function (for use in eval context).
