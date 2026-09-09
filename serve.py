@@ -3,9 +3,27 @@
 # Also serves the VJ Workshop under /workshop/ from the stars repo,
 # so both apps share the same origin and BroadcastChannel works natively.
 import http.server, os, json
+import urllib.parse
 
 ROOT     = os.path.dirname(os.path.abspath(__file__))
 WORKSHOP = '/run/media/svdk/storage/DRIVE/500_Apps/stars/workshop'
+
+# ── /workshop/ path resolution ───────────────────────────────────────────────
+# normpath RESOLVES '..' rather than rejecting it, so joining a request path
+# straight onto WORKSHOP served any file on the machine — '/workshop/../../..'
+# walks straight out. The stdlib's own translate_path() strips '..' components
+# for exactly this reason, and mounting /workshop/ bypassed it. Confine the
+# resolved path to the mount, and unquote first so a name with %20 in it still
+# resolves (the stdlib does that too; this branch used to skip it).
+WORKSHOP_REAL = os.path.realpath(WORKSHOP)
+
+def workshop_path(rel):
+    """Absolute path for `rel` under WORKSHOP, or None if it escapes the mount."""
+    rel = urllib.parse.unquote(rel, errors='surrogatepass')
+    full = os.path.realpath(os.path.join(WORKSHOP_REAL, rel.lstrip('/')))
+    if full == WORKSHOP_REAL or full.startswith(WORKSHOP_REAL + os.sep):
+        return full
+    return None
 
 with open(os.path.join(ROOT, 'config.json')) as f:
     CFG = json.load(f)['static']
@@ -19,7 +37,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             rel = path[len('/workshop'):]
             if not rel or rel == '/':
                 rel = '/index.html'
-            return os.path.normpath(WORKSHOP + rel)
+            full = workshop_path(rel)
+            # Outside the mount — a 404, not a file. (Nothing is at this path.)
+            return full if full is not None else os.path.join(ROOT, '.no-such-file')
         # Everything else → webfoxDot root
         return super().translate_path(path)
 
