@@ -374,7 +374,17 @@ function findCommentChar(line) {
 // +/- below */). Pure-scalar arithmetic (1/4, 2400/600) is left as native JS.
 // P[A-Za-z] (not just P[A-Z]) so lowercase-second-letter patterns like Pacc are
 // recognised — otherwise Pacc("offbeat")*1.3 stays raw JS ({get}*num = NaN).
-const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_sub|_group|__group|var|linvar|sinvar|expvar|fperlin|fi|fo|fb|getAttr)\s*\(/;
+//
+// EVERY name here returns a {get()} object, and the consequence of leaving one out is
+// not a syntax error — it is `object * number`, which is NaN, which goes into the
+// audio graph and poisons the summed bus. The master limiter sanitises it to zero, so
+// the whole mix goes silent and STAYS silent until a page refresh. That is what
+// `amp=aud('bass', 1, 50) * 1` did.
+//
+// The list has now drifted twice (Pacc, then the live controls), so js/editor/
+// livevalues.js holds the names shared with the eval scope, and a test asserts that
+// every live-value builder the language exposes appears here.
+const PATTERN_TOKEN = /\[|\b(P[A-Za-z]\w*|_alt|_sub|_group|__group|var|linvar|sinvar|expvar|lininf|expinf|fperlin|fi|fo|fb|getAttr|aud|midi|mlearn)\s*\(/;
 
 function patMath(s) {
     return PATTERN_TOKEN.test(s) ? compilePatternMath(s) : s;
