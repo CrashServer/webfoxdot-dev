@@ -1108,18 +1108,47 @@
                 if (_tour) _tour.refresh();   // re-render the current lesson in the new language
                 log({ fr: '🇫🇷 langue → français', de: '🇩🇪 Sprache → deutsch', es: '🇪🇸 idioma → español', ja: '🇯🇵 言語 → 日本語', en: '🇬🇧 language → english' }[v], 'info');
             },
-            // theme()  reports the current skin · theme("synthwave")  switches it (same set
-            // as Settings ▸ Theme). Mirrors the dropdown: sets the root class + persists it.
+            // theme()  lists the skins with their numbers · theme("synthwave") or
+            // theme(3) switches. Mirrors the dropdown: sets the root class + persists.
+            //
+            // A NUMBER is a 0-based index that wraps, the same shape pal= and blend=
+            // already use — so it can be computed rather than typed: theme(n + 1) to
+            // step, theme(PRand(0, 9)) for a different skin each time you run the line.
+            // Wrapping rather than clamping is what makes stepping work at the end of
+            // the list, and it takes negatives with it.
             theme: (name) => {
-                const THEMES = ['dark', 'nova', 'cyberpunk', 'synthwave', 'hacker', 'brutalist', 'paper', 'sakura', 'fiesta', 'solar'];
-                if (name == null) { log(`theme: ${localStorage.getItem('theme') || 'cyberpunk'}  ·  theme("synthwave") — one of: ${THEMES.join(', ')}`, 'info'); return; }
-                const q = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
-                const t = THEMES.find(x => x === q) || THEMES.find(x => x.startsWith(q)) || THEMES.find(x => q.startsWith(x));
-                if (!t) { log(`unknown theme "${name}" — try: ${THEMES.join(', ')}`, 'error'); return; }
+                // The list is the DROPDOWN's, read at call time rather than kept as a
+                // second copy here. Two lists of themes drift, and the one people can
+                // see is the one that has to be right — the numbers have to agree with
+                // it too, or theme(3) means something different from the fourth row.
+                const sel = document.getElementById('theme-select');
+                const THEMES = sel && sel.options.length
+                    ? [...sel.options].map(o => o.value)
+                    : ['dark', 'nova', 'cyberpunk', 'synthwave', 'hacker', 'brutalist', 'paper', 'sakura', 'fiesta', 'solar'];
+                const cur = localStorage.getItem('theme') || 'cyberpunk';
+                if (name == null) {
+                    log(`theme: ${cur}  ·  theme("synthwave")  or  theme(n):`, 'info');
+                    THEMES.forEach((x, i) => log(`  ${String(i).padStart(2)}.  ${x}${x === cur ? '   ←' : ''}`, 'info'));
+                    return cur;
+                }
+                // A pattern, TimeVar, midi() or aud() sampled ONCE: this is a command,
+                // not a param, so it takes the value the moment you run the line.
+                let v = name;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                let t = null;
+                if (typeof v === 'number' ? isFinite(v) : /^\s*-?\d+\s*$/.test(String(v))) {
+                    const n = Math.round(Number(v));
+                    t = THEMES[((n % THEMES.length) + THEMES.length) % THEMES.length];
+                } else {
+                    const q = String(v).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    t = THEMES.find(x => x === q) || THEMES.find(x => x.startsWith(q)) || THEMES.find(x => q.startsWith(x));
+                }
+                if (!t) { log(`unknown theme "${name}" — try a name or 0…${THEMES.length - 1}: ${THEMES.join(', ')}`, 'error'); return null; }
                 document.documentElement.className = t === 'dark' ? '' : t;
                 try { localStorage.setItem('theme', t); } catch (_) {}
-                const sel = document.getElementById('theme-select'); if (sel) sel.value = t;
-                log(`🎨 theme → ${t}`, 'info');
+                if (sel) sel.value = t;
+                log(`🎨 theme → ${t} (${THEMES.indexOf(t)})`, 'info');
+                return t;
             },
             // tour()  lists every lesson · tour(n)  jumps straight to lesson n.
             tour: (n) => {
