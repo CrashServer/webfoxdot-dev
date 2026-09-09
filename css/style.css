@@ -2722,21 +2722,31 @@ body.desktop-ui #keybar { z-index: 140; }
 .wfd-bar .bar-lab:first-child { margin-top: 1px; }
 
 /* ── The MAIN menu, as a column ───────────────────────────────────────────────
+   Named wfd-barMENU, not wfd-menu: that one already exists and is the canvas
+   right-click menu, which is position:fixed. A panel body given it left the panel's
+   flow, drew over the desktop and never shrank — an empty panel with the menu
+   floating on top, which is exactly how it looked.
    One control per row under a word saying what the group is. A strip of unlabelled
    buttons makes you learn the icons and their order; a labelled column you read. */
-.wfd-bar.wfd-menu {
-    flex-direction: column; align-items: stretch;
-    gap: 3px; overflow-y: auto;
-}
-.wfd-bar.wfd-menu > *,
-.wfd-bar.wfd-menu #examples-dd > button { width: 100%; }
-.wfd-bar.wfd-menu button,
-.wfd-bar.wfd-menu select { text-align: left; }
-.wfd-bar.wfd-menu #status-dot { width: 8px; align-self: flex-start; }
+/* BLOCK, not a flex column — and that is the fix, not a style preference.
+   .panel-body is itself a flex ITEM of the panel. Turning it into a column flex
+   CONTAINER stopped it shrinking to the panel's height: it kept its full content
+   height and drew outside the panel, which reads as a second empty panel with the
+   menu floating over it. (Measured: every other panel body shrank to 94px in a 120px
+   panel; this one stayed at 428. Removing flex-direction:column fixed it, and none of
+   min-height, overflow, flex-wrap or align-items made any difference.)
+   A stack of full-width rows does not need flex anyway. */
+.wfd-bar.wfd-barmenu { display: block; overflow: auto; }
+.wfd-bar.wfd-barmenu > * { display: block; margin: 0 0 3px; }
+.wfd-bar.wfd-barmenu > *,
+.wfd-bar.wfd-barmenu #examples-dd > button { width: 100%; box-sizing: border-box; }
+.wfd-bar.wfd-barmenu button,
+.wfd-bar.wfd-barmenu select { text-align: left; }
+.wfd-bar.wfd-barmenu #status-dot { width: 8px; }
 /* The readouts stay quiet: they are values, not rows you press. */
-.wfd-bar.wfd-menu #synth-status,
-.wfd-bar.wfd-menu #vperf-status { flex: 0 0 auto; text-align: left; padding-left: 2px; }
-.wfd-bar.wfd-menu #version-tag { text-align: left; opacity: .7; }
+.wfd-bar.wfd-barmenu #synth-status,
+.wfd-bar.wfd-barmenu #vperf-status { text-align: left; padding-left: 2px; }
+.wfd-bar.wfd-barmenu #version-tag { text-align: left; opacity: .7; }
 
 /* ── The main bar's two halves ────────────────────────────────────────────────
    Left is the music, right is the app. The separator is the STATUS READOUT between

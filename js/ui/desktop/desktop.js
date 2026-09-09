@@ -458,7 +458,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
         if (spec.bar) panelBody.classList.add('wfd-bar');
         // A bar that runs DOWN rather than across — see .wfd-menu in style.css.
-        if (spec.menu) panelBody.classList.add('wfd-menu');
+        if (spec.menu) panelBody.classList.add('wfd-barmenu');
         if (spec.screen) {
             const sc = mountScreen(panelBody, clock);
             // SCREEN is a destination like an output window, so the same manager

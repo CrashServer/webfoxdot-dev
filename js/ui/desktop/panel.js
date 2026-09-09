@@ -13,6 +13,18 @@
 import { getPan, getZoom } from "./canvas.js";
 
 export const LAYOUT_KEY = "wfd-desktop-panels";
+
+// ── Layout migrations ────────────────────────────────────────────────────
+// A saved size is normally sacred: you put the panel there, it stays there. But when
+// a panel's CONTENT changes shape the old frame stops meaning anything — the main bar
+// went from a horizontal strip to a labelled column, and a 1100x72 frame around a
+// 190x450 column shows you three rows and leaves a wide empty box beside them.
+//
+// So: a version stamp, and a list of the ids whose default geometry has moved on.
+// Everything else in the layout is untouched, which is the point of doing it this way
+// rather than clearing the lot.
+const LAYOUT_VERSION = 2;
+const RESHAPED = ['wfd-bar-run'];
 let zTop = 1;
 
 // ── Magnetic snapping ────────────────────────────────────────────────────
@@ -121,8 +133,24 @@ const registry = new Map();
 export function getRegistry() { return registry; }
 
 function loadLayout() {
-    try { return JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}"); }
+    let all;
+    try { all = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}"); }
     catch (_) { return {}; }
+    if (!all || typeof all !== 'object') return {};
+    if ((all.__v | 0) < LAYOUT_VERSION) {
+        // Drop only the geometry of the reshaped panels; keep whether they were open,
+        // which is a preference about the workspace rather than about the shape.
+        for (const id of RESHAPED) {
+            if (!all[id]) continue;
+            const { open, collapsed } = all[id];
+            all[id] = {};
+            if (open !== undefined) all[id].open = open;
+            if (collapsed !== undefined) all[id].collapsed = collapsed;
+        }
+        all.__v = LAYOUT_VERSION;
+        try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(all)); } catch (_) {}
+    }
+    return all;
 }
 function saveLayoutEntry(id, entry) {
     const all = loadLayout();
