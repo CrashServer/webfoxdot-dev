@@ -730,8 +730,15 @@ body.viz-bg .CodeMirror-gutters { background: rgba(8,10,14,0.32); background: co
 .cm-fd-keyword  { color: var(--keyword-col); }
 .cm-fd-player   { color: var(--blue); }
 
-/* Flash highlight on eval */
-.flash-highlight { background-color: var(--flash-col) !important; transition: background-color 0.4s ease; }
+/* Flash highlight on eval.
+   NO transition on the way in, and that is the whole point of the rule. It used to
+   fade in over 0.4s while index.html removed the class at 350ms, so the colour never
+   arrived: measured, it peaked around 60% of the way there and then faded back. A
+   flash that takes longer to appear than it lasts is a flash you do not see. It snaps
+   on now; flash-run-pulse's 0.5s animation carries the decay.
+   The !important is load-bearing: .CodeMirror-activeline-background sets the line
+   background !important too, and without it the line you are ON never flashes. */
+.flash-highlight { background-color: var(--flash-col) !important; }
 
 /* Run feedback — a brief green pulse layered on top of flash-highlight so
    evaluating a line reads as a small reward, not just a color blip. */
