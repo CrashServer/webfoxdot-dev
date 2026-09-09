@@ -73,7 +73,7 @@ self.__WFD_PRECACHE = [
   './js/ui/modular.js',
   './js/ui/partspanel.js',
   './js/ui/perform.js',
-  './js/ui/perfmenu.js',
+  './js/ui/perfpanel.js',
   './js/ui/piano.js',
   './js/ui/rulespanel.js',
   './js/ui/tabs.js',

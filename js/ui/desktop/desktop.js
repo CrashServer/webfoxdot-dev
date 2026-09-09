@@ -24,6 +24,7 @@ import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
 import { buildOutputsPanel } from './outputspanel.js';
 import { buildLayersPanel } from './layerspanel.js';
+import { buildPerfPanel }   from '../perfpanel.js';
 import { initCanvasMenu } from './menu.js';
 import { initHud } from './hud.js';
 import { changelogHTML } from '../docs.js';
@@ -311,20 +312,24 @@ const PANELS = [
     // is. Splitting them would put a gap in the middle of a sentence.
     //
     // The id stays wfd-bar-run so a saved layout keeps its position.
-    { id: 'wfd-bar-run',        group: 'bars', title: 'main',      x:   0, y: -84, w: 1100, h: 72, minW: 140, minH: 44, bar: true,
-      // The dividers are adopted like any other element, so the grouping is one list
-      // and not a rule in the stylesheet guessing where a group starts. Four groups:
-      // the transport, the tour, the examples, then what the app looks like and which
-      // shape it is in. They are hidden in the classic toolbar, which has its own.
-      adopt: ['#status-dot', '#btn-boot', '#btn-loadkit', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status',
-              '#bar-div-1', '#btn-tour',
-              '#bar-div-2', '#examples-dd',
-              '#bar-div-3', '#theme-select', '#btn-vperf', '#vperf-status',
-              '#bar-div-4', '#btn-desktop', '#version-tag'] },
+    { id: 'wfd-bar-run',        group: 'bars', title: 'main',      x:-412, y: -84, w:  190, h: 450, minW: 130, minH: 120, bar: true,
+      // A LIST, not a strip: one control per row under a word saying what the group
+      // is. A row of unlabelled buttons makes you learn the icons and the order; a
+      // labelled column you can read. The labels are adopted like everything else, so
+      // the grouping is one list in one place rather than a stylesheet rule guessing
+      // where a group starts, and they are hidden in the classic toolbar, which wraps
+      // and already groups by row.
+      menu: true,
+      adopt: ['#bar-lab-engine', '#status-dot', '#btn-boot', '#btn-loadkit',
+              '#bar-lab-play', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status',
+              '#bar-lab-learn', '#btn-tour',
+              '#bar-lab-content', '#examples-dd',
+              '#bar-lab-look', '#theme-select', '#btn-vperf', '#vperf-status',
+              '#bar-lab-app', '#btn-desktop', '#version-tag'] },
     // Named for the people, not the verb: SHARE is one of the buttons INSIDE it, and
     // a panel called "share" holding a button called "SHARE" is the same word doing
     // two jobs.
-    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 1122, y: -84, w: 280, h: 72, minW: 110, minH: 44, bar: true,
+    { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x:    0, y: -84, w: 280, h: 72, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-share', '#btn-multiplayer', '#btn-split'] },
 
     // The changelog was reachable only as a tab inside the docs overlay, behind the
@@ -335,6 +340,13 @@ const PANELS = [
     // The projector desk: outputs and their warped surfaces, built during a set
     // rather than configured before one.
     { id: 'wfd-outputs',  group: 'workspace', title: 'outputs',   x:1524, y: 756, w: 390, h: 300, minW: 300, minH: 140, outputs: true },
+    // What the picture may cost, and what everything IS costing. A panel rather than
+    // a popup: it used to hang off a button in fixed screen coordinates while the
+    // canvas panned underneath it, so it drifted away from the thing it belonged to
+    // and behaved unlike every other window here.
+    // Under the menu in the left strip, because the button that opens it is up there
+    // and a panel that appears somewhere you are not looking is a panel you lose.
+    { id: 'wfd-perf',     group: 'workspace', title: 'performance', x:-412, y: 390, w: 390, h: 430, minW: 300, minH: 140, perf: true },
     { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1524, y:   0, w:  390, h: 620, minW: 320, minH: 200, changelog: true },
 ];
 
@@ -393,6 +405,8 @@ let outputsApi = null;
 export function setOutputsApi(a) { outputsApi = a; }
 let layersApi = null;
 export function setLayersApi(a) { layersApi = a; }
+let perfApi = null;
+export function setPerfApi(a) { perfApi = a; }
 
 export function initDesktop(editor, clock = null, editorFactory = null, onDropEditor = null, log = () => {}, onReady = null) {
     const body = document.body;
@@ -430,7 +444,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     const refresh = () => editor?.refresh?.();
 
     const ownedPanels = new Map();          // id → panel api, for the windows list
-    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog || spec.outputs || spec.layers;
+    const BUILT = (spec) => spec.screen || spec.layouts || spec.changelog || spec.outputs || spec.layers || spec.perf;
     for (const spec of PANELS) {
         const src = BUILT(spec) ? [] : spec.adopt.map(sel => document.querySelector(sel)).filter(Boolean);
         if (!BUILT(spec) && !src.length) continue;   // not in this build
@@ -443,6 +457,8 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         ownedPanels.set(spec.id, panelApi);
         panelBody.classList.add('wfd-panel-body', `wfd-body-${spec.id}`);
         if (spec.bar) panelBody.classList.add('wfd-bar');
+        // A bar that runs DOWN rather than across — see .wfd-menu in style.css.
+        if (spec.menu) panelBody.classList.add('wfd-menu');
         if (spec.screen) {
             const sc = mountScreen(panelBody, clock);
             // SCREEN is a destination like an output window, so the same manager
@@ -479,6 +495,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         if (spec.changelog) buildChangelogBody(panelBody);
         if (spec.outputs && outputsApi) buildOutputsPanel(panelBody, outputsApi.api, outputsApi.sources, log);
         if (spec.layers && layersApi) buildLayersPanel(panelBody, layersApi);
+        if (spec.perf && perfApi) buildPerfPanel(panelBody, perfApi);
         if (spec.id === 'wfd-editor') {
             // The editor gets a counter-scale layer — see keepEditorUnscaled().
             editorBody = panelBody;
@@ -737,5 +754,8 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         // comes back properly recorded as open rather than reappearing and then
         // vanishing again on the next reload.
         showLayouts() { return reveal('wfd-layouts'); },
+        // Any panel by id, brought into view and raised — the PERFORMANCE button
+        // uses it, and it is the same path a menu row takes.
+        showPanel(id) { return reveal(id); },
     };
 }

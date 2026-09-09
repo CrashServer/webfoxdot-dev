@@ -32,8 +32,13 @@ const GRID = 22;
 // ABOVE the origin: the menu bar is a panel now and sits where a top bar belongs,
 // so the rectangle that "reset view" frames has to include it — otherwise the one
 // panel you most need to find on a first run is the one just off the top edge.
-const HOME_Y = -96, HOME_BOTTOM = 1220;
-const HOME_W = 1920, HOME_H = HOME_BOTTOM - HOME_Y;
+// It also starts LEFT of the origin, for the same reason: the main menu became a
+// labelled column down the side, and a column tall enough to hold one control per
+// row does not fit in a strip above the editor. Widening the frame was the cheap
+// answer — every other panel keeps the coordinates it has always had.
+const HOME_X = -412, HOME_RIGHT = 1920;
+const HOME_Y = -96,  HOME_BOTTOM = 1220;
+const HOME_W = HOME_RIGHT - HOME_X, HOME_H = HOME_BOTTOM - HOME_Y;
 
 const MIN_ZOOM = 0.15, MAX_ZOOM = 3;
 
@@ -123,7 +128,7 @@ export function initCanvas(canvas) {
     const stage = document.createElement("div");
     stage.className = "canvas-stage";
     stage.style.cssText =
-        `position:absolute;left:0;top:${HOME_Y}px;` +
+        `position:absolute;left:${HOME_X}px;top:${HOME_Y}px;` +
         `width:${HOME_W}px;height:${HOME_H}px;pointer-events:none;`;
     canvas.appendChild(stage);
 
@@ -136,7 +141,7 @@ export function initCanvas(canvas) {
     mark.className = "canvas-wordmark";
     mark.textContent = "crashDot";
     mark.style.cssText =
-        `position:absolute;left:0;top:${HOME_Y}px;width:${HOME_W}px;height:${HOME_H}px;` +
+        `position:absolute;left:${HOME_X}px;top:${HOME_Y}px;width:${HOME_W}px;height:${HOME_H}px;` +
         `pointer-events:none;user-select:none;`;
     canvas.appendChild(mark);
 
@@ -234,7 +239,9 @@ export function fitHome() {
     const M  = 24;
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM,
         Math.min((vw - M * 2) / HOME_W, (vh - M * 2) / HOME_H)));
-    panX = (vw - HOME_W * zoom) / 2;
+    // Neither edge of the rectangle is at the origin any more, so both are solved
+    // for rather than assumed — the corner is (HOME_X, HOME_Y).
+    panX = (vw - HOME_W * zoom) / 2 - HOME_X * zoom;
     // The rectangle's top is at HOME_Y, not at 0 — solve for the pan that puts it
     // on the top margin rather than assuming the origin is the corner.
     panY = (vh - HOME_H * zoom) / 2 - HOME_Y * zoom;

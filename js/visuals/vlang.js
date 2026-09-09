@@ -170,8 +170,12 @@ export function visualBuilders() {
     // visuals are allowed to spend.
     out.vperf = (mode) => {
         const m = String(mode ?? '').toLowerCase();
+        // No _open() here. Choosing how much of the machine the picture may have is
+        // not the same as asking for a picture, and the panel restores this at boot —
+        // announcing the visuals because a preference was remembered is the app
+        // talking about itself.
         const set = (fps, res, ws, budget) => {
-            setVisualFps(fps); master.res = res; setWorkshopRes(ws); setVisualBudget(budget); _open();
+            setVisualFps(fps); master.res = res; setWorkshopRes(ws); setVisualBudget(budget);
         };
         if (m === 'audio' || m === 'music')  set(30, 0.75, 960,  2);
         else if (m === 'video' || m === 'visuals') set(0, 1, 1920, 8);
@@ -333,6 +337,13 @@ export function getVisualPlayer(name) {
 /** The GPU resolution multiplier vres() set, or null for the default. A getter so a
  *  panel can SHOW what the language was told, instead of keeping its own copy. */
 export function visualRes() { return master.res; }
+/**
+ * Set it WITHOUT the "here is where the picture went" hint the vres() command emits.
+ * Typing vres() means you want the picture; a panel restoring a saved preference at
+ * boot, or a knob being dragged, does not — and announcing the visuals because the
+ * app remembered a performance setting is the app talking about itself.
+ */
+export function setVisualRes(v) { master.res = (v == null) ? null : Number(v); }
 export function isVisualName(name) { return /^video\d*$/i.test(name); }   // convention: video1, video2, …
 export function isScene(name) { return SCENE_SET.has(name); }
 // True if `name` is CURRENTLY a live video layer or the crossfader — any name can be

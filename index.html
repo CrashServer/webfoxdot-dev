@@ -22,14 +22,16 @@
     <canvas id="editor-bg"></canvas>
 
     <div id="toolbar">
+      <span class="bar-lab" id="bar-lab-engine">engine</span>
       <span id="status-dot"></span>
       <span class="title">crashDot</span>
       <span id="version-tag" class="version-tag" title="changelog"></span>
-      <span class="bar-div" id="bar-div-1"></span>
+      <span class="bar-lab" id="bar-lab-learn">learn</span>
       <button id="btn-tour" title="guided tour — learn live coding from scratch, right in the editor">tour</button>
-      <span class="bar-div" id="bar-div-2"></span>
+      <span class="bar-lab" id="bar-lab-content">content</span>
       <button id="btn-boot">boot</button>
       <button id="btn-loadkit" disabled title="load the default webfoxdot-kit sample pack from GitHub">load kit</button>
+      <span class="bar-lab" id="bar-lab-play">play</span>
       <button id="btn-run"  disabled title="run  (Ctrl+↵)">run</button>
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">stop</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">reload</button>
@@ -57,7 +59,7 @@
       <button id="btn-split" title="split view — peers' evals below (in a session)">split</button>
       <button id="btn-zen" title="hide all UI — clean editor (Shift+Alt+Z to restore)">zen</button>
       <button id="btn-layouts" hidden title="layouts — saved workspaces: every panel's position, size and colour, plus the view. Only in desktop mode">layouts</button>
-      <span class="bar-div" id="bar-div-4"></span>
+      <span class="bar-lab" id="bar-lab-app">app</span>
       <button id="btn-desktop" title="desktop — experimental: the whole app on an infinite pan/zoom canvas, every part a draggable panel. Ctrl+scroll zooms, drag the background to pan, double-click it to reset.">desktop</button>
       <!-- visuals: a 2-channel video mixer driven by video1/video2/… >> scene players -->
       <!-- visuals button hidden for now — visuals still open via openVisuals() / a videoN >> line, and vbg() for the editor background -->
@@ -186,7 +188,7 @@
 
     <div class="cp-section" id="cp-settings">
       <h3>Settings</h3>
-      <span class="bar-div" id="bar-div-3"></span>
+      <span class="bar-lab" id="bar-lab-look">look</span>
       <select class="cp-select" id="theme-select">
         <option value="dark">Dark</option>
         <option value="nova">Nova</option>
@@ -272,7 +274,6 @@
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
     import { visualStats, setVisualFps, visualFps, setVisualBudget, visualBudget } from './js/visuals/render/vperf.js';
     import { setWorkshopRes, workshopRes } from './js/visuals/render/wsres.js';
-    import { buildPerfMenu } from './js/ui/perfmenu.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
@@ -284,7 +285,7 @@
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
     import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
              setOutputs as setVisualOutputs, setVideoRec as setVisualRec,
-             visualRes,
+             visualRes, setVisualRes,
              liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
              setLayerFx as setVisualFx, VFX_DEFAULTS as visualFxDefaults,
              clearAll as clearVisuals } from './js/visuals/vlang.js';
@@ -299,7 +300,7 @@
     import { paramRange as wsParamRange } from './js/visuals/workshop/catalog.js';
     import { initTour } from './js/ui/tour.js';
     import { initTabs } from './js/ui/tabs.js';
-    import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi, setLayersApi } from './js/ui/desktop/desktop.js';
+    import { initDesktop, desktopModeOn, setDesktopMode, setOutputsApi, setLayersApi, setPerfApi } from './js/ui/desktop/desktop.js';
     import { getLang, setLang } from './js/i18n/lang.js';
     import { initSections, runSection, cancelSection,
              getSections, jumpToActive, isAutoplaying, applyRemoteSection, getActiveInfo,
@@ -4120,7 +4121,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
     function applyVperfValues(v) {
         if (!v) return;
-        setVisualFps(v.fps); visualBuilders().vres(v.res > 0 ? v.res : null);
+        setVisualFps(v.fps); setVisualRes(v.res > 0 ? v.res : null);
         setWorkshopRes(v.wres); setVisualBudget(v.budget);
     }
     function setVperfLabel(mode) {
@@ -4150,10 +4151,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const saved = vperfSaved();
         if (saved.mode === 'custom' && saved.v) { applyVperfValues(saved.v); setVperfLabel('custom'); }
         else applyVperf(saved.mode, false);
-        // The button opens the menu rather than cycling. Cycling was fewer keystrokes
-        // and told you nothing: three presets you cannot see, over four settings you
-        // cannot reach. The menu is where vfps/vres/wres/vbudget actually live.
-        buildPerfMenu(btn, {
+        // The button reveals the PERFORMANCE panel. It cycled silently through three
+        // presets you could not see; then it opened a popup, which sat in fixed screen
+        // coordinates while the canvas panned underneath it, drifting away from what
+        // it belonged to. A panel is the shape everything else on this desktop has.
+        btn.onclick = () => _desktopApi?.showPanel?.('wfd-perf');
+        setPerfApi({
             modes: [
                 { id: 'balanced', label: 'balanced',    detail: 'every frame \u00b7 auto \u00b7 1280px \u00b7 4ms' },
                 { id: 'audio',    label: 'audio first', detail: '30fps \u00b7 0.75\u00d7 \u00b7 960px \u00b7 2ms' },
@@ -4161,7 +4164,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             ],
             current: vperfMode,
             apply: (mode) => applyVperf(mode, true),
-            stats: visualStats,
             resources: readResources,
             read: () => ({ fps: visualFps(), res: visualRes() ?? 1, wres: workshopRes(), budget: visualBudget() }),
             // A hand-set value is no longer any of the three presets, so the mode is
@@ -4170,7 +4172,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             write: (key, raw) => {
                 const v = Number(raw);
                 if (key === 'fps')    setVisualFps(v);
-                if (key === 'res')    visualBuilders().vres(v > 0 ? v : null);
+                if (key === 'res')    setVisualRes(v > 0 ? v : null);
                 if (key === 'wres')   setWorkshopRes(v);
                 if (key === 'budget') setVisualBudget(v);
                 saveVperfCustom();

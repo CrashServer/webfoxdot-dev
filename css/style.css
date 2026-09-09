@@ -2634,34 +2634,12 @@ body.desktop-ui #keybar { z-index: 140; }
     font-family: monospace; font-size: 10px; color: var(--text-2);
     min-width: 74px; white-space: nowrap;
 }
-/* ── The render-load menu (js/ui/perfmenu.js) ─────────────────────────────── */
-.wfd-perf-menu {
-    position: fixed; z-index: 10002;
-    width: 330px; max-width: calc(100vw - 16px);
-    background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 5px;
-    padding: 9px 10px 8px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
-    font-family: monospace;
-}
+/* ── The PERFORMANCE panel (js/ui/perfpanel.js) ───────────────────────────── */
+.wfd-perf { padding: 7px 9px 9px; font-family: monospace; }
 .wfd-perf-head {
-    display: flex; align-items: center; justify-content: space-between;
     font-size: 9px; letter-spacing: .09em; text-transform: uppercase;
     color: var(--text-2); margin-bottom: 5px;
 }
-/* Esc closes it and so does clicking away, but neither is visible. A popup with no
-   way out that you can SEE reads as one that is stuck. */
-.wfd-perf-x {
-    background: none; border: none; cursor: pointer; padding: 0 2px;
-    color: var(--text-2); font-size: 14px; line-height: 1; font-family: monospace;
-}
-.wfd-perf-x:hover { color: var(--text-1); }
-/* The reason the whole control exists. Reads as prose because it is an explanation,
-   not a label — and it is short enough that nobody has to skip it. */
-.wfd-perf-why {
-    margin: 0 0 9px; font-size: 10px; line-height: 1.5;
-    color: var(--text-2); font-family: inherit;
-}
-.wfd-perf-why b { color: var(--text-1); font-weight: normal; }
 .wfd-perf-mode {
     display: block; width: 100%; text-align: left;
     background: none; border: 1px solid transparent; border-radius: 4px;
@@ -2692,10 +2670,17 @@ body.desktop-ui #keybar { z-index: 140; }
 .wfd-perf-head2 { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border-1); }
 /* key · value, so the numbers line up down the right edge and a glance reads the
    column rather than the sentences. */
-.wfd-perf-foot {
+.wfd-perf-mon {
     display: grid; grid-template-columns: auto 1fr;
     gap: 1px 10px; font-size: 9px; color: var(--text-2);
 }
+/* A sub-heading inside the grid — spans both columns so the pairs keep their edges. */
+.wfd-perf-grp {
+    grid-column: 1 / -1; margin-top: 5px;
+    font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-2); opacity: .7;
+}
+.wfd-perf-grp:first-child { margin-top: 0; }
 .wfd-res-k { white-space: nowrap; }
 .wfd-res-v { text-align: right; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .wfd-res-v.warn { color: var(--yellow); }
@@ -2725,12 +2710,33 @@ body.desktop-ui #keybar { z-index: 140; }
     border: 1px solid var(--border-1); border-radius: 3px;
     font-family: monospace; font-size: 10px; padding: 1px 4px;
 }
-.bar-div { display: none; }
-.wfd-bar .bar-div {
-    display: block; align-self: stretch;
-    width: 1px; margin: 2px 2px;
-    background: var(--border-1);
+/* Group labels. Desktop bars only: the classic toolbar wraps and already groups by
+   row, where a heading would land in the middle of nothing. */
+.bar-lab { display: none; }
+.wfd-bar .bar-lab {
+    display: block;
+    font-size: 8px; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--text-2); opacity: .8;
+    margin: 7px 0 1px;
 }
+.wfd-bar .bar-lab:first-child { margin-top: 1px; }
+
+/* ── The MAIN menu, as a column ───────────────────────────────────────────────
+   One control per row under a word saying what the group is. A strip of unlabelled
+   buttons makes you learn the icons and their order; a labelled column you read. */
+.wfd-bar.wfd-menu {
+    flex-direction: column; align-items: stretch;
+    gap: 3px; overflow-y: auto;
+}
+.wfd-bar.wfd-menu > *,
+.wfd-bar.wfd-menu #examples-dd > button { width: 100%; }
+.wfd-bar.wfd-menu button,
+.wfd-bar.wfd-menu select { text-align: left; }
+.wfd-bar.wfd-menu #status-dot { width: 8px; align-self: flex-start; }
+/* The readouts stay quiet: they are values, not rows you press. */
+.wfd-bar.wfd-menu #synth-status,
+.wfd-bar.wfd-menu #vperf-status { flex: 0 0 auto; text-align: left; padding-left: 2px; }
+.wfd-bar.wfd-menu #version-tag { text-align: left; opacity: .7; }
 
 /* ── The main bar's two halves ────────────────────────────────────────────────
    Left is the music, right is the app. The separator is the STATUS READOUT between
