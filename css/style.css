@@ -2624,6 +2624,18 @@ body.desktop-ui #keybar { z-index: 140; }
 /* The status dot and the synth readout are labels, not controls — let the readout
    take the slack so the buttons beside it never move as its text changes. */
 .wfd-bar #synth-status { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The theme picker on the menu bar: sized to its content, not stretched like it is
+   in the sidebar's Settings column. */
+.wfd-bar #theme-select { width: auto; min-width: 96px; margin: 0; }
+/* What the visuals actually cost. A readout, so it must not look clickable and must
+   not move the buttons beside it as its digits change. */
+#vperf-status {
+    font-family: monospace; font-size: 10px; color: var(--text-2);
+    min-width: 74px; white-space: nowrap;
+}
+/* The mode is in the label, so the button only needs to say when it is NOT balanced. */
+#btn-vperf.vperf-audio { color: var(--yellow); border-color: currentColor; }
+#btn-vperf.vperf-video { color: var(--blue); border-color: currentColor; }
 
 #wfd-canvas { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 0 0; z-index: 0; }
 

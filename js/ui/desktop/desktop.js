@@ -307,13 +307,17 @@ const PANELS = [
     // two jobs.
     { id: 'wfd-bar-collab',     group: 'bars', title: 'collab',    x: 582, y: -78, w: 280, h: 66, minW: 110, minH: 44, bar: true,
       adopt: ['#btn-share', '#btn-multiplayer', '#btn-split'] },
-    // The app bar rather than a performance one: what to learn from, and which layout
-    // to be in. The classic/desktop switch was reachable only from the canvas
-    // right-click menu, which is a fine place for it and a poor ONLY place — the one
-    // control that gets you out of an experimental layout should be visible from
-    // inside it.
-    { id: 'wfd-bar-learn',      group: 'bars', title: 'learn',     x: 884, y: -78, w: 360, h: 66, minW: 110, minH: 44, bar: true,
-      adopt: ['#btn-tour', '#examples-dd', '#btn-desktop', '#version-tag'] },
+    // MENU — the app itself, as opposed to the music. Everything here is a decision
+    // you make BETWEEN things rather than during them: what to learn from, what the
+    // app looks like, which layout it is in, and how much of the machine the picture
+    // may have. None of it is a performance control, which is exactly why it is not on
+    // the run bar next to stop.
+    //
+    // The id stays wfd-bar-learn so saved layouts keep their position; only the name
+    // changed, because "learn" stopped describing what is in it.
+    { id: 'wfd-bar-learn',      group: 'bars', title: 'menu',      x: 884, y: -78, w: 470, h: 66, minW: 110, minH: 44, bar: true,
+      adopt: ['#btn-tour', '#examples-dd', '#theme-select', '#btn-vperf', '#vperf-status',
+              '#btn-desktop', '#version-tag'] },
 
     // The changelog was reachable only as a tab inside the docs overlay, behind the
     // small version label. On a canvas you can just leave it open next to the code.

@@ -31,6 +31,8 @@
       <button id="btn-run"  disabled title="run  (Ctrl+↵)">run</button>
       <button id="btn-stop" disabled title="stop all  ·  Ctrl+;  (or Ctrl+,)  ·  shift-click (or Ctrl+Shift+.) stops the whole room in a multiplayer session">stop</button>
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">reload</button>
+      <button id="btn-vperf" title="how much of the main thread the picture may take. The audio ENGINE runs on its own thread and is never starved; what shares this one is the note SCHEDULER, which has 120ms of slack. Click to cycle: audio · balanced · video">⚡ balanced</button>
+      <span id="vperf-status" title="what the visuals are actually costing right now"></span>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">mix</button>
       <button id="btn-parts" title="parts — browse every example's #@ sections and click one into your set as a #@ section + attack() line">parts</button>
       <button id="btn-piano" title="virtual piano — play any synth with the mouse or the computer keyboard, record what you play, and turn it into a player line">piano</button>
@@ -264,6 +266,7 @@
     import { initMidiPanel }             from './js/ui/midipanel.js';
     import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl } from './js/midi/midi.js';
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
+    import { visualStats } from './js/visuals/render/vperf.js';
     import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
@@ -3945,6 +3948,48 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // buffer keep updating with no visual scene running at all.
         eachVisualFrame((canvas, deck) => { deckRef = deck; _outputsDeck = deck; _outputsApi.feed(canvas); });
         return _outputsApi;
+    }
+
+    // ── Visual performance, on the run bar ────────────────────────────────────
+    // One button, not four sliders. The four knobs behind it (vfps · vres · wres ·
+    // vbudget) are real and stay in the language, but during a set the decision you
+    // actually make is coarse — "the picture matters more right now" or "the timing
+    // does" — and a bar is for decisions you make with one hand while something else
+    // is playing. The readout beside it is the part that makes the choice honest:
+    // it says what the visuals are costing, so this is not a guess.
+    const VPERF_MODES = ['audio', 'balanced', 'video'];
+    const VPERF_KEY = 'wfd-vperf';
+    function vperfMode() {
+        try { const m = localStorage.getItem(VPERF_KEY); if (VPERF_MODES.includes(m)) return m; } catch (_) {}
+        return 'balanced';
+    }
+    function applyVperf(mode, announce) {
+        try { localStorage.setItem(VPERF_KEY, mode); } catch (_) {}
+        const msg = visualBuilders().vperf(mode);
+        const btn = document.getElementById('btn-vperf');
+        if (btn) {
+            btn.textContent = '\u26a1 ' + mode;
+            btn.classList.toggle('vperf-audio', mode === 'audio');
+            btn.classList.toggle('vperf-video', mode === 'video');
+        }
+        if (announce) log(msg, 'info');
+    }
+    {
+        const btn = document.getElementById('btn-vperf');
+        // Restored quietly: it is a preference about this machine, not an event.
+        applyVperf(vperfMode(), false);
+        btn.onclick = () => {
+            const next = VPERF_MODES[(VPERF_MODES.indexOf(vperfMode()) + 1) % VPERF_MODES.length];
+            applyVperf(next, true);
+        };
+        const out = document.getElementById('vperf-status');
+        // Once a second: this is a readout, and a readout that redraws sixty times a
+        // second is itself part of the problem it is reporting on.
+        setInterval(() => {
+            if (!out.offsetParent) return;                   // nobody is looking
+            const st = visualStats();
+            out.textContent = st.fps ? `${st.fps.toFixed(0)}fps \u00b7 ${st.ms.toFixed(1)}ms` : '';
+        }, 1000);
     }
 
     // ── Desktop UI (experimental) ─────────────────────────────────────────────
