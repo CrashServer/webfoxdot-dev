@@ -317,7 +317,7 @@ const GLOBALS = [
     // every one is documented and several take an argument the menu can complete,
     // but none of them was offered, so the completion never fired because you had
     // to type the whole name to get to it.
-    'ascii_gen(','audiviz(','audioviz(','theme(','uisize(','seed(','scenes()','record(','rgbshift(','grain(','solarize(','threshold(','tint(','halftone(','language(','attack(','modular()','panic()',
+    'ascii_gen(','audiviz(','audioviz(','theme(','uisize(','seed(','scenes()','record(','recall(','panel(','rgbshift(','grain(','solarize(','threshold(','tint(','halftone(','language(','attack(','modular()','panic()',
     // The visual globals. Same story as the line above: every one is documented and
     // none of them was offered, so you had to already know the name to find it.
     'palette(','vmode(','vres(','wres(','vfps(','vbudget(','vperf(','vsnap(','vrand(',
@@ -439,6 +439,26 @@ function themeItems() {
     if (!sel) return [];
     return [...sel.options].map(o => item(`"${o.value}"`, 'hint-keyword', `${o.value}  ${o.textContent.trim()}`));
 }
+// recall( … ) — the workspaces you have saved, by name, each showing its index too.
+// Read from storage at completion time rather than kept as a second list: a layout
+// saved thirty seconds ago should be offered thirty seconds later.
+function layoutItems() {
+    let all = {};
+    try { all = JSON.parse(localStorage.getItem('wfd-desktop-layouts') || '{}'); } catch (_) {}
+    const names = Object.keys(all);
+    if (!names.length) return [item('""', 'hint-keyword', 'no saved workspaces yet — arrange the panels, then save one in the layouts panel')];
+    return names.map((n, i) => item(`"${n}"`, 'hint-keyword', `${n}   · or recall(${i})`));
+}
+// panel( … ) — every panel and canvas toggle, by name, each with its index. Read
+// from the live desktop so the list is what is actually on screen.
+let _panelNames = null;
+export function setPanelNames(fn) { _panelNames = fn; }
+function panelItems() {
+    const all = (_panelNames && _panelNames()) || [];
+    if (!all.length) return [item('""', 'hint-keyword', 'desktop mode only — panels are a canvas thing')];
+    return all.map((p, i) => item(`"${p.id}"`, 'hint-keyword',
+        `${p.open ? '●' : '○'} ${p.title}   · or panel(${i})`));
+}
 const LANGUAGES = [['en', 'English'], ['fr', 'Français']];
 function languageItems() {
     return LANGUAGES.map(([c, label]) => item(`"${c}"`, 'hint-keyword', `${c}  ${label}`));
@@ -458,6 +478,10 @@ function getContext(cm) {
 
     // Inside theme( … ) / language( … ) — a fixed set of names.
     if (/\btheme\(\s*["']?[\w-]*$/.test(before))    return { type: 'theme', word };
+    // recall( … ) — saved workspace names. Before the generic in-a-call rules, or
+    // "inside parentheses" wins and offers synth params instead.
+    if (/\brecall\(\s*["']?[\w -]*$/.test(before))   return { type: 'layout', word };
+    if (/\bpanel\(\s*["']?[\w -]*$/.test(before))    return { type: 'panel', word };
     if (/\blanguage\(\s*["']?[\w-]*$/.test(before)) return { type: 'language', word };
 
     // Inside attack( … ) — the prepared-block library. Second argument first, so
@@ -637,6 +661,10 @@ function hintFn(cm) {
         list = audivizItems();
     } else if (ctx.type === 'theme') {
         list = themeItems();
+    } else if (ctx.type === 'layout') {
+        list = layoutItems();
+    } else if (ctx.type === 'panel') {
+        list = panelItems();
     } else if (ctx.type === 'language') {
         list = languageItems();
     } else if (ctx.type === 'attack') {

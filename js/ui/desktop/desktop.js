@@ -19,7 +19,7 @@
 // the mode is persisted, so a reload lands you exactly where you asked to be.
 
 import { initCanvas, resetView, getZoom, onViewChange, panToReveal, centerOn } from './canvas.js';
-import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY } from './panel.js';
+import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY, getRegistry } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
 import { buildOutputsPanel } from './outputspanel.js';
@@ -776,5 +776,76 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
         // Any panel by id, brought into view and raised — the PERFORMANCE button
         // uses it, and it is the same path a menu row takes.
         showPanel(id) { return reveal(id); },
+
+        // ── The workspace, from code ──────────────────────────────────────────
+        // Everything the canvas menu can toggle, as data: the owned panels, the
+        // hosted modules (mixer, docs, scenes…) and the canvas toggles like the bpm
+        // counters. One list, because from a set they are all just "things that are
+        // on or off" — which is also how the menu presents them.
+        panelList() {
+            const out = [];
+            for (const p of PANELS) {
+                const api = ownedPanels.get(p.id);
+                if (!api) continue;
+                out.push({ id: p.id, title: p.title || p.id, kind: 'panel', open: api.isOpen() });
+            }
+            for (const f of FLOATING) {
+                const api = ownedPanels.get(f.id);
+                out.push({ id: f.id, title: f.title || f.id, kind: 'panel',
+                           open: api ? api.isOpen() : floatingIsOpen(f) });
+            }
+            out.push({ id: 'bpm', title: 'bpm & counters', kind: 'toggle', open: hud.isVisible() });
+            return out;
+        },
+
+        /**
+         * Open or close one of them, and optionally put it somewhere.
+         * @param {string} id   an id or a title — matched exactly, then by prefix
+         * @param {boolean} on
+         * @param {number} [x] @param {number} [y]  canvas coordinates; omitted keeps
+         *                     wherever it was last, which is what you want most of the time
+         */
+        setPanel(id, on = true, x, y) {
+            const key = String(id).toLowerCase();
+            if (key === 'bpm' || key === 'counters') { hud.setVisible(!!on); return true; }
+            const all = this.panelList();
+            const hit = all.find(p => p.id.toLowerCase() === key || p.title.toLowerCase() === key)
+                     || all.find(p => p.id.toLowerCase().replace(/^wfd-/, '') === key)
+                     || all.find(p => p.title.toLowerCase().startsWith(key) || p.id.toLowerCase().includes(key));
+            if (!hit) return false;
+            const f = FLOATING.find(x2 => x2.id === hit.id);
+            const api = ownedPanels.get(hit.id);
+            if (on) {
+                // A hosted module builds itself on first open, so the panel it lives in
+                // may not exist for another frame — go through the same reveal the menu
+                // uses, then place it once it is there.
+                if (f && !floatingIsOpen(f)) toggleFloating(f);
+                if (api) api.setOpen(true); else reveal(hit.id);
+                if (Number.isFinite(x) || Number.isFinite(y)) {
+                    // A hosted module builds its panel on first open, and it is not
+                    // there on the next frame either — so keep trying for a moment
+                    // rather than placing a panel that does not exist yet and calling
+                    // it done. (Measured: placing on one rAF left the mixer at its
+                    // default position while the log said it had been moved.)
+                    // Through panel.js's own registry, not ownedPanels: a HOSTED module
+                    // (mixer, docs, scenes…) is not in ownedPanels at all — those are
+                    // the panels the desktop builds itself — and it is the hosted ones
+                    // that are late, so looking in the wrong map silently placed
+                    // nothing while the log said it had moved.
+                    const at = { ...(Number.isFinite(x) ? { x } : {}), ...(Number.isFinite(y) ? { y } : {}) };
+                    let tries = 30;
+                    const place = () => {
+                        const a = getRegistry().get(hit.id);
+                        if (a) { a.applyLayout(at); return; }
+                        if (--tries > 0) requestAnimationFrame(place);
+                    };
+                    place();
+                } else if (!api) requestAnimationFrame(() => reveal(hit.id));
+            } else {
+                if (f && floatingIsOpen(f)) toggleFloating(f);
+                if (api) api.setOpen(false);
+            }
+            return true;
+        },
     };
 }

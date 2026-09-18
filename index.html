@@ -287,7 +287,9 @@
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
+    import { setPanelNames } from './js/editor/autocomplete.js';
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
+    import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1201,6 +1203,89 @@
                     log(`\u25cf recording ${started.join(' + ')} as "${take}"${unavailable.length ? `  \u00b7  skipped ${unavailable.join(', ')}` : ''} — record() again to save`, 'ok');
                 });
                 return live.length ? '\u25a0 saving take…' : '\u25cf recording…';
+            },
+            // panel(name, on, x, y) — the workspace, from code.
+            //
+            //   panel()                       list everything, with its state
+            //   panel("layouts")              open it where it last was  (on defaults to 1)
+            //   panel("mixer", 0)             close it
+            //   panel("scenes", 1, 300, 200)  open it and put it there
+            //   panel("bpm", 1)               the counters on the canvas floor
+            //
+            // Which means a #@ section can lay the desk out for the part it is about
+            // to play: bring up the layers panel for the video build, drop it again
+            // for the breakdown. The coordinates are optional on purpose — most of the
+            // time "where I left it" is the right answer, and only sometimes is it not.
+            panel: (which, on, x, y) => {
+                if (!_desktopApi) {
+                    log('panel: the classic layout has no panels — switch to desktop mode', 'warn');
+                    return null;
+                }
+                const all = _desktopApi.panelList();
+                if (which == null) {
+                    log(`panel: ${all.length} of them  ·  panel("layers")  ·  panel("mixer", 0)  ·  panel(n):`, 'info');
+                    all.forEach((p, i) => log(`  ${String(i).padStart(2)}. ${p.open ? '●' : '○'} ${p.title}${p.kind === 'toggle' ? '   (canvas)' : ''}`, 'info'));
+                    return all.map(p => p.title);
+                }
+                // Sampled ONCE: a command, not a param.
+                let v = which;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                let name = v;
+                if (typeof v === 'number' ? isFinite(v) : /^\s*-?\d+\s*$/.test(String(v))) {
+                    const n = Math.round(Number(v));
+                    name = all[((n % all.length) + all.length) % all.length]?.id;
+                }
+                // `on` omitted means SHOW it — you asked for it by name, after all.
+                let want = on;
+                if (want && typeof want.get === 'function') { try { want = want.get(0); } catch (_) { want = 1; } }
+                want = (want === undefined || want === null) ? true : !!(typeof want === 'string' ? want !== '0' && want !== 'off' : want);
+                const ok = _desktopApi.setPanel(name, want, Number(x), Number(y));
+                if (!ok) { log(`panel: nothing called "${v}" — ${all.map(p => p.title).join(' · ')}`, 'warn'); return null; }
+                log(`${want ? '▣' : '▢'} ${name}${Number.isFinite(Number(x)) ? ` @ ${Number(x)},${Number(y) || 0}` : ''}`, 'ok');
+                return name;
+            },
+            // recall(name|n) — bring back a saved workspace: where every panel was,
+            // how big, folded or not, and where the canvas was looking.
+            //
+            // The layouts existed and could only be reached by opening a panel and
+            // clicking a row, which is the one thing you cannot do with your hands on
+            // the keyboard mid-set. A NAME or a 0-based INDEX that wraps — the same
+            // shape theme() and pal= already use — so it can be computed rather than
+            // typed, and put in a #@ section that switches the desk at the drop.
+            recall: (which) => {
+                const names = Object.keys(listLayouts());
+                if (!names.length) {
+                    log('recall: no saved workspaces yet — arrange the panels and save one in the layouts panel', 'warn');
+                    return null;
+                }
+                if (which == null) {
+                    log(`recall: ${names.length} saved  ·  recall("${names[0]}")  or  recall(n):`, 'info');
+                    names.forEach((n, i) => log(`  ${String(i).padStart(2)}.  ${n}`, 'info'));
+                    return names;
+                }
+                // Sampled ONCE: a command, not a param (same as theme()/uisize()).
+                let v = which;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                let name = null;
+                if (typeof v === 'number' ? isFinite(v) : /^\s*-?\d+\s*$/.test(String(v))) {
+                    const n = Math.round(Number(v));
+                    name = names[((n % names.length) + names.length) % names.length];
+                } else {
+                    const q = String(v == null ? '' : v).trim().toLowerCase();
+                    name = names.find(n => n.toLowerCase() === q)
+                        || names.find(n => n.toLowerCase().startsWith(q))
+                        || names.find(n => n.toLowerCase().includes(q));
+                }
+                if (!name) { log(`recall: no workspace matching "${v}" — ${names.join(' · ')}`, 'warn'); return null; }
+                if (!_desktopApi) {
+                    // Layouts are panel positions, and the classic layout has no panels
+                    // to position. Say that rather than fail quietly.
+                    log(`recall: "${name}" is a desktop workspace — switch to desktop mode first`, 'warn');
+                    return name;
+                }
+                const ok = applyLayout(name);
+                log(ok ? `▦ ${name}` : `recall: "${name}" could not be applied`, ok ? 'ok' : 'warn');
+                return ok ? name : null;
             },
             // scenes() — the contact sheet. 255 of them and no way to see any.
             scenes: () => { toggleSceneBrowser(); return '\u25a6 scenes'; },
@@ -4220,6 +4305,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         try {
             const _dk = initDesktop(editor, clock, makeEditor, dropEditor, log);
             _desktopApi = _dk;
+            // So panel( … ) can offer what is actually on the canvas right now.
+            setPanelNames(() => { try { return _dk.panelList(); } catch (_) { return []; } });
             // LAYOUTS keeps its handler but not a place on a bar: a button whose whole
             // job is to show a panel is a chip in the WINDOWS panel now, and having
             // both was two controls for one piece of state.
