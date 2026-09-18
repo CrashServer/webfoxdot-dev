@@ -201,6 +201,13 @@
         <option value="fiesta">Fiesta</option>
         <option value="solar">Solar Opposites</option>
       </select>
+      <div class="cp-row ui-size-row" title="how big the whole interface is — text, buttons, panels and all. The editor and the visuals scale with it.">
+        <span class="ui-size-lab">size</span>
+        <button id="btn-uisize-down" class="cp-btn" title="smaller interface  (Ctrl+Shift+-)">&minus;</button>
+        <span id="uisize-val">100%</span>
+        <button id="btn-uisize-up" class="cp-btn" title="bigger interface  (Ctrl+Shift+=)">+</button>
+        <button id="btn-uisize-reset" class="cp-btn" title="back to 100%">reset</button>
+      </div>
       <div class="cp-row rec-row" style="gap:4px;margin-top:4px">
         <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
         <button id="btn-rec-audio" class="cp-btn" title="record the audio output to a file">rec audio</button>
@@ -263,6 +270,7 @@
     // carried its own, weaker copy, so a line could transpile perfectly and still be
     // highlighted at the wrong step.
     import { matchBracket as _matchBracket, topArgs, skipString } from './js/editor/scan.js';
+    import { initUiScale, setUiScale, uiScale, nudgeUiScale, onUiScaleChange, UI_SCALE_RANGE } from './js/ui/uiscale.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -373,6 +381,31 @@
     };
     setClockRef(clock);
     setWarn((msg) => log(msg, 'warn'));
+
+    // ── Interface size ───────────────────────────────────────────────────────
+    // Restored before anything measures itself. CodeMirror caches character metrics,
+    // so it has to be told; the desktop re-derives its own scale from a measurement
+    // rather than a stored number, so it needs nothing.
+    initUiScale();
+    const _uiSizeVal = document.getElementById('uisize-val');
+    const showUiScale = (v) => { if (_uiSizeVal) _uiSizeVal.textContent = Math.round(v * 100) + '%'; };
+    onUiScaleChange((v) => {
+        showUiScale(v);
+        try { editor?.refresh?.(); } catch (_) {}
+        window.dispatchEvent(new Event('resize'));   // panels/canvases that measure on resize
+    });
+    showUiScale(uiScale());
+    document.getElementById('btn-uisize-down')?.addEventListener('click', () => nudgeUiScale(1 / 1.1));
+    document.getElementById('btn-uisize-up')?.addEventListener('click', () => nudgeUiScale(1.1));
+    document.getElementById('btn-uisize-reset')?.addEventListener('click', () => setUiScale(UI_SCALE_RANGE.DEFAULT));
+    // Ctrl+Shift+ +/- / 0. Plain Ctrl+/- is the BROWSER's own page zoom, which also
+    // works and which nobody should have taken away from them.
+    window.addEventListener('keydown', (e) => {
+        if (!((e.ctrlKey || e.metaKey) && e.shiftKey)) return;
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); log(`interface ${Math.round(nudgeUiScale(1.1) * 100)}%`, 'info'); }
+        else if (e.key === '_' || e.key === '-') { e.preventDefault(); log(`interface ${Math.round(nudgeUiScale(1 / 1.1) * 100)}%`, 'info'); }
+        else if (e.key === ')' || e.key === '0') { e.preventDefault(); setUiScale(UI_SCALE_RANGE.DEFAULT); log('interface 100%', 'info'); }
+    });
     setNaNWarn((msg, kind) => log(msg, kind || 'warn'));
 
     // ── Eval context ──────────────────────────────────────────────────────────
@@ -1134,6 +1167,26 @@
             // step, theme(PRand(0, 9)) for a different skin each time you run the line.
             // Wrapping rather than clamping is what makes stepping work at the end of
             // the list, and it takes negatives with it.
+            // uisize()  reports  ·  uisize(1.4) sets  ·  uisize(0) / uisize("reset")
+            // back to 100%. How big the whole interface is — text, buttons, panels.
+            // A fraction (1.4) or a percentage (140) both work, because both are what
+            // people type; anything at or above 10 is read as a percentage, and no
+            // sane interface scale sits in between.
+            uisize: (n) => {
+                if (n == null) { log(`interface: ${Math.round(uiScale() * 100)}%  ·  uisize(1.4)  ·  Ctrl+Shift+ + / -`, 'info'); return uiScale(); }
+                let v = n;
+                // Sampled ONCE: this is a command, not a param (same as theme()).
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                if (v === 'reset' || v === 0) v = UI_SCALE_RANGE.DEFAULT;
+                v = Number(v);
+                if (!isFinite(v) || v <= 0) { log('uisize: a number — uisize(1.4) or uisize(140)', 'warn'); return uiScale(); }
+                if (v >= 10) v = v / 100;
+                const got = setUiScale(v);
+                if (got !== Math.round(v * 100) / 100)
+                    log(`interface ${Math.round(got * 100)}%  (the range is ${Math.round(UI_SCALE_RANGE.MIN * 100)}–${Math.round(UI_SCALE_RANGE.MAX * 100)}%)`, 'warn');
+                else log(`interface ${Math.round(got * 100)}%`, 'ok');
+                return got;
+            },
             theme: (name) => {
                 // The list is the DROPDOWN's, read at call time rather than kept as a
                 // second copy here. Two lists of themes drift, and the one people can
