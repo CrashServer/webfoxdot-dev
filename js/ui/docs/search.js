@@ -11,6 +11,7 @@
 // twice already (the transpiler's pattern list, and theme() with two doc entries).
 
 import { SHORTCUTS, PATTERNS, TIMEVARS, FUNCTIONS, PLAYER_PARAMS, METHODS } from './reference.js';
+import { CHANGELOG, splitItem } from './changelog.js';
 
 let _index = null;
 
@@ -21,10 +22,16 @@ export function docIndex({ synths = {}, fx = {}, scenes = [], examples = [] } = 
     // `bare` is the name without its signature — PGauss out of "PGauss(mean, deviation)"
     // — so typing the whole name counts as an exact match on the DEFINITION rather
     // than only on whatever example happens to be titled after it.
-    const add = (kind, tab, name, desc, insert) =>
+    const add = (kind, tab, name, desc, insert, full) =>
         out.push({ kind, tab, name, desc: desc || '', insert: insert || null,
                    bare: String(name).replace(/[(=\s].*$/, '').replace(/^\.+/, '').toLowerCase(),
-                   hay: (name + ' ' + (desc || '')).toLowerCase() });
+                   hay: (name + ' ' + (desc || '')).toLowerCase(),
+                   // The whole entry, for changelog rows: what you remember about one
+                   // is usually a word from the MIDDLE of it — "recycled", "initDrag",
+                   // "sw-manifest" — not its opening clause. Lowercased on first use
+                   // rather than up front, so a session that never searches does not
+                   // pay to fold half a megabyte of prose.
+                   full: full || null, _lc: null });
 
     for (const it of PATTERNS)      add('pattern',  'patterns',  it.name, it.desc, it.name);
     for (const it of TIMEVARS)      add('timevar',  'patterns',  it.name, it.desc, it.name);
@@ -40,6 +47,20 @@ export function docIndex({ synths = {}, fx = {}, scenes = [], examples = [] } = 
     for (const [name, reg] of Object.entries(fx)) add('fx', 'fx', name, reg.desc, `${name}=${reg.default}`);
     for (const name of scenes) add('scene', 'visuals', name, 'Visual scene', `video1 >> ${name}()`);
     for (const ex of examples) add('example', 'examples', ex.title || ex.id, ex.cat || '', `attack("${ex.id}")`);
+
+    // The changelog too. It is the most detailed writing in the project — why a thing
+    // works the way it does, and what it used to do instead — and none of it was
+    // reachable except by scrolling 233KB of it. Indexed on the HEADLINE plus the
+    // version, so the haystack stays small and a match points at something readable;
+    // ranked last (see RANK below), so it never crowds out the reference row for a name.
+    for (const g of CHANGELOG) {
+        for (const item of g.items || []) {
+            const raw = typeof item === 'string' ? item : item.t;
+            if (!raw) continue;
+            const { summary } = splitItem(raw);
+            add('changelog', 'changelog', summary.slice(0, 120), g.v || '', null, raw);
+        }
+    }
 
     _index = out;
     return out;
@@ -66,6 +87,10 @@ export function searchDocs(q, index) {
         else if (e.bare.startsWith(s) || n.startsWith(s)) score = 2;
         else if (n.includes(s)) score = 3;
         else if (e.hay.includes(s)) score = 4;
+        else if (e.full) {
+            if (e._lc === null) e._lc = e.full.toLowerCase();
+            if (e._lc.includes(s)) score = 5;
+        }
         if (score >= 0) hits.push({ e, score: score * 2 + (RANK[e.kind] || 0) });
     }
     hits.sort((a, b) => a.score - b.score || a.e.name.length - b.e.name.length || a.e.name.localeCompare(b.e.name));

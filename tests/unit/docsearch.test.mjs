@@ -24,8 +24,10 @@ export default function ({ test, eq, ok }) {
     });
 
     test('docsearch: a workshop layer is findable by name', () => {
-        // 206 of them, reachable before this only if you already knew the word.
-        eq(names('gyroid'), ['gyroidslice']);
+        // 206 of them, reachable before this only if you already knew the word. The
+        // scene itself comes first; a changelog entry that happens to mention it may
+        // follow, which is the point of indexing the changelog too.
+        eq(names('gyroid')[0], 'gyroidslice');
         ok(names('truchet').includes('truchettiles'));
     });
 
@@ -46,6 +48,21 @@ export default function ({ test, eq, ok }) {
 
     test('docsearch: every hit carries the tab it lives in', () => {
         for (const e of searchDocs('rand', IDX)) ok(e.tab, `${e.name} has no tab`);
+    });
+
+    test('docsearch: the changelog is searchable by its MIDDLE, not just its headline', () => {
+        // The changelog is the most detailed writing in the project and none of it was
+        // reachable except by scrolling 233KB. What you remember about an entry is
+        // usually a word from inside it, not its opening clause.
+        const hits = searchDocs('recycled', IDX);
+        ok(hits.length > 0, 'nothing found for a word that is definitely in there');
+        ok(hits.every(h => h.tab), 'a hit with no tab to go to');
+    });
+
+    test('docsearch: a changelog match never outranks the thing itself', () => {
+        // Many entries say "reverb"; exactly one row IS reverb.
+        eq(searchDocs('reverb', IDX)[0].kind, 'fx');
+        eq(searchDocs('PGauss', IDX)[0].kind, 'pattern');
     });
 
     test('docsearch: a hit that can be used carries the call to insert', () => {
