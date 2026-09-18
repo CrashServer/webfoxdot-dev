@@ -312,7 +312,7 @@ const PANELS = [
     // is. Splitting them would put a gap in the middle of a sentence.
     //
     // The id stays wfd-bar-run so a saved layout keeps its position.
-    { id: 'wfd-bar-run',        group: 'bars', title: 'main',      x:-412, y: -84, w:  190, h: 450, minW: 130, minH: 120, bar: true,
+    { id: 'wfd-bar-run',        group: 'bars', title: 'main',      x:-412, y: -84, w:  190, h: 530, minW: 130, minH: 120, bar: true,
       // A LIST, not a strip: one control per row under a word saying what the group
       // is. A row of unlabelled buttons makes you learn the icons and the order; a
       // labelled column you can read. The labels are adopted like everything else, so
@@ -322,8 +322,13 @@ const PANELS = [
       menu: true,
       adopt: ['#bar-lab-engine', '#status-dot', '#btn-boot', '#btn-loadkit',
               '#bar-lab-play', '#btn-run', '#btn-stop', '#btn-reload', '#btn-perform', '#synth-status',
-              '#bar-lab-learn', '#btn-tour',
-              '#bar-lab-content', '#examples-dd',
+              // docs sits with tour: they are the two ways of being told how something
+              // works, and one of them having a button while the other did not meant
+              // the manual was reachable only by right-clicking the canvas.
+              '#bar-lab-learn', '#btn-tour', '#docs-toggle-btn',
+              // A set comes from somewhere and goes somewhere: the examples library,
+              // a file on disk, and the scene catalogue are all "material".
+              '#bar-lab-content', '#examples-dd', '#btn-scenes', '#btn-open', '#btn-save',
               '#bar-lab-look', '#theme-select', '#btn-vperf', '#vperf-status',
               '#bar-lab-app', '#btn-desktop', '#version-tag'] },
     // Named for the people, not the verb: SHARE is one of the buttons INSIDE it, and
@@ -372,6 +377,7 @@ const FLOATING = [
     { sel: '#parts-modal',    id: 'wfd-parts',   group: 'tools',  title: 'parts',      btn: '#btn-parts',    x: 782, y:1310, w: 480, h: 400, minW: 300, minH: 200 },
     { sel: '#rules-modal',    id: 'wfd-rules',   group: 'collab', title: 'room rules', btn: '#btn-rules',    x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
     { sel: '#piano-modal',    id: 'wfd-piano',   group: 'tools',  title: 'piano',      btn: '#btn-piano',    x:   0, y:2334, w: 660, h: 260, minW: 340, minH: 200 },
+    { sel: '#scenes-modal',   id: 'wfd-scenes',  group: 'tools',  title: 'scenes',     btn: '#btn-scenes',   x: 680, y:2334, w: 880, h: 560, minW: 340, minH: 220 },
     // The galaxy paints an absolutely-positioned starfield canvas, so its host needs
     // to be a positioned ancestor — see .wfd-hosted below.
     { sel: '#galaxy-overlay', id: 'wfd-galaxy',  group: 'collab', title: 'galaxy',     btn: '#btn-galaxy',   x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },

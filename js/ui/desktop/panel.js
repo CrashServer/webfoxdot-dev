@@ -23,7 +23,12 @@ export const LAYOUT_KEY = "wfd-desktop-panels";
 // So: a version stamp, and a list of the ids whose default geometry has moved on.
 // Everything else in the layout is untouched, which is the point of doing it this way
 // rather than clearing the lot.
-const LAYOUT_VERSION = 2;
+// Bumped when a panel's DEFAULT SHAPE changes enough that a saved geometry would
+// show it wrong — a 450px-tall column around four more rows of buttons is a
+// scrollbar, not a menu. Only the panels listed lose their stored geometry; every
+// other panel stays exactly where you put it, and even the reshaped one keeps its
+// open/closed state, which is a preference about the workspace rather than a size.
+const LAYOUT_VERSION = 3;
 const RESHAPED = ['wfd-bar-run'];
 let zTop = 1;
 
