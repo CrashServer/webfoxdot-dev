@@ -16,6 +16,16 @@ import { osc }                    from '../../lib/dist/supersonic.js';
 // a shared leaf module so the pattern layer can emit it too; re-exported here so every
 // existing `import { REST } from './player.js'` keeps working.
 import { REST } from '../patterns/rest.js';
+// Randomness goes through rng.js so a seeded set reproduces and a room agrees —
+// see seed(). Unseeded these ARE _rnd(), so nothing changes by default.
+import { randAt } from '../patterns/rng.js';
+const _rnd = () => randAt(0, -1);
+/** A stable stream id per player NAME, so two machines address the same stream. */
+function nameStream(name) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+}
 export { REST };
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
@@ -270,8 +280,8 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
         if (active.length === 0) return;
         const size = loop === 1
             ? active.length                       // final loop drops everyone
-            : Math.max(1, Math.floor(Math.random() * active.length));
-        const subset = [...active].sort(() => Math.random() - 0.5).slice(0, size);
+            : Math.max(1, Math.floor(_rnd() * active.length));
+        const subset = [...active].sort(() => _rnd() - 0.5).slice(0, size);
         const names = subset.map(p => p.name).join(' ');
         const dropAt    = base + playBars;                     // on a bar
         const restoreAt = dropAt + dropBars;                   // on a bar
@@ -301,7 +311,7 @@ export function drop(clock, playTime = 14, dropTime = 2, nbloop = 1, log = null)
 export function soloRnd(clock, time = 8, log = null) {
     const active = [...clock._players.values()].filter(p => p._active);
     if (active.length === 0) return;
-    const pick = active[Math.floor(Math.random() * active.length)];
+    const pick = active[Math.floor(_rnd() * active.length)];
     const startBeat = nextMod(clock, time);
     clock._schedule(startBeat, () => {
         if (_gate) _gate.soloOnly(pick.name);
@@ -655,7 +665,7 @@ export class Player {
         // Each rep/strum onset is an NTP timetag offset from the step's beat — the
         // bundle, not a setTimeout, carries the precise sub-beat timing to scsynth.
         // .degrade(prob): randomly drop this step's note (bookkeeping still advances)
-        const degraded = this._degrade > 0 && Math.random() < this._degrade;
+        const degraded = this._degrade > 0 && this._rand('degrade') < this._degrade;
         const onsetNTP = this._clock.beatToNTP(this._nextBeat);
         if (!degraded) {
             for (let i = 0; i < reps; i++) {
@@ -735,7 +745,7 @@ export class Player {
             }
         };
         // .degrade(prob): randomly drop this step (bookkeeping still advances below)
-        if (!(this._degrade > 0 && Math.random() < this._degrade)) {
+        if (!(this._degrade > 0 && this._rand('degrade') < this._degrade)) {
             // amp≤0 (muted by drop/solo) → render NO sample: silent play() steps would
             // otherwise pile up nodes on scsynth until it wedges. Step still advances.
             if (amp > 0) for (let i = 0; i < reps; i++) renderAt(delayBeats + i * repDur, repDur);
@@ -788,7 +798,7 @@ export class Player {
                 for (const k of kids) this._renderToken(k, beatOffset, slotBeats, p, onsetNTP);
                 break;
             case 'rand':                         // {..} pick one at random
-                this._renderToken(kids[Math.floor(Math.random() * kids.length)], beatOffset, slotBeats, p, onsetNTP);
+                this._renderToken(kids[Math.floor(_rnd() * kids.length)], beatOffset, slotBeats, p, onsetNTP);
                 break;
             case 'alt':                          // [..] cycle one child per outer loop
                 this._renderToken(kids[token._idx++ % kids.length], beatOffset, slotBeats, p, onsetNTP);
@@ -842,7 +852,7 @@ export class Player {
         }
 
         const bufId = charToBufId(this._loopName, sampleIdx);
-        if (bufId !== null && !(this._degrade > 0 && Math.random() < this._degrade)) {
+        if (bufId !== null && !(this._degrade > 0 && this._rand('degrade') < this._degrade)) {
             const susSec  = baseDur * 60 / this._clock.bpm;   // step length in seconds
             const whenNTP = this._clock.beatToNTP(this._nextBeat + delayBeats);
             this._triggerLoop(bufId, { amp, pan, rate, sus: susSec, stretch, looping, pos }, whenNTP);
@@ -900,7 +910,7 @@ export class Player {
         const secPerBeat = 60 / this._clock.bpm;
         const onsetMs    = this._clock.beatToPerfMs(this._nextBeat);
 
-        const degraded = this._degrade > 0 && Math.random() < this._degrade;
+        const degraded = this._degrade > 0 && this._rand('degrade') < this._degrade;
         if (!degraded && this._amplify > 0) {
             for (let rep = 0; rep < reps; rep++) {
                 const whenMs = onsetMs + (delayBeats + rep * repDur) * secPerBeat * 1000;
@@ -961,7 +971,7 @@ export class Player {
                      : this._mode === 'midiout' ? this._midiOpts
                      : this._args;
         for (const m of this._modifiers) {
-            if (Math.random() >= m.prob) continue;
+            if (this._rand('mod:' + m.alias) >= m.prob) continue;
             emitTrigger(this.name, m.alias);   // flash just the .sometimes(…) call
             const args = m.args.map(a => patGet(a, this._step, a));
 
@@ -1043,6 +1053,19 @@ export class Player {
     // main-thread jitter once dispatched. The node frees itself via doneAction:2 in
     // the synthdef envelope (every synthdef has it), so no client /n_free is needed —
     // matching the sample/loop paths.
+    /**
+     * A random value for THIS player at THIS step, for a per-note decision.
+     *
+     * Addressed rather than drawn: .degrade() and .sometimes() fire per note, and in a
+     * session each peer runs its own copy of the player — so a sequential draw has one
+     * machine dropping a note the others keep, and the room comes apart bar by bar
+     * even though the code and the beat are shared. (player name, what the decision
+     * is, which step) is the same address on every machine.
+     */
+    _rand(kind) {
+        return randAt(nameStream(this.name + '|' + kind), this._step | 0);
+    }
+
     _trigger(midi, r, whenNTP, outBus = this._bus, secPerBeat = 60 / this._clock.bpm) {
         if (!_sc || this._bus == null) return;   // bus freed (player stopped)
         const result     = buildParams(this._synth, midi, r, secPerBeat, outBus);
@@ -1218,7 +1241,7 @@ export class Player {
         const seq = this._seq();
         if (seq) {
             const orig = [...seq], perm = this._curPerm(orig.length);
-            const order = [...Array(orig.length).keys()].sort(() => Math.random() - 0.5);
+            const order = [...Array(orig.length).keys()].sort(() => _rnd() - 0.5);
             this._setSeq(order.map(i => orig[i]));
             this._srcPerm = order.map(i => perm[i]);
             setTimeout(() => { if (this._active) { this._setSeq(orig); this._srcPerm = perm; } }, this._seqDurMs(orig.length) + 50);
@@ -1284,7 +1307,7 @@ export class Player {
         // Swap a fill in for the tail of the loop (durloop/[4,8,16] beats), then the
         // every() cycle re-randomises the groove at the next durloop boundary.
         const fill     = randomFill();
-        const fillDur  = durloop / [4, 8, 16][Math.floor(Math.random() * 3)];
+        const fillDur  = durloop / [4, 8, 16][Math.floor(_rnd() * 3)];
         const ms       = Math.max(0, (durloop - fillDur)) * 60000 / this._clock.bpm;
         clearTimeout(this._drummerFillT);
         this._drummerFillT = setTimeout(() => {

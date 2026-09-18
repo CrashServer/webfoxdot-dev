@@ -3,13 +3,18 @@
 // lines; the caller runs them through runCode (so they also broadcast to peers).
 
 import { SYNTH_DEFS } from '../synths/registry.js';
+import { makeStream } from '../patterns/rng.js';
+// Randomness goes through rng.js so a seeded set reproduces — see seed().
+// Unseeded this IS _rnd(), so nothing changes by default.
+const _rnd = () => makeStream().next();
 
-const pick   = (a) => a[Math.floor(Math.random() * a.length)];
-const rint   = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
-const chance = (p) => Math.random() < p;
-const flt    = (lo, hi, d = 2) => (lo + Math.random() * (hi - lo)).toFixed(d);
+
+const pick   = (a) => a[Math.floor(_rnd() * a.length)];
+const rint   = (lo, hi) => lo + Math.floor(_rnd() * (hi - lo + 1));
+const chance = (p) => _rnd() < p;
+const flt    = (lo, hi, d = 2) => (lo + _rnd() * (hi - lo)).toFixed(d);
 // pick n DISTINCT thunks from a list and call each (so we never emit lpf= twice).
-const pickN  = (a, n) => { const c = [...a], out = []; for (let i = 0; i < n && c.length; i++) out.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]); return out; };
+const pickN  = (a, n) => { const c = [...a], out = []; for (let i = 0; i < n && c.length; i++) out.push(c.splice(Math.floor(_rnd() * c.length), 1)[0]); return out; };
 
 // Melodic/tonal synths worth generating (skip sampler/loop/master + ikea, which is a
 // long-sustain texture generator that doesn't suit random note-by-note triggering).
@@ -39,7 +44,7 @@ const nestList  = (n, lo, hi) => '[' + Array.from({ length: n }, (_, i) =>
 // running total wanders but always returns, instead of ramping off to silence.
 const zeroDeltas = () => {
     const a = rint(1, 2), b = rint(1, 2), d = [a, b, -a, -b];
-    for (let k = d.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [d[k], d[j]] = [d[j], d[k]]; }
+    for (let k = d.length - 1; k > 0; k--) { const j = Math.floor(_rnd() * (k + 1)); [d[k], d[j]] = [d[j], d[k]]; }
     return '[' + d.join(', ') + ']';
 };
 
@@ -112,7 +117,7 @@ const fnDeg = (lo = 0, hi = 7) => pick([
 // degree already evolves within the bar instead of repeating one flat shape.
 const mixList = (lo, hi) => '[' + Array.from({ length: rint(3, 5) }, (_, i) => {
     if (i === 0) return rint(lo, Math.min(hi, lo + 2));            // anchor low
-    const r = Math.random();
+    const r = _rnd();
     if (r < 0.30) return fnDeg(lo, hi);                            // nested function
     if (r < 0.46) return `[${rint(lo, hi)}, ${rint(lo, hi)}]`;     // ratchet
     if (r < 0.58) return `(${rint(0, 4)}, ${rint(4, 7)})`;         // chord voice
@@ -121,7 +126,7 @@ const mixList = (lo, hi) => '[' + Array.from({ length: rint(3, 5) }, (_, i) => {
 }).join(', ') + ']';
 // A duration list that nests rhythm-generator functions (PDur/PBeat) among plain values.
 const mixDur = () => '[' + Array.from({ length: rint(2, 4) }, (_, i) => {
-    const r = Math.random();
+    const r = _rnd();
     if (r < 0.28) return pick(['PDur(3,8)', 'PDur(5,8)', 'PBeat("x xx x")']);
     if (r < 0.48) return pick(['[1/8, 1/8]', '[1/4, 1/4]', '[1/8, 1/8, 1/8]']);
     return pick(['1/4', '1/2', '1', '3/4', '1/8']);
@@ -543,7 +548,7 @@ export class JamBot {
 
     _next() {
         const [lo, hi] = this.opts.every;
-        const dur = lo + Math.random() * Math.max(0, hi - lo);
+        const dur = lo + _rnd() * Math.max(0, hi - lo);
         this.clock.future(dur, () => { if (this.running) { try { this._order(); } catch (e) { /* keep the loop alive */ } this._next(); } });
     }
 
@@ -563,8 +568,8 @@ export class JamBot {
         if (n >= this.opts.max) {
             // At the hard cap → make room by retiring a voice (even a fresh one), or
             // just tweak an existing one. NEVER add.
-            if (Math.random() < 0.55) this._stopOne(true);
-            else if (Math.random() < 0.5) this._mutate();
+            if (_rnd() < 0.55) this._stopOne(true);
+            else if (_rnd() < 0.5) this._mutate();
             else this._fx();
             return;
         }
@@ -586,7 +591,7 @@ export class JamBot {
         if (this.active.size >= this.opts.max) return;
         const name  = this._freeName();
         const chars = this.sampleChars();
-        const wantDrum = chars.length && Math.random() < this.opts.drum / (this.opts.synth + this.opts.drum);
+        const wantDrum = chars.length && _rnd() < this.opts.drum / (this.opts.synth + this.opts.drum);
         const line = wantDrum ? drumLine(name, chars) : (this.style ? synthLineStyled(name, this.style) : synthLine(name));
         this.active.add(name); this.born.set(name, this.tick);
         this.run(line);
@@ -615,7 +620,7 @@ export class JamBot {
         const name = pick(names);
         const attr = pick(['amp', 'oct', 'dur', 'degree']);
         let v;
-        if (attr === 'amp')  v = (0.25 + Math.random() * 0.4).toFixed(2);
+        if (attr === 'amp')  v = (0.25 + _rnd() * 0.4).toFixed(2);
         else if (attr === 'oct') v = pick([3, 4, 4, 5, 5, 6]);
         else if (attr === 'dur') v = pick(['1/4', '1/2', '1', '2']);
         else v = degLead();

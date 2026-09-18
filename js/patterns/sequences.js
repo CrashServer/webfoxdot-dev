@@ -2,7 +2,37 @@
 // patGet resolves any value: plain scalar, array, or pattern object.
 
 import { isEnv, envValue, currentBeat, _var } from './timevars.js';
+// One source of randomness — see rng.js. Unseeded it IS Math.random(); under seed(n)
+// every draw becomes a function of (seed, which pattern, which step), so a set
+// reproduces and every machine in a session draws the same numbers.
+import { makeStream } from './rng.js';
 import { REST } from './rest.js';
+
+// ── Walks ────────────────────────────────────────────────────────────────────
+// melody, PWalk, PChain and PBrown carry state between calls: the value at step n
+// depends on the whole path from 0. Seeding the INCREMENTS is not enough on its own —
+// a peer that joins a jam mid-set starts its walk at 0 while everyone else is two
+// hundred steps along, and they never meet.
+//
+// So a walk is replayed rather than remembered: ask for step n out of order and it
+// recomputes from the start. In the normal case — step n+1 after step n — that is one
+// increment and the replay never runs. REPLAY_CAP bounds the pathological case; past
+// it the walk keeps its state and drifts, which is the old behaviour and still better
+// than a long set stalling on a seek.
+const REPLAY_CAP = 4096;
+function walker(initial, advance) {
+    let cur = initial, at = -1;
+    return (step) => {
+        const n = (typeof step === 'number' && isFinite(step)) ? Math.max(0, step | 0) : at + 1;
+        if (n === at) return cur;
+        if (n < at || n > at + 1) {                       // seek: replay from the start
+            if (n <= REPLAY_CAP) { cur = initial; at = -1; }
+            else { at = n - 1; }                          // too far — carry on from here
+        }
+        while (at < n) { at++; cur = advance(cur, at); }
+        return cur;
+    };
+}
 
 export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
@@ -57,7 +87,7 @@ export class Pattern extends Array {
     // each element repeated n times in place
     stutter(n = 2) { const out = []; for (const x of this) for (let i = 0; i < n; i++) out.push(x); return Ppat(out); }
     // shuffled / sorted copies
-    shuffle()      { const a = [...this]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return Ppat(a); }
+    shuffle()      { const r = makeStream(); const a = [...this]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r.next() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return Ppat(a); }
     sort()         { return Ppat([...this].sort((x, y) => x - y)); }
     // add an interval as a simultaneous grace layer: each step plays x AND x+v
     offadd(v = 0)  { return Ppat(this.map(x => _group(x, (Number(x) || 0) + v))); }
@@ -228,27 +258,29 @@ export function attachModifiers(cls) {
 
 // PRand(lo, hi) — random integer in [lo, hi). PRand([arr]) picks from array.
 export function PRand(lo, hi) {
-    if (Array.isArray(lo)) { const a = lo; return { get: () => a[Math.floor(Math.random() * a.length)] }; }
+    const r = makeStream();
+    if (Array.isArray(lo)) { const a = lo; return { get: (step) => a[Math.floor(r.at(step) * a.length)] }; }
     if (hi === undefined) { hi = lo; lo = 0; }
-    return { get: () => Math.floor(Math.random() * (hi - lo)) + lo };
+    return { get: (step) => Math.floor(r.at(step) * (hi - lo)) + lo };
 }
 
 // PWhite(lo=0, hi=1) — random float in [lo, hi]
 export function PWhite(lo = 0, hi = 1) {
-    return { get: () => lo + Math.random() * (hi - lo) };
+    const r = makeStream();
+    return { get: (step) => lo + r.at(step) * (hi - lo) };
 }
 
 // melody(range=7, maxStep=2) — a simple melodic generator: a bounded random walk
 // over scale degrees. On its own it wanders forever; freeze a fixed phrase that
 // repeats with a slice — melody()[:8] samples 8 degrees once and loops them.
 export function melody(range = 7, maxStep = 2) {
-    let cur = 0;
-    return { get: () => {
-        const v = cur;
-        const d = Math.floor(Math.random() * (2 * maxStep + 1)) - maxStep;
-        cur = Math.max(-range, Math.min(range, cur + d));
-        return v;
-    } };
+    const r = makeStream();
+    // The walk yields its value BEFORE stepping, so the state is {value, next}.
+    const w = walker({ v: 0, n: 0 }, (st, step) => {
+        const d = Math.floor(r.at(step) * (2 * maxStep + 1)) - maxStep;
+        return { v: st.n, n: Math.max(-range, Math.min(range, st.n + d)) };
+    });
+    return { get: (step) => w(step).v };
 }
 
 // Pslice(pat, start, stop) — Python-style slice that FREEZES a generator into a
@@ -275,14 +307,10 @@ export function Pslice(pat, start, stop) {
 
 // PWalk(max=7, step=1, start=0) — random walk bounded to ±max
 export function PWalk(max = 7, step = 1, start = 0) {
-    let cur = start;
-    return {
-        get: () => {
-            const v = cur;
-            cur = Math.max(-max, Math.min(max, cur + (Math.random() < 0.5 ? step : -step)));
-            return v;
-        }
-    };
+    const r = makeStream();
+    const w = walker({ v: start, n: start }, (st, i) =>
+        ({ v: st.n, n: Math.max(-max, Math.min(max, st.n + (r.at(i) < 0.5 ? step : -step))) }));
+    return { get: (s) => w(s).v };
 }
 
 // The euclidean-duration list for k pulses in n steps (rotate cyclically shifts it).
@@ -330,7 +358,8 @@ export function PwRand(values, weights) {
     const vals = Array.isArray(values) ? values : [values];
     const wts  = Array.isArray(weights) ? weights : vals.map(() => 1);
     const total = wts.reduce((a, b, i) => a + (b ?? 1), 0) || vals.length;
-    return { get: () => { let r = Math.random() * total; for (let i = 0; i < vals.length; i++) { r -= (wts[i] ?? 1); if (r <= 0) return vals[i]; } return vals[vals.length - 1]; } };
+    const rng = makeStream();
+    return { get: (step) => { let r = rng.at(step) * total; for (let i = 0; i < vals.length; i++) { r -= (wts[i] ?? 1); if (r <= 0) return vals[i]; } return vals[vals.length - 1]; } };
 }
 
 // PxRand(lo, hi) / PxRand([values]) — random with no immediate repeat.
@@ -338,14 +367,19 @@ export function PxRand(lo, hi) {
     const arr = Array.isArray(lo) ? lo : null;
     if (!arr && hi === undefined) { hi = lo; lo = 0; }
     let last = null;
-    const pick = () => arr ? arr[Math.floor(Math.random() * arr.length)] : Math.floor(Math.random() * (hi - lo)) + lo;
-    return { get: () => { let v, g = 0; do { v = pick(); } while (v === last && ++g < 8); last = v; return v; } };
+    const r = makeStream();
+    // The retry has to move within the step, or a repeat would redraw the same number
+    // forever: nudge the step by the attempt count so each try is a different address.
+    const pick = (step, g) => { const u = r.at((step >>> 0) * 8 + g);
+        return arr ? arr[Math.floor(u * arr.length)] : Math.floor(u * (hi - lo)) + lo; };
+    return { get: (step) => { let v, g = 0; do { v = pick(step, g); } while (v === last && ++g < 8); last = v; return v; } };
 }
 
 // PLog(mean=0, deviation=1) — log-normal random floats (int if mean is an integer).
 export function PLog(mean = 0, deviation = 1) {
-    return { get: () => {
-        const u1 = Math.random() || 1e-9, u2 = Math.random();
+    const r = makeStream();
+    return { get: (step) => {
+        const u1 = r.at((step >>> 0) * 2) || 1e-9, u2 = r.at((step >>> 0) * 2 + 1);
         const n = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
         const v = Math.exp(mean + deviation * n);
         return Number.isInteger(mean) ? Math.round(v) : v;
@@ -417,7 +451,7 @@ export function PDelay(k, n, rotate = 0, dur = 1) {
 // ── More FoxDot generators ────────────────────────────────────────────────────
 
 // P10(n) — n-length list of random 1s and 0s (FoxDot P10). e.g. play(P10(8)).
-export function P10(n = 8) { const out = []; for (let i = 0; i < (n | 0); i++) out.push(Math.random() < 0.5 ? 0 : 1); return Ppat(out); }
+export function P10(n = 8) { const r = makeStream(); const out = []; for (let i = 0; i < (n | 0); i++) out.push(r.next() < 0.5 ? 0 : 1); return Ppat(out); }
 
 // PSaw(lo, hi, steps) — rising sawtooth ramp (companion to PSine/PTri).
 export function PSaw(lo = 0, hi = 1, steps = 16) {
@@ -573,8 +607,9 @@ export function Pmath(a, op, b) {
 // PShuf(seq) — shuffle once at creation, cycle forever
 export function PShuf(seq) {
     const arr = [...(Array.isArray(seq) ? seq : [seq])];
+    const r = makeStream();
     for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(r.next() * (i + 1));
         [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return { get: (step) => arr[step % arr.length] };
@@ -584,7 +619,8 @@ export function PShuf(seq) {
 
 // PBern(p=0.5, a=1, b=0) — Bernoulli: returns a with prob p, else b
 export function PBern(p = 0.5, a = 1, b = 0) {
-    return { get: () => Math.random() < p ? a : b };
+    const r = makeStream();
+    return { get: (step) => r.at(step) < p ? a : b };
 }
 
 // PCoin — alias for PBern
@@ -704,14 +740,13 @@ export function PMorse(text, point = 1 / 4, tiret = 3 / 4) {
 // Integer mean → rounded ints, like FoxDot. e.g. pan=PGauss(0, 0.3)
 export function PGauss(mean = 0, deviation = 1) {
     const isInt = Number.isInteger(mean);
-    const gauss = () => {
-        let u = 0, v = 0;
-        while (u === 0) u = Math.random();
-        while (v === 0) v = Math.random();
+    const r = makeStream();
+    const gauss = (step) => {
+        const u = r.at((step >>> 0) * 2) || 1e-9, v = r.at((step >>> 0) * 2 + 1) || 1e-9;
         const g = mean + deviation * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
         return isInt ? Math.round(g) : g;
     };
-    return { get: () => gauss() };
+    return { get: (step) => gauss(step) };
 }
 
 // ── Range / step ─────────────────────────────────────────────────────────────
@@ -775,16 +810,14 @@ export function PTri(lo = 0, hi = 1, steps = 16) {
 // PChain(mapping) — {value: [nextValues...], ...} Markov chain
 export function PChain(mapping) {
     const keys = Object.keys(mapping);
-    let cur = keys[0];
-    return {
-        get: () => {
-            const nexts = mapping[cur];
-            cur = (!nexts || !nexts.length)
-                ? keys[Math.floor(Math.random() * keys.length)]
-                : String(nexts[Math.floor(Math.random() * nexts.length)]);
-            return isNaN(Number(cur)) ? cur : Number(cur);
-        }
-    };
+    const r = makeStream();
+    const w = walker(keys[0], (cur, i) => {
+        const nexts = mapping[cur];
+        return (!nexts || !nexts.length)
+            ? keys[Math.floor(r.at(i) * keys.length)]
+            : String(nexts[Math.floor(r.at(i) * nexts.length)]);
+    });
+    return { get: (step) => { const cur = w(step); return isNaN(Number(cur)) ? cur : Number(cur); } };
 }
 
 export const PMarkov = PChain;
@@ -824,7 +857,7 @@ export function PSwing(amount = 0.1, steps = 8) {
 
 // PBin(number) — binary digits of number (random if 0): PBin(8) → [1,0,0,0]
 export function PBin(number = 0) {
-    if (!number) number = Math.floor(Math.random() * 999990) + 10;
+    if (!number) number = Math.floor(makeStream().next() * 999990) + 10;
     return cyc((number >>> 0).toString(2).split('').map(Number));
 }
 
@@ -877,7 +910,7 @@ function _plifeMakeRulemap(rule) {
 }
 function _plifeRng(seed) {
     // small deterministic PRNG (mulberry32) so a given seed always replays identically
-    let s = (seed >>> 0) || (Math.random() * 0xffffffff) >>> 0;
+    let s = (seed >>> 0) || (makeStream().next() * 0xffffffff) >>> 0;
     return () => {
         s = (s + 0x6D2B79F5) | 0;
         let t = Math.imul(s ^ (s >>> 15), 1 | s);
@@ -1079,12 +1112,13 @@ export function PLogistic(r = 3.9, x0 = 0.5, lo = 0, hi = 1) {
 
 // PBrown(lo, hi, step) — brownian random walk (float), reflecting at the bounds.
 export function PBrown(lo = 0, hi = 1, step = 0.1) {
-    let x = (lo + hi) / 2;
-    return { get: () => {
-        x += (Math.random() * 2 - 1) * step * (hi - lo);
+    const r = makeStream();
+    const w = walker((lo + hi) / 2, (x, i) => {
+        x += (r.at(i) * 2 - 1) * step * (hi - lo);
         if (x < lo) x = lo + (lo - x); if (x > hi) x = hi - (x - hi);
-        x = Math.min(hi, Math.max(lo, x)); return x;
-    } };
+        return Math.min(hi, Math.max(lo, x));
+    });
+    return { get: (s) => w(s) };
 }
 
 // PHenon(lo, hi, a, b) / PLorenz(lo, hi, dt) — strange-attractor coordinate
@@ -1222,7 +1256,8 @@ export function arp(degrees, mode = 'up', octaves = 1, perOct = 7) {
     // is sampled at the step so it actually varies; groups/numbers pass through.
     const rez = (el, step) => (el && typeof el.get === 'function') ? el.get(step) : el;
     const pick = (seq, step) => rez(seq[((((step | 0) % seq.length) + seq.length) % seq.length)], step);
-    const rnd  = (seq, step) => rez(seq[Math.floor(Math.random() * seq.length)], step);
+    const arpR = makeStream();
+    const rnd  = (seq, step) => rez(seq[Math.floor(arpR.at(step) * seq.length)], step);
     if (mode && typeof mode.get === 'function') {          // var/pattern → mode varies over time
         return { get: (step) => {
             const m = optName(mode, _ARP_MODES, step), seq = order(m);

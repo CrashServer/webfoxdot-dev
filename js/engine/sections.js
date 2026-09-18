@@ -9,6 +9,10 @@
 //
 // Note: jump targets are resolved by name to the FIRST matching section, so
 // keep part names unique.
+import { makeStream } from '../patterns/rng.js';
+// Randomness goes through rng.js so a seeded set reproduces — see seed().
+// Unseeded this IS _rnd(), so nothing changes by default.
+const _rnd = () => makeStream().next();
 
 let _clock  = null;
 let _evalFn = null;
@@ -319,7 +323,7 @@ function _runSection(sectionLine) {
         // Zero-duration probabilistic router: no code, no highlight. Roll the
         // dice — jump to the target part, or fall through to the next section.
         const target = parsed.gotoTarget ? findSectionByName(parsed.gotoTarget) : null;
-        if (target && Math.random() < parsed.gotoProb) _runSection(target.line);
+        if (target && _rnd() < parsed.gotoProb) _runSection(target.line);
         else advanceToNext(sectionLine);
         return true;
     }
@@ -410,7 +414,7 @@ function advanceToNext(sectionLine) {
 // Weighted-random pick from [{name, weight}] and run that section.
 function jumpToTarget(targets) {
     const totalWeight = targets.reduce((acc, t) => acc + t.weight, 0);
-    let r = Math.random() * totalWeight;
+    let r = _rnd() * totalWeight;
     let chosen = targets[targets.length - 1];
     for (const t of targets) {
         r -= t.weight;

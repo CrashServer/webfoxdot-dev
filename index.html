@@ -271,6 +271,7 @@
     // highlighted at the wrong step.
     import { matchBracket as _matchBracket, topArgs, skipString } from './js/editor/scan.js';
     import { initUiScale, setUiScale, uiScale, nudgeUiScale, onUiScaleChange, UI_SCALE_RANGE } from './js/ui/uiscale.js';
+    import { setSeed, currentSeed, isSeeded, beginEvalScope } from './js/patterns/rng.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1167,6 +1168,38 @@
             // step, theme(PRand(0, 9)) for a different skin each time you run the line.
             // Wrapping rather than clamping is what makes stepping work at the end of
             // the list, and it takes negatives with it.
+            // seed()  reports  ·  seed(42) fixes it  ·  seed(null)/seed(0) back to free.
+            //
+            // Under a seed every generator draws from (seed, the line's own text, which
+            // pattern in the line, which step) — so a set plays the same way every time
+            // it loads, and every machine in a session draws the SAME numbers from the
+            // same line. That second part is the one that was quietly broken: evals
+            // travel as source text and each peer runs it, so PRand gave a different
+            // note sequence on every machine in the room.
+            //
+            // Nothing extra has to travel for that to work: seed(42) is itself a line
+            // of code, so it is already broadcast like everything else.
+            seed: (n) => {
+                if (n === undefined) {
+                    const cur = currentSeed();
+                    log(cur == null
+                        ? 'seed: free — every load and every peer rolls its own. seed(42) to fix it.'
+                        : `seed: ${cur} — this set plays the same way every time, on every machine.`, 'info');
+                    return cur;
+                }
+                let v = n;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                if (v === null || v === 0 || v === false || v === 'off' || v === 'free') {
+                    setSeed(null); log('seed: free — random again', 'ok'); return null;
+                }
+                // A word is as good as a number and easier to remember for a set.
+                const num = (typeof v === 'number') ? v
+                    : [...String(v)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+                const got = setSeed(num);
+                if (got == null) { log('seed: a number or a word — seed(42) or seed("dresden")', 'warn'); return null; }
+                log(`seed: ${got}${typeof v === 'number' ? '' : ` ("${v}")`} — same set, same music, every machine`, 'ok');
+                return got;
+            },
             // uisize()  reports  ·  uisize(1.4) sets  ·  uisize(0) / uisize("reset")
             // back to 100%. How big the whole interface is — text, buttons, panels.
             // A fraction (1.4) or a percentage (140) both work, because both are what
@@ -1465,7 +1498,14 @@
             const p = clock._players.get(name);
             if (!p || !p._active) return;                          // player stopped/gone → stop
             const rec = _srcByPlayer.get(name);
-            if (rec) runCode(rec.src, { fromRemote: true, doc: rec.doc });   // re-eval → new random values
+            if (rec) {
+                // Under seed(n) the SAME text draws the same numbers — which is the
+                // point of a seed and exactly wrong for a reroll. Turning the line's
+                // salt is what makes re-running it mean something different.
+                const key = rec.src.trim();
+                _rerollSalt.set(key, (_rerollSalt.get(key) || 0) + 1);
+                runCode(rec.src, { fromRemote: true, doc: rec.doc });   // re-eval → new random values
+            }
             clock.mod(beats, tick);                                // repeat on the beat grid
         };
         clock.mod(beats, tick);
@@ -1493,6 +1533,10 @@
         finally { _evalDoc = prevEvalDoc; }
     }
 
+    // .reroll() and reroll() bump a per-line salt so the SAME text can deliberately
+    // draw differently under a fixed seed. Keyed by the text, so it follows the line
+    // rather than the player name.
+    const _rerollSalt = new Map();
     function _runCode(raw, { fromRemote = false, author = '', color = '', authorId = '' } = {}) {
         // Track claims. A line that defines someone else's instrument is dropped —
         // whether it came off the wire or was just typed here, because running it
@@ -1519,6 +1563,12 @@
             const mm = ln.match(/^\s*~?\s*([a-zA-Z_]\w*)\s*>>/);
             if (mm) _srcByPlayer.set(mm[1], { src: ln, doc: _evalDoc || editor.getDoc() });
         }
+        // Open this eval's random scope. Under seed(n), every generator the line
+        // builds draws from (seed, this text, which pattern, which step) — so the line
+        // makes the same music every time it runs, and on every machine in the room,
+        // without the numbers themselves having to travel. _rerollSalt is what
+        // .reroll() turns: same text, deliberately different draw.
+        beginEvalScope(raw.trim(), _rerollSalt.get(raw.trim()) || 0);
         let js = transpile(raw.trim());
         js = applyRenames(js);
         log(`eval: ${raw.trim().split('\n')[0].slice(0, 70)}`, 'eval');

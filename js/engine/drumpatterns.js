@@ -16,6 +16,11 @@ const _genres = {"techno": {"kick": ["X   X   X   X   ", "X   X   X  XX   ", "X 
 const _fills  = {"techno": ["X X X X X X XXXX", "X  XX  XXXXXXX X", "X   X   XXXXXXXX", "XXXX    o o XXXX", "X X XXXX  XXXXXX", "X   X XXXXXXXXXX", "XX XX XX XXXXXXX", "X  X  X  X XXXXX"], "ebm": ["X X X X XXXXXXXX", "X X XXXXX X XXXX", "XXXXXXXXX X X X ", "XX XX XXXXXXXXXX", "X XXXXX XXXXXXXX", "XXXX X XXXXXXXXX"], "dnb": ["X  oo  oX oXoo o", "X  o  XXXX oo oo", "X     oooooooooo", "X oX oXo oo oooo", "X  oo X oooooo o", "X   oooX ooooooo"], "house": ["X   X   XXXX*  *", "X   X X X X XXXX", "X   X   * * XXXX", "X X X   XXXX* * ", "X   X ***   XXXX"], "breaks": ["X oXo oXXoXo oXo", "X  oo XoXo ooXXo", "XoXo oXoXoXo oXo", "X oo oo ooXoXo o", "X  oXoXo oo  oXo"], "halftime": ["X       oooooooo", "X     X oooXXXXX", "X       ooooo oo", "X     oo  oooooo"], "industrial": ["XXXXXXXXXXXXXXXX", "X X XXXXX X XXXX", "XX XXXXX XX XXXX", "XXXXXX XXXXXXXXX", "X XXXXXXX XXXXXX"], "reggae": ["X  X  X  X ooooo", "X  X oo  X oo oo", "X    X X  ooo oo"], "afro": ["X oXo X oXo X oX", "XoX oXoXo oXoX o", "X o oXo oXoXo oX"]};
 
 import { patGet, isGroup } from '../patterns/sequences.js';
+import { makeStream } from '../patterns/rng.js';
+// Randomness goes through rng.js so a seeded set reproduces — see seed().
+// Unseeded this IS _rnd(), so nothing changes by default.
+const _rnd = () => makeStream().next();
+
 
 const LAYER_ORDER = ['kick', 'snare', 'hat', 'perc'];
 const MUT_CHARS   = { kick: 'Xx', snare: 'oO*u', hat: '-=', perc: 'ts+:~' };

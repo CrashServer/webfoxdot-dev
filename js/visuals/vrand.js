@@ -20,6 +20,11 @@
 
 import { SCENES, SCENE_PARAMS, WS_SCENES, WS_FX_NAMES } from './vdata.js';
 import { WORKSHOP_RANGES } from './workshop/catalog.js';
+import { makeStream } from '../patterns/rng.js';
+// Randomness goes through rng.js so a seeded set reproduces — see seed().
+// Unseeded this IS _rnd(), so nothing changes by default.
+const _rnd = () => makeStream().next();
+
 
 // Layers that need something you have not given them (a camera, a file) or that exist
 // for debugging draw nothing useful when picked blind — the workshop excludes the same
@@ -58,7 +63,7 @@ const round = (v) => {
  * @returns {string} lines to paste
  */
 export function vrandLines(n = 2, seed = null) {
-    const s = (seed == null || !isFinite(seed)) ? (Math.random() * 1e9) | 0 : seed | 0;
+    const s = (seed == null || !isFinite(seed)) ? (_rnd() * 1e9) | 0 : seed | 0;
     const r = rng(s);
     const pick = (arr) => arr[Math.floor(r() * arr.length) % arr.length];
 

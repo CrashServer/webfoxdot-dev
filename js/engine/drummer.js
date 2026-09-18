@@ -11,6 +11,11 @@
 // result to the player as a normal parsed pattern.
 
 import { parsePattern } from './sampler.js';
+import { makeStream } from '../patterns/rng.js';
+// Randomness goes through rng.js so a seeded set reproduces — see seed().
+// Unseeded this IS _rnd(), so nothing changes by default.
+const _rnd = () => makeStream().next();
+
 
 // ── Groove + fill libraries (verbatim from CrashServer drumRockPattern.py) ─────
 // Grouped by category: drummer() picks a random category, then a random pattern
@@ -195,7 +200,7 @@ export function expandLayers(str, cap = 64) {
     return out;
 }
 
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const pick = (arr) => arr[Math.floor(_rnd() * arr.length)];
 
 // Random groove / fill as an expanded, ready-to-play step array.
 export function randomGroove() { return expandLayers(pick(pick(ROCK_PATTERNS))); }
