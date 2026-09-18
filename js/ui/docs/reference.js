@@ -281,7 +281,10 @@ export const PLAYER_PARAMS = [
 // ── Changelog ────────────────────────────────────────────────────────────────
 // Keep this updated with every alpha. Newest first. The version shown next to
 // the title in the toolbar should match the top entry's `v`.
-export const VERSION = 'dev01';
+// The version the app reports, and the newest group in the changelog. They have to
+// agree: the badge in the toolbar is what someone quotes when reporting something,
+// and the changelog is where you go to see what that version contains.
+export const VERSION = 'dev06';
 
 // Chained PLAYER METHODS — p1 >> saw([0,4]).unison(3).every(4, "reverse")
 //
