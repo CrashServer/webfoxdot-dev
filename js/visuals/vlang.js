@@ -343,9 +343,76 @@ class VisualPlayer {
         if (mixer && mixer.owner === this.name) mixer = null;
         return this;
     }
-    every() { return this; }
-    setAttr() { return this; }
+    /**
+     * video1.hue = 200 — live-tweak ONE control of a running layer.
+     *
+     * This was a no-op that returned `this`, so the syntax that works on every audio
+     * player (p1.lpf = 800) silently did nothing on a video layer, with no error to
+     * say so. A key the FX table knows goes to the fx bucket, everything else to the
+     * layer's params — the same split VSpec makes, so the result is what writing it
+     * into the >> line would have produced.
+     */
+    setAttr(key, value) {
+        if (key === 'ch') { setLayerChannel(this.name, value); return this; }
+        // setLayerParam / setLayerFx already hold the value when the layer is not live
+        // yet and apply it on arrival — the same path the panel's knobs go through, so
+        // typing the change and dragging it land in exactly the same place.
+        if (Object.prototype.hasOwnProperty.call(VFX, key)) setLayerFx(this.name, key, value);
+        else setLayerParam(this.name, key, value);
+        return this;
+    }
+
+    /**
+     * .every(beats, action, …) — do something to the picture on the beat grid.
+     *
+     * Was a no-op too. The actions are the ones that mean something to a LAYER
+     * rather than to a note: there is no "reverse" or "stutter" for a picture.
+     */
+    every(beats, action, ...args) {
+        const n = Number(beats);
+        if (!(n > 0) || !action) return this;
+        const gen = (_everyGen.get(this.name) || 0) + 1;
+        _everyGen.set(this.name, gen);
+        const tick = () => {
+            if (_everyGen.get(this.name) !== gen) return;      // superseded
+            if (!layers.has(this.name)) return;                // layer stopped → stop
+            this._do(String(action), args);
+            _clock && _clock.mod(n, tick);
+        };
+        _clock && _clock.mod(n, tick);
+        return this;
+    }
+
+    _do(action, args) {
+        const L = layers.get(this.name);
+        if (!L) return;
+        switch (action) {
+            case 'ch':      L.ch = L.ch ? 0 : 1; break;                       // hop decks
+            case 'stop':    this.stop(); break;
+            case 'scene':   if (args.length) L.scene = String(args[Math.floor(Math.random() * args.length)]); break;
+            case 'reroll':  _rerollFn?.(this.name, 0); break;                 // one-shot re-eval
+            default:
+                // Anything else is read as "set this control", so .every(4, 'hue', 0, 180)
+                // alternates a value on the grid without inventing a verb for it.
+                if (args.length) {
+                    const v = args[(_everyStep.get(this.name) || 0) % args.length];
+                    _everyStep.set(this.name, (_everyStep.get(this.name) || 0) + 1);
+                    this.setAttr(action, v);
+                }
+        }
+    }
+
+    /** .reroll(beats) — re-run this line every N beats so its random params re-roll. */
+    reroll(beats = 8) { _rerollFn?.(this.name, beats); return this; }
 }
+const _everyGen = new Map();
+const _everyStep = new Map();
+// The clock, for .every()'s beat grid — set from index.html alongside the others.
+let _clock = null;
+export function setVisualClock(c) { _clock = c; }
+// index.html owns re-evaluating a line (it has the source and the buffer it lives in).
+let _rerollFn = null;
+export function setVisualReroll(fn) { _rerollFn = fn; }
 
 // Extract channel index from videoN name: video1→0, video2→1, video→0
 function _wsChannel(name) {

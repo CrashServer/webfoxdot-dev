@@ -272,6 +272,7 @@
     import { matchBracket as _matchBracket, topArgs, skipString } from './js/editor/scan.js';
     import { initUiScale, setUiScale, uiScale, nudgeUiScale, onUiScaleChange, UI_SCALE_RANGE } from './js/ui/uiscale.js';
     import { setSeed, currentSeed, isSeeded, beginEvalScope } from './js/patterns/rng.js';
+    import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1492,11 +1493,21 @@
         if (!name) return;
         const gen = (_rerollGen.get(name) || 0) + 1;
         _rerollGen.set(name, gen);                     // bump → any running loop for this name stops
-        if (!(beats > 0)) { log(`reroll ${name} off`, 'info'); return; }
+        if (!(beats > 0)) {
+            // reroll(0) from a user means "stop"; from .every(n,'reroll') it means
+            // "re-roll once, now" — the repeat is already being driven by every().
+            if (beats === 0 && _rerollOnce.has(name)) { _rerollOnce.delete(name); _rerollNow(name); return; }
+            log(`reroll ${name} off`, 'info');
+            return;
+        }
         const tick = () => {
             if (_rerollGen.get(name) !== gen) return;              // superseded by a newer reroll()
-            const p = clock._players.get(name);
-            if (!p || !p._active) return;                          // player stopped/gone → stop
+            // A video layer is a player too — it just lives in a different map. The
+            // guard only knew about audio ones, so .reroll() on a layer armed a loop
+            // that gave up on its first tick.
+            const ap = clock._players.get(name);
+            const alive = _visualNames.has(name) ? isVideoLayer(name) : !!(ap && ap._active);
+            if (!alive) return;                                    // player stopped/gone → stop
             const rec = _srcByPlayer.get(name);
             if (rec) {
                 // Under seed(n) the SAME text draws the same numbers — which is the
@@ -1512,6 +1523,21 @@
         log(`reroll ${name} every ${beats}`, 'ok');
     }
     setRerollHandler(reroll);   // wire the chainable .reroll(beats) player method
+
+    // Re-run a line once, right now — used by a video layer's .every(n, 'reroll').
+    const _rerollOnce = new Set();
+    function _rerollNow(name) {
+        const rec = _srcByPlayer.get(name);
+        if (!rec) return;
+        const key = rec.src.trim();
+        _rerollSalt.set(key, (_rerollSalt.get(key) || 0) + 1);
+        runCode(rec.src, { fromRemote: true, doc: rec.doc });
+    }
+    setVisualClock(clock);
+    setVisualReroll((name, beats) => {
+        if (beats === 0) { _rerollOnce.add(name); reroll(name, 0); return; }
+        reroll(name, beats);
+    });
 
     // The buffer whose code is being evaluated right now. Anything the app WRITES
     // while running goes back here — an ascii_gen card, an audiviz anchor, material
