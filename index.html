@@ -291,6 +291,7 @@
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
     import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
+    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals } from './js/ui/trooppanel.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1529,6 +1530,37 @@
                 editor.replaceRange(pre + lines.join('\n'), { line: last, ch: editor.getLine(last).length });
                 log(`vrand: pasted ${lines.length - 1} layer${lines.length === 2 ? '' : 's'} — review, then run (Ctrl+Alt+↵)`, 'info');
                 return lines[0].replace(/^#\s*/, '');
+            },
+            // troop(host) — watch a webTroop session: their shared buffer, their
+            // telemetry, and who is typing what.
+            //
+            //   troop("192.168.1.38")   start watching
+            //   troop()                 what it is seeing right now
+            //   troop(0)                stop
+            //
+            // READ ONLY, and that is the point: the bridge underneath never writes to
+            // their document, never sets an awareness field and never sends on any of
+            // their sockets. Nothing you do here can reach a concert in progress,
+            // which is what makes it safe to open during one.
+            //
+            // In pretext mode their typing also goes to the visual code layers, so a
+            // troop rehearsal can be the picture.
+            troop: (host) => {
+                if (host === 0 || host === false || host === 'off' || host === 'stop') { stopTroop(); return null; }
+                if (host == null) {
+                    const st = troopState();
+                    if (!st) { log('troop: not watching — troop("192.168.1.38") with webTroop\'s HOST_IP', 'info'); return null; }
+                    const c = st.connected;
+                    log(`troop: ${st.host} · code ${c.code ? 'up' : 'down'} · telemetry ${c.telemetry ? 'up' : 'down'}` +
+                        ` · ${st.peers.length} player${st.peers.length === 1 ? '' : 's'}` +
+                        ` · ${st.code.split('\n').filter(Boolean).length} lines`, 'info');
+                    for (const [k, v] of Object.entries(st.stats)) log(`  ${k}: ${Array.isArray(v) ? v.join(' ') : v}`, 'info');
+                    return st;
+                }
+                let v = host;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                startTroop(String(v).trim());
+                return String(v).trim();
             },
             // compo_base(parts, beats, family) — a skeleton arrangement to write into.
             //
@@ -3028,6 +3060,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // ── A set as a FILE ──────────────────────────────────────────────────────
     // It lived in localStorage and in a #c= URL and nowhere else, so a track written
     // as a .py on disk — which is where people keep them — got in by being pasted.
+    initTroopPanel({ log });
     initSetFile({
         get:  () => editor.getValue(),
         // Into a new buffer: opening a file should never be the thing that loses what

@@ -382,6 +382,7 @@ const FLOATING = [
     { sel: '#rules-modal',    id: 'wfd-rules',   group: 'collab', title: 'room rules', btn: '#btn-rules',    x:1284, y:1310, w: 360, h: 400, minW: 280, minH: 180 },
     { sel: '#piano-modal',    id: 'wfd-piano',   group: 'tools',  title: 'piano',      btn: '#btn-piano',    x:   0, y:2334, w: 660, h: 260, minW: 340, minH: 200 },
     { sel: '#scenes-modal',   id: 'wfd-scenes',  group: 'tools',  title: 'scenes',     btn: '#btn-scenes',   x: 680, y:2334, w: 880, h: 560, minW: 340, minH: 220 },
+    { sel: '#troop-modal',    id: 'wfd-troop',   group: 'collab', title: 'troop',      btn: null,            x:1600, y:2334, w: 720, h: 520, minW: 360, minH: 220 },
     // The galaxy paints an absolutely-positioned starfield canvas, so its host needs
     // to be a positioned ancestor — see .wfd-hosted below.
     { sel: '#galaxy-overlay', id: 'wfd-galaxy',  group: 'collab', title: 'galaxy',     btn: '#btn-galaxy',   x: 962, y:1732, w: 820, h: 580, minW: 320, minH: 240, attr: true },
