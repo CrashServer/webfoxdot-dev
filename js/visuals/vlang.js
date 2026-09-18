@@ -141,7 +141,14 @@ const VFX = { trails: 0.7, feedback: 0.8, blur: 0.5, bloom: 0.6, scan: 0.5, vign
               // NEUTRAL AT 1, unlike everything above it: sat(0) is greyscale, sat(2)
               // is lurid, sat() on its own is a small lift. ceiling(0.8) caps output
               // brightness — the answer to bloom stacking to solid white.
-              sat: 1.4, exposure: 1.15, contrast: 1.2, ceiling: 0.85 };
+              sat: 1.4, exposure: 1.15, contrast: 1.2, ceiling: 0.85,
+              // ── Colour maths, whole-frame ─────────────────────────────────
+              // These exist per-layer in the workshop's 52. They are here as well
+              // because a FIELD scene cannot take a per-layer effect at all — it is
+              // one shader evaluating a scalar field, not a canvas to draw over — so
+              // 49 of the 255 scenes were shut out of them entirely, and nothing
+              // could apply them to the finished MIX at all.
+              rgbshift: 0.5, grain: 0.4, solarize: 0.7, threshold: 0.5, tint: 0.08, halftone: 0.6 };
 
 export function visualBuilders() {
     const out = {};

@@ -208,6 +208,14 @@ uniform float uDroste, uFold, uHue, uDither, uPixelsort, uMirror, uEdge, uPixela
 // they are three multiplies at the end of a pass that is already running, so the
 // neutral case costs nothing and the active case costs nothing either.
 uniform float uSat, uExposure, uContrast, uCeiling;
+// Colour maths the WHOLE FRAME can have, not just a workshop layer.
+//
+// The workshop ships 52 per-layer effects and crashDot had 27 whole-frame ones, so
+// which effects existed depended on which KIND of scene you happened to pick: a
+// workshop layer could be run through vhs or halftone, a field scene could not, and
+// nothing could apply either to the finished mix. These six are the ones that are
+// pure per-pixel maths, so they cost a few lines in a pass that is already running.
+uniform float uRgbshift, uGrain, uSolarize, uThreshold, uTint, uHalftone;
 // lut — the finished frame's luminance, read through a palette ramp.
 // palette() only ever steered FIELD scenes: a workshop layer brings its own colour and
 // nothing could recolour it, which left 206 of the 255 scenes outside the palette
@@ -249,6 +257,11 @@ void main(){
         uv = (floor(uv * g) + 0.5) / g;
     }
     vec3 c = texture(uTex, uv).rgb;
+    if (uRgbshift > 0.001){                            // chromatic aberration: split R and B radially
+        vec2 dir = (uv - 0.5) * uRgbshift * 0.05;
+        c.r = texture(uTex, clamp(uv + dir, 0.0, 1.0)).r;
+        c.b = texture(uTex, clamp(uv - dir, 0.0, 1.0)).b;
+    }
     if (uDroste > 0.001){                              // recursive log-spiral zoom (fxl_droste)
         vec2 p = uv - 0.5; float r = length(p) + 1e-5, ang = atan(p.y, p.x);
         float period = log(2.0);
@@ -327,6 +340,31 @@ void main(){
         float d = length(uv - 0.5);
         c *= 1.0 - uVignette * smoothstep(0.35, 0.85, d);
     }
+    if (uHalftone > 0.001){                            // print dot screen over the luminance
+        float n = mix(220.0, 26.0, clamp(uHalftone, 0.0, 1.0));
+        vec2 g = vec2(n, max(1.0, floor(n * uRes.y / uRes.x)));
+        vec2 cell = fract(uv * g) - 0.5;
+        float dot_ = 1.0 - smoothstep(0.0, 0.5, length(cell) / max(0.001, sqrt(luma(c))));
+        c = mix(c, vec3(dot_) * (c / max(0.001, luma(c))), clamp(uHalftone, 0.0, 1.0));
+    }
+    if (uSolarize > 0.001){                            // invert above the midpoint (Sabattier)
+        vec3 sol = mix(c, 1.0 - c, step(0.5, c));
+        c = mix(c, sol, clamp(uSolarize, 0.0, 1.0));
+    }
+    if (uThreshold > 0.001){                           // hard cut to black and white
+        float y = luma(c);
+        float t = 1.0 - clamp(uThreshold, 0.0, 1.0);
+        c = mix(c, vec3(smoothstep(t - 0.02, t + 0.02, y)), clamp(uThreshold, 0.0, 1.0));
+    }
+    if (uTint > 0.0001){                               // push the whole frame toward one hue
+        float h = fract(uTint);
+        vec3 target = clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+        c = mix(c, target * luma(c) * 2.0, 0.65);
+    }
+    if (uGrain > 0.001){                               // film grain, moving so it does not read as texture
+        float g = hash1(floor(uv.x * uRes.x) + floor(uv.y * uRes.y) * 1367.0 + floor(uTime * 24.0) * 7919.0);
+        c += (g - 0.5) * uGrain * 0.35;
+    }
     // ── master grade, last, over everything ──
     if (uExposure != 1.0) c *= uExposure;
     if (uContrast != 1.0) c = (c - 0.5) * uContrast + 0.5;
@@ -385,6 +423,7 @@ export function createGLRenderer(canvas) {
     for (const n of ['uTex', 'uRes', 'uTime', 'uGlitch', 'uScan', 'uVignette', 'uInvert', 'uBlur', 'uBloom', 'uPosterize',
         'uDroste', 'uFold', 'uHue', 'uDither', 'uPixelsort', 'uMirror', 'uEdge', 'uPixelate',
         'uSat', 'uExposure', 'uContrast', 'uCeiling',
+        'uRgbshift', 'uGrain', 'uSolarize', 'uThreshold', 'uTint', 'uHalftone',
         'uPal', 'uNPal', 'uLut', 'uLutMix']) pLoc[n] = gl.getUniformLocation(presentProg, n);
 
     // palette LUT texture (256 × NPAL): all palettes baked once, linear-sampled in x
@@ -590,6 +629,12 @@ export function createGLRenderer(canvas) {
         gl.uniform1f(pLoc.uExposure, num(fx.exposure, 1));
         gl.uniform1f(pLoc.uContrast, num(fx.contrast, 1));
         gl.uniform1f(pLoc.uCeiling, num(fx.ceiling, 1));
+        gl.uniform1f(pLoc.uRgbshift, num(fx.rgbshift, 0));
+        gl.uniform1f(pLoc.uGrain, num(fx.grain, 0));
+        gl.uniform1f(pLoc.uSolarize, num(fx.solarize, 0));
+        gl.uniform1f(pLoc.uThreshold, num(fx.threshold, 0));
+        gl.uniform1f(pLoc.uTint, num(fx.tint, 0));
+        gl.uniform1f(pLoc.uHalftone, num(fx.halftone, 0));
         // lut() carries the palette in its VALUE (1-based), and how much of it in
         // lutmix — so lut(3) is a full recolour and lut(3) + lutmix(0.4) is a tint.
         gl.uniform1f(pLoc.uLut, num(fx.lut, 0));

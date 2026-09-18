@@ -31,7 +31,11 @@ const WS_FX = new Set(WORKSHOP_FX_NAMES);
 // AMOUNT keys are neutral at 0 → loudest intent wins.
 const AMOUNT = ['trails', 'feedback', 'glitch', 'scan', 'vignette', 'invert', 'blur', 'bloom',
                 'posterize', 'droste', 'fold', 'hueshift', 'dither', 'pixelsort', 'mirror',
-                'edge', 'pixelate', 'displace', 'lumakey', 'matte', 'freeze', 'lut'];
+                'edge', 'pixelate', 'displace', 'lumakey', 'matte', 'freeze', 'lut',
+                // Colour maths promoted from the workshop's per-layer set, so the
+                // whole frame — and the 49 field scenes, which cannot take a per-layer
+                // effect at all — can have them too.
+                'rgbshift', 'grain', 'solarize', 'threshold', 'tint', 'halftone'];
 // GRADE keys are neutral at 1 → furthest from neutral wins. lutmix is one of these:
 // max() only ever takes a LARGER value, so a lutmix of 0.5 could never beat its own
 // default and a partial tint was impossible.
