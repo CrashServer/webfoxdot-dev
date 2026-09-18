@@ -131,6 +131,30 @@ async function main() {
     T('the editor text actually grows with the interface', Math.abs(grew - 1.6) < 0.1,
       `characters grew ${grew.toFixed(2)}x, expected 1.6`);
 
+    // ── stop ─────────────────────────────────────────────────────────────────
+    const stop = JSON.parse(await p.evaluate(`(async () => {
+        const btn = document.getElementById('btn-stop');
+        btn.disabled = false;
+        const last = () => [...document.querySelectorAll('#log div')].slice(-1)
+            .map(e => e.textContent.replace(/^\\[[^\\]]*\\]\\s*/, ''))[0] || '';
+        btn.click(); await new Promise(r => setTimeout(r, 150)); const first = last();
+        btn.click(); await new Promise(r => setTimeout(r, 150)); const second = last();
+        await new Promise(r => setTimeout(r, 2300));          // let the window lapse
+        btn.click(); await new Promise(r => setTimeout(r, 150)); const later = last();
+        // Ctrl+; from a TEXT FIELD — it used to be swallowed as "let inputs keep the key",
+        // which is right for a bare keystroke and wrong for the panic button.
+        const inp = document.getElementById('bpm-input'); if (inp) inp.focus();
+        const before = document.querySelectorAll('#log div').length;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: ';', ctrlKey: true, bubbles: true, cancelable: true }));
+        await new Promise(r => setTimeout(r, 200));
+        const fromField = document.querySelectorAll('#log div').length > before;
+        return JSON.stringify({ first, second, later, fromField });
+    })()`));
+    T('one press stops and says the tails are ringing', /press stop again/.test(stop.first), stop.first);
+    T('a second press cuts them', /freed/.test(stop.second), stop.second);
+    T('after the window it is a soft stop again', /press stop again/.test(stop.later), stop.later);
+    T('Ctrl+; reaches the panic button from a text field', stop.fromField);
+
     // ── a set as a file ──────────────────────────────────────────────────────
     const drop = JSON.parse(await p.evaluate(`(async () => {
         const file = new File(['# from disk\\np1 >> pluck([0,2,4])\\n'], 'a_track.py', { type: 'text/plain' });

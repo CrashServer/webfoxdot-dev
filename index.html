@@ -550,7 +550,7 @@
                         log(`failed on ${msg.from}: ${msg.message}  —  ${msg.line}`, 'error');
                     break;
                 case 'perfFX':   applyRemoteFX(msg.fx, msg.on);                    break;
-                case 'stopAll':  stopAll(); log('a peer stopped everything', 'warn'); break;
+                case 'stopAll':  stopAll({ hard: true }); log('a peer stopped everything', 'warn'); break;
             }
         });
     }
@@ -1045,7 +1045,27 @@
     // advance can't restart playback), stop every player, stop the generative jam bot
     // (else its loop respawns players), and FREEZE the tempo (a Clock.bpm linvar/ramp
     // would otherwise keep evolving after everything's silent).
-    function stopAll() {
+    // ── Stop, and stop MEANING it ────────────────────────────────────────────
+    // Stopping a player stops it being SCHEDULED. It does not silence what is already
+    // sounding, and it cannot: the voices have no gate — every synthdef ends in
+    // Env(…, doneAction: 2) and frees ITSELF when its envelope completes — so the only
+    // ways to cut one short are to free its node (a click) or to wait.
+    //
+    // Waiting is the right default: it is what stops #@end and stop-all from clicking,
+    // and it is why the FX teardown is deferred. But "the right default" is not the
+    // same as "what you wanted", and with a pad on sus=32, a drone, or a long reverb
+    // it is thirty seconds of sound after you asked for silence — which reads exactly
+    // like the stop button not working.
+    //
+    // So it escalates, on the gesture you were already making: press it again and it
+    // frees the nodes. No new shortcut to learn, the musical behaviour stays the
+    // default, and there is always a way to make it stop now.
+    let _lastStopAt = 0;
+    const HARD_STOP_MS = 2000;
+    function stopAll({ hard = false } = {}) {
+        const now = Date.now();
+        const escalate = hard || (now - _lastStopAt < HARD_STOP_MS);
+        _lastStopAt = now;
         cancelSection();
         clock.clear();
         if (_jamBot) _jamBot.stop(true);        // stop son()/chaos jam-bot loop + its g* players
@@ -1058,6 +1078,15 @@
         // either. "Stop everything" should mean everything.
         stopAudiviz(true);
         clock.bpm = clock.bpm;                  // sampling a TimeVar → freeze at the current value
+        if (escalate) {
+            // The hard cut: flush both schedulers and free every player and FX node.
+            // This is what RELOAD has always done; it just had no gesture short of
+            // reaching for the toolbar.
+            _panicFn(clock);
+            log('■■ cut — every sounding node freed', 'warn');
+        } else {
+            log('■ stopped — tails still ringing; press stop again to cut them', 'info');
+        }
     }
 
     // PANIC — stopAll(), but for everyone in the room.
@@ -1068,7 +1097,7 @@
     // harder-to-hit gesture rather than a change to that one — Ctrl+Shift+. , shift-
     // clicking ■ , or evaluating panic().
     function panic() {
-        stopAll();
+        stopAll({ hard: true });   // "panic" should not need asking twice
         broadcastAction('stopAll');
         log(_collab ? 'PANIC — stopped everything, for the whole room' : 'stopped all', 'warn');
     }
@@ -2664,8 +2693,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.addEventListener('keydown', (e) => {
         if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
         if (e.key !== ';' && e.key !== ',') return;
-        const el = document.activeElement, tag = el && el.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;   // let inputs keep the key
+        const el = document.activeElement;
+        // NOT skipped in a text field. The original guard was "let inputs keep the
+        // key", which is right for a bare keystroke and wrong for a modifier combo:
+        // Ctrl+; is not something anyone types into a search box, and the panel now
+        // has several places to be focused — the docs search, the scene filter, the
+        // chat, the BPM field — where the panic button quietly did nothing.
         if (el && el.closest && el.closest('.CodeMirror')) return;   // editor keymap handles it
         stopAll();
         e.preventDefault();
@@ -3023,8 +3056,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // Shift makes it room-wide; without it this is the private escape hatch,
             // same as the "stop all" button.
             if (e.shiftKey) { panic(); return; }
-            stopAll();
-            log('stopped all', 'info');
+            stopAll();   // says what it did, and whether a second press will cut the tails
         }
     });
 
