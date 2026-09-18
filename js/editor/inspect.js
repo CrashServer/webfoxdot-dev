@@ -4,7 +4,9 @@
 
 import { SYNTH_DEFS }  from '../synths/registry.js';
 import { FX_REGISTRY } from '../fx/registry.js';
-import { PATTERNS, TIMEVARS, FUNCTIONS, PLAYER_PARAMS, METHODS } from '../ui/docs.js';
+// The vocabulary tables only — not the panel. These used to come from docs.js,
+// which meant a tooltip pulled in the whole changelog and examples library too.
+import { PATTERNS, TIMEVARS, FUNCTIONS, PLAYER_PARAMS, METHODS } from '../ui/docs/reference.js';
 
 // Build a name → { kind, sig, desc } lookup once.
 let _defs = null;

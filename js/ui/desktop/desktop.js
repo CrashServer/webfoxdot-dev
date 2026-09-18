@@ -27,7 +27,7 @@ import { buildLayersPanel } from './layerspanel.js';
 import { buildPerfPanel }   from '../perfpanel.js';
 import { initCanvasMenu } from './menu.js';
 import { initHud } from './hud.js';
-import { changelogHTML } from '../docs.js';
+import { changelogHTML } from '../docs/changelog.js';
 
 /**
  * Give one of the floating overlays a panel, whenever its root shows up.

@@ -10,7 +10,7 @@
 
 import { collabHttpBase } from '../net/serverUrls.js';
 import { navUrl }           from '../net/appurl.js';
-import { exampleList }    from '../ui/docs.js';
+import { exampleList }    from '../ui/docs/examples.js';
 
 function hash(str) {
     let h = 2166136261;

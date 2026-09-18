@@ -590,6 +590,32 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: var(--border-2); opacity: .6;
 }
 
+/* ── Docs search ─────────────────────────────────────────────────────────── */
+#docs-search {
+    margin-left: auto; margin-right: 6px; min-width: 130px; max-width: 220px;
+    background: var(--bg-1); color: var(--text-1);
+    border: 1px solid var(--border-2); border-radius: 2px;
+    font-family: monospace; font-size: 11px; padding: 2px 6px;
+}
+#docs-search:focus { outline: none; border-color: var(--accent, var(--text-1)); }
+.docs-results { display: flex; flex-direction: column; gap: 1px; }
+.docs-hit {
+    display: grid; grid-template-columns: 62px 190px 1fr; gap: 8px; align-items: baseline;
+    padding: 4px 8px; cursor: pointer; border-left: 2px solid transparent;
+}
+.docs-hit:hover { background: var(--bg-2); border-left-color: var(--accent, var(--text-1)); }
+.docs-hit-kind {
+    font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-2); text-align: right;
+}
+.docs-hit-name { font-family: monospace; font-size: 11px; color: var(--text-1); }
+.docs-hit-desc {
+    font-size: 10.5px; color: var(--text-2); line-height: 1.35;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.docs-hit mark { background: none; color: var(--accent, #ffd166); font-weight: bold; }
+@media (max-width: 760px) { .docs-hit { grid-template-columns: 54px 1fr; } .docs-hit-desc { grid-column: 1 / -1; } }
+
 .ui-size-row { gap: 4px; margin-top: 4px; }
 #cp-settings .ui-size-row .cp-btn { flex: 0 0 auto; min-width: 22px; padding: 1px 6px; }
 #cp-settings .ui-size-row #btn-uisize-reset { flex: 0 1 auto; }

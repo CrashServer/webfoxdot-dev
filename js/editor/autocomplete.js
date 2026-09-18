@@ -5,7 +5,7 @@
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
 import { SCENES as VSCENES, WS_SCENES, sceneParams, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
-import { exampleList, exampleCode } from '../ui/docs.js';
+import { exampleList, exampleCode } from '../ui/docs/examples.js';
 import { ASCII_STYLES } from '../ui/ascii.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);

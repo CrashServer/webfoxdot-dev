@@ -79,6 +79,8 @@
         <button class="docs-tab" data-tab="guide">Guide</button>
         <button class="docs-tab" data-tab="visuals" style="display:none">Visuals</button>
         <button class="docs-tab" data-tab="changelog">Changelog</button>
+        <input id="docs-search" type="search" placeholder="search…" spellcheck="false"
+               title="search every tab at once — names first, then descriptions. Esc clears. Click a result to paste its call.">
         <button id="docs-close">✕</button>
       </div>
       <div id="docs-body"></div>
@@ -315,7 +317,7 @@
              liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
              setLayerFx as setVisualFx, VFX_DEFAULTS as visualFxDefaults,
              clearAll as clearVisuals, stopVisual as stopVisualLayer } from './js/visuals/vlang.js';
-    import { initDocs, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
+    import { initDocs, setDocsInsert, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
     import { setVisualHint } from './js/visuals/bridge.js';
     import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas, liveDeck as liveVisualDeck, setDeckLog } from './js/visuals/surface.js';
@@ -2864,6 +2866,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // ── Docs ──────────────────────────────────────────────────────────────────
     initDocs();
+    // A search hit's call lands in the buffer you are writing in — looking something
+    // up is usually the first half of using it.
+    setDocsInsert((text) => { insertCode(text + '\n', { run: false }); toggleDocs(); });
     initGalaxy((id) => { setEditorContent(exampleCode(id)); log('loaded example — edit & run', 'info'); });
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
