@@ -25,7 +25,8 @@
 
 const STORAGE_KEY = "wfd-desktop-view";
 
-// Fine dot pitch at zoom=1 (matches panel.js GRID for snap alignment).
+// Fine dot pitch at zoom=1. Purely visual — panels no longer snap to it (see the
+// snapping note in panel.js), so this is the only place it is defined.
 const GRID = 22;
 
 // The default layout's footprint, drawn as a faint "home" rectangle. It starts

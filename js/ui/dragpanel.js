@@ -31,6 +31,15 @@ export function draggable(handle, el = handle?.parentElement, ignore = 'button, 
     if (!handle || !el) return;
     handle.addEventListener('pointerdown', (e) => {
         if (ignore && e.target.closest(ignore)) return;
+        // In the desktop, these modules are HOSTED inside a desktop panel: the CSS
+        // pins them with `left/top: auto !important` and the panel's own beginDrag is
+        // registered on this very header (see panel.js addDragHandle). Both handlers
+        // then fire on one pointerdown — the panel moves, and this one goes on writing
+        // inline left/top that !important neutralises. Invisible there, but those
+        // coordinates are real, and they are what the modal wears when the desktop
+        // rules stop applying: switch back to classic and it reappears wherever the
+        // last hosted drag happened to leave it.
+        if (el.classList.contains('wfd-hosted')) return;
         const r = el.getBoundingClientRect();
         active = { el, ox: r.left, oy: r.top, sx: e.clientX, sy: e.clientY };
         // Pin it to where it currently IS before switching to left/top positioning:
