@@ -103,6 +103,12 @@ const WHITE = [0, 2, 4, 5, 7, 9, 11];
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 let _oct = 5, _synth = 'pluck', _sus = 0.5, _amp = 0.7, _snap = true, _octaves = 2;
+// Off-scale keys hidden by default: in a minor scale five of the twelve do not
+// belong to the music you are writing, and a keyboard that shows only what is in
+// the key is the difference between hunting for a note and reading one. Off it is
+// an ordinary chromatic keyboard again — the button is there because a passing tone
+// is a real thing to want.
+let _hideOutOfScale = true;
 // Live values for the current synth's own parameters, and the defaults they were
 // read from — only what you have actually MOVED goes into the generated line.
 let _params = {}, _paramDefs = {};
@@ -281,6 +287,7 @@ function build() {
             <span class="piano-ctl">sus <input class="piano-sus" type="range" min="0.05" max="2" step="0.05" value="0.5"></span>
             <span class="piano-ctl">amp <input class="piano-amp" type="range" min="0.05" max="1.2" step="0.05" value="0.7"></span>
             <button class="piano-snap on" title="snap off-scale keys to the current scale — keeps what you record playable as degrees">snap</button>
+            <button class="piano-inkey on" title="show only the keys that are IN the current scale. The gaps are the shape of the scale; turn it off for a full chromatic keyboard. Does nothing in a chromatic scale, where every key belongs.">in key</button>
             <button class="piano-midi" title="play this piano from a MIDI keyboard — same synth, same knobs, and it records like the on-screen keys">midi</button>
             <div class="piano-drag"></div>
             <button class="piano-close" title="close">×</button>
@@ -315,6 +322,7 @@ function build() {
     // moment you go to use it, which is the only moment it has to be right.
     for (const ev of ['pointerdown', 'focus']) q('.piano-target').addEventListener(ev, renderTargets);
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
+    q('.piano-inkey').onclick = (e) => { _hideOutOfScale = !_hideOutOfScale; e.target.classList.toggle('on', _hideOutOfScale); render(); };
     q('.piano-midi').onclick = (e) => setMidi(!_midiOn, e.target);
     q('.piano-synth').onchange = (e) => { _synth = e.target.value; buildParamKnobs(); };
     q('.piano-rec').onclick = () => {
@@ -516,6 +524,9 @@ function render() {
     renderTargets();
 
     const { scale, root } = _ctx.scale();
+    // In a chromatic scale every key is available, so there is nothing to hide and
+    // hiding nothing is the same keyboard — the flag only matters off it.
+    const hideOut = _hideOutOfScale && !isChromatic(scale);
     const keys = _modal.querySelector('.piano-keys');
     keys.innerHTML = '';
     // White keys carry the layout; black keys are absolutely placed over them, so the
@@ -524,21 +535,33 @@ function render() {
     for (let i = 0; i < whiteCount; i++) {
         const oc = Math.floor(i / WHITE.length), semi = WHITE[i % WHITE.length];
         const midi = (_oct + oc) * 12 + semi;
-        keys.appendChild(mkKey(midi, false, i / whiteCount, 1 / whiteCount, scale, root));
+        keys.appendChild(mkKey(midi, false, i / whiteCount, 1 / whiteCount, scale, root, hideOut));
     }
     for (let i = 0; i < whiteCount - 1; i++) {
         const oc = Math.floor(i / WHITE.length), semi = WHITE[i % WHITE.length];
-        if (!WHITE.includes(semi + 1)) {          // a black key sits above this white one
+        // (semi + 1) % 12, not semi + 1. Without the wrap, B (11) asks whether 12 is
+        // a white key — 12 is not in the list, because the list is pitch CLASSES — so
+        // it drew a black key between B and C, where a piano has none.
+        if (!WHITE.includes((semi + 1) % 12)) {   // a black key sits above this white one
             const midi = (_oct + oc) * 12 + semi + 1;
-            keys.appendChild(mkKey(midi, true, (i + 0.68) / whiteCount, 0.64 / whiteCount, scale, root));
+            keys.appendChild(mkKey(midi, true, (i + 0.68) / whiteCount, 0.64 / whiteCount, scale, root, hideOut));
         }
     }
 }
 
-function mkKey(midi, black, left, width, scale, root) {
+// A scale that admits every pitch class is chromatic, however it is spelled — so
+// this asks the scale rather than trusting a name, and a 12-note custom scale
+// behaves like one too.
+function isChromatic(scale) { return new Set(scale.map(n => ((n % 12) + 12) % 12)).size >= 12; }
+
+function mkKey(midi, black, left, width, scale, root, hideOut) {
     const el = document.createElement('div');
+    const on = inScale(midi, scale, root);
+    // Out-of-scale keys are HIDDEN rather than removed: the geometry of a keyboard is
+    // how you read it, and a C is only recognisable as a C because of where it sits.
+    // Leaving the gaps means the shape of the scale is visible at a glance.
     el.className = 'pk' + (black ? ' pk-black' : '')
-        + (inScale(midi, scale, root) ? ' pk-in' : '');
+        + (on ? ' pk-in' : '') + (!on && hideOut ? ' pk-hidden' : '');
     el.dataset.midi = midi;
     el.style.left = (left * 100) + '%';
     el.style.width = (width * 100) + '%';
