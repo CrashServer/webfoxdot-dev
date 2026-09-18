@@ -37,6 +37,7 @@
       <button id="btn-reload" title="soft reload — stop everything &amp; free stuck audio nodes without a page refresh">reload</button>
       <button id="btn-vperf" title="how much of the main thread the picture may take. The audio ENGINE runs on its own thread and is never starved; what shares this one is the note SCHEDULER, which has 120ms of slack before a note is late. Click to cycle: balanced &#183; audio first &#183; video first">perf: balanced</button>
       <span id="vperf-status" title="what the visuals are actually costing right now &#8212; frames drawn per second, and the milliseconds each one takes off the note scheduler"></span>
+      <button id="btn-scenes" title="scene browser — all 255 visual scenes as live thumbnails; click one to write its line">scenes</button>
       <button id="btn-mixer" title="mixer — a fader per track (persistent volume) + master, with per-part levels">mix</button>
       <button id="btn-parts" title="parts — browse every example's #@ sections and click one into your set as a #@ section + attack() line">parts</button>
       <button id="btn-piano" title="virtual piano — play any synth with the mouse or the computer keyboard, record what you play, and turn it into a player line">piano</button>
@@ -283,6 +284,7 @@
     import { setSeed, currentSeed, isSeeded, beginEvalScope } from './js/patterns/rng.js';
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
+    import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1197,6 +1199,8 @@
                 });
                 return live.length ? '\u25a0 saving take…' : '\u25cf recording…';
             },
+            // scenes() — the contact sheet. 255 of them and no way to see any.
+            scenes: () => { toggleSceneBrowser(); return '\u25a6 scenes'; },
             // seed()  reports  ·  seed(42) fixes it  ·  seed(null)/seed(0) back to free.
             //
             // Under a seed every generator draws from (seed, the line's own text, which
@@ -2529,6 +2533,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.getElementById('btn-stop').onclick  = (e) => e.shiftKey ? panic() : stopAll();
     document.getElementById('btn-reload').onclick = softReload;
     document.getElementById('btn-mixer').onclick  = () => toggleMixer();
+    document.getElementById('btn-scenes').onclick = () => toggleSceneBrowser();
     document.getElementById('btn-modular').onclick = () => toggleModular();
     document.getElementById('btn-perform').onclick = () => togglePerform();
 
@@ -2869,6 +2874,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // A search hit's call lands in the buffer you are writing in — looking something
     // up is usually the first half of using it.
     setDocsInsert((text) => { insertCode(text + '\n', { run: false }); toggleDocs(); });
+    initSceneBrowser({ insert: (text) => insertCode(text + '\n', { run: false }), log });
     initGalaxy((id) => { setEditorContent(exampleCode(id)); log('loaded example — edit & run', 'info'); });
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });

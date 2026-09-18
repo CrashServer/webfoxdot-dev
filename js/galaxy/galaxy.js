@@ -438,12 +438,13 @@ export function initGalaxy(onPickExample) {
         fit();
         poll().then(fit);                     // refit once real jams arrive
         pollTimer = setInterval(poll, 2500);
-        cancelAnimationFrame(raf); raf = requestAnimationFrame(draw);
+        if (raf) cancelAnimationFrame(raf);   // ids are recycled — never cancel a number we no longer own
+        raf = requestAnimationFrame(draw);
     }
     function hide() {
         overlay.hidden = true; open = false;
         if (tip) tip.hidden = true;
-        clearInterval(pollTimer); cancelAnimationFrame(raf);
+        clearInterval(pollTimer); if (raf) cancelAnimationFrame(raf); raf = 0;
     }
 
     btn.onclick = () => (open ? hide() : show());

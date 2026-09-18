@@ -590,6 +590,51 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: var(--border-2); opacity: .6;
 }
 
+/* ── Scene browser — the contact sheet ───────────────────────────────────── */
+#scenes-modal {
+    position: fixed; left: 40px; top: 60px; z-index: 130;
+    width: 860px; max-width: 94vw; height: 560px; max-height: 84vh;
+    background: var(--bg-2); border: 1px solid var(--border-2);
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5);
+    font-family: monospace; font-size: 11px;
+    display: flex; flex-direction: column;
+}
+.scenes-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px; cursor: move;
+    background: var(--bg-1); border-bottom: 1px solid var(--border-2);
+}
+.scenes-title { color: var(--text-1); font-weight: bold; }
+.scenes-filter {
+    margin-left: auto; min-width: 120px;
+    background: var(--bg-2); color: var(--text-1);
+    border: 1px solid var(--border-2); border-radius: 2px;
+    font-family: monospace; font-size: 11px; padding: 2px 6px;
+}
+.scenes-count { color: var(--text-2); font-size: 10px; min-width: 56px; text-align: right; }
+.scenes-close { background: none; border: none; color: var(--text-2); cursor: pointer; font-size: 12px; }
+.scenes-close:hover { color: var(--text-1); }
+.scenes-grid {
+    flex: 1; overflow-y: auto; padding: 8px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px;
+    align-content: start;
+}
+.scene-cell { cursor: pointer; border: 1px solid transparent; background: #000; }
+.scene-cell canvas { display: block; width: 100%; height: auto; background: #000; }
+.scene-cell:hover { border-color: var(--accent, var(--text-1)); }
+.scene-name {
+    font-size: 9.5px; color: var(--text-2); padding: 2px 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: var(--bg-1);
+}
+.scene-cell:hover .scene-name { color: var(--text-1); }
+/* A layer that threw while drawing its thumbnail — say so, rather than show a black
+   square that reads exactly like a scene which happens to start dark. */
+.scene-dead canvas { opacity: .25; }
+.scene-dead .scene-name::after { content: ' \26A0'; color: var(--text-2); }
+.scenes-hint { padding: 3px 8px; color: var(--text-2); font-size: 9.5px; border-top: 1px solid var(--border-2); }
+
+
 /* ── Docs search ─────────────────────────────────────────────────────────── */
 #docs-search {
     margin-left: auto; margin-right: 6px; min-width: 130px; max-width: 220px;

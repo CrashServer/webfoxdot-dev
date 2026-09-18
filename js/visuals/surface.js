@@ -155,13 +155,18 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
             if (!r || on) return false;
             on = true;
             canvas.style.display = 'block';
-            cancelAnimationFrame(raf);
+            // Clear the id after cancelling. Browsers RECYCLE requestAnimationFrame
+            // ids, so a surface that stopped long ago is holding a number the browser
+            // has since handed to somebody else — and cancelling it kills THEIR loop,
+            // not a stale one of ours. (Found when the scene browser's sheet stopped
+            // developing after three frames: it had been given this surface's old id.)
+            if (raf) { cancelAnimationFrame(raf); raf = 0; }
             raf = requestAnimationFrame(frame);
             return true;
         },
         stop() {
             on = false;
-            cancelAnimationFrame(raf);
+            if (raf) { cancelAnimationFrame(raf); raf = 0; }
             canvas.style.display = 'none';
         },
         toggle(v) { const next = v === undefined ? !on : !!v; next ? this.start() : this.stop(); return on; },

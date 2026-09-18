@@ -31,6 +31,11 @@ export async function connect(port) {
     await send('Page.enable', {}, sessionId);
     await send('Page.navigate', { url }, sessionId);
     return {
+      // Close the tab when done. A suite that opens a page per run and never closes
+      // one leaves a browser full of live crashDot instances, each with its own
+      // timers and canvases — which is a slow machine and a test that times out for
+      // reasons that have nothing to do with the code.
+      close: () => send('Target.closeTarget', { targetId }),
       problems: () => events.filter(e => e.s === sessionId),
       async evaluate(expr) {
         const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }, sessionId);
