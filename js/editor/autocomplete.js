@@ -317,7 +317,7 @@ const GLOBALS = [
     // every one is documented and several take an argument the menu can complete,
     // but none of them was offered, so the completion never fired because you had
     // to type the whole name to get to it.
-    'ascii_gen(','audiviz(','audioviz(','theme(','uisize(','seed(','scenes()','record(','recall(','panel(','rgbshift(','grain(','solarize(','threshold(','tint(','halftone(','language(','attack(','modular()','panic()',
+    'ascii_gen(','audiviz(','audioviz(','theme(','uisize(','seed(','scenes()','record(','recall(','panel(','compo_base(','rgbshift(','grain(','solarize(','threshold(','tint(','halftone(','language(','attack(','modular()','panic()',
     // The visual globals. Same story as the line above: every one is documented and
     // none of them was offered, so you had to already know the name to find it.
     'palette(','vmode(','vres(','wres(','vfps(','vbudget(','vperf(','vsnap(','vrand(',
@@ -459,6 +459,16 @@ function panelItems() {
     return all.map((p, i) => item(`"${p.id}"`, 'hint-keyword',
         `${p.open ? '●' : '○'} ${p.title}   · or panel(${i})`));
 }
+// compo_base(n, beats, family) — the third argument is a word family.
+const PART_FAMILY_HINTS = [
+    ['cities', 'lisbon · tangier · osaka'], ['birds', 'kestrel · godwit · shrike'],
+    ['beasts', 'marten · lynx · caracal'],  ['weather', 'squall · sirocco · thaw'],
+    ['stones', 'basalt · obsidian · flint'],['water', 'fathom · riptide · shoal'],
+    ['machine', 'flywheel · rotor · gantry'],
+];
+function partFamilyItems() {
+    return PART_FAMILY_HINTS.map(([n, eg]) => item(`"${n}"`, 'hint-keyword', `${n}   ${eg}`));
+}
 const LANGUAGES = [['en', 'English'], ['fr', 'Français']];
 function languageItems() {
     return LANGUAGES.map(([c, label]) => item(`"${c}"`, 'hint-keyword', `${c}  ${label}`));
@@ -482,6 +492,8 @@ function getContext(cm) {
     // "inside parentheses" wins and offers synth params instead.
     if (/\brecall\(\s*["']?[\w -]*$/.test(before))   return { type: 'layout', word };
     if (/\bpanel\(\s*["']?[\w -]*$/.test(before))    return { type: 'panel', word };
+    // compo_base(n, beats, <family>) — only the third argument is a name.
+    if (/\bcompo_base\(\s*[^,)]*,\s*[^,)]*,\s*["']?[\w]*$/.test(before)) return { type: 'partfamily', word };
     if (/\blanguage\(\s*["']?[\w-]*$/.test(before)) return { type: 'language', word };
 
     // Inside attack( … ) — the prepared-block library. Second argument first, so
@@ -665,6 +677,8 @@ function hintFn(cm) {
         list = layoutItems();
     } else if (ctx.type === 'panel') {
         list = panelItems();
+    } else if (ctx.type === 'partfamily') {
+        list = partFamilyItems();
     } else if (ctx.type === 'language') {
         list = languageItems();
     } else if (ctx.type === 'attack') {

@@ -283,13 +283,14 @@
     import { arraySpans, altSpans, parseArrays, arraysFor, elementSpans, varPos, stepIndex,
              _numArray, arpIndex, arpArg, parseArpMode } from './js/editor/spans.js';
     import { initUiScale, setUiScale, uiScale, nudgeUiScale, onUiScaleChange, UI_SCALE_RANGE } from './js/ui/uiscale.js';
-    import { setSeed, currentSeed, isSeeded, beginEvalScope } from './js/patterns/rng.js';
+    import { setSeed, currentSeed, isSeeded, beginEvalScope, randAt } from './js/patterns/rng.js';
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
     import { setPanelNames } from './js/editor/autocomplete.js';
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
+    import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1499,6 +1500,33 @@
                 editor.replaceRange(pre + lines.join('\n'), { line: last, ch: editor.getLine(last).length });
                 log(`vrand: pasted ${lines.length - 1} layer${lines.length === 2 ? '' : 's'} — review, then run (Ctrl+Alt+↵)`, 'info');
                 return lines[0].replace(/^#\s*/, '');
+            },
+            // compo_base(parts, beats, family) — a skeleton arrangement to write into.
+            //
+            //   compo_base(16, 4)            16 sections of 4 beats, a blank line each
+            //   compo_base(8, 16, "birds")   all from one family, which reads as a set
+            //
+            // The names are words rather than part1..part16 because a word tells you
+            // something when you are hunting for the section with the breakdown in it,
+            // and because in a room with other people you will be saying them out loud.
+            // Distinct by construction: #@goto resolves to the FIRST section with a
+            // name, so two parts called the same thing is a set that jumps somewhere
+            // you did not mean.
+            //
+            // Draws from the seeded RNG, so seed(42) makes the same skeleton twice.
+            compo_base: (parts = 8, beats = 16, family = null) => {
+                const n = Math.max(1, Math.min(128, Math.round(Number(parts) || 8)));
+                const b = Math.max(1, Math.round(Number(beats) || 16));
+                let fam = family;
+                if (fam && typeof fam.get === 'function') { try { fam = fam.get(0); } catch (_) { fam = null; } }
+                if (fam && !PART_FAMILIES.includes(String(fam))) {
+                    log(`compo_base: no family "${fam}" — ${PART_FAMILIES.join(' · ')} (or leave it out to mix)`, 'warn');
+                    return null;
+                }
+                const text = compoBase(n, b, fam ? String(fam) : null, () => randAt(0, -1));
+                insertCode(text, { run: false });
+                log(`compo_base: ${n} parts of ${b} beats${fam ? ` from "${fam}"` : ''} — write into the gaps`, 'ok');
+                return n;
             },
             chaos:  (n = 4, type = null) => {
                 const taken = new Set([...clock._players.keys()].filter(k => clock._players.get(k)._active));
