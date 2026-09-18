@@ -171,7 +171,6 @@ export const FUNCTIONS = [
     { name: 'Scale.default',            desc: 'The scale every player reads degrees against. A name ("minor", "dorian", "harmonicMinor" — case-insensitive) or a var([…]) to move through several. Scale.names lists them.' },
     { name: 'Root.default',             desc: 'The key. A number of semitones or a note name ("C", "F#"). Both this and Scale can be patterns or TimeVars.' },
     { name: 'lighter()',                desc: 'Step Scale.default one mode BRIGHTER along lydian → ionian → mixolydian → dorian → aeolian → phrygian → locrian. darker() goes the other way. A fast way to move a piece\'s mood without picking a scale by name.' },
-    { name: 'darker()',                 desc: 'Step Scale.default one mode darker (see lighter()).' },
     { name: 'cancelSection()',          desc: 'Stop the #@ arrangement advancing, leaving every player running. Ctrl+Alt+; does the same.' },
     { name: 'start_guided_tour()',      desc: 'Load lesson 1 of the guided tour. next() and back() move between lessons; tour(n) jumps to one.' },
     { name: 'next()',                   desc: 'Guided tour: go to the next lesson.' },

@@ -16,16 +16,29 @@ function defs() {
     const d = {};
     for (const [name, def] of Object.entries(SYNTH_DEFS)) {
         const params = Object.keys(def.defaults).filter(k => !HIDDEN.has(k)).join(', ');
-        d[name] = { kind: 'synth', sig: `${name}([degree]${params ? ', ' + params : ''})`,
-                    desc: `Synth — params: ${params}` };
+        d[name] = [{ kind: 'synth', sig: `${name}([degree]${params ? ', ' + params : ''})`,
+                     desc: `Synth — params: ${params}` }];
     }
     for (const [name, reg] of Object.entries(FX_REGISTRY)) {
-        d[name] = { kind: 'fx', sig: `${name}=${reg.default}`, desc: reg.desc };
+        d[name] = [{ kind: 'fx', sig: `${name}=${reg.default}`, desc: reg.desc }];
     }
+    // EVERY sense of a name, not the first one found.
+    //
+    // Ten names carry more than one meaning in the reference, and keeping only the
+    // first meant you could not reach the other: `attack` is both a function that
+    // pulls a block out of the examples library and the envelope parameter, `release`
+    // is both giving up a claimed track and the envelope, and seven player methods
+    // are listed once as functions and once as methods. Alt+I showed whichever
+    // happened to be earlier in the file, which is not a property anyone can predict.
     const add = (arr, kind) => {
         for (const it of arr) {
             const nm = it.name.replace(/[(=\s].*$/, '').replace(/^\.*/, '').split('.').pop();
-            if (nm && !d[nm]) d[nm] = { kind, sig: it.name.replace(/^\.+/, ''), desc: it.desc };
+            if (!nm) continue;
+            const entry = { kind, sig: it.name.replace(/^\.+/, ''), desc: it.desc };
+            // A second entry that says the same thing as the first is a duplicate,
+            // not a second meaning — drop it rather than show the tooltip twice.
+            if (d[nm]) { if (!d[nm].some(e => e.desc === entry.desc)) d[nm].push(entry); }
+            else d[nm] = [entry];
         }
     };
     add(PATTERNS, 'pattern');
@@ -68,15 +81,17 @@ const round = (v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v);
 
 function esc(s) { return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-function showTip(cm, cursor, word, info, preview) {
+function showTip(cm, cursor, word, infos, preview) {
     document.querySelectorAll('.wfd-tip').forEach(e => e.remove());
     const co  = cm.cursorCoords(cursor, 'page');
     const tip = document.createElement('div');
     tip.className = 'wfd-tip';
-    let html = info
-        ? `<span class="wfd-tip-kind wfd-kind-${info.kind}">${info.kind}</span>` +
-          `<span class="wfd-tip-sig">${esc(info.sig)}</span>` +
-          `<div class="wfd-tip-desc">${esc(info.desc)}</div>`
+    let html = (infos && infos.length)
+        ? infos.map((info, i) =>
+            (i ? '<div class="wfd-tip-sep"></div>' : '') +
+            `<span class="wfd-tip-kind wfd-kind-${info.kind}">${info.kind}</span>` +
+            `<span class="wfd-tip-sig">${esc(info.sig)}</span>` +
+            `<div class="wfd-tip-desc">${esc(info.desc)}</div>`).join('')
         : `<div class="wfd-tip-desc">no info for "<b>${esc(word)}</b>"</div>`;
     if (preview != null) html += `<div class="wfd-tip-val">→ ${esc(preview)}</div>`;
     tip.innerHTML = html;
@@ -114,13 +129,14 @@ export function inspect(cm) {
     if (word.includes('.')) word = word.split('.').pop();
     const D = defs();
     const call = callAt(line, cursor.ch);
-    let info = D[word];
-    if (!info && call) { info = D[call.name]; word = call.name; }
+    let infos = D[word];
+    if (!infos && call) { infos = D[call.name]; word = call.name; }
 
     // For patterns/timevars, evaluate the call and show the generated values.
     let preview = null;
-    if (call && D[call.name] && (D[call.name].kind === 'pattern' || D[call.name].kind === 'timevar')) {
+    const called = call && D[call.name];
+    if (called && called.some(e => e.kind === 'pattern' || e.kind === 'timevar')) {
         preview = previewOf(call);
     }
-    showTip(cm, cursor, word, info, preview);
+    showTip(cm, cursor, word, infos, preview);
 }
