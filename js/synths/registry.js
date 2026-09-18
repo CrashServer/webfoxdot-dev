@@ -615,7 +615,20 @@ attachModifiers(SynthCall);
 // new direction — cost a wrong note instead of a dead set.
 //
 // `??` is not enough on its own: it catches null/undefined and passes NaN.
-const fin = (v, d) => (typeof v === 'number' && Number.isFinite(v)) ? v : (Number.isFinite(+v) ? +v : d);
+//
+// ABSENT and BAD are different, and only one of them is worth saying out loud. A
+// param nobody wrote falls back to its default silently — that is the normal case,
+// every note takes it. A param that was written and came out non-finite is a bug in
+// the pattern feeding it, and substituting a default without a word means it never
+// gets found: the note sounds almost right and the cause is invisible.
+function fin(v, d, synth, param) {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (v == null) return d;                      // absent — nothing to report
+    const n = +v;
+    if (Number.isFinite(n)) return n;             // a numeric string, fine
+    if (synth) warnNonFinite(synth, param, v, d);
+    return d;
+}
 
 // Generic param builder — works for any entry in SYNTH_DEFS.
 // outBus: player's private audio bus (0 = direct to output, no FX)
@@ -627,18 +640,18 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     if (!Number.isFinite(midi)) { warnDropped(synthName, midi); return null; }
     // leg (legato) scales the note length relative to the step: 1 fills the step,
     // >1 overlaps (pad-like), <1 staccato.
-    const spb   = fin(secPerBeat, 0.5);
-    const sus   = fin(fin(r.sus ?? r.dur, 1) * fin(r.leg, 1), 1);
-    const atkS  = fin(r.attack  ?? def.defaults.attack, 0.01);
-    const relS  = fin(r.release, Math.min(0.3, sus * spb * 0.3));
+    const spb   = fin(secPerBeat, 0.5, synthName, 'dur/tempo');
+    const sus   = fin(fin(r.sus ?? r.dur, 1, synthName, 'sus') * fin(r.leg, 1, synthName, 'leg'), 1, synthName, 'sus');
+    const atkS  = fin(r.attack  ?? def.defaults.attack, 0.01, synthName, 'attack');
+    const relS  = fin(r.release, Math.min(0.3, sus * spb * 0.3), synthName, 'release');
 
     let base;
     if (def.rawSus) {
         // Synths like donk use sus as raw decay seconds (no atk/rel envelope subtraction)
         base = [
             'out', outBus, 'note', midi,
-            'amp', Math.min(1.5, fin(r.amp ?? def.defaults.amp, 0.8)),
-            'pan', fin(r.pan, 0),
+            'amp', Math.min(1.5, fin(r.amp ?? def.defaults.amp, 0.8, synthName, 'amp')),
+            'pan', fin(r.pan, 0, synthName, 'pan'),
             'sus', Math.max(0.001, sus * spb),
         ];
     } else {
@@ -647,8 +660,8 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
         base = [
             'out',     outBus,
             'note',    midi,
-            'amp',     Math.min(1.5, fin(r.amp ?? def.defaults.amp, 0.8)),
-            'pan',     fin(r.pan, 0),
+            'amp',     Math.min(1.5, fin(r.amp ?? def.defaults.amp, 0.8, synthName, 'amp')),
+            'pan',     fin(r.pan, 0, synthName, 'pan'),
             'attack',  atkS,
             'sus',     susS,
             'release', relS,
@@ -669,7 +682,7 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
             const i = names.indexOf(optName(v, names));
             v = i < 0 ? 0 : i;
         }
-        return [p, fin(v, fin(def.defaults[p], 0))];
+        return [p, fin(v, fin(def.defaults[p], 0), synthName, p)];
     });
 
     // Last line of defence. The wrapping above covers every param this function
@@ -698,10 +711,10 @@ function say(key, msg) {
     _nanWarned.add(key);
     (_nanLog || ((m) => console.warn('crashDot: ' + m)))(msg, 'warn');
 }
-function warnNonFinite(synth, param, v) {
+function warnNonFinite(synth, param, v, used = 0) {
     say(synth + '.' + param,
-        `${synth}: ${param} was ${v} — sent 0 instead. A non-finite value here used to `
-      + `silence the whole mix until reload; check the pattern feeding ${param}.`);
+        `${synth}: ${param} was ${v} — used ${used} instead. A non-finite value here used `
+      + `to silence the whole mix until reload; check the pattern feeding ${param}.`);
 }
 function warnDropped(synth, v) {
     say(synth + '.note',
