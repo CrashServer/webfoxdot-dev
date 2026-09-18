@@ -209,6 +209,9 @@
         <button id="btn-uisize-reset" class="cp-btn" title="back to 100%">reset</button>
       </div>
       <div class="cp-row rec-row" style="gap:4px;margin-top:4px">
+        <button id="btn-rec-all" class="cp-btn" title="record the whole performance — code, audio, MIDI and video together, under one take name. Press again to save. record() in the language.">&#9679; record take</button>
+      </div>
+      <div class="cp-row rec-row" style="gap:4px;margin-top:4px">
         <button id="btn-rec" class="cp-btn" title="record your evals into a #@ composition">rec code</button>
         <button id="btn-rec-audio" class="cp-btn" title="record the audio output to a file">rec audio</button>
         <button id="btn-rec-midi" class="cp-btn" title="record every note that plays and save it as a .mid — one track per player, drums on GM channel 10 — to edit in a DAW">rec midi</button>
@@ -273,6 +276,7 @@
     import { initUiScale, setUiScale, uiScale, nudgeUiScale, onUiScaleChange, UI_SCALE_RANGE } from './js/ui/uiscale.js';
     import { setSeed, currentSeed, isSeeded, beginEvalScope } from './js/patterns/rng.js';
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
+    import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1169,6 +1173,24 @@
             // step, theme(PRand(0, 9)) for a different skin each time you run the line.
             // Wrapping rather than clamping is what makes stepping work at the end of
             // the list, and it takes negatives with it.
+            // record()  starts every recorder that can run  ·  record() again stops
+            // them all and saves  ·  record("audio","video") picks.
+            //
+            // The four recorders each kept their own button, their own start and their
+            // own filename, so one performance took four gestures, the files never
+            // lined up, and a week later nothing said they were the same take.
+            record: (...which) => {
+                const live = recRunning();
+                recordAll(which.flat().filter(Boolean)).then(({ started, stopped, unavailable, take }) => {
+                    if (stopped.length) { log(`\u25a0 take saved — ${stopped.join(', ')}`, 'ok'); return; }
+                    if (!started.length) {
+                        log(`record: nothing could start${unavailable.length ? ' (' + unavailable.join(', ') + ' unavailable)' : ''}`, 'warn');
+                        return;
+                    }
+                    log(`\u25cf recording ${started.join(' + ')} as "${take}"${unavailable.length ? `  \u00b7  skipped ${unavailable.join(', ')}` : ''} — record() again to save`, 'ok');
+                });
+                return live.length ? '\u25a0 saving take…' : '\u25cf recording…';
+            },
             // seed()  reports  ·  seed(42) fixes it  ·  seed(null)/seed(0) back to free.
             //
             // Under a seed every generator draws from (seed, the line's own text, which
@@ -4042,7 +4064,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // Every rendered frame is offered to the recorder; it ignores them unless armed.
     // This is the only place the GL canvas can be read — see vrec.js.
     eachVisualFrame((canvas) => _vrec.capture(canvas));
-    setVisualRec((name) => {
+    function toggleVideoRec(name) {
         if (_vrec.recording) {
             _vrec.stop().then((r) => {
                 if (!r || !r.blob.size) return log('video: nothing was recorded — was anything running?', 'warn');
@@ -4057,7 +4079,59 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (!_vrec.start(c)) return log('video: this browser cannot record a canvas (MediaRecorder missing)', 'warn') || 'vrec: unsupported';
         log('\u25cf recording video — vrec() again to save', 'ok');
         return '\u25cf recording video\u2026';
+    }
+    setVisualRec(toggleVideoRec);
+
+    // ── One transport for the four recorders ─────────────────────────────────
+    // Each keeps its own machinery; this just starts and stops them together and
+    // gives them a shared take name, so the four files from one performance say so
+    // instead of landing under four unrelated names.
+    registerRecorder('code', {
+        available: () => true,
+        isOn: () => _rec.on,
+        start: () => { if (!_rec.on) toggleRec(); },
+        stop:  () => { if (_rec.on) toggleRec(); },
     });
+    registerRecorder('midi', {
+        available: () => true,
+        isOn: () => midiCaptureArmed(),
+        start: (take) => { if (!midiCaptureArmed()) { _takeName = take; toggleRecMidi(); } },
+        stop:  () => { if (midiCaptureArmed()) saveMidi(_takeName || undefined); },
+    });
+    registerRecorder('video', {
+        // Nothing is rendering → no canvas → not a failure, just nothing to record.
+        available: () => !!liveVisualCanvas(),
+        isOn: () => _vrec.recording,
+        start: (take) => { if (!_vrec.recording) toggleVideoRec(take); },
+        stop:  () => { if (_vrec.recording) toggleVideoRec(); },
+    });
+    registerRecorder('audio', {
+        available: () => !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia),
+        isOn: () => !!_audioRec.recorder,
+        start: (take) => { _takeName = take; return toggleRecAudio(); },
+        stop:  () => { if (_audioRec.recorder) toggleRecAudio(); },
+    });
+    let _takeName = null;
+    {
+        const btn = document.getElementById('btn-rec-all');
+        const paint = () => {
+            const live = recRunning();
+            btn.classList.toggle('recording', live.length > 0);
+            btn.innerHTML = live.length ? '\u25a0 stop (' + live.join(' ') + ')' : '\u25cf record take';
+        };
+        btn.addEventListener('click', async () => {
+            const { started, stopped, unavailable, take } = await recordAll();
+            if (stopped.length) log('\u25a0 take saved \u2014 ' + stopped.join(', '), 'ok');
+            else if (started.length) log('\u25cf recording ' + started.join(' + ') + ' as "' + take + '"'
+                + (unavailable.length ? '  \u00b7  skipped ' + unavailable.join(', ') : '') + ' \u2014 press again to save', 'ok');
+            else log('record: nothing could start', 'warn');
+            paint();
+        });
+        // The individual buttons still work, and arming one by hand should show here
+        // too — record() adopts whatever is already running into the take.
+        setInterval(paint, 700);
+        paint();
+    }
 
     // The LAYERS panel turns knobs on whatever is live. It writes plain numbers, and
     // → CODE hands the line back — perform with the knobs, keep it as text.
