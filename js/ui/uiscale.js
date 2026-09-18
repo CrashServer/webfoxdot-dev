@@ -21,20 +21,51 @@
 // a different element: panel.js measures the effective ratio off a real element
 // (getBoundingClientRect().width / offsetWidth) rather than assuming it, so it picks
 // up the product of the two and pointer deltas still convert correctly.
+//
+// ── Except the editor ────────────────────────────────────────────────────────
+// CodeMirror cannot live inside a `zoom`. It positions the caret and the selection
+// from cached offsetLeft values, which stay in UNZOOMED css pixels, and then places
+// them against a getBoundingClientRect, which is scaled — so the two drift apart in
+// proportion to how far along the line you are. Measured at 1.3 the caret is drawn
+// 67px away from the character it is on; at 1.6, 165px. refresh() does not help,
+// because nothing is stale: the two numbers are in different units.
+//
+// So the editor is taken back OUT of the zoom — `zoom: 1/scale` on the CodeMirror
+// element cancels the ancestor exactly, putting it back in a space where its two
+// measurements agree — and its font-size is multiplied instead, which is how text
+// was always meant to get bigger. Same trick the desktop already uses to keep the
+// editor unscaled against the canvas zoom; this is the second reason for it.
 
 const KEY = 'wfd-uiscale';
 const MIN = 0.7, MAX = 2;
 const DEFAULT = 1;
 
 let _scale = DEFAULT;
-let _onChange = null;
+// A SET, not a single callback. Two things need to know: index.html (to repaint the
+// readout and refresh the editor) and the desktop (to rescale its editor layer, which
+// is sized inline and so wins over the stylesheet). A single slot silently replaced
+// the first subscriber with the second.
+const _onChange = new Set();
 
-/** Notified after every change — the editor needs a refresh() to re-measure. */
-export function onUiScaleChange(fn) { _onChange = fn; }
+/** Notified after every change. Returns an unsubscribe. */
+export function onUiScaleChange(fn) { _onChange.add(fn); return () => _onChange.delete(fn); }
 
 export function uiScale() { return _scale; }
 
 const clamp = (n) => Math.max(MIN, Math.min(MAX, n));
+
+// The editor's AUTHORED font size, read once while nothing is scaling it. Read later
+// and it would measure a size this module had already changed, and every step would
+// compound on the last.
+let _basePx = 0;
+function editorBasePx() {
+    if (_basePx) return _basePx;
+    const cm = document.querySelector('.CodeMirror');
+    if (!cm) return 14;                       // before the editor exists; asked again later
+    const px = parseFloat(getComputedStyle(cm).fontSize);
+    if (px > 0) _basePx = px;
+    return _basePx || 14;
+}
 
 export function setUiScale(n, { save = true } = {}) {
     const v = Number(n);
@@ -44,8 +75,13 @@ export function setUiScale(n, { save = true } = {}) {
     // element inside a zoomed ancestor is positioned against that ancestor — which
     // for the root is the viewport, so they land where they should.
     document.documentElement.style.zoom = _scale === 1 ? '' : String(_scale);
+    // The editor opts out — see the note above. The stylesheet does the work; this
+    // just tells it the number, and the base font size to multiply.
+    document.documentElement.style.setProperty('--wfd-ui-scale', String(_scale));
+    document.documentElement.style.setProperty('--wfd-editor-base', editorBasePx() + 'px');
     if (save) { try { localStorage.setItem(KEY, String(_scale)); } catch (_) {} }
-    try { _onChange?.(_scale); } catch (_) {}
+    // One listener throwing must not stop the others hearing about it.
+    for (const fn of _onChange) { try { fn(_scale); } catch (_) {} }
     return _scale;
 }
 

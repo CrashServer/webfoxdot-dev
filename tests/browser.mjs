@@ -103,6 +103,34 @@ async function main() {
     T('uisize scales the interface', Math.abs(ratio - 1.5) < 0.06, `grew ${ratio.toFixed(2)}x, expected 1.5`);
     T('uisize(1) puts it back exactly', back);
 
+    // The caret has to stay ON its character at every size. CodeMirror positions it
+    // from cached offsetLeft (unzoomed) against a getBoundingClientRect (scaled), so
+    // inside a `zoom` the two drift apart in proportion to how far along the line you
+    // are — 67px at 1.3, 165px at 1.6, and refresh() cannot help.
+    const caret = JSON.parse(await p.evaluate(`(async () => {
+        const M = await import('/js/ui/uiscale.js');
+        const cm = document.querySelector('.CodeMirror').CodeMirror;
+        cm.setValue('0123456789abcdefghijklmnopqrstuvwxyz');
+        const out = [];
+        for (const s of [1, 1.3, 1.6]) {
+            M.setUiScale(s);
+            await new Promise(r => setTimeout(r, 400));
+            cm.setCursor({ line: 0, ch: 20 }); cm.focus();
+            await new Promise(r => setTimeout(r, 150));
+            const el = document.querySelector('.CodeMirror-cursor');
+            const ch = cm.charCoords({ line: 0, ch: 20 }, 'window');
+            const w = cm.charCoords({ line: 0, ch: 1 }, 'window').left - cm.charCoords({ line: 0, ch: 0 }, 'window').left;
+            out.push({ s, gap: Math.abs(el.getBoundingClientRect().left - ch.left), charWidth: w });
+        }
+        M.setUiScale(1);
+        return JSON.stringify(out);
+    })()`));
+    for (const c of caret)
+        T(`the caret sits on its character at uisize ${c.s}`, c.gap < 2, `${c.gap.toFixed(1)}px away`);
+    const grew = caret[2].charWidth / caret[0].charWidth;
+    T('the editor text actually grows with the interface', Math.abs(grew - 1.6) < 0.1,
+      `characters grew ${grew.toFixed(2)}x, expected 1.6`);
+
     // ── a set as a file ──────────────────────────────────────────────────────
     const drop = JSON.parse(await p.evaluate(`(async () => {
         const file = new File(['# from disk\\np1 >> pluck([0,2,4])\\n'], 'a_track.py', { type: 'text/plain' });

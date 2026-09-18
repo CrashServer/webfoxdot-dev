@@ -28,6 +28,7 @@ import { buildPerfPanel }   from '../perfpanel.js';
 import { initCanvasMenu } from './menu.js';
 import { initHud } from './hud.js';
 import { changelogHTML } from '../docs/changelog.js';
+import { uiScale, onUiScaleChange } from '../uiscale.js';
 
 /**
  * Give one of the floating overlays a panel, whenever its root shows up.
@@ -191,7 +192,10 @@ function keepEditorUnscaled(editor) {
     editorLayer.style.width  = `${w * z}px`;
     editorLayer.style.height = `${h * z}px`;
     editorLayer.style.transform = z === 1 ? '' : `scale(${1 / z})`;
-    editorLayer.style.fontSize  = `${baseFontPx * z}px`;
+    // × the INTERFACE scale as well as the canvas zoom. This is set inline and the
+    // hosted CodeMirror inherits it, so it wins over the stylesheet's calc() — which
+    // means uisize() would scale the whole desktop and leave the code the same size.
+    editorLayer.style.fontSize  = `${baseFontPx * z * uiScale()}px`;
     editor?.refresh?.();
 }
 
@@ -644,7 +648,7 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
             layer.style.width = `${w * z}px`;
             layer.style.height = `${h * z}px`;
             layer.style.transform = z === 1 ? '' : `scale(${1 / z})`;
-            layer.style.fontSize = `${baseFontPx * z}px`;
+            layer.style.fontSize = `${baseFontPx * z * uiScale()}px`;   // see keepEditorUnscaled
             cm.refresh();
             unskewGutter(cm);
         };
@@ -733,6 +737,10 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
             if (px > 0) baseFontPx = px;
         } catch (_) {}
         onViewChange(() => scheduleEditorScale(editor));   // coalesced — see above
+        // The canvas zoom is not the only thing that changes the editor's size:
+        // uisize() does too, and it does not move the view, so nothing here would
+        // hear about it. Without this the desktop scales and the code does not.
+        onUiScaleChange(() => keepEditorUnscaled(editor));
         keepEditorUnscaled(editor);
         requestAnimationFrame(() => keepEditorUnscaled(editor));
 

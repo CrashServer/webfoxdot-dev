@@ -603,6 +603,7 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 #editor-wrap { position: relative; }
 
 
+
 /* ── Scene browser — the contact sheet ───────────────────────────────────── */
 #scenes-modal {
     position: fixed; left: 40px; top: 60px; z-index: 130;
@@ -765,7 +766,18 @@ body.on-scratch #editor-tabs { border-bottom-color: var(--border-2); }
 .CodeMirror {
     height: 100%;
     font-family: 'Courier New', monospace;
-    font-size: 14px;
+    /* The editor opts OUT of the interface zoom — see js/ui/uiscale.js. CodeMirror
+       positions its caret from cached offsetLeft values, which stay in unzoomed css
+       pixels, and places them against a getBoundingClientRect, which is scaled: inside
+       a `zoom` the two drift apart in proportion to how far along the line you are
+       (measured at 1.3, the caret lands 67px from its character; at 1.6, 165px, and
+       refresh() cannot help because nothing is stale — the numbers are in different
+       units). The nested zoom cancels the ancestor exactly, putting the editor back in
+       a space where its own two measurements agree, and the size is carried by the
+       font instead, which is how text was always meant to get bigger.
+       14px is the authored size and the default for --wfd-editor-base. */
+    zoom: calc(1 / var(--wfd-ui-scale, 1));
+    font-size: calc(var(--wfd-editor-base, 14px) * var(--wfd-ui-scale, 1));
     background: var(--bg-1);
     color: var(--text-1);
     line-height: 1.55;
