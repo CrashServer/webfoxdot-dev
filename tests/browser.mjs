@@ -103,6 +103,62 @@ async function main() {
     T('uisize scales the interface', Math.abs(ratio - 1.5) < 0.06, `grew ${ratio.toFixed(2)}x, expected 1.5`);
     T('uisize(1) puts it back exactly', back);
 
+    // ── a set as a file ──────────────────────────────────────────────────────
+    const drop = JSON.parse(await p.evaluate(`(async () => {
+        const file = new File(['# from disk\\np1 >> pluck([0,2,4])\\n'], 'a_track.py', { type: 'text/plain' });
+        const dt = new DataTransfer(); dt.items.add(file);
+        const wrap = document.getElementById('editor-wrap');
+        wrap.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        const hinted = wrap.classList.contains('wfd-drop');
+        wrap.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        await new Promise(r => setTimeout(r, 600));
+        return JSON.stringify({ hinted, text: document.querySelector('.CodeMirror').CodeMirror.getValue() });
+    })()`));
+    T('dragging a file onto the editor says it will take it', drop.hinted);
+    T('dropping a set opens it', drop.text.includes('p1 >> pluck([0,2,4])'), drop.text.slice(0, 60));
+
+    const save = JSON.parse(await p.evaluate(`(async () => {
+        const M = await import('/js/ui/setfile.js');
+        // the no-picker path, which is what non-Chromium browsers take
+        const real = window.showSaveFilePicker; delete window.showSaveFilePicker;
+        let captured = null;
+        const click = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function () { captured = this.download; };
+        document.querySelector('.CodeMirror').CodeMirror.setValue('p1 >> pluck([0,4,7])\\n');
+        const ok = await M.saveSet();
+        HTMLAnchorElement.prototype.click = click;
+        // an empty buffer is not a file
+        document.querySelector('.CodeMirror').CodeMirror.setValue('   ');
+        const empty = await M.saveSet();
+        // a dismissed picker is an answer, not a failure — with something TO save,
+        // or the empty-buffer guard answers first and this measures that instead
+        document.querySelector('.CodeMirror').CodeMirror.setValue('p1 >> pluck([0])\\n');
+        window.showSaveFilePicker = () => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' }));
+        const n0 = document.querySelectorAll('#log div').length;
+        const aborted = await M.saveSet({ saveAs: true });
+        const noise = document.querySelectorAll('#log div').length - n0;
+        if (real) window.showSaveFilePicker = real; else delete window.showSaveFilePicker;
+        return JSON.stringify({ ok, captured, empty, aborted, noise });
+    })()`));
+    T('saving without a picker downloads a named file', save.ok && /\.py$/.test(save.captured || ''), String(save.captured));
+    T('an empty buffer is not saved', save.empty === false);
+    T('a dismissed save dialog says nothing', save.aborted === false && save.noise === 0, `${save.noise} log lines`);
+
+    // ── the scene contact sheet ──────────────────────────────────────────────
+    const sheet = JSON.parse(await p.evaluate(`(async () => {
+        document.getElementById('btn-scenes').click();
+        await new Promise(r => setTimeout(r, 600));
+        const i = document.querySelector('.scenes-filter');
+        i.value = 'ikeda'; i.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 5000));
+        const M = await import('/js/ui/scenebrowser.js');
+        return JSON.stringify(M._diag());
+    })()`));
+    T('the scene sheet draws every visible tile', sheet.cells > 0 && sheet.drawn === sheet.cells,
+      `${sheet.drawn} of ${sheet.cells} drawn`);
+    T('no scene fails while drawing its thumbnail', sheet.dead === 0, `${sheet.dead} failed`);
+
+    await p.close();
     b.close();
     console.log(`\n  ${pass} passed, ${fail} failed`);
 }

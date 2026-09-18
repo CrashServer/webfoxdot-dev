@@ -590,6 +590,19 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: var(--border-2); opacity: .6;
 }
 
+/* A file being dragged over the editor — say it will be accepted before it is
+   dropped, or the gesture is a guess. */
+.wfd-drop { outline: 2px dashed var(--accent, var(--text-1)); outline-offset: -4px; }
+.wfd-drop::after {
+    content: 'drop a set to open it';
+    position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+    background: var(--bg-1); color: var(--text-1);
+    font: 11px monospace; padding: 3px 10px; border: 1px solid var(--border-2);
+    pointer-events: none; z-index: 50;
+}
+#editor-wrap { position: relative; }
+
+
 /* ── Scene browser — the contact sheet ───────────────────────────────────── */
 #scenes-modal {
     position: fixed; left: 40px; top: 60px; z-index: 130;

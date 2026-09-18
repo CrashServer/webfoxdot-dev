@@ -43,6 +43,8 @@
       <button id="btn-piano" title="virtual piano — play any synth with the mouse or the computer keyboard, record what you play, and turn it into a player line">piano</button>
       <button id="btn-modular" title="modular synth builder — drag &amp; wire oscillator/filter/envelope blocks into a playable synth">modular</button>
       <button id="btn-perform" title="perform mode — full-screen, keyboard-free touch surface: tap tiles to launch/stop, drag for volume, jump sections, sweep macros">perform</button>
+      <button id="btn-open" title="open a set from a file — or just drag one onto the editor (Ctrl+O)">open</button>
+      <button id="btn-save" title="save this buffer as a .py file. Where the browser allows it, saving again writes back to the same file (Ctrl+S · Ctrl+Shift+S for Save As)">save</button>
       <button id="btn-share" title="copy a self-contained share link — the whole composition rides in the URL (#c=…), no server needed">share</button>
       <button id="btn-multiplayer" title="start a live multiplayer session seeded with this composition — you get a ?session= link to share">go live</button>
       <span id="synth-status"></span>
@@ -285,6 +287,7 @@
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
+    import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -2875,6 +2878,28 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // up is usually the first half of using it.
     setDocsInsert((text) => { insertCode(text + '\n', { run: false }); toggleDocs(); });
     initSceneBrowser({ insert: (text) => insertCode(text + '\n', { run: false }), log });
+
+    // ── A set as a FILE ──────────────────────────────────────────────────────
+    // It lived in localStorage and in a #c= URL and nowhere else, so a track written
+    // as a .py on disk — which is where people keep them — got in by being pasted.
+    initSetFile({
+        get:  () => editor.getValue(),
+        // Into a new buffer: opening a file should never be the thing that loses what
+        // you were working on.
+        set:  (text, name) => { _tabs ? _tabs.newTab(name || 'set', text) : editor.setValue(text); },
+        name: () => (_tabs && _tabs.name && _tabs.name()) || 'set',
+        log,
+    });
+    document.getElementById('btn-open').onclick = () => openSet();
+    document.getElementById('btn-save').onclick = (e) => saveSet({ saveAs: e.shiftKey });
+    enableDropOpen(document.getElementById('editor-wrap'));
+    window.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+        // Ctrl+S is the browser's "save this page", which is never what you meant
+        // with a code buffer on screen.
+        if (e.key === 's' || e.key === 'S') { e.preventDefault(); saveSet({ saveAs: e.shiftKey }); }
+        else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); openSet(); }
+    });
     initGalaxy((id) => { setEditorContent(exampleCode(id)); log('loaded example — edit & run', 'info'); });
     document.getElementById('docs-toggle-btn').onclick = toggleDocs;
     document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); toggleDocs(); } });
