@@ -29,8 +29,8 @@ function nameStream(name) {
 export { REST };
 
 // ── Unknown-param safety warnings ─────────────────────────────────────────────
-const COMMON_PARAMS = new Set(['degree', 'oct', 'freq', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg']);
-const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify', 'delay']);
+const COMMON_PARAMS = new Set(['degree', 'oct', 'freq', 'amp', 'dur', 'sus', 'pan', 'attack', 'release', 'pshift', 'amplify', 'delay', 'leg', 'cut']);
+const SAMPLE_PARAMS = new Set(['amp', 'pan', 'rate', 'sample', 'dur', 'sus', 'amplify', 'delay', 'cut']);
 let   _warn   = null;            // log hook, set from index.html
 const _warned = new Set();       // dedupe: only warn once per synth.param
 export function setWarn(fn) { _warn = fn; }
@@ -257,6 +257,21 @@ export function panic(clock) {
         try { _sc.send('/g_freeAll', PLAYER_GROUP); } catch (_) {}
         try { _sc.send('/g_freeAll', FX_GROUP); } catch (_) {}
     }
+}
+
+// How long a sample should sound before its 10 ms fade, in seconds — 0 for "the
+// whole thing", which is what fd_sampler does with no trim.
+//
+// FoxDot's rule: the length is sus, and sus defaults to the note's own duration —
+// here the SLOT the character occupies, so "x<-->" trims each hat to its half-slot
+// rather than to the step. cut then takes a fraction of that. A cut of 1 or more
+// trims nothing, as in FoxDot, where the envelope simply outlasts the note.
+export function sampleTrimSec(p, slotBeats, bpm) {
+    const hasSus = p.trimSus != null && isFinite(p.trimSus) && p.trimSus > 0;
+    const cut    = p.trimCut != null && isFinite(p.trimCut) && p.trimCut > 0 && p.trimCut < 1 ? p.trimCut : null;
+    if (!hasSus && cut == null) return 0;
+    const beats = (hasSus ? p.trimSus : slotBeats) * (cut ?? 1);
+    return Math.max(0.005, beats * 60 / (Number(bpm) || 120));
 }
 
 // Next beat that is a multiple of `mod` — for bar-aligned scheduling.
@@ -714,6 +729,12 @@ export class Player {
         const rate     = opt(opts.rate, 1);
         const sampleIdx = Math.round(opt(opts.sample, 0));
         const delayBeats = Math.max(0, opt(opts.delay, 0));   // per-note timing offset (beats)
+        // Trim: sus (beats) and cut (a fraction of it), both FoxDot's. Neither given →
+        // null, and the sample plays whole as it always has. sus WAS on this player's
+        // list of known params and sent nowhere, so play("x", sus=0.5) evaluated
+        // cleanly and did nothing; fd_sampler had no envelope to receive it.
+        const trimSus = opts.sus != null ? Number(opt(opts.sus, 0)) : null;
+        const trimCut = opts.cut != null ? Number(opt(opts.cut, 0)) : null;
 
         // FX chain only when this play() uses an FX (else samples go straight out).
         const fxFlat = {};
@@ -746,10 +767,10 @@ export class Player {
                 const ampEach = amp / pans.length;
                 for (let v = 0; v < pans.length; v++) {
                     this._renderToken(token, off, slot,
-                        { sampleIdx, amp: ampEach, pan: pans[v], rate: rate * Math.pow(2, shifts[v] / 12) }, onsetNTP);
+                        { sampleIdx, amp: ampEach, pan: pans[v], rate: rate * Math.pow(2, shifts[v] / 12), trimSus, trimCut }, onsetNTP);
                 }
             } else {
-                this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate }, onsetNTP);
+                this._renderToken(token, off, slot, { sampleIdx, amp, pan, rate, trimSus, trimCut }, onsetNTP);
             }
         };
         // .degrade(prob): randomly drop this step (bookkeeping still advances below)
@@ -791,7 +812,7 @@ export class Player {
             const bufId = charToBufId(token.char, p.sampleIdx);
             if (bufId === null) return;
             const whenNTP = onsetNTP + beatOffset * 60 / this._clock.bpm;
-            this._triggerSample(bufId, p.amp, p.pan, p.rate, whenNTP);
+            this._triggerSample(bufId, p.amp, p.pan, p.rate, whenNTP, sampleTrimSec(p, slotBeats, this._clock.bpm));
             return;
         }
 
@@ -814,7 +835,7 @@ export class Player {
         }
     }
 
-    _triggerSample(bufId, amp, pan, rate, whenNTP) {
+    _triggerSample(bufId, amp, pan, rate, whenNTP, trimSec = 0) {
         if (!_sc) return;
         const id  = _sc.nextNodeId();
         // Route through the player's private bus → FX chain (falls back to main out)
@@ -822,7 +843,7 @@ export class Player {
         try {
             _sc.sendOSC(osc.encodeSingleBundle(whenNTP, '/s_new',
                 ['fd_sampler', id, 0, PLAYER_GROUP,
-                 'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate]));
+                 'out', out, 'buf', bufId, 'amp', amp, 'pan', pan, 'rate', rate, 'sus', trimSec]));
         } catch (_) {}
     }
 

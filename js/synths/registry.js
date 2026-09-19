@@ -641,9 +641,17 @@ export function buildParams(synthName, midi, r, secPerBeat, outBus = 0) {
     // leg (legato) scales the note length relative to the step: 1 fills the step,
     // >1 overlaps (pad-like), <1 staccato.
     const spb   = fin(secPerBeat, 0.5, synthName, 'dur/tempo');
-    const sus   = fin(fin(r.sus ?? r.dur, 1, synthName, 'sus') * fin(r.leg, 1, synthName, 'leg'), 1, synthName, 'sus');
+    // cut — FoxDot's trimLength: the note sounds for sus x cut, then is chopped in
+    // 10 ms. Only a fraction below 1 does anything; at 1 or more the trim would
+    // outlast the note, which is FoxDot's behaviour too. The release is what makes it
+    // a CHOP rather than a shorter note: the synth's own tail would otherwise follow,
+    // and a pad with a two-second release is not cut by shortening its hold.
+    const cutF  = Number(r.cut);
+    const cutOn = isFinite(cutF) && cutF > 0 && cutF < 1;
+    const sus   = fin(fin(r.sus ?? r.dur, 1, synthName, 'sus') * fin(r.leg, 1, synthName, 'leg') * (cutOn ? cutF : 1), 1, synthName, 'sus');
     const atkS  = fin(r.attack  ?? def.defaults.attack, 0.01, synthName, 'attack');
-    const relS  = fin(r.release, Math.min(0.3, sus * spb * 0.3), synthName, 'release');
+    const relS0 = fin(r.release, Math.min(0.3, sus * spb * 0.3), synthName, 'release');
+    const relS  = cutOn ? Math.min(relS0, 0.01) : relS0;
 
     let base;
     if (def.rawSus) {
