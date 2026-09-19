@@ -291,7 +291,7 @@
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
     import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
-    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals, troopClock, troopClockOn, troopClockError } from './js/ui/trooppanel.js';
+    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals, troopClock, troopClockOn, troopClockError, troopClockMode } from './js/ui/trooppanel.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1565,15 +1565,17 @@
             },
             // troopclock(on, quantum) — take the beat from webTroop.
             //
-            //   troopclock(1)      follow their tempo and bar phase
-            //   troopclock(1, 8)   align on 8-beat bars instead of 4
+            //   troopclock(1)      lock to their BEAT NUMBER — bars and counts agree
+            //   troopclock(1, 4)   align phase only, within a 4-beat bar
             //   troopclock(0)      your own clock again
             //   troopclock()       is it following?
             //
-            // Their FoxDot publishes a fractional beat on the telemetry socket, and
-            // that is enough to discipline ours: match tempo, then correct the bar
-            // phase — a big error snaps so a late join catches up at once, a small
-            // one is nudged a fraction per update so you hear tempo, not a stumble.
+            // Their FoxDot publishes Clock.beat — absolute, ten times a second — so
+            // this can match the beat NUMBER and not merely the pulse. Whole beats of
+            // error are a renumbering: the clock moves and everything scheduled moves
+            // with it, so nothing sounds different and no backlog empties into the
+            // room. The fraction left over is the part you can hear, and that is eased
+            // in at 8% an update.
             //
             // One master, and it is theirs. Nothing is sent back; this moves OUR
             // clock only. Needs troop() first, and needs their telemetry reachable —
@@ -1585,8 +1587,9 @@
                 if (on == null) {
                     const e = troopClockError();
                     log('troopclock: ' + (troopClockOn()
-                        ? 'following webTroop' + (e == null ? ' — no beat received yet'
-                            : ` · phase off by ${e >= 0 ? '+' : ''}${e.toFixed(3)} beats`)
+                        ? `following webTroop (${troopClockMode() === 'beat' ? 'beat number' : 'bar phase'})`
+                            + (e == null ? ' — no beat received yet'
+                               : ` · off by ${e >= 0 ? '+' : ''}${e.toFixed(3)} beats`)
                         : 'free — troopclock(1) to follow'), 'info');
                     return troopClockOn();
                 }

@@ -538,6 +538,27 @@ export function noteBuffer(text) { if (!live.evalCount) live.svdk = { lines: Str
 /** Names of the players currently sounding — some layers draw one shape per instrument. */
 export function notedPlayers(names) { live.players = names || []; }
 
+/**
+ * A watched webTroop session's buffer, into the SECOND performer's slot.
+ *
+ * The slot is the whole point: the code layers were built for two performers, so
+ * putting the troop in the second one means their code and yours appear together
+ * rather than one replacing the other — which is what you want on a wall behind a
+ * band, and what you get for free by not inventing a third channel.
+ *
+ * No eval counter here, deliberately. Their shared buffer changes on every
+ * KEYSTROKE, not on every eval, and the counter is what the layers latch their
+ * flash on — bumping it per character would strobe the wall.
+ */
+export function noteTroop(text, user = 'troop') {
+    // webTroop's pretext window arrives as an ARRAY of lines; their shared buffer
+    // arrives as a string. String(array) would comma-join it into one long line,
+    // which renders as a smear rather than as code.
+    const t = Array.isArray(text) ? text.join('\n') : String(text || '');
+    live.zbdm = { lines: t.split('\n').slice(0, 200).join('\n') };
+    live.otherUser = user;
+}
+
 // ── vsnap() — the visual state, as CODE ──────────────────────────────────────
 //
 // The workshop's answer to "save this look" is a preset: a blob of channel state in

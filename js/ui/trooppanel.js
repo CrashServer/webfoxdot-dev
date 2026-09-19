@@ -12,11 +12,12 @@
 import { watchTroop } from '../net/webtroop.js';
 import { draggable } from './dragpanel.js';
 import { postCode, postInstant } from '../visuals/bridge.js';
+import { noteTroop } from '../visuals/vlang.js';
 
 let _modal = null, _open = false, _watch = null, _log = null, _clock = null;
 // Follow their clock. Off by default: joining a room should not re-time your set
 // without being asked.
-let _sync = false, _quantum = 4, _lastBeat = null, _lastErr = null;
+let _sync = false, _quantum = 4, _lastBeat = null, _lastErr = null, _mode = 'beat';
 let _codeEl = null, _statsEl = null, _peersEl = null, _dotEl = null, _hostEl = null;
 let _toVisuals = true;
 
@@ -35,22 +36,33 @@ export function initTroopPanel({ log, clock } = {}) { _log = log || (() => {}); 
  * it moves OUR clock rather than asking theirs to move. webTroop is the master
  * because webTroop is the thing the room is dancing to.
  *
+ * Two modes, because there are two questions. By default it locks the BEAT NUMBER:
+ * their beat 2742 is your beat 2742, so bars and counts agree and anything reckoned
+ * in bars lines up across the room. troopclock(1, 4) instead aligns only the phase
+ * within a 4-beat bar, which keeps your own numbering — useful if you are counting
+ * your set from your own bar one and only want the pulse to match.
+ *
  * @param {boolean} on
- * @param {number} [quantum=4]  beats per bar to align on
+ * @param {number} [quantum]  give a bar size to align PHASE only; omit to lock the beat
  */
 export function troopClock(on, quantum) {
     _sync = !!on;
-    if (Number(quantum) > 0) _quantum = Math.round(Number(quantum));
+    if (Number(quantum) > 0) { _quantum = Math.round(Number(quantum)); _mode = 'phase'; }
+    else if (quantum != null) _mode = 'beat';
     _lastBeat = null;
     const box = _modal && _modal.querySelector('.troop-clk');
     if (box) box.checked = _sync;
     _lastErr = null;
     if (!_sync) { _log('⇄ clock: free — your own tempo again', 'info'); return false; }
     if (!_watch) { _log('⇄ clock: not watching a troop yet — troop("192.168.1.38") first', 'warn'); _sync = false; return false; }
-    _log(`⇄ clock: following webTroop, aligned every ${_quantum} beats`, 'ok');
+    _log(_mode === 'beat'
+        ? '⇄ clock: following webTroop — their beat number is now yours, so bars agree'
+        : `⇄ clock: following webTroop, phase aligned every ${_quantum} beats`, 'ok');
     return true;
 }
 export function troopClockOn() { return _sync; }
+/** 'beat' (the number itself) or 'phase' (only the position in the bar). */
+export function troopClockMode() { return _mode; }
 /** How far our bar phase sits from theirs, in beats, or null if not following yet. */
 export function troopClockError() { return _lastErr; }
 
@@ -188,7 +200,15 @@ export async function startTroop(host, yPort) {
     _open = true;
     let peers = [], code = '';
     _watch = await watchTroop({ host, ...(yPort ? { yPort } : {}) }, {
-        onCode: (t) => { code = t; paintCode(code, peers); },
+        onCode: (t) => {
+            code = t;
+            paintCode(code, peers);
+            // postCode/postInstant only cross the BroadcastChannel to a SEPARATE
+            // visuals window. When the canvas is in this window — which is the normal
+            // way to run it — the code layers read vlang's own feed, so without this
+            // line codefull and its siblings showed your code and never theirs.
+            if (_toVisuals) { try { noteTroop(code.split('\n').slice(-60).join('\n')); } catch (_) {} }
+        },
         onPeers: (ps) => { peers = ps; paintPeers(ps); paintCode(code, peers); },
         onStat: (k, v) => {
             paintStats(_watch ? _watch.state().stats : {});
@@ -200,16 +220,20 @@ export async function startTroop(host, yPort) {
             if (!isFinite(bpm) || bpm <= 0 || !isFinite(beat)) return;
             if (beat === _lastBeat) return;            // the same reading twice is not news
             _lastBeat = beat;
-            const phase = ((beat % _quantum) + _quantum) % _quantum;
             try {
-                // Read the error before correcting it — that is the number that says
-                // whether we are locked, and it is worth showing rather than inferring
-                // from whether the notes sound right.
-                const ours = ((_clock.beat % _quantum) + _quantum) % _quantum;
-                let err = phase - ours;
-                err -= _quantum * Math.round(err / _quantum);
-                _lastErr = err;
-                _clock.syncTo({ bpm, phase, quantum: _quantum });
+                if (_mode === 'beat') {
+                    // lockTo reports the error it found, so there is nothing to
+                    // recompute and no chance of the readout and the correction
+                    // disagreeing about what "off" means.
+                    _lastErr = _clock.lockTo({ bpm, beat });
+                } else {
+                    const phase = ((beat % _quantum) + _quantum) % _quantum;
+                    const ours = ((_clock.beat % _quantum) + _quantum) % _quantum;
+                    let err = phase - ours;
+                    err -= _quantum * Math.round(err / _quantum);
+                    _lastErr = err;
+                    _clock.syncTo({ bpm, phase, quantum: _quantum });
+                }
             } catch (_) {}
         },
         onStatus: paintStatus,
@@ -228,6 +252,9 @@ export async function startTroop(host, yPort) {
             // so a troop rehearsal becomes the picture with nothing in between.
             if (!_toVisuals) return;
             try { postInstant(x.code || '', x.line || 0, x.user || 'troop', ''); } catch (_) {}
+            // And the same window of lines into the in-window feed, under the name of
+            // whoever is typing it, so the layers that colour per performer can.
+            try { noteTroop(x.windowLines || x.code || '', x.user || 'troop'); } catch (_) {}
         },
     });
     paintStats({});

@@ -115,10 +115,51 @@ export class Clock {
     // match tempo and align the bar phase. A large error (first lock / tempo
     // jump) snaps so we catch up fast; small errors are nudged a fraction each
     // update so the correction is inaudible — no lurching notes.
+    /**
+     * Lock the beat NUMBER to an external clock, not merely its phase.
+     *
+     * webTroop publishes FoxDot's Clock.beat, which is absolute — beat 2742 of their
+     * session, ten times a second. Aligning only `beat % 4` matches the pulse but
+     * leaves the numbering free, so their bar 686 can be your bar 12 and anything
+     * counted in bars disagrees. Taking the number itself makes the two sessions
+     * agree on where they ARE, not just on when the next beat falls.
+     *
+     * The correction is split, because the two halves mean different things:
+     *
+     *   whole beats  — a RENUMBERING. The clock moves and everything already
+     *                  scheduled moves with it, so not one note changes when it
+     *                  sounds. Without that shift a fresh lock jumps thousands of
+     *                  beats forward, every pending event is suddenly overdue, and
+     *                  the backlog empties into the room at once.
+     *   the fraction — the part you can HEAR. Only the clock moves, so the audio
+     *                  slides into place: snapped if it is far, eased at 8% an
+     *                  update if it is close, which is inaudible at ten a second.
+     *
+     * @returns {number|null} the error in beats before correcting, for a readout.
+     */
+    lockTo({ bpm, beat }) {
+        if (bpm && Math.abs(bpm - this._bpm) > 0.01) this.bpm = bpm;
+        if (beat == null || !isFinite(beat)) return null;
+        const err = beat - this._beatNow();
+        const whole = Math.round(err);
+        if (whole) {
+            this._beat += whole;
+            for (const e of this._events) e.beat += whole;
+        }
+        const frac = err - whole;                       // now within ±0.5
+        this._beat += Math.abs(frac) > 0.25 ? frac : frac * 0.08;
+        return err;
+    }
+
     syncTo({ bpm, phase, quantum }) {
         if (bpm && Math.abs(bpm - this._bpm) > 0.01) this.bpm = bpm;   // setter → UI
         if (phase == null || !quantum) return;
-        const cur = ((this._beat % quantum) + quantum) % quantum;
+        // _beatNow(), not _beat: the tick value is up to one 10ms tick stale, and
+        // comparing a stale beat against a live external phase bakes that staleness
+        // in as a permanent offset — measured at 0.011 beats, ~5ms, which is the
+        // wrong side of audible to leave in a sync path. The correction still lands
+        // on _beat; the drift between them is the same before and after.
+        const cur = ((this._beatNow() % quantum) + quantum) % quantum;
         let err = phase - cur;
         err -= quantum * Math.round(err / quantum);                   // nearest, (-q/2, q/2]
         this._beat += Math.abs(err) > quantum * 0.25 ? err : err * 0.08;
