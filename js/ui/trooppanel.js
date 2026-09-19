@@ -90,13 +90,49 @@ function build() {
 
 // Their telemetry, in their own words. bpm and cpu first because those are the two
 // you glance at; the rest reads left to right in the order it stops changing.
-const ORDER = ['bpm', 'cpu', 'beat', 'scale', 'root', 'players', 'serverState'];
+const ORDER = ['bpm', 'cpu', 'beat', 'scale', 'root', 'players', 'serverState', 'chrono'];
+const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Their telemetry arrives in the shapes their code happens to hold, not the shapes
+// a readout wants: beat is a full-precision float, root is the STRING "0", and
+// serverState is a boolean that JSON flattened to 0. Printed raw that is a panel of
+// "2304.5135531425476" and "0", which is data rather than information. Formatting
+// here and not in the bridge, because the bridge's job is to report what they said.
+function fmtStat(k, v) {
+    if (Array.isArray(v)) {
+        if (!v.length) return '—';
+        // A player list comes over as an array of JSON STRINGS, each one an object.
+        return v.map((p) => {
+            if (p && typeof p === 'object') return p.name || p.id || '?';
+            const t = String(p);
+            if (!/^\s*[[{]/.test(t)) return t;
+            try { const o = JSON.parse(t); return (o && (o.name || o.id)) || t; } catch (_) { return t; }
+        }).join(' ');
+    }
+    if (v && typeof v === 'object') {
+        const n = Object.keys(v).length;
+        return n ? Object.keys(v).join(' ') : '—';
+    }
+    switch (k) {
+        case 'beat':   return isFinite(Number(v)) ? String(Math.floor(Number(v))) : String(v);
+        // A bare "0" reads as nothing at all until you know it is a semitone.
+        case 'root':   { const n = Number(v); return isFinite(n) ? NOTE[((n % 12) + 12) % 12] : String(v); }
+        case 'cpu':    return isFinite(Number(v)) ? Number(v).toFixed(0) + '%' : String(v);
+        case 'chrono': { const t = Number(v); if (!isFinite(t)) return String(v);
+                         const m = Math.floor(t / 60); return m + ':' + String(Math.floor(t % 60)).padStart(2, '0'); }
+        // Their FoxDot server, up or down — the thing you actually want to know
+        // when their bpm is ticking along and nothing is making any sound.
+        case 'serverState': return (v === true || v === 1 || v === '1' || v === 'true') ? 'up' : 'down';
+        default: return String(v);
+    }
+}
+
 function paintStats(stats) {
     const cell = (k) => {
-        let v = stats[k];
-        if (v === undefined) return '';
-        if (Array.isArray(v)) v = v.length ? v.join(' ') : '—';
-        const warm = k === 'cpu' && Number(v) > 70 ? ' hot' : '';
+        const raw = stats[k];
+        if (raw === undefined) return '';
+        const v = fmtStat(k, raw);
+        const warm = (k === 'cpu' && Number(raw) > 70) || (k === 'serverState' && v === 'down') ? ' hot' : '';
         return `<span class="troop-stat${warm}"><b>${esc(k)}</b>${esc(v)}</span>`;
     };
     _statsEl.innerHTML = ORDER.map(cell).join('') ||
