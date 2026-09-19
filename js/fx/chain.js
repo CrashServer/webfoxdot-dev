@@ -13,15 +13,28 @@
 import { FX_REGISTRY, FX_EFFECTS } from './registry.js';
 
 export class FXChain {
-    constructor(bus, fxGroupId, sc) {
+    /**
+     * @param {object} [opts]
+     * @param {boolean} [opts.router=true]  copy the bus to the main out at the tail.
+     *     A player's chain needs it — its bus is private. The MASTER chain must not
+     *     have it: its bus IS the main out, and fd_fx_out does Out.ar, which adds, so
+     *     routing bus 0 onto bus 0 would double the entire mix.
+     */
+    constructor(bus, fxGroupId, sc, { router = true } = {}) {
         this._bus   = bus;
         this._group = fxGroupId;
         this._nodes = new Map();   // effect index → { id, last:{scParam:value} }
-        this._outId = sc.nextNodeId();
-        // Tail router: private bus → main out. Added to the group head; _reorder
-        // keeps it after every effect node.
-        sc.send('/s_new', 'fd_fx_out', this._outId, 0, fxGroupId, 'in_bus', bus, 'out', 0);
+        this._outId = null;
+        if (router) {
+            this._outId = sc.nextNodeId();
+            // Tail router: private bus → main out. Added to the group head; _reorder
+            // keeps it after every effect node.
+            sc.send('/s_new', 'fd_fx_out', this._outId, 0, fxGroupId, 'in_bus', bus, 'out', 0);
+        }
     }
+
+    /** How many effect nodes are live — for a readout, and for tests. */
+    get size() { return this._nodes.size; }
 
     // resolvedFxArgs: { userKey: value } (already ungrouped) for this step.
     update(resolvedFxArgs, sc) {
@@ -60,7 +73,7 @@ export class FXChain {
             if (prev !== null) sc.send('/n_after', id, prev);
             prev = id;
         }
-        if (prev !== null) sc.send('/n_after', this._outId, prev);
+        if (prev !== null && this._outId !== null) sc.send('/n_after', this._outId, prev);
     }
 
     free(sc) {

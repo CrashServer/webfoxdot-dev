@@ -256,7 +256,8 @@
              drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST, setRerollHandler, setGate } from './js/engine/player.js';
     import * as gate from './js/engine/gate.js';
     import { Scale, Root }    from './js/engine/scale.js';
-    import { FX_SYNTHDEFS }   from './js/fx/registry.js';
+    import { FX_SYNTHDEFS, FX_REGISTRY } from './js/fx/registry.js';
+    import { FXChain }        from './js/fx/chain.js';
     import { SYNTH_DEFS, makeSynth, setNaNWarn } from './js/synths/registry.js';
     import { PRand, PWhite, PWalk, PDur, PPing,
              PStutter, PAlt, PShuf, PBern, PCoin,
@@ -1084,6 +1085,7 @@
             // This is what RELOAD has always done; it just had no gesture short of
             // reaching for the toolbar.
             _panicFn(clock);
+            masterChainRebuild();
             log('■■ cut — every sounding node freed', 'warn');
         } else {
             log('■ stopped — tails still ringing; press stop again to cut them', 'info');
@@ -1129,25 +1131,48 @@
         mverb: 'mverb', echo: 'echo', echo_time: 'echo_time', echo_dec: 'echo_dec',
         tanh: 'tanh', drive: 'tanh_drive', lofi: 'lofi',
     };
+    // Two places a master effect can live, and the rule for which is simple: the
+    // built-ins of fd_master (gain, ceiling, lpf, hpf, mverb, echo, tanh, lofi) stay
+    // there, so every set that already used Server.addFx sounds exactly as it did.
+    // ANY OTHER effect a player can have becomes a node in the master chain, in front
+    // of the limiter — which is FoxDot's Server.addfx: chorus, crush, shimmer,
+    // fbdelay, pumper, all of it, over the whole mix.
+    let _masterChain = null;
+    let _masterChainOpts = {};
+    function masterChainArgs() {
+        const a = { ..._masterChainOpts };
+        // Tempo-synced effects (pong, fbdelay, chop, rgate, pumper) read beat_dur.
+        // A player has to pass it by hand; the master knows the tempo, so it does.
+        if (!('beat_dur' in a)) a.beat_dur = 60 / (Number(clock.bpm) || 120);
+        return a;
+    }
     function masterSet(opts) {
         const params = [];
         const unknown = [];
+        let chained = 0;
         for (const [k, v] of Object.entries(opts || {})) {
+            const val = Number((v && typeof v.get === 'function') ? v.get(0) : v);   // snapshot patterns/timevars
             const sp = MASTER_PARAMS[k];
-            // The master chain is a FIXED set baked into fd_master, not the 160-key
-            // per-player registry — so asking it for chorus is a reasonable mistake.
-            // It used to be skipped in silence, which is the worst answer: the line
+            if (sp) { params.push(sp, val); continue; }
+            if (FX_REGISTRY[k]) { _masterChainOpts[k] = val; chained++; continue; }
+            // Neither: say so. Skipping in silence is the worst answer — the line
             // evaluates, nothing is said, and nothing happens.
-            if (!sp) { unknown.push(k); continue; }
-            const val = (v && typeof v.get === 'function') ? v.get(0) : v;   // snapshot patterns/timevars
-            params.push(sp, Number(val));
+            unknown.push(k);
         }
-        if (unknown.length) {
-            log(`master: no ${unknown.join(', ')} on the master bus — it has ${Object.keys(MASTER_PARAMS).join(' ')}`, 'warn');
-            log('  for anything else, put the FX on the players themselves', 'info');
-        }
+        if (unknown.length) log(`master: no effect called ${unknown.join(', ')} — Server.addFx() lists them`, 'warn');
         if (params.length && _scRef) _scRef.send('/n_set', MASTER_NODE, ...params);
-        return params.length / 2;
+        if (chained && _masterChain && _scRef) _masterChain.update(masterChainArgs(), _scRef);
+        return params.length / 2 + chained;
+    }
+    // The hard cut frees every sounding node — and a master delay or reverb is one:
+    // its buffer would go on ringing after everything feeding it was gone. So the
+    // chain is rebuilt EMPTY-BUFFERED with the same settings: silence now, and the
+    // effects still there for whatever plays next.
+    function masterChainRebuild() {
+        if (!_masterChain || !_scRef) return;
+        try { _masterChain.free(_scRef); } catch (_) {}
+        _masterChain = new FXChain(0, MASTER_FX_GROUP, _scRef, { router: false });
+        if (Object.keys(_masterChainOpts).length) _masterChain.update(masterChainArgs(), _scRef);
     }
     // One object for both spellings of the same idea.
     const _masterKnob = new Proxy({}, {
@@ -1156,6 +1181,11 @@
     });
     function masterClear() {
         masterSet({ gain: 1, lpf: 0, hpf: 0, mverb: 0, echo: 0, tanh: 0, lofi: 0 });
+        _masterChainOpts = {};
+        if (_masterChain && _scRef) {
+            try { _masterChain.free(_scRef); } catch (_) {}
+            _masterChain = new FXChain(0, MASTER_FX_GROUP, _scRef, { router: false });
+        }
         log('master FX cleared', 'info');
     }
 
@@ -1691,9 +1721,12 @@
                 addFx: (opts) => {
                     // No arguments: say what the bus can do rather than doing nothing.
                     if (opts == null) {
-                        log(`master bus: ${Object.keys(MASTER_PARAMS).join(' · ')}`, 'info');
-                        log('  Server.addFx(lpf=600, mverb=0.4)  ·  Server.clearFx()  ·  Master.lpf = 800', 'info');
-                        return Object.keys(MASTER_PARAMS);
+                        const on = Object.entries(_masterChainOpts).map(([k, v]) => `${k}=${v}`);
+                        log(`master built-ins: ${Object.keys(MASTER_PARAMS).join(' · ')}`, 'info');
+                        log(`  plus ANY player effect — chorus, crush, shimmer, fbdelay, pumper… (${Object.keys(FX_REGISTRY).length} keys)`, 'info');
+                        log(`  on now: ${on.length ? on.join(', ') : 'nothing beyond the built-ins'}`, 'info');
+                        log('  Server.addFx(chorus=0.5, crush=6)  ·  Server.clearFx()  ·  Master.chorus = 0.3', 'info');
+                        return Object.keys(MASTER_PARAMS).concat(Object.keys(FX_REGISTRY));
                     }
                     return masterSet(opts);
                 },
@@ -2160,6 +2193,10 @@
         ...FX_SYNTHDEFS,   // fd_fx_out + per-effect fd_fx_* nodes (approach A)
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
+    // The master FX CHAIN: any player effect, over the whole mix. Its group sits
+    // after FX_GROUP — so after every player has written to bus 0 — and before
+    // fd_master at the tail, so the limiter still has the last word.
+    const MASTER_FX_GROUP = 5;
 
     async function bootAudio() {
         if (_booting || _scRef) return;   // already booting or booted — don't spawn a 2nd engine
@@ -2238,7 +2275,8 @@
             // PLAYER_GROUP head of RootNode, FX_GROUP after PLAYER_GROUP.
             sc.send('/g_new', PLAYER_GROUP, 0, 0);
             sc.send('/g_new', FX_GROUP,     3, PLAYER_GROUP);
-            log(`  groups created: playerGroup=${PLAYER_GROUP}, fxGroup=${FX_GROUP}`, 'ok');
+            sc.send('/g_new', MASTER_FX_GROUP, 3, FX_GROUP);
+            log(`  groups created: playerGroup=${PLAYER_GROUP}, fxGroup=${FX_GROUP}, masterFx=${MASTER_FX_GROUP}`, 'ok');
 
             const synthStatus = document.getElementById('synth-status');
             // Progress stays visible in the status pill (a live count) instead of
@@ -2254,6 +2292,10 @@
             // Master safety limiter at the tail of RootNode — sees the summed mix
             // of every player + FX, so stacking loud players can't hard-clip.
             sc.send('/s_new', 'fd_master', MASTER_NODE, 1, 0);
+            // A new engine gets a new chain. Anything already asked of the master
+            // (a re-boot mid-set) is put straight back on it.
+            _masterChain = new FXChain(0, MASTER_FX_GROUP, sc, { router: false });
+            if (Object.keys(_masterChainOpts).length) _masterChain.update(masterChainArgs(), sc);
             applyStation(myStation());        // a visuals station stays silent across a boot
             log('  master limiter ✓', 'ok');
 

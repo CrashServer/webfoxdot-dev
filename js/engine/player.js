@@ -86,6 +86,14 @@ export function busStats() { return { used: _nextSlot - _freeBuses.length, peak:
 // SuperSonic instance reference — set after boot
 let _sc = null;
 export function setSuperSonic(sc) { _sc = sc; }
+/**
+ * The server's node tree as SuperSonic mirrors it: groups, synths, def names, order.
+ * Read-only — the one honest answer to "what is actually running?", which the
+ * JS side's own bookkeeping can only claim.
+ */
+export function nodeTree() {
+    try { return _sc && typeof _sc.getTree === 'function' ? _sc.getTree() : null; } catch (_) { return null; }
+}
 
 // Master mix — a single gain the mixer console scales; multiplies into every note's amp.
 let _masterMix = 1;
