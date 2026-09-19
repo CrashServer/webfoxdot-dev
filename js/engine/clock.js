@@ -157,6 +157,11 @@ export class Clock {
     // Math.max(1, Math.round(NaN)) is NaN, not 1 — bar() would return NaN forever.
     set meter(n)        { const m = Math.round(Number(n)); if (isFinite(m)) this._meter = Math.max(1, m); }
 
+    // The beat as of RIGHT NOW, interpolated between the 10ms ticks — the number
+    // you want when comparing phase against another clock, where a tick of stale
+    // reading is 0.02 beats of imaginary error.
+    get beat() { return this._beatNow(); }
+
     get bpm()  { return this._bpm; }
     set bpm(v) {
         // A TimeVar/pattern → tempo automation (sampled each tick in _tick).

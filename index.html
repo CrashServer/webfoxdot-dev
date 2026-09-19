@@ -291,7 +291,7 @@
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
     import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
-    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals } from './js/ui/trooppanel.js';
+    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals, troopClock, troopClockOn, troopClockError } from './js/ui/trooppanel.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1534,7 +1534,8 @@
             // troop(host) — watch a webTroop session: their shared buffer, their
             // telemetry, and who is typing what.
             //
-            //   troop("192.168.1.38")   start watching
+            //   troop("192.168.1.38")       start watching
+            //   troop("192.168.1.38", 4450)  if their sync port has moved
             //   troop()                 what it is seeing right now
             //   troop(0)                stop
             //
@@ -1545,7 +1546,7 @@
             //
             // In pretext mode their typing also goes to the visual code layers, so a
             // troop rehearsal can be the picture.
-            troop: (host) => {
+            troop: (host, yPort) => {
                 if (host === 0 || host === false || host === 'off' || host === 'stop') { stopTroop(); return null; }
                 if (host == null) {
                     const st = troopState();
@@ -1559,8 +1560,37 @@
                 }
                 let v = host;
                 if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
-                startTroop(String(v).trim());
+                startTroop(String(v).trim(), Number(yPort) || undefined);
                 return String(v).trim();
+            },
+            // troopclock(on, quantum) — take the beat from webTroop.
+            //
+            //   troopclock(1)      follow their tempo and bar phase
+            //   troopclock(1, 8)   align on 8-beat bars instead of 4
+            //   troopclock(0)      your own clock again
+            //   troopclock()       is it following?
+            //
+            // Their FoxDot publishes a fractional beat on the telemetry socket, and
+            // that is enough to discipline ours: match tempo, then correct the bar
+            // phase — a big error snaps so a late join catches up at once, a small
+            // one is nudged a fraction per update so you hear tempo, not a stumble.
+            //
+            // One master, and it is theirs. Nothing is sent back; this moves OUR
+            // clock only. Needs troop() first, and needs their telemetry reachable —
+            // watching over localhost gets you their code but no beat to follow.
+            //
+            // Clock.bpm = linvar(...) and this one both write the tempo every tick,
+            // so pick one: a tempo ramp will win and the phase will keep fighting it.
+            troopclock: (on, quantum) => {
+                if (on == null) {
+                    const e = troopClockError();
+                    log('troopclock: ' + (troopClockOn()
+                        ? 'following webTroop' + (e == null ? ' — no beat received yet'
+                            : ` · phase off by ${e >= 0 ? '+' : ''}${e.toFixed(3)} beats`)
+                        : 'free — troopclock(1) to follow'), 'info');
+                    return troopClockOn();
+                }
+                return troopClock(!(on === 0 || on === false || on === 'off'), quantum);
             },
             // compo_base(parts, beats, family) — a skeleton arrangement to write into.
             //
@@ -3060,7 +3090,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // ── A set as a FILE ──────────────────────────────────────────────────────
     // It lived in localStorage and in a #c= URL and nowhere else, so a track written
     // as a .py on disk — which is where people keep them — got in by being pasted.
-    initTroopPanel({ log });
+    initTroopPanel({ log, clock });
     initSetFile({
         get:  () => editor.getValue(),
         // Into a new buffer: opening a file should never be the thing that loses what

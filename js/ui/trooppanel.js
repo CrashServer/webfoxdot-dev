@@ -13,11 +13,46 @@ import { watchTroop } from '../net/webtroop.js';
 import { draggable } from './dragpanel.js';
 import { postCode, postInstant } from '../visuals/bridge.js';
 
-let _modal = null, _open = false, _watch = null, _log = null;
+let _modal = null, _open = false, _watch = null, _log = null, _clock = null;
+// Follow their clock. Off by default: joining a room should not re-time your set
+// without being asked.
+let _sync = false, _quantum = 4, _lastBeat = null, _lastErr = null;
 let _codeEl = null, _statsEl = null, _peersEl = null, _dotEl = null, _hostEl = null;
 let _toVisuals = true;
 
-export function initTroopPanel({ log } = {}) { _log = log || (() => {}); }
+export function initTroopPanel({ log, clock } = {}) { _log = log || (() => {}); _clock = clock || null; }
+
+/**
+ * Follow webTroop's clock — tempo and bar phase, follow-only.
+ *
+ * Their FoxDot publishes a FRACTIONAL beat on the telemetry socket, which is the
+ * one number this needs; the rest is the mechanism crashDot already has for Ableton
+ * Link. syncTo() matches tempo, then corrects the bar phase: a large error snaps so
+ * a fresh join catches up at once, a small one is nudged 8% per update so the
+ * correction is inaudible rather than lurching the notes.
+ *
+ * Follow-only in both directions of the word: it never sends anything to them, and
+ * it moves OUR clock rather than asking theirs to move. webTroop is the master
+ * because webTroop is the thing the room is dancing to.
+ *
+ * @param {boolean} on
+ * @param {number} [quantum=4]  beats per bar to align on
+ */
+export function troopClock(on, quantum) {
+    _sync = !!on;
+    if (Number(quantum) > 0) _quantum = Math.round(Number(quantum));
+    _lastBeat = null;
+    const box = _modal && _modal.querySelector('.troop-clk');
+    if (box) box.checked = _sync;
+    _lastErr = null;
+    if (!_sync) { _log('⇄ clock: free — your own tempo again', 'info'); return false; }
+    if (!_watch) { _log('⇄ clock: not watching a troop yet — troop("192.168.1.38") first', 'warn'); _sync = false; return false; }
+    _log(`⇄ clock: following webTroop, aligned every ${_quantum} beats`, 'ok');
+    return true;
+}
+export function troopClockOn() { return _sync; }
+/** How far our bar phase sits from theirs, in beats, or null if not following yet. */
+export function troopClockError() { return _lastErr; }
 
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -32,6 +67,8 @@ function build() {
             <span class="troop-host"></span>
             <label class="troop-vis" title="send their typing to the visual code layers (livecode, codefull, codeconspiracy) — so a rehearsal can BE the picture">
                 <input type="checkbox" checked> → visuals</label>
+            <label class="troop-vis" title="follow their beat: match tempo and bar phase from the telemetry feed, follow-only — nothing is sent back">
+                <input type="checkbox" class="troop-clk"> ⇄ clock</label>
             <button class="troop-close" title="stop watching">✕</button>
         </div>
         <div class="troop-stats"></div>
@@ -47,6 +84,7 @@ function build() {
     _hostEl  = _modal.querySelector('.troop-host');
     _modal.querySelector('.troop-close').onclick = () => stopTroop();
     _modal.querySelector('.troop-vis input').onchange = (e) => { _toVisuals = e.target.checked; };
+    _modal.querySelector('.troop-clk').onchange = (e) => { e.target.checked = troopClock(e.target.checked); };
     draggable(_modal.querySelector('.troop-head'), _modal, 'button, input, label');
 }
 
@@ -100,19 +138,54 @@ function paintStatus(s) {
     _dotEl.className = 'troop-dot' + (s.code ? ' up' : '');
 }
 
-/** Start watching. Host is an IP or a name — whatever webTroop's HOST_IP is. */
-export async function startTroop(host) {
+/**
+ * Start watching.
+ * @param {string} host  an IP or a name — whatever webTroop's HOST_IP is
+ * @param {number} [yPort=4444]  its sync port. A parameter because crashDot's own
+ *        collab server wants 4444 too, so on a shared machine one of them has moved.
+ */
+export async function startTroop(host, yPort) {
     if (!_modal) build();
     if (_watch) _watch.close();
-    _hostEl.textContent = host;
+    _hostEl.textContent = host + (yPort && yPort !== 4444 ? ':' + yPort : '');
     _modal.classList.remove('hidden');
     _open = true;
     let peers = [], code = '';
-    _watch = await watchTroop({ host }, {
+    _watch = await watchTroop({ host, ...(yPort ? { yPort } : {}) }, {
         onCode: (t) => { code = t; paintCode(code, peers); },
         onPeers: (ps) => { peers = ps; paintPeers(ps); paintCode(code, peers); },
-        onStat: () => paintStats(_watch ? _watch.state().stats : {}),
+        onStat: (k, v) => {
+            paintStats(_watch ? _watch.state().stats : {});
+            if (!_sync || !_clock) return;
+            const st = _watch ? _watch.state().stats : {};
+            // Both numbers, or neither: a tempo without a phase drifts and a phase
+            // without a tempo fights.
+            const bpm = Number(st.bpm), beat = Number(st.beat);
+            if (!isFinite(bpm) || bpm <= 0 || !isFinite(beat)) return;
+            if (beat === _lastBeat) return;            // the same reading twice is not news
+            _lastBeat = beat;
+            const phase = ((beat % _quantum) + _quantum) % _quantum;
+            try {
+                // Read the error before correcting it — that is the number that says
+                // whether we are locked, and it is worth showing rather than inferring
+                // from whether the notes sound right.
+                const ours = ((_clock.beat % _quantum) + _quantum) % _quantum;
+                let err = phase - ours;
+                err -= _quantum * Math.round(err / _quantum);
+                _lastErr = err;
+                _clock.syncTo({ bpm, phase, quantum: _quantum });
+            } catch (_) {}
+        },
         onStatus: paintStatus,
+        onEmpty: (e) => {
+            // Connected and nothing there. Name the likeliest cause rather than
+            // leaving an empty panel to be interpreted.
+            _log(`⇄ connected to ${e.host}:${e.port} but the room "${e.room}" is empty` +
+                 (e.telemetry ? ' — is the troop just not typing yet?'
+                              : ` — and their telemetry is down too. Is ${e.port} webTroop's sync server,` +
+                                ` or crashDot's own collab server on the same port? troop("host", 4445) picks another.`),
+                 'warn');
+        },
         onPretext: (x) => {
             // Straight into the visual code layers. postInstant is throttled and is
             // exactly this shape already — the line, who wrote it, where they are —
@@ -129,6 +202,14 @@ export async function startTroop(host) {
 
 export function stopTroop() {
     if (_watch) { _watch.close(); _watch = null; }
+    // Stop following a clock that is no longer arriving, or the last reading stands
+    // as a tempo you never chose.
+    if (_sync) {
+        _sync = false;
+        const box = _modal && _modal.querySelector('.troop-clk');
+        if (box) box.checked = false;
+        _log('⇄ clock: free again — the troop feed closed', 'info');
+    }
     _open = false;
     if (_modal) _modal.classList.add('hidden');
     _log('⇄ stopped watching webTroop', 'info');
