@@ -453,7 +453,7 @@ export function initDocs() {
     let lastTab = 'examples';
     const index = () => docIndex({
         synths: SYNTH_DEFS, fx: FX_REGISTRY,
-        // Both kinds of scene: the 49 field scenes AND the 206 workshop layers, which
+        // Both kinds of scene: the 49 field scenes AND the 194 workshop layers, which
         // were reachable only by already knowing the name.
         scenes: [...V_SCENE_LIST, ...WORKSHOP_NAMES],
         examples: exampleList(),

@@ -1,7 +1,7 @@
 // search.js — one field across every tab.
 //
 // The panel has ten tabs and something over six hundred entries behind them: 235
-// reference rows, 141 synths, 21 whole-frame and 52 per-layer effects, 255 scenes,
+// reference rows, 141 synths, 21 whole-frame and 52 per-layer effects, 243 scenes,
 // the shortcuts, the examples. Finding `PGauss` or `halftone` meant knowing which
 // tab it lived in and then scanning — and Alt+I only helps if you can already spell
 // the thing. So: type a name, see it, wherever it lives.

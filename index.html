@@ -1788,7 +1788,7 @@
 
     function runCode(raw, opts = {}) {
         // The live-coding visual layers render the code that RAN — codeFull, liveCode,
-        // instrumentPop and the rest read it from the visual state. A peer's eval goes
+        // codeConspiracy and the rest read it from the visual state. A peer's eval goes
         // in the other performer's slot, so in a jam those layers show both people.
         try { noteVisualEval(raw, opts.fromRemote ? (opts.author || 'peer') : null); } catch (_) {}
         const prevEvalDoc = _evalDoc;

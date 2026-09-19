@@ -162,7 +162,7 @@ export function getVisualAudio() {
     return local;
 }
 
-// 64, because that is what the WORKSHOP LAYERS were written against. 80 of the 206
+// 64, because that is what the WORKSHOP LAYERS were written against. 80 of the 194
 // index the spectrum at 38, 48 and 50 to get their treble; at 32 bins those reads are
 // undefined, `undefined + undefined` is NaN, and the NaN lands in an hsla() — ten
 // layers threw outright and the rest quietly drew nothing, or drew intermittently.

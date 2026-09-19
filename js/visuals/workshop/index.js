@@ -9,7 +9,7 @@
 // palette and mirrored into GLSL so it can run per-pixel on the GPU. A workshop
 // layer is an imperative RGBA DRAW — draw(ctx,w,h,p,t) — that owns its own colour
 // and its own state. Neither can be expressed as the other, so the renderer grew a
-// second layer kind rather than trying to translate 206 of these into fields.
+// second layer kind rather than trying to translate 194 of these into fields.
 //
 // makeParams() returns descriptors ({ base, min, max, mod }), not values; the
 // workshop resolves them through its own modulation matrix. crashDot resolves
@@ -27,16 +27,13 @@ import { asciiWaveformParams, drawAsciiWaveform } from './layers/asciiWaveform.j
 import { attractorParams, drawAttractor } from './layers/attractor.js';
 import { audioTerrainParams, drawAudioTerrain } from './layers/audioTerrain.js';
 import { auroraParams, drawAurora } from './layers/aurora.js';
-import { beatCreaturesParams, drawBeatCreatures } from './layers/beatCreatures.js';
 import { binaryRainParams, drawBinaryRain } from './layers/binaryRain.js';
 import { bioSpineParams, drawBioSpine } from './layers/bioSpine.js';
 import { biosPostParams, drawBiosPost } from './layers/biosPost.js';
 import { blackParams, drawBlack } from './layers/black.js';
-import { bloodSplatterParams, drawBloodSplatter } from './layers/bloodSplatter.js';
 import { bodyHorrorParams, drawBodyHorror } from './layers/bodyHorror.js';
 import { boidsParams, drawBoids } from './layers/boids.js';
 import { boidsTrailsParams, drawBoidsTrails } from './layers/boidsTrails.js';
-import { breakingOverlayParams, drawBreakingOverlay } from './layers/breakingOverlay.js';
 import { bubblesFloatParams, drawBubblesFloat } from './layers/bubblesFloat.js';
 import { burningShipParams, drawBurningShip } from './layers/burningShip.js';
 import { bzReactionParams, drawBzReaction } from './layers/bzReaction.js';
@@ -50,7 +47,6 @@ import { clockFaceParams, drawClockFace } from './layers/clockFace.js';
 import { codeComicParams, drawCodeComic } from './layers/codeComic.js';
 import { codeConspiracyParams, drawCodeConspiracy } from './layers/codeConspiracy.js';
 import { codeFullParams, drawCodeFull } from './layers/codeFull.js';
-import { comicPanelsParams, drawComicPanels } from './layers/comicPanels.js';
 import { constellationParams, drawConstellation } from './layers/constellation.js';
 import { coralBranchParams, drawCoralBranch } from './layers/coralBranch.js';
 import { countdownParams, drawCountdown } from './layers/countdown.js';
@@ -61,7 +57,6 @@ import { cricWifiAttackParams, drawCricWifiAttack } from './layers/cricWifiAttac
 import { crystalGrowthParams, drawCrystalGrowth } from './layers/crystalGrowth.js';
 import { crystalLatticeParams, drawCrystalLattice } from './layers/crystalLattice.js';
 import { cubeFieldParams, drawCubeField } from './layers/cubeField.js';
-import { curlFlowParams, drawCurlFlow } from './layers/curlFlow.js';
 import { cyberpunkWorldParams, drawCyberpunkWorld } from './layers/cyberpunkWorld.js';
 import { cyclicCAParams, drawCyclicCA } from './layers/cyclicCA.js';
 import { cymaticsParams, drawCymatics } from './layers/cymatics.js';
@@ -80,7 +75,6 @@ import { drawFerrofluid, ferrofluidParams } from './layers/ferrofluid.js';
 import { drawFilmLeader, filmLeaderParams } from './layers/filmLeader.js';
 import { drawFire, fireParams } from './layers/fire.js';
 import { drawFlickerFilm, flickerFilmParams } from './layers/flickerFilm.js';
-import { drawFlowField, flowFieldParams } from './layers/flowField.js';
 import { drawFlowerOfLife, flowerOfLifeParams } from './layers/flowerOfLife.js';
 import { drawFpvDrone, fpvDroneParams } from './layers/fpvDrone.js';
 import { drawFractalKaleidoscope, fractalKaleidoscopeParams } from './layers/fractalKaleidoscope.js';
@@ -112,7 +106,6 @@ import { drawIkedaOscillo, ikedaOscilloParams } from './layers/ikedaOscillo.js';
 import { drawIkedaScan, ikedaScanParams } from './layers/ikedaScan.js';
 import { drawImpactText, impactTextParams } from './layers/impactText.js';
 import { drawInkBlot, inkBlotParams } from './layers/inkBlot.js';
-import { drawInstrumentPop, instrumentPopParams } from './layers/instrumentPop.js';
 import { drawInterference, interferenceParams } from './layers/interference.js';
 import { drawJuliaCycles, juliaCyclesParams } from './layers/juliaCycles.js';
 import { drawKaliTunnel, kaliTunnelParams } from './layers/kaliTunnel.js';
@@ -161,12 +154,9 @@ import { drawPolarMandala, polarMandalaParams } from './layers/polarMandala.js';
 import { drawPong, pongParams } from './layers/pong.js';
 import { drawPrismLight, prismLightParams } from './layers/prismLight.js';
 import { drawPropagandaPoster, propagandaPosterParams } from './layers/propagandaPoster.js';
-import { drawPunkStatic, punkStaticParams } from './layers/punkStatic.js';
 import { drawQuantumAscii, quantumAsciiParams } from './layers/quantumAscii.js';
 import { drawQuantumWave, quantumWaveParams } from './layers/quantumWave.js';
-import { drawQuasicrystal, quasicrystalParams } from './layers/quasicrystal.js';
 import { drawRadarSweep, radarSweepParams } from './layers/radarSweep.js';
-import { drawRansomEval, ransomEvalParams } from './layers/ransomEval.js';
 import { drawReactionDiffusion, reactionDiffusionParams } from './layers/reactionDiffusion.js';
 import { drawRedRoom, redRoomParams } from './layers/redRoom.js';
 import { drawResistanceNet, resistanceNetParams } from './layers/resistanceNet.js';
@@ -203,14 +193,12 @@ import { drawTesseract, tesseractParams } from './layers/tesseract.js';
 import { drawTestPattern, testPatternParams } from './layers/testpattern.js';
 import { drawText, textParams } from './layers/text.js';
 import { drawTileFlip, tileFlipParams } from './layers/tileFlip.js';
-import { drawToonEQ, toonEQParams } from './layers/toonEQ.js';
 import { drawTorusKnot, torusKnotParams } from './layers/torusKnot.js';
 import { drawTronTunnel, tronTunnelParams } from './layers/tronTunnel.js';
 import { drawTruchetTiles, truchetTilesParams } from './layers/truchetTiles.js';
 import { drawTunnel, tunnelParams } from './layers/tunnel.js';
 import { drawTuringPattern, turingPatternParams } from './layers/turingPattern.js';
 import { drawTypoBurst, typoBurstParams } from './layers/typoBurst.js';
-import { drawUlamSpiral, ulamSpiralParams } from './layers/ulamSpiral.js';
 import { drawVhsStatic, vhsStaticParams } from './layers/vhsStatic.js';
 import { drawVirusSpread, virusSpreadParams } from './layers/virusSpread.js';
 import { drawVolume, volumeParams } from './layers/volume.js';
@@ -284,7 +272,6 @@ export const WORKSHOP_LAYERS = {
     ikedamatrix:     { label: "Ikeda Matrix",        makeParams: ikedaMatrixParams,           draw: drawIkedaMatrix },
     ikedaoscillo:    { label: "Ikeda Oscillo",       makeParams: ikedaOscilloParams,          draw: drawIkedaOscillo },
     ikedascan:       { label: "Ikeda Scan",          makeParams: ikedaScanParams,             draw: drawIkedaScan },
-    flowfield:       { label: "Flow Field",          makeParams: flowFieldParams,             draw: drawFlowField },
     aurora:          { label: "Aurora",              makeParams: auroraParams,                draw: drawAurora },
     cymatics:        { label: "Cymatics",            makeParams: cymaticsParams,              draw: drawCymatics },
     interference:    { label: "Interference",        makeParams: interferenceParams,          draw: drawInterference },
@@ -396,7 +383,6 @@ export const WORKSHOP_LAYERS = {
     newtonfractal:   { label: "Newton Fractal",      makeParams: newtonFractalParams,         draw: drawNewtonFractal },
     sandpile:        { label: "Sandpile",            makeParams: sandpileParams,              draw: drawSandpile },
     spirograph:      { label: "Spirograph",          makeParams: spirographParams,            draw: drawSpirograph },
-    ulamspiral:      { label: "Ulam Spiral",         makeParams: ulamSpiralParams,            draw: drawUlamSpiral },
     vumeter:         { label: "VU Meter",            makeParams: vuMeterParams,               draw: drawVuMeter },
     black:           { label: "Black",               makeParams: blackParams,                 draw: drawBlack },
     asciifire:       { label: "ASCII Fire",          makeParams: asciiFireParams,             draw: drawAsciiFire },
@@ -408,25 +394,15 @@ export const WORKSHOP_LAYERS = {
     arabesque:       { label: "Arabesque",           makeParams: arabesqueParams,             draw: drawArabesque },
     seawaves:        { label: "Sea Waves",           makeParams: seaWavesParams,              draw: drawSeaWaves },
     coralbranch:     { label: "Coral Branch",        makeParams: coralBranchParams,           draw: drawCoralBranch },
-    curlflow:        { label: "Curl Flow",           makeParams: curlFlowParams,              draw: drawCurlFlow },
     ikedadots:       { label: "Ikeda Dots",          makeParams: ikedaDotsParams,             draw: drawIkedaDots },
     ikedacoords:     { label: "Ikeda Coords",        makeParams: ikedaCoordsParams,           draw: drawIkedaCoords },
     datapulse:       { label: "Data Pulse",          makeParams: dataPulseParams,             draw: drawDataPulse },
     freqmatrix:      { label: "Freq Matrix",         makeParams: freqMatrixParams,            draw: drawFreqMatrix },
-    punkstatic:      { label: "Punk Static",         makeParams: punkStaticParams,            draw: drawPunkStatic },
-    breakingoverlay: { label: "Breaking Overlay",    makeParams: breakingOverlayParams,       draw: drawBreakingOverlay },
-    bloodsplatter:   { label: "Blood Splatter",      makeParams: bloodSplatterParams,         draw: drawBloodSplatter },
     livecode:        { label: "Live Code",           makeParams: liveCodeParams,              draw: drawLiveCode },
     evalseismograph: { label: "Eval Seismograph",    makeParams: evalSeismographParams,       draw: drawEvalSeismograph },
     codefull:        { label: "Code Full Width",     makeParams: codeFullParams,              draw: drawCodeFull },
     codeconspiracy:  { label: "Code Conspiracy",     makeParams: codeConspiracyParams,        draw: drawCodeConspiracy },
-    instrumentpop:   { label: "Instrument Pop",      makeParams: instrumentPopParams,         draw: drawInstrumentPop },
-    comicpanels:     { label: "Comic Panels",        makeParams: comicPanelsParams,           draw: drawComicPanels },
-    quasicrystal:    { label: "Quasicrystal",        makeParams: quasicrystalParams,          draw: drawQuasicrystal },
     systemgauge:     { label: "System Gauge",        makeParams: systemGaugeParams,           draw: drawSystemGauge },
-    tooneq:          { label: "Toon EQ",             makeParams: toonEQParams,                draw: drawToonEQ },
-    beatcreatures:   { label: "Beat Creatures",      makeParams: beatCreaturesParams,         draw: drawBeatCreatures },
-    ransomeval:      { label: "Ransom Eval",         makeParams: ransomEvalParams,            draw: drawRansomEval },
     codecomic:       { label: "Code Comic",          makeParams: codeComicParams,             draw: drawCodeComic },
     flickerfilm:     { label: "Flicker Film",        makeParams: flickerFilmParams,           draw: drawFlickerFilm },
     scratchfilm:     { label: "Scratch Film",        makeParams: scratchFilmParams,           draw: drawScratchFilm },

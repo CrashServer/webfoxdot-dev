@@ -11,7 +11,23 @@ for names, f in imports:
 
 kinds = re.findall(r'^\s*([A-Za-z0-9_]+):\s*\{\s*label:\s*"((?:[^"\\]|\\.)*)",\s*makeParams:\s*([A-Za-z0-9_]+),\s*draw:\s*([A-Za-z0-9_]+)\s*\},?\s*$',
                    src, re.M)
-print('imports:', len(sym2file), 'kinds:', len(kinds))
+
+# Layers the workshop has and crashDot does not want. Dropped on request: they
+# either did not look good on the canvas or cost more frame than they were worth,
+# and a VJ set has no room for a layer you would not reach for. Listed HERE rather
+# than deleted from the generated file, because the next run against the workshop
+# source would hand them straight back.
+DROPPED = {
+    'tooneq', 'ransomeval', 'beatcreatures', 'quasicrystal', 'comicpanels',
+    'instrumentpop', 'bloodsplatter', 'breakingoverlay', 'punkstatic',
+    'curlflow', 'flowfield', 'ulamspiral',
+}
+dropped_seen = {k[0] for k in kinds} & DROPPED
+kinds = [k for k in kinds if k[0] not in DROPPED]
+print('imports:', len(sym2file), 'kinds:', len(kinds), '· dropped:', len(dropped_seen))
+# A name that no longer exists upstream is worth saying: the list should not rot.
+for k in sorted(DROPPED - dropped_seen):
+    print('  note: %s is in DROPPED but not in the workshop source any more' % k)
 
 missing = [k for k in kinds if k[2] not in sym2file or k[3] not in sym2file]
 assert not missing, missing[:5]

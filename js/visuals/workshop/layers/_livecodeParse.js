@@ -2,7 +2,7 @@
 // Ported from web/src/layers/livecode_parse.js. Pulls `player >> instrument(…)`
 // pairs out of the FoxDot code windows in extra.live, gives each a stable
 // cartoon colour, and word-wraps code for fixed panels. Used by the live-code
-// visual layers (instrumentPop, comicPanels, …).
+// visual layers (codeComic, and whichever of its siblings needs the same parse).
 
 const LINE_RE = /(?:^|\n)\s*([a-zA-Z_]\w*)\s*>>\s*([a-zA-Z_]\w*)\s*\(/g;
 

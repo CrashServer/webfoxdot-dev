@@ -34,7 +34,7 @@ let beatPulse = 0;
 let lastClearSeq = 0;
 let lastRes;                                     // last applied vres() scale
 let overlayOpaque = true;                        // is the 2D canvas currently covering GL?
-// The workshop deck — and with it 206 layer modules, 1.6MB — is imported the first
+// The workshop deck — and with it 194 layer modules, 1.3MB — is imported the first
 // time a workshop layer is used, so a set of field scenes never pays for it.
 let wsd = null, wsdPending = false;
 function wsDeck() {

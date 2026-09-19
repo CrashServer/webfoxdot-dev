@@ -86,7 +86,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
     const subs = new Set();
     // Workshop layers draw on the CPU into a canvas per deck; the GL renderer takes
-    // those as textures. The deck — and through it all 206 layer modules, 1.6MB — is
+    // those as textures. The deck — and through it all 194 layer modules, 1.3MB — is
     // imported the first time one is actually used, so an audio-only session never
     // pays for it. The frame or two before it arrives simply has no workshop pixels.
     let wsd = null, wsdPending = false;

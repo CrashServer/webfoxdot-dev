@@ -1,5 +1,5 @@
 // The CATALOG, not the registry: names and defaults only, so a session that never
-// opens a visual does not parse 206 layer modules. See workshop/catalog.js.
+// opens a visual does not parse 194 layer modules. See workshop/catalog.js.
 import { WORKSHOP_NAMES, WORKSHOP_FX_NAMES, WORKSHOP_FX_RANGES, defaults as wsDefaults } from './workshop/catalog.js';
 
 // Shared visual constants — imported by both vlang.js (main window, for routing /
@@ -163,7 +163,7 @@ export const WS_SET = new Set(WS_SCENES);
 // A workshop layer declares its own parameters — makeParams() returns
 // { name: { base, min, max } } — so the autocomplete table is derived rather than
 // kept by hand. It used to be 11 entries covering 49 forwarded names; it is now every
-// param of all 206, with the right defaults, and it cannot go stale.
+// param of all 194, with the right defaults, and it cannot go stale.
 const _wsParams = {};
 export function wsSceneParams(name) {
     if (_wsParams[name]) return _wsParams[name];

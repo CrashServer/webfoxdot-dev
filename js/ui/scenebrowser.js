@@ -1,7 +1,7 @@
-// scenebrowser.js — a contact sheet for the 255 scenes.
+// scenebrowser.js — a contact sheet for the 243 scenes.
 //
-// crashDot ships 49 field scenes and 206 workshop layers, and until now the only way
-// to find out what `truchettiles` or `gyroidslice` or `quasicrystal` looked like was
+// crashDot ships 49 field scenes and 194 workshop layers, and until now the only way
+// to find out what `truchettiles` or `gyroidslice` or `hitomezashi` looked like was
 // to type it into a live mix and watch. The names do not help and there are 255 of
 // them, so in practice everyone used the same dozen they happened to remember.
 //

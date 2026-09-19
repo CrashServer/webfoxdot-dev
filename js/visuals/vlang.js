@@ -508,9 +508,8 @@ export function setLayerChannel(name, ch) {
 
 // ── The live-coding feed ─────────────────────────────────────────────────────
 //
-// Ten of the workshop's layers — codeFull · codeComic · codeConspiracy · liveCode ·
-// evalSeismograph · ransomEval · instrumentPop · comicPanels · beatCreatures · toonEQ
-// — are ABOUT live coding: they render the code being typed, flash on evaluation, and
+// Five of the workshop's layers — codeFull · codeComic · codeConspiracy · liveCode ·
+// evalSeismograph — are ABOUT live coding: they render the code being typed, flash on evaluation, and
 // pull `player >> instrument()` pairs out of the text to give each instrument a colour.
 // They read it from `extra.live`, which in the workshop arrives over a WebSocket from
 // whatever machine is performing. Here the performer IS this window, so the feed is
