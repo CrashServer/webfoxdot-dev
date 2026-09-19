@@ -622,8 +622,16 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
     background: linear-gradient(#262a30, #111318);
     pointer-events: none;
 }
-.pk.pk-out > span { visibility: hidden; }
+/* A greyed key keeps its note name — knowing WHICH note the scale leaves out is
+   most of the point of greying it. It has no degree, and that absence is the
+   reason it is grey. */
+.pk.pk-out .pk-name { color: #4a4d53; }
 
+
+.piano-scale {
+    font-size: 10px; color: var(--green); letter-spacing: 0.04em;
+    padding: 1px 6px; border: 1px solid var(--border-1); border-radius: 3px;
+}
 
 /* ── webTroop watcher ─────────────────────────────────────────────────────── */
 /* Latency trim. Small, because it lives in a header and is turned by ear. */
@@ -3449,14 +3457,29 @@ body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
 
 /* The keyboard: white keys lay out the row, black keys are placed over them, so
    the widths stay right at any panel size. */
-.piano-keys { user-select: none; -webkit-user-drag: none; position: relative; height: 120px; margin: 8px; background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 3px; touch-action: none; }
+/* The case the keys sit in, and it is NOT themed — that was the bug. The key
+   colours are fixed (a white key is white on any skin, the way a piano is), but
+   the bed took var(--bg-1), so on the light themes it came out at luminance 234
+   against keys at 252 and the keyboard simply vanished. A piano has a dark case
+   around ivory keys; giving it one is both the authentic answer and the one that
+   works on all ten skins. */
+.piano-keys {
+    user-select: none; -webkit-user-drag: none; position: relative;
+    height: 120px; margin: 8px; touch-action: none;
+    background: #0c0e12;
+    border: 1px solid #000; border-radius: 3px;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+    padding-top: 3px;
+}
 /* A key is a key: white keys are WHITE. They were painted from --bg-3, a dark theme
    variable, which gave a keyboard of dark slabs with a pale lip — readable as a
    widget, not as a piano. The rest of the panel can be dark; the keys cannot. */
 .pk {
     position: absolute; top: 0; height: 100%;
     box-sizing: border-box; cursor: pointer;
-    display: flex; align-items: flex-end; justify-content: center;
+    /* Column, bottom-up: the degree sits above the note name, both at the foot of
+       the key where a finger is not covering them. */
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
 }
 .pk:not(.pk-black) {
     background: linear-gradient(#fcfcf8 0%, #f3f2ec 70%, #dcdad0 100%);
@@ -3471,17 +3494,14 @@ body.desktop-ui .wfd-hosted .piano-drag { pointer-events: none; }
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.65);
     z-index: 3;
 }
-.pk > span { font-size: 8px; color: #6c727c; padding-bottom: 3px; pointer-events: none; }
+.pk > span { pointer-events: none; line-height: 1.1; }
+.pk-name { font-size: 8px; color: #6c727c; padding-bottom: 3px; }
+/* The DEGREE — the number you type. This is the in-scale mark as well as the
+   label: a key with a number is a key you can write down, and a key without one
+   is grey precisely because there is no number for it. */
+.pk-deg  { font-size: 11px; font-weight: 700; color: #1f7a45; padding-bottom: 1px; }
+.pk-black .pk-deg { color: #6fe3a0; padding-bottom: 4px; }
 
-/* Notes that belong to the live Scale/Root — the ones that record as clean degrees.
-   Marked with a strip at the base rather than by repainting the key, so the keyboard
-   still reads as a keyboard and the mark reads as a mark. */
-.pk-in::after {
-    content: ''; position: absolute; left: 14%; right: 14%; height: 3px; border-radius: 2px;
-    background: var(--green); box-shadow: 0 0 6px var(--glow); pointer-events: none;
-}
-.pk-in:not(.pk-black)::after { bottom: 13px; }
-.pk-in.pk-black::after       { bottom: 5px; left: 18%; right: 18%; }
 
 .pk.on:not(.pk-black) { background: linear-gradient(#d2f5da, #7fd39a); }
 .pk.on.pk-black       { background: linear-gradient(#4e9e6d, #1d5a36); }

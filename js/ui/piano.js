@@ -173,6 +173,19 @@ function inScale(midi, scale, root) {
     return scale.includes((((midi - root) % 12) + 12) % 12);
 }
 
+// Which DEGREE this key is — the number you would actually type, since a crashDot
+// melody is written in scale degrees and not in note names. Null when the note is
+// not in the scale, which is the whole reason those keys are greyed: there is no
+// number for them.
+//
+// Degrees are per octave (0..len-1) rather than counted from some absolute root,
+// because the octave is chosen separately with oct= and a number that silently
+// depended on the piano's octave button would be a number you could not trust.
+function degreeOf(midi, scale, root) {
+    const i = scale.indexOf((((midi - root) % 12) + 12) % 12);
+    return i < 0 ? null : i;
+}
+
 // ── playing ─────────────────────────────────────────────────────────────────
 function noteOn(midi, vel = 1) {
     if (_down.has(midi)) return;
@@ -290,6 +303,7 @@ function build() {
     _modal.innerHTML = `
         <div class="piano-head">
             <span class="piano-title">piano</span>
+            <b class="piano-scale" title="the live Scale and Root. Keys outside it are greyed and unplayable, and the number on a key is its DEGREE — what you type in code.">—</b>
             <select class="piano-synth" title="which synth the keys play"></select>
             <span class="piano-ctl">oct <button class="piano-oct-dn">−</button><b class="piano-oct">5</b><button class="piano-oct-up">+</button></span>
             <span class="piano-ctl">sus <input class="piano-sus" type="range" min="0.05" max="2" step="0.05" value="0.5"></span>
@@ -531,7 +545,9 @@ function render() {
 
     renderTargets();
 
-    const { scale, root } = _ctx.scale();
+    const { scale, root, name } = _ctx.scale();
+    const sc = _modal.querySelector('.piano-scale');
+    if (sc) sc.textContent = `${NAMES[((root % 12) + 12) % 12]} ${name || '?'}`;
     // In a chromatic scale every key is available, so there is nothing to grey out
     // and greying out nothing is the same keyboard — the flag only matters off it.
     const dimOut = _dimOutOfScale && !isChromatic(scale);
@@ -570,7 +586,14 @@ function mkKey(midi, black, left, width, scale, root, dimOut) {
     el.style.left = (left * 100) + '%';
     el.style.width = (width * 100) + '%';
     const pc = ((midi % 12) + 12) % 12;
-    if (!black) el.innerHTML = `<span>${NAMES[pc]}${Math.floor(midi / 12)}</span>`;
+    const deg = degreeOf(midi, scale, root);
+    // The note name stays on the white keys for orientation — including the greyed
+    // ones, where knowing WHICH note is out of the scale is most of the point. The
+    // degree goes on anything that has one, black keys included.
+    const parts = [];
+    if (!black) parts.push(`<span class="pk-name">${NAMES[pc]}${Math.floor(midi / 12)}</span>`);
+    if (deg != null) parts.push(`<span class="pk-deg">${deg}</span>`);
+    el.innerHTML = parts.join('');
     el.addEventListener('pointerdown', (e) => { e.preventDefault(); el.setPointerCapture?.(e.pointerId); noteOn(midi); });
     el.addEventListener('pointerup',   () => noteOff(midi));
     el.addEventListener('pointercancel', () => noteOff(midi));
