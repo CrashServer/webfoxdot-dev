@@ -124,13 +124,13 @@ export const PATTERNS = [
 export const TIMEVARS = [
     { name: 'fperlin(period, lo, hi)',  desc: 'Smooth value-noise LFO — wanders randomly between lo and hi, a new target roughly every `period` beats, eased so it glides rather than jumping (unlike PWhite). Clock-synced like the var family.' },
 
-    { name: 'var(values, durs)',        desc: 'Step through values, hold each for dur beats' },
+    { name: 'var(values, durs)',        desc: 'Step through values, holding each for its own span of beats. A bare number gives every value THAT many beats \u2014 var([0, 5], 8) is eight beats each. A LIST gives one span per value and must be as long as the values: var([0, 5], [8, 4]) holds the first for eight and the second for four. A one-element list is the trap \u2014 var([0, 5, 7], [8]) is a single span of eight beats TOTAL, so the index never leaves the first value and nothing ever changes, silently. For a list of LISTS use Pvar instead: var resolves a nested list by beat, so at dur=1/4 all four notes in a beat come out identical' },
     { name: 'linvar(values, durs)',     desc: 'Linear interpolation between values over durs' },
     { name: 'sinvar(values, durs)',     desc: 'Sine-shaped interpolation between values' },
     { name: 'expvar(values, durs)',     desc: 'Exponential interpolation (useful for freq/amp)' },
     { name: 'lininf(start, finish, time)', desc: 'Linear ramp start→finish over time beats, then holds at finish forever' },
     { name: 'expinf(start, finish, time)', desc: 'Exponential ramp start→finish over time beats, then holds forever' },
-    { name: 'Pvar([patterns], durs)',   desc: 'Pattern-valued timevar: swaps the whole active pattern over clock time (durs beats each) while the player keeps stepping. e.g. Pvar([[0,2,4],[7,4,2,0]], 8)' },
+    { name: 'Pvar([patterns], durs)',   desc: 'Pattern-valued timevar: swaps the whole active pattern over clock time (durs beats each) while the player keeps stepping. e.g. Pvar([[0,2,4],[7,4,2,0]], 8). This is the one you want for a phrase that changes every few bars \u2014 var() would resolve the nested list by BEAT rather than hand it to the player. Same duration rule as var(): a bare number is that many beats each, a list needs one entry per pattern' },
     { name: 'fi(beats, a, b)',          desc: 'Envelope (use with _ suffix): fade in a→b over beats, holds at b. e.g. lpf_=fi(0.5, 400, 4000)' },
     { name: 'fo(beats, a, b)',          desc: 'Envelope (_ suffix): fade out b→a over beats, holds at a' },
     { name: 'fb(beats, a, b)',          desc: 'Envelope (_ suffix): bounce a↔b every beats (wobble). Loops within sus' },
