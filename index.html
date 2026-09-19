@@ -1146,14 +1146,51 @@
         if (!('beat_dur' in a)) a.beat_dur = 60 / (Number(clock.bpm) || 120);
         return a;
     }
+    // Values that MOVE: a linvar/sinvar/var on the master is kept, not sampled once,
+    // and re-read on a ticker so Server.addFx(lpf=linvar([400, 4000], [32])) actually
+    // sweeps. It used to take the value at the moment you ran the line and hold it —
+    // which for the classic live-coding move, a filter opening over the whole mix,
+    // meant nothing moved at all and nothing said so.
+    let _masterLive = {};            // key → TimeVar
+    const _masterSent = {};          // fd_master param → last value sent, to diff
+    let _masterTick = null;
+    const MASTER_TICK_MS = 40;       // 25 Hz: slow sweeps step far below audibility
+    function masterTick() {
+        if (!_scRef) return;
+        const params = [];
+        let chained = false;
+        for (const [k, v] of Object.entries(_masterLive)) {
+            let val;
+            try { val = Number(v.get(0)); } catch (_) { continue; }
+            if (!isFinite(val)) continue;
+            const sp = MASTER_PARAMS[k];
+            if (sp) { if (_masterSent[sp] !== val) { params.push(sp, val); _masterSent[sp] = val; } }
+            else if (_masterChainOpts[k] !== val) { _masterChainOpts[k] = val; chained = true; }
+        }
+        if (params.length) _scRef.send('/n_set', MASTER_NODE, ...params);
+        // The chain also re-reads beat_dur here, so a tempo change reaches pong and
+        // fbdelay without anyone re-running the line. FXChain diffs, so an unchanged
+        // update sends nothing.
+        if (_masterChain && (chained || _masterChain.size)) _masterChain.update(masterChainArgs(), _scRef);
+    }
+    function masterTickSync() {
+        const need = Object.keys(_masterLive).length > 0 || (_masterChain && _masterChain.size > 0);
+        if (need && !_masterTick) _masterTick = setInterval(masterTick, MASTER_TICK_MS);
+        if (!need && _masterTick) { clearInterval(_masterTick); _masterTick = null; }
+    }
     function masterSet(opts) {
         const params = [];
         const unknown = [];
         let chained = 0;
         for (const [k, v] of Object.entries(opts || {})) {
-            const val = Number((v && typeof v.get === 'function') ? v.get(0) : v);   // snapshot patterns/timevars
             const sp = MASTER_PARAMS[k];
-            if (sp) { params.push(sp, val); continue; }
+            if (!sp && !FX_REGISTRY[k]) { unknown.push(k); continue; }
+            // A TimeVar is remembered and re-read; a plain number replaces any sweep
+            // that key had, so Master.lpf = 800 stops a linvar rather than fighting it.
+            const moving = v && typeof v.get === 'function';
+            if (moving) _masterLive[k] = v; else delete _masterLive[k];
+            const val = Number(moving ? v.get(0) : v);
+            if (sp) { params.push(sp, val); _masterSent[sp] = val; continue; }
             if (FX_REGISTRY[k]) { _masterChainOpts[k] = val; chained++; continue; }
             // Neither: say so. Skipping in silence is the worst answer — the line
             // evaluates, nothing is said, and nothing happens.
@@ -1162,6 +1199,7 @@
         if (unknown.length) log(`master: no effect called ${unknown.join(', ')} — Server.addFx() lists them`, 'warn');
         if (params.length && _scRef) _scRef.send('/n_set', MASTER_NODE, ...params);
         if (chained && _masterChain && _scRef) _masterChain.update(masterChainArgs(), _scRef);
+        masterTickSync();
         return params.length / 2 + chained;
     }
     // The hard cut frees every sounding node — and a master delay or reverb is one:
@@ -1180,12 +1218,14 @@
         get() { return undefined; },
     });
     function masterClear() {
+        _masterLive = {};                     // sweeps stop first, or the next tick puts them back
         masterSet({ gain: 1, lpf: 0, hpf: 0, mverb: 0, echo: 0, tanh: 0, lofi: 0 });
         _masterChainOpts = {};
         if (_masterChain && _scRef) {
             try { _masterChain.free(_scRef); } catch (_) {}
             _masterChain = new FXChain(0, MASTER_FX_GROUP, _scRef, { router: false });
         }
+        masterTickSync();
         log('master FX cleared', 'info');
     }
 
@@ -1721,7 +1761,8 @@
                 addFx: (opts) => {
                     // No arguments: say what the bus can do rather than doing nothing.
                     if (opts == null) {
-                        const on = Object.entries(_masterChainOpts).map(([k, v]) => `${k}=${v}`);
+                        const on = Object.entries(_masterChainOpts).map(([k, v]) => `${k}=${_masterLive[k] ? '~' + (+v).toFixed(2) + ' (moving)' : v}`)
+                            .concat(Object.keys(_masterLive).filter(k => MASTER_PARAMS[k]).map(k => `${k}=~${(+_masterSent[MASTER_PARAMS[k]]).toFixed(2)} (moving)`));
                         log(`master built-ins: ${Object.keys(MASTER_PARAMS).join(' · ')}`, 'info');
                         log(`  plus ANY player effect — chorus, crush, shimmer, fbdelay, pumper… (${Object.keys(FX_REGISTRY).length} keys)`, 'info');
                         log(`  on now: ${on.length ? on.join(', ') : 'nothing beyond the built-ins'}`, 'info');
