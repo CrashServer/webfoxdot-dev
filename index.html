@@ -1560,7 +1560,11 @@
                 }
                 let v = host;
                 if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
-                startTroop(String(v).trim(), Number(yPort) || undefined);
+                // A number is their Yjs port, as before. An object moves any of them:
+                // troop("host", { y: 4455, telemetry: 20001, logs: 1235 }) — which is
+                // what you need when something else on the machine already has 4444.
+                startTroop(String(v).trim(),
+                    (yPort && typeof yPort === 'object') ? yPort : (Number(yPort) || undefined));
                 return String(v).trim();
             },
             // troopclock(on, quantum) — take the beat from webTroop.

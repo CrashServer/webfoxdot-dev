@@ -232,14 +232,26 @@ function paintStatus(s) {
  * @param {number} [yPort=4444]  its sync port. A parameter because crashDot's own
  *        collab server wants 4444 too, so on a shared machine one of them has moved.
  */
-export async function startTroop(host, yPort) {
+/**
+ * @param {string} host
+ * @param {number|object} [ports]  their Yjs port, or { y, telemetry, logs, room }
+ *                                 when more than one has moved. The bridge has
+ *                                 always taken all four; only this took one.
+ */
+export async function startTroop(host, ports) {
     if (!_modal) build();
     if (_watch) _watch.close();
-    _hostEl.textContent = host + (yPort && yPort !== 4444 ? ':' + yPort : '');
+    const o = (ports && typeof ports === 'object') ? ports : (ports ? { y: ports } : {});
+    const cfg = { host };
+    if (Number(o.y) > 0) cfg.yPort = Number(o.y);
+    if (Number(o.telemetry) > 0) cfg.telemetryPort = Number(o.telemetry);
+    if (Number(o.logs) > 0) cfg.logPort = Number(o.logs);
+    if (o.room) cfg.room = String(o.room);
+    _hostEl.textContent = host + (cfg.yPort && cfg.yPort !== 4444 ? ':' + cfg.yPort : '');
     _modal.classList.remove('hidden');
     _open = true;
     let peers = [], code = '';
-    _watch = await watchTroop({ host, ...(yPort ? { yPort } : {}) }, {
+    _watch = await watchTroop(cfg, {
         onCode: (t) => {
             code = t;
             paintCode(code, peers);

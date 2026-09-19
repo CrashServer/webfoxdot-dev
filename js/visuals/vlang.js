@@ -550,6 +550,23 @@ export function notedPlayers(names) { live.players = names || []; }
  * KEYSTROKE, not on every eval, and the counter is what the layers latch their
  * flash on — bumping it per character would strobe the wall.
  */
+/**
+ * What the code layers are currently being fed, read-only.
+ *
+ * The feed is two performer slots and a counter, and until now nothing outside this
+ * module could see any of it — which made "is the troop's code actually getting
+ * through?" a question you could only answer by looking at a wall. Copies, so a
+ * caller cannot reach in and edit the live state by accident.
+ */
+export function liveFeed() {
+    return {
+        evalCount: live.evalCount, lastEvalUser: live.lastEvalUser, otherUser: live.otherUser,
+        mine:  (live.svdk && live.svdk.lines) || '',
+        other: (live.zbdm && live.zbdm.lines) || '',
+        players: [...live.players],
+    };
+}
+
 export function noteTroop(text, user = 'troop') {
     // webTroop's pretext window arrives as an ARRAY of lines; their shared buffer
     // arrives as a string. String(array) would comma-join it into one long line,
