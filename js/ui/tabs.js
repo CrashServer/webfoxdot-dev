@@ -50,6 +50,36 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
     // ── persistence ─────────────────────────────────────────────────────────
     // Scratch buffers only: the set has its own autosave, and in a session it
     // lives in the shared Yjs doc.
+    // Where you were in a buffer, not just what was in it. Coming back to a file
+    // and being thrown to line 1 of a 300-line set is a small thing that happens
+    // every single refresh.
+    //
+    // CodeMirror keeps scroll on the DOC for every buffer except the one on screen —
+    // it only copies the live position back when you swap away — so the visible one
+    // has to be read from the editor instead.
+    function place(t) {
+        const d = t.doc;
+        const sc = (d === editor.getDoc()) ? editor.getScrollInfo() : { left: d.scrollLeft, top: d.scrollTop };
+        const c = d.getCursor();
+        return { line: c.line | 0, ch: c.ch | 0, sl: Math.round(sc.left || 0), st: Math.round(sc.top || 0) };
+    }
+    function applyPlace(doc, w) {
+        if (!w) return;
+        try {
+            // Clamp: the text can be shorter than it was (a share link, an example),
+            // and setCursor past the end throws rather than settling for the end.
+            const last = doc.lineCount() - 1;
+            const line = Math.max(0, Math.min(w.line | 0, last));
+            doc.setCursor({ line, ch: Math.min(w.ch | 0, doc.getLine(line)?.length ?? 0) });
+            doc.scrollLeft = w.sl | 0;
+            doc.scrollTop  = w.st | 0;
+            // The doc on screen is never swapped in, so nothing reads those two off
+            // it — the editor has to be scrolled directly or the set alone comes
+            // back at the top while every other buffer remembers its place.
+            if (doc === editor.getDoc()) editor.scrollTo(w.sl | 0, w.st | 0);
+        } catch (_) {}
+    }
+
     let saveTimer = null;
     function save() {
         clearTimeout(saveTimer);
@@ -57,21 +87,36 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
             try {
                 localStorage.setItem(STORE, JSON.stringify({
                     active,
-                    scratch: tabs.slice(1).map(t => ({ name: t.name, text: t.doc.getValue() })),
-                    detached: detached.map(d => ({ name: d.name, text: d.doc.getValue() })),
+                    // The set's TEXT lives in wfd-buffer (index.html owns that), but
+                    // its place belongs with the other buffers' — the strip is what
+                    // knows about buffers.
+                    setWhere: tabs[0] ? place(tabs[0]) : null,
+                    scratch: tabs.slice(1).map(t => ({ name: t.name, text: t.doc.getValue(), where: place(t) })),
+                    detached: detached.map(d => ({ name: d.name, text: d.doc.getValue(), where: place(d) })),
                 }));
             } catch (_) {}
         }, 400);
     }
 
+    // Moving the caret or scrolling is a change worth remembering too — without
+    // these the place is only written when the TEXT changes, so reading through a
+    // set and refreshing puts you back wherever you last typed.
+    editor.on('cursorActivity', save);
+    editor.on('scroll', save);
+
     function restore() {
         let st = null;
         try { st = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (_) {}
         if (!st || !Array.isArray(st.scratch)) return;
-        for (const s of st.scratch.slice(0, MAX - 1)) add(s.name, s.text, false);
-        for (const d of (Array.isArray(st.detached) ? st.detached : []).slice(0, MAX - 1)) {
-            if (add(d.name, d.text, false)) pendingDetach.push(d.name);
+        for (const s of st.scratch.slice(0, MAX - 1)) {
+            const t = add(s.name, s.text, false);
+            if (t) applyPlace(t.doc, s.where);
         }
+        for (const d of (Array.isArray(st.detached) ? st.detached : []).slice(0, MAX - 1)) {
+            const t = add(d.name, d.text, false);
+            if (t) { applyPlace(t.doc, d.where); pendingDetach.push(d.name); }
+        }
+        if (st.setWhere && tabs[0]) applyPlace(tabs[0].doc, st.setWhere);
         // Come back to the buffer you left — but never into a scratch tab in a
         // session: joining a room has to put the room's code in front of you.
         if (!inSession && st.active > 0 && st.active < tabs.length) go(st.active);
