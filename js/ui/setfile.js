@@ -19,18 +19,31 @@
 // called and what is already sitting in people's folders. The content is crashDot's
 // own dialect either way; the extension is about what opens it in an editor.
 
+import { snapshotWorkspace, encodeWorkspace, decodeWorkspace, restoreWorkspace } from './workspace.js';
+
 const EXT = '.py';
 const TYPES = [{ description: 'crashDot set', accept: { 'text/plain': ['.py', '.txt', '.fd'] } }];
 
-let _get = null, _set = null, _log = null, _name = null;
+let _get = null, _set = null, _log = null, _name = null, _ws = null;
 let _handle = null;        // the file this buffer came from, where the browser keeps one
 
 /**
  * @param {object} api  get() -> the buffer's text · set(text, name) -> replace it
  *                      name() -> a suggested filename · log(msg, kind)
+ *                      workspace -> the hooks workspace.js needs, or null to save
+ *                      the set text alone
  */
-export function initSetFile({ get, set, name, log } = {}) {
-    _get = get; _set = set; _name = name; _log = log || (() => {});
+export function initSetFile({ get, set, name, log, workspace } = {}) {
+    _get = get; _set = set; _name = name; _log = log || (() => {}); _ws = workspace || null;
+}
+
+// The set, plus everything around it. Built here rather than in saveSet so both the
+// picker path and the download path write the same bytes — they had drifted before.
+function fileBody() {
+    const text = _get ? _get() : '';
+    if (!_ws) return text;
+    try { return text.replace(/\s+$/, '') + encodeWorkspace(snapshotWorkspace(_ws)); }
+    catch (_) { return text; }     // never let the extras cost you the set
 }
 
 const hasPicker = () => typeof window.showSaveFilePicker === 'function';
@@ -41,8 +54,9 @@ const suggested = () => {
 
 /** Save. Writes back to the opened file when the browser lets us hold on to it. */
 export async function saveSet({ saveAs = false } = {}) {
-    const text = _get ? _get() : '';
-    if (!text.trim()) { _log('nothing to save — the buffer is empty', 'warn'); return false; }
+    const bare = _get ? _get() : '';
+    if (!bare.trim()) { _log('nothing to save — the buffer is empty', 'warn'); return false; }
+    const text = fileBody();
     if (hasPicker()) {
         try {
             if (saveAs || !_handle) _handle = await window.showSaveFilePicker({ suggestedName: suggested(), types: TYPES });
@@ -97,13 +111,33 @@ export async function openSet() {
     });
 }
 
-function applyFile(filename, text) {
+function applyFile(filename, raw) {
     if (!_set) return;
+    const { text, state } = decodeWorkspace(raw);
     // Into a NEW buffer rather than over the one on screen. Opening a file should
     // never be the thing that loses what you were working on, and the tab strip is
     // where a second set belongs anyway.
     _set(text, String(filename).replace(/\.(py|txt|fd)$/i, ''));
     _log(`opened — ${filename} (${text.split('\n').length} lines)`, 'ok');
+
+    if (!state || !_ws) return;
+    // A workspace is a bigger thing than a file: restoring it replaces your pads and
+    // moves your panels. That is what it is FOR, and it is also not something to do
+    // to someone who only wanted to read a set — so it is asked, once, plainly.
+    const pads = Array.isArray(state.pads) ? state.pads.length : 0;
+    const keys = state.storage ? Object.keys(state.storage).length : 0;
+    _log(`${filename} carries a workspace — ${pads} pad${pads === 1 ? '' : 's'} and ${keys} settings`, 'info');
+    const ok = window.confirm(
+        `"${filename}" was saved with its whole workspace:\n\n` +
+        `  · ${pads} pad${pads === 1 ? '' : 's'} (the set and any scratch buffers)\n` +
+        `  · ${keys} settings — panel layouts, theme, kit, seed, UI size\n\n` +
+        `Restore it? This REPLACES the pads you have open now.\n` +
+        `Cancel keeps just the set you have already got.`);
+    if (!ok) { _log('workspace not restored — you have the set only', 'info'); return; }
+
+    const r = restoreWorkspace(state, _ws);
+    _log(`workspace restored — ${r.live.join(', ') || 'nothing live'}`
+        + (r.onReload.length ? ` · ${r.onReload.join(', ')} on next load` : ''), 'ok');
 }
 
 /**

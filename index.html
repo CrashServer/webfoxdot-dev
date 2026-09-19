@@ -291,7 +291,7 @@
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
     import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
-    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals, troopClock, troopClockOn, troopClockError, troopClockMode } from './js/ui/trooppanel.js';
+    import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals, troopClock, troopClockOn, troopClockError, troopClockMode, troopNudge } from './js/ui/trooppanel.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
     // counts it — but as a genuine alternation only, never an arrow, a comparison
     // or the >> operator itself.
@@ -1595,6 +1595,22 @@
                 }
                 return troopClock(!(on === 0 || on === false || on === 'off'), quantum);
             },
+            // troopnudge(ms) — trim the lock by ear.
+            //
+            //   troopnudge(12)   crashDot 12ms LATER
+            //   troopnudge(-8)   8ms earlier
+            //   troopnudge(0)    back to the raw lock
+            //   troopnudge()     what is it set to
+            //
+            // The clock can agree to a quarter of a millisecond and the room can still
+            // sound a hair out, because their SuperCollider and our AudioWorklet empty
+            // different output buffers and the machines are a hop apart. No number
+            // available to either program answers that, so this is the one you turn
+            // while listening — or the − / + in the troop panel, 2ms a click.
+            //
+            // Milliseconds, not beats: it is a fixed delay, and in beats it would
+            // silently change every time somebody moved the tempo.
+            troopnudge: (ms) => troopNudge(ms == null ? null : Number(ms) || 0),
             // compo_base(parts, beats, family) — a skeleton arrangement to write into.
             //
             //   compo_base(16, 4)            16 sections of 4 beats, a blank line each
@@ -3101,6 +3117,36 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         set:  (text, name) => { _tabs ? _tabs.newTab(name || 'set', text) : editor.setValue(text); },
         name: () => (_tabs && _tabs.name && _tabs.name()) || 'set',
         log,
+        // Everything that is not the set text. The hooks are here and not in
+        // workspace.js because this is where the tab strip, the theme and the
+        // desktop already live — the module should not have to go looking.
+        workspace: {
+            tabs: () => (_tabs && _tabs.list ? _tabs.list() : []),
+            set:  () => editor.getValue(),
+            setMain: (text) => {
+                // Over the SET buffer, which is the one a workspace is anchored to.
+                const main = (_tabs && _tabs.list ? _tabs.list() : []).find(t => t.main);
+                if (main && main.doc) main.doc.setValue(text); else editor.setValue(text);
+            },
+            closePads: () => { if (_tabs && _tabs.closeScratch) _tabs.closeScratch(); },
+            newPad: (name, text) => { if (_tabs && _tabs.newTab) _tabs.newTab(name, text); },
+            applyTheme: (t) => {
+                document.documentElement.className = t === 'dark' ? '' : t;
+                try { localStorage.setItem('theme', t); } catch (_) {}
+                const sel = document.getElementById('theme-select');
+                if (sel) sel.value = t;
+            },
+            applyScale: (n) => setUiScale(n),
+            // Only meaningful once the desktop has built its panels; says so by
+            // returning false rather than by looking like it worked.
+            applyLayoutNow: () => {
+                try {
+                    const st = JSON.parse(localStorage.getItem('wfd-desktop-panels') || 'null');
+                    if (!st || !document.body.classList.contains('wfd-desktop')) return false;
+                    return !!applyLayout(null, st);
+                } catch (_) { return false; }
+            },
+        },
     });
     document.getElementById('btn-open').onclick = () => openSet();
     document.getElementById('btn-save').onclick = (e) => saveSet({ saveAs: e.shiftKey });

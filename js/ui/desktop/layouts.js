@@ -28,9 +28,15 @@ export function saveLayout(name) {
 
 // Pushes the named layout onto every currently-built panel via its live
 // applyLayout(). Panels not mentioned in the saved layout are left alone.
-export function applyLayout(name) {
-    const all = listLayouts();
-    const layout = all[name];
+/**
+ * Push a layout onto every built panel.
+ *
+ * `name` picks a saved one. A restored workspace has no name — it arrives as the
+ * arrangement itself, already written to LAYOUT_KEY — so it passes the object in
+ * `layoutObj` instead, and gets the same live application rather than a reload.
+ */
+export function applyLayout(name, layoutObj = null) {
+    const layout = layoutObj || listLayouts()[name];
     if (!layout) return false;
     const registry = getRegistry();
     const saved = {};

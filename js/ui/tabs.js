@@ -244,6 +244,14 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         // Desktop mode comes up after the strip is built, so it asks for a redraw
         // once there is somewhere to detach TO.
         refresh: () => render(),
+        // Close every scratch buffer, keeping the set. Restoring a saved workspace
+        // has to start from a clean strip or the pads pile up on each open.
+        closeScratch: () => {
+            for (let i = tabs.length - 1; i >= 1; i--) tabs.splice(i, 1);
+            active = 0;
+            editor.swapDoc(tabs[0].doc);
+            render(); save();
+        },
         reattach,
         go,
     };

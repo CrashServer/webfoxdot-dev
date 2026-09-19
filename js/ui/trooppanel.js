@@ -18,6 +18,11 @@ let _modal = null, _open = false, _watch = null, _log = null, _clock = null;
 // Follow their clock. Off by default: joining a room should not re-time your set
 // without being asked.
 let _sync = false, _quantum = 4, _lastBeat = null, _lastErr = null, _mode = 'beat';
+// Latency trim, in MILLISECONDS. Milliseconds and not beats because what it is
+// correcting — their SuperCollider's output buffer against crashDot's WASM one, plus
+// the hop between the machines — is a fixed amount of time. Expressed in beats it
+// would quietly change every time somebody moved the tempo.
+let _nudgeMs = 0;
 let _codeEl = null, _statsEl = null, _peersEl = null, _dotEl = null, _hostEl = null;
 let _toVisuals = true;
 
@@ -63,6 +68,33 @@ export function troopClock(on, quantum) {
 export function troopClockOn() { return _sync; }
 /** 'beat' (the number itself) or 'phase' (only the position in the bar). */
 export function troopClockMode() { return _mode; }
+
+/**
+ * Trim the lock: positive milliseconds puts crashDot LATER, negative earlier.
+ *
+ * A locked clock is not the same as a lined-up room. Their audio leaves their
+ * SuperCollider after its own output buffer, ours leaves an AudioWorklet after a
+ * different one, and the two machines are a network hop apart — so the beat can
+ * agree to a quarter of a millisecond and still sound a hair off in the air.
+ * This is the knob for that, and it is the one thing you dial by EAR: there is no
+ * number available to either program that would tell it the answer.
+ *
+ * Relative, because in practice you nudge until it sits right rather than knowing
+ * the figure in advance. troopnudge(0) to go back to the raw lock.
+ *
+ * @param {number} [ms]  absolute trim in ms; omit to read it back
+ */
+export function troopNudge(ms) {
+    if (ms == null) return _nudgeMs;
+    _nudgeMs = Number(ms) || 0;
+    paintNudge();
+    _log(`⇄ nudge: ${_nudgeMs > 0 ? '+' : ''}${_nudgeMs}ms — crashDot ${_nudgeMs === 0 ? 'on the raw lock' : _nudgeMs > 0 ? 'later' : 'earlier'}`, 'info');
+    return _nudgeMs;
+}
+function paintNudge() {
+    const el = _modal && _modal.querySelector('.troop-nudge-val');
+    if (el) el.textContent = (_nudgeMs > 0 ? '+' : '') + _nudgeMs + 'ms';
+}
 /** How far our bar phase sits from theirs, in beats, or null if not following yet. */
 export function troopClockError() { return _lastErr; }
 
@@ -81,6 +113,10 @@ function build() {
                 <input type="checkbox" checked> → visuals</label>
             <label class="troop-vis" title="follow their beat: match tempo and bar phase from the telemetry feed, follow-only — nothing is sent back">
                 <input type="checkbox" class="troop-clk"> ⇄ clock</label>
+            <span class="troop-nudge" title="latency trim, by ear: − puts crashDot earlier, + later. The beat can be locked to a quarter of a millisecond and still sound a hair off in the room, because the two machines have different output buffers. Click the value to zero it.">
+                <button class="troop-nudge-dn" title="2ms earlier">−</button>
+                <b class="troop-nudge-val" title="click to reset">0ms</b>
+                <button class="troop-nudge-up" title="2ms later">+</button></span>
             <button class="troop-close" title="stop watching">✕</button>
         </div>
         <div class="troop-stats"></div>
@@ -97,6 +133,10 @@ function build() {
     _modal.querySelector('.troop-close').onclick = () => stopTroop();
     _modal.querySelector('.troop-vis input').onchange = (e) => { _toVisuals = e.target.checked; };
     _modal.querySelector('.troop-clk').onchange = (e) => { e.target.checked = troopClock(e.target.checked); };
+    // 2ms a click: fine enough to hunt with, coarse enough to get there.
+    _modal.querySelector('.troop-nudge-dn').onclick = () => troopNudge(_nudgeMs - 2);
+    _modal.querySelector('.troop-nudge-up').onclick = () => troopNudge(_nudgeMs + 2);
+    _modal.querySelector('.troop-nudge-val').onclick = () => troopNudge(0);
     draggable(_modal.querySelector('.troop-head'), _modal, 'button, input, label');
 }
 
@@ -220,14 +260,17 @@ export async function startTroop(host, yPort) {
             if (!isFinite(bpm) || bpm <= 0 || !isFinite(beat)) return;
             if (beat === _lastBeat) return;            // the same reading twice is not news
             _lastBeat = beat;
+            // Their beat, moved by the trim. Positive ms means we want to be later,
+            // so we aim at an EARLIER beat than theirs and arrive after it.
+            const target = beat - (_nudgeMs / 1000) * (bpm / 60);
             try {
                 if (_mode === 'beat') {
                     // lockTo reports the error it found, so there is nothing to
                     // recompute and no chance of the readout and the correction
                     // disagreeing about what "off" means.
-                    _lastErr = _clock.lockTo({ bpm, beat });
+                    _lastErr = _clock.lockTo({ bpm, beat: target });
                 } else {
-                    const phase = ((beat % _quantum) + _quantum) % _quantum;
+                    const phase = ((target % _quantum) + _quantum) % _quantum;
                     const ours = ((_clock.beat % _quantum) + _quantum) % _quantum;
                     let err = phase - ours;
                     err -= _quantum * Math.round(err / _quantum);
