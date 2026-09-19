@@ -3142,7 +3142,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             applyLayoutNow: () => {
                 try {
                     const st = JSON.parse(localStorage.getItem('wfd-desktop-panels') || 'null');
-                    if (!st || !document.body.classList.contains('wfd-desktop')) return false;
+                    // 'desktop-ui' is the class desktop.js actually sets. The name
+                    // I first used here does not exist, so this always said no and a
+                    // restored layout always claimed it needed a reload.
+                    if (!st || !document.body.classList.contains('desktop-ui')) return false;
                     return !!applyLayout(null, st);
                 } catch (_) { return false; }
             },
@@ -4489,6 +4492,16 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             _dk.setBuffers?.({
                 list: () => _tabs?.list?.() || [],
                 go:   (t) => { _tabs?.goToDoc?.(t.doc); editor.focus(); },
+            });
+            // Buffers that were in their own panels last time go back to them. This
+            // has to wait for the desktop — before it there is nowhere to detach TO —
+            // and the panels remember their own geometry by id, so a workspace of
+            // several editors comes back arranged, not just present.
+            queueMicrotask(() => {
+                try {
+                    const n = _tabs?.restoreDetached?.() || 0;
+                    if (n) log(`${n} detached buffer${n === 1 ? '' : 's'} back in ${n === 1 ? 'its' : 'their'} panel${n === 1 ? '' : 's'}`, 'info');
+                } catch (_) {}
             });
             _detachHost = _dk.detachBuffer;
             _tabs.refresh?.();          // reveal the detach buttons now there is a host

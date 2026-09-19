@@ -36,6 +36,16 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
                            onDetach = null, canDetach = () => false } = {}) {
     const tabs = [{ name: 'set', doc: editor.getDoc(), main: true }];
     let active = 0;
+    // Buffers that have been handed to a panel of their own. They are out of `tabs`
+    // — that is what detaching means — but their TEXT is still yours, so it has to
+    // keep being saved. It was not: detach() spliced the tab out and then saved the
+    // strip, which by then no longer mentioned it, so a detached buffer's code lived
+    // in memory and nowhere else and a refresh took it.
+    const detached = [];        // [{ name, doc }]
+    // Names restored from disk that were detached when they were saved. They come
+    // back as ordinary tabs first, because the desktop that hosts them is not built
+    // yet at this point; restoreDetached() sends them back out once it is.
+    let pendingDetach = [];
 
     // ── persistence ─────────────────────────────────────────────────────────
     // Scratch buffers only: the set has its own autosave, and in a session it
@@ -48,6 +58,7 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
                 localStorage.setItem(STORE, JSON.stringify({
                     active,
                     scratch: tabs.slice(1).map(t => ({ name: t.name, text: t.doc.getValue() })),
+                    detached: detached.map(d => ({ name: d.name, text: d.doc.getValue() })),
                 }));
             } catch (_) {}
         }, 400);
@@ -58,6 +69,9 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         try { st = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (_) {}
         if (!st || !Array.isArray(st.scratch)) return;
         for (const s of st.scratch.slice(0, MAX - 1)) add(s.name, s.text, false);
+        for (const d of (Array.isArray(st.detached) ? st.detached : []).slice(0, MAX - 1)) {
+            if (add(d.name, d.text, false)) pendingDetach.push(d.name);
+        }
         // Come back to the buffer you left — but never into a scratch tab in a
         // session: joining a room has to put the room's code in front of you.
         if (!inSession && st.active > 0 && st.active < tabs.length) go(st.active);
@@ -95,12 +109,17 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
         if (active > i) active--;
         render();
         if (onDetach(t.name, t.doc) === false) { tabs.splice(i, 0, t); render(); return; }
+        // Keep saving it. The doc already has a change listener from add(), so this
+        // only has to remember that the buffer still exists.
+        detached.push({ name: t.name, doc: t.doc });
         save();
     }
 
     // Take a detached buffer back into the strip.
     function reattach(name, doc) {
         if (tabs.length >= MAX) return false;
+        const at = detached.findIndex(d => d.doc === doc);
+        if (at >= 0) detached.splice(at, 1);
         const tab = { name: name || nextName(), doc, main: false };
         tabs.push(tab);
         doc.on('change', save);
@@ -253,6 +272,19 @@ export function initTabs({ editor, mount, inSession = false, onSwitch = () => {}
             render(); save();
         },
         reattach,
+        // Send the restored ones back to their panels. Called once the desktop is up,
+        // because before that there is nowhere for them to go — and the panel they
+        // land in remembers its own position by id, so they come back where they were.
+        restoreDetached: () => {
+            const names = pendingDetach; pendingDetach = [];
+            let n = 0;
+            for (const name of names) {
+                const i = tabs.findIndex(t => t.name === name && !t.main);
+                if (i > 0) { detach(i); n++; }
+            }
+            if (n) go(0);
+            return n;
+        },
         go,
     };
 }
