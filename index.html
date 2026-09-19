@@ -1131,14 +1131,29 @@
     };
     function masterSet(opts) {
         const params = [];
+        const unknown = [];
         for (const [k, v] of Object.entries(opts || {})) {
             const sp = MASTER_PARAMS[k];
-            if (!sp) continue;
+            // The master chain is a FIXED set baked into fd_master, not the 160-key
+            // per-player registry — so asking it for chorus is a reasonable mistake.
+            // It used to be skipped in silence, which is the worst answer: the line
+            // evaluates, nothing is said, and nothing happens.
+            if (!sp) { unknown.push(k); continue; }
             const val = (v && typeof v.get === 'function') ? v.get(0) : v;   // snapshot patterns/timevars
             params.push(sp, Number(val));
         }
+        if (unknown.length) {
+            log(`master: no ${unknown.join(', ')} on the master bus — it has ${Object.keys(MASTER_PARAMS).join(' ')}`, 'warn');
+            log('  for anything else, put the FX on the players themselves', 'info');
+        }
         if (params.length && _scRef) _scRef.send('/n_set', MASTER_NODE, ...params);
+        return params.length / 2;
     }
+    // One object for both spellings of the same idea.
+    const _masterKnob = new Proxy({}, {
+        set(_t, k, v) { masterSet({ [String(k)]: v }); return true; },
+        get() { return undefined; },
+    });
     function masterClear() {
         masterSet({ gain: 1, lpf: 0, hpf: 0, mverb: 0, echo: 0, tanh: 0, lofi: 0 });
         log('master FX cleared', 'info');
@@ -1672,8 +1687,26 @@
             //   b1 >> play(pbuild("house", evolve=8, fill=4, density=0.8), dur=0.25)
             pbuild, pkit, genres,
             softReload: () => softReload(),
-            Server: { addFx: (opts = {}) => masterSet(opts), clearFx: () => masterClear() },
-            Master: () => new Proxy({}, { set(_t, k, v) { masterSet({ [String(k)]: v }); return true; }, get() { return undefined; } }),
+            Server: {
+                addFx: (opts) => {
+                    // No arguments: say what the bus can do rather than doing nothing.
+                    if (opts == null) {
+                        log(`master bus: ${Object.keys(MASTER_PARAMS).join(' · ')}`, 'info');
+                        log('  Server.addFx(lpf=600, mverb=0.4)  ·  Server.clearFx()  ·  Master.lpf = 800', 'info');
+                        return Object.keys(MASTER_PARAMS);
+                    }
+                    return masterSet(opts);
+                },
+                clearFx: () => masterClear(),
+            },
+            // Both Master.lpf = 800 and Master().lpf = 800 work. It was the second
+            // only, while the docs said the first — so the documented form set a
+            // property on a function object and did nothing at all, quietly.
+            Master: new Proxy(function () {}, {
+                apply() { return _masterKnob; },
+                set(_t, k, v) { masterSet({ [String(k)]: v }); return true; },
+                get(_t, k) { return k === 'then' ? undefined : _masterKnob[k]; },
+            }),
             unsolo: () => _unsoloFn(clock),
             soloRnd: (time = 8) => _soloRndFn(clock, time, (m) => log(m, 'info')),
             // MIDI control: midi(cc,lo,hi[,curve]) binds a CC knob to a live value;
