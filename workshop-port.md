@@ -27,7 +27,7 @@ crash or a reboot. Updated as we go.
 ```
 
 `dev01` is pushed to origin. **`exp_ui` is local only** — not pushed yet.
-`relay.py` is untracked and was already there before any of this.
+`relay.py` is tracked now — js/net/workshop-bridge.js hardcodes the port it serves, so the repo was shipping code that depended on a file it did not contain.
 
 ---
 
