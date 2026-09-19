@@ -13,6 +13,16 @@
 // to stop a concert — which is why every handler is wrapped and why the Yjs document
 // is built with no editor binding at all.
 //
+// ── A port both apps want ────────────────────────────────────────────────────
+// webTroop's start.sh runs y-websocket on 4444, and crashDot's own collab server is
+// on 4444 too (config.json). They cannot both run on one machine, and the failure
+// when they are confused for each other is the quiet kind: point this at a host
+// running crashDot's collab server and it connects happily, makes an empty room
+// called "webtroop" there, and shows nothing while every light is green.
+//
+// So the port is a parameter, and an empty room says so out loud after a few seconds
+// rather than leaving you to wonder whether the troop has simply not typed yet.
+//
 // ── Three sockets, because webTroop has three ────────────────────────────────
 //   :4444   Yjs, room "webtroop", text "webtroop"     the shared code
 //           awareness field "otherInstantCode"        the PRETEXT windows
@@ -32,7 +42,8 @@ const DEFAULT = { yPort: 4444, telemetryPort: 20000, logPort: 1234, room: 'webtr
  * @param {object} opts  host (required) · yPort · telemetryPort · logPort · room
  * @param {object} on    onCode(text) · onStat(key, value) · onPeers(peers) ·
  *                       onPretext({user, line, windowLines, …}) · onLog(line) ·
- *                       onStatus({code, telemetry, logs})
+ *                       onStatus({code, telemetry, logs}) ·
+ *                       onEmpty({host, port, room, telemetry}) — connected, nothing there
  * @returns {{ close: () => void, state: () => object }}
  */
 export async function watchTroop(opts = {}, on = {}) {
@@ -117,6 +128,16 @@ export async function watchTroop(opts = {}, on = {}) {
         if (d && (d.type === 'log' || d.log)) say(on.onLog, d.log || d.message || '');
     }) : () => {};
 
+    // Connected, but to WHAT? An empty room on the right port looks exactly like an
+    // empty room on the wrong one. Said once, after long enough that "they have not
+    // typed yet" has stopped being the likelier explanation.
+    const emptyCheck = setTimeout(() => {
+        if (state.code.trim() || state.peers.length) return;
+        if (!state.connected.code) return;              // a dead socket says its own thing
+        say(on.onEmpty, { host: cfg.host, port: cfg.yPort, room: cfg.room,
+                          telemetry: state.connected.telemetry });
+    }, 6000);
+
     return {
         // A SNAPSHOT, not a view. `connected` was handed out by reference, so a caller
         // that read the state and then closed the watcher saw its own copy change
@@ -130,6 +151,7 @@ export async function watchTroop(opts = {}, on = {}) {
             try { provider.awareness.off('change', readAwareness); } catch (_) {}
             try { provider.destroy(); } catch (_) {}
             try { ydoc.destroy(); } catch (_) {}
+            clearTimeout(emptyCheck);
             closeTelemetry(); closeLogs();
             state.connected = { code: false, telemetry: false, logs: false };
             status();
