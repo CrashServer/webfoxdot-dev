@@ -255,7 +255,7 @@
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, setTriggerListener as _setTriggerListener, PLAYER_GROUP, FX_GROUP,
              drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST, setRerollHandler, setGate } from './js/engine/player.js';
     import * as gate from './js/engine/gate.js';
-    import { Scale, Root }    from './js/engine/scale.js';
+    import { Scale, Root, SCALE_MAP } from './js/engine/scale.js';
     import { FX_SYNTHDEFS, FX_REGISTRY } from './js/fx/registry.js';
     import { FXChain }        from './js/fx/chain.js';
     import { SYNTH_DEFS, makeSynth, setNaNWarn } from './js/synths/registry.js';
@@ -3452,6 +3452,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         // Degrees are written in whatever key is live, so a recorded phrase
         // transposes with Scale/Root like everything else in the language.
         scale:    () => ({ scale: Scale.default, root: Root.default, name: Scale.currentName }),
+        // Every scale by name, and one by name — so the keyboard can be PINNED to a
+        // scale of its own while the set plays in another. Supplied from here because
+        // piano.js deliberately imports nothing from the engine.
+        scaleNames: () => Object.keys(SCALE_MAP),
+        scaleNamed: (n) => { const deg = SCALE_MAP[n]; return deg ? { scale: deg, root: Root.default, name: n } : null; },
         // MIDI: notes play the piano itself (its synth, its knobs, and recorded),
         // and any knob can be bound to a hardware control by learning the next CC.
         onMidiNote: (fn) => { if (fn) _ensureMidi(); onMidiNote(fn); },

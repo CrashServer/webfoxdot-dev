@@ -18,7 +18,7 @@
 // into a layout they no longer remember is a lot of code to get subtly wrong, and
 // the mode is persisted, so a reload lands you exactly where you asked to be.
 
-import { initCanvas, resetView, getZoom, onViewChange, panToReveal, centerOn } from './canvas.js';
+import { initCanvas, resetView, getZoom, getPan, onViewChange, panToReveal, centerOn } from './canvas.js';
 import { createPanel, resetAllLayouts, armButton, LAYOUT_KEY, getRegistry } from './panel.js';
 import { mountScreen, toggleBackdrop } from './screens.js';
 import { buildLayoutsPanel } from './layoutbar.js';
@@ -533,20 +533,86 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
     // reads every panel, and lazily on each open so it is never stale. Owned panels
     // answer for themselves; hosted ones are asked through their own module, which
     // is the only thing that actually knows whether they are open.
+    // ── Where a newly-opened panel lands ────────────────────────────────────
+    //
+    // A panel remembers where it was, which is the right answer right up until the
+    // answer is "off the bottom of the canvas, a screen away from where you are
+    // looking" — several ship with a default y of 884 or 1004. Opening one from the
+    // right-click menu then looks like the menu did nothing.
+    //
+    // So: if its remembered place is on screen it opens there, because a position you
+    // chose is not ours to overrule. If it is not, it opens in the first gap big
+    // enough for it, searched outward from the middle of the view — beside what you
+    // are working on rather than on top of it.
+    const rectOf = (el) => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+    const hits = (a, b, m) => a.x < b.x + b.w + m && a.x + a.w + m > b.x
+                           && a.y < b.y + b.h + m && a.y + a.h + m > b.y;
+    function viewRect() {
+        const z = getZoom() || 1, p = getPan();
+        return { x: -p.x / z, y: -p.y / z,
+                 w: (desktop.clientWidth  || window.innerWidth)  / z,
+                 h: (desktop.clientHeight || window.innerHeight) / z };
+    }
+    function placeNearView(api) {
+        const win = api && api.el;
+        if (!win || !win.offsetWidth || !win.offsetHeight) return;
+        const view = viewRect(), me = rectOf(win);
+        // Half of it already in view is enough — leave it where it is.
+        const ox = Math.max(0, Math.min(me.x + me.w, view.x + view.w) - Math.max(me.x, view.x));
+        const oy = Math.max(0, Math.min(me.y + me.h, view.y + view.h) - Math.max(me.y, view.y));
+        if (ox * oy > 0.5 * me.w * me.h) return;
+
+        const others = [...canvas.querySelectorAll('.panel')]
+            .filter(p => p !== win && p.offsetWidth && p.offsetHeight && p.offsetParent !== null)
+            .map(rectOf);
+        const M = 18, STEP = 24;
+        const cx = view.x + view.w / 2 - me.w / 2, cy = view.y + view.h / 2 - me.h / 2;
+        const overlap = (r) => others.reduce((sum, o) => {
+            const w = Math.min(r.x + r.w, o.x + o.w) - Math.max(r.x, o.x);
+            const h = Math.min(r.y + r.h, o.y + o.h) - Math.max(r.y, o.y);
+            return sum + (w > 0 && h > 0 ? w * h : 0);
+        }, 0);
+        // Candidates are positions whose TOP-LEFT is in the view, so a panel wider
+        // than the visible area still gets a sensible home instead of no answer.
+        // Score is overlap first, then distance from the middle: a free gap always
+        // beats a crowded one, and among equals the nearest to where you are looking
+        // wins. Zoomed right in there may be no gap at all — then "least covered" is
+        // the honest best, and a cascade of identical offsets was not.
+        let best = null, bestScore = Infinity;
+        const maxX = Math.max(view.x + M, view.x + view.w - me.w - M);
+        const maxY = Math.max(view.y + M, view.y + view.h - me.h - M);
+        for (let y = view.y + M; y <= maxY; y += STEP) {
+            for (let x = view.x + M; x <= maxX; x += STEP) {
+                const r = { x, y, w: me.w, h: me.h };
+                const gap = others.some(o => hits(r, o, M)) ? overlap(r) + me.w * me.h : 0;
+                const d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                const score = gap * 1000 + d;
+                if (score < bestScore) { bestScore = score; best = { x, y }; }
+            }
+        }
+        if (!best) best = { x: cx, y: cy };
+        api.applyLayout({ x: Math.round(best.x), y: Math.round(best.y) });
+    }
+    // A hosted panel builds itself on first open, so it may not exist for a frame.
+    function placeById(id, delay = 0) {
+        const go = () => { const a = ownedPanels.get(id) || getRegistry().get(id); if (a) placeNearView(a); };
+        delay ? setTimeout(go, delay) : go();
+    }
+
     const menuPanels = () => [
         ...PANELS.filter(p => ownedPanels.has(p.id)).map(p => {
             const api = ownedPanels.get(p.id);
             return {
                 id: p.id, title: p.title, group: p.group || 'workspace',
                 isOpen: () => api.isOpen(),
-                toggle: () => api.setOpen(!api.isOpen()),
+                toggle: () => { const opening = !api.isOpen(); api.setOpen(opening); if (opening) placeNearView(api); },
                 reveal: () => { api.setOpen(true); centerOn(api.el); },
             };
         }),
         ...FLOATING.map(f => ({
             id: f.id, title: f.title, group: f.group || 'tools',
             isOpen: () => floatingIsOpen(f),
-            toggle: () => toggleFloating(f),
+            toggle: () => { const opening = !floatingIsOpen(f); toggleFloating(f); if (opening) placeById(f.id, 160); },
             reveal: () => {
                 if (!floatingIsOpen(f)) toggleFloating(f);
                 // A module builds itself on first open, so its panel may not exist
@@ -841,7 +907,13 @@ export function initDesktop(editor, clock = null, editorFactory = null, onDropEd
                         if (--tries > 0) requestAnimationFrame(place);
                     };
                     place();
-                } else if (!api) requestAnimationFrame(() => reveal(hit.id));
+                } else {
+                    // No coordinates given: the same rule the menu uses — keep the
+                    // place you chose if it is on screen, otherwise bring it to the
+                    // view instead of opening it somewhere you are not looking.
+                    placeById(hit.id, api ? 0 : 160);
+                    if (!api) requestAnimationFrame(() => reveal(hit.id));
+                }
             } else {
                 if (f && floatingIsOpen(f)) toggleFloating(f);
                 if (api) api.setOpen(false);

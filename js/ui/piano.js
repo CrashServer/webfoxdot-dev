@@ -35,6 +35,8 @@ let _ctx = {
     bpm:      () => 120,       // clock.bpm — for the un-booted fallback below
     synths:   () => ['pluck'], // available synth names
     scale:    () => ({ scale: [0, 2, 3, 5, 7, 8, 10], root: 0, name: 'minor' }),
+    scaleNames: () => [],          // every scale by name, for the pin
+    scaleNamed: () => null,        // one of them by name
     // name → { defaults, extraParams } for the chosen synth, so its own knobs can
     // be built from the same definition the engine plays it with.
     synthDef: () => null,
@@ -117,6 +119,15 @@ let _oct = 5, _synth = 'pluck', _sus = 0.5, _amp = 0.7, _snap = true, _octaves =
 // an ordinary chromatic keyboard again — the button is there because a passing tone
 // is a real thing to want.
 let _dimOutOfScale = true;
+// The scale the KEYBOARD is drawn in. null means follow the live Scale, which is
+// what you want while writing to it; a name pins the keyboard to its own, for
+// finding notes in a mode the set is not in yet.
+let _pinScale = null;
+// What the keyboard was last drawn for, so a change made anywhere — code, the
+// dropdown, a peer in a session, a #@ section — redraws it. It only ever redrew on
+// its own controls, so Scale.default = "dorian" left the keys showing the old mode
+// until you nudged the octave.
+let _lastSig = '';
 // Live values for the current synth's own parameters, and the defaults they were
 // read from — only what you have actually MOVED goes into the generated line.
 let _params = {}, _paramDefs = {};
@@ -139,8 +150,27 @@ let _quant = 0.25;
 export function initPiano(ctx) { _ctx = { ..._ctx, ...ctx }; }
 
 export function isPianoOpen() { return _open; }
-export function openPiano()  { if (!_modal) build(); _open = true; _modal.classList.remove('hidden'); render(); _modal.focus(); }
-export function closePiano() { _open = false; if (_modal) _modal.classList.add('hidden'); }
+
+// What the keyboard depends on, as one string. Cheap to compute and compare, and it
+// catches a change whatever made it — Scale.default from a line you ran, the darker()
+// / lighter() buttons, a peer's edit in a session, a #@ section switching mode.
+// Asking is more reliable here than being told: there is no one place a scale change
+// goes through, and the one that looked like it (the Scale proxy) misses the rest.
+function sig() {
+    const { scale, root, name } = shownScale();
+    return `${name}|${root}|${scale.join(',')}|${_oct}|${_dimOutOfScale ? 1 : 0}`;
+}
+let _watch = null;
+function startWatch() {
+    if (_watch) return;
+    _watch = setInterval(() => {
+        if (!_open || !_modal) return;
+        if (sig() !== _lastSig) render();
+    }, 200);
+}
+function stopWatch() { if (_watch) { clearInterval(_watch); _watch = null; } }
+export function openPiano()  { if (!_modal) build(); _open = true; _modal.classList.remove('hidden'); render(); startWatch(); _modal.focus(); }
+export function closePiano() { _open = false; stopWatch(); if (_modal) _modal.classList.add('hidden'); }
 export function togglePiano() { _open ? closePiano() : openPiano(); }
 
 // ── scale helpers ───────────────────────────────────────────────────────────
@@ -303,7 +333,8 @@ function build() {
     _modal.innerHTML = `
         <div class="piano-head">
             <span class="piano-title">piano</span>
-            <b class="piano-scale" title="the live Scale and Root. Keys outside it are greyed and unplayable, and the number on a key is its DEGREE — what you type in code.">—</b>
+            <b class="piano-root" title="the live Root">—</b>
+            <select class="piano-scale"></select>
             <select class="piano-synth" title="which synth the keys play"></select>
             <span class="piano-ctl">oct <button class="piano-oct-dn">−</button><b class="piano-oct">5</b><button class="piano-oct-up">+</button></span>
             <span class="piano-ctl">sus <input class="piano-sus" type="range" min="0.05" max="2" step="0.05" value="0.5"></span>
@@ -345,6 +376,10 @@ function build() {
     for (const ev of ['pointerdown', 'focus']) q('.piano-target').addEventListener(ev, renderTargets);
     q('.piano-snap').onclick = (e) => { _snap = !_snap; e.target.classList.toggle('on', _snap); };
     q('.piano-inkey').onclick = (e) => { _dimOutOfScale = !_dimOutOfScale; e.target.classList.toggle('on', _dimOutOfScale); render(); };
+    // Pin the keyboard to a scale of its own, or let it follow the set again. It
+    // only changes what is DRAWN and which keys are playable — it never touches
+    // Scale.default, so looking something up here cannot alter the music.
+    q('.piano-scale').onchange = (e) => { _pinScale = e.target.value || null; render(); };
     q('.piano-midi').onclick = (e) => setMidi(!_midiOn, e.target);
     q('.piano-synth').onchange = (e) => { _synth = e.target.value; buildParamKnobs(); };
     q('.piano-rec').onclick = () => {
@@ -545,9 +580,25 @@ function render() {
 
     renderTargets();
 
-    const { scale, root, name } = _ctx.scale();
+    const { scale, root, name, pinned } = shownScale();
+    _lastSig = sig();
     const sc = _modal.querySelector('.piano-scale');
-    if (sc) sc.textContent = `${NAMES[((root % 12) + 12) % 12]} ${name || '?'}`;
+    if (sc) {
+        // The list is built once and only the selection changes, so opening it
+        // mid-set does not rebuild under the pointer.
+        if (!sc.options.length) {
+            const names = _ctx.scaleNames() || [];
+            sc.innerHTML = '<option value="">follow the set</option>'
+                + names.map(n => `<option value="${n}">${n}</option>`).join('');
+        }
+        sc.value = _pinScale || '';
+        sc.classList.toggle('pinned', !!pinned);
+        sc.title = pinned
+            ? `pinned to ${name} — the set is in ${_ctx.scale().name || '?'}. Choose "follow the set" to track it again.`
+            : `following the live Scale (${NAMES[((root % 12) + 12) % 12]} ${name || '?'}). Pick a scale to pin the keyboard to another one.`;
+    }
+    const rootEl = _modal.querySelector('.piano-root');
+    if (rootEl) rootEl.textContent = NAMES[((root % 12) + 12) % 12];
     // In a chromatic scale every key is available, so there is nothing to grey out
     // and greying out nothing is the same keyboard — the flag only matters off it.
     const dimOut = _dimOutOfScale && !isChromatic(scale);
@@ -574,6 +625,16 @@ function render() {
 // this asks the scale rather than trusting a name, and a 12-note custom scale
 // behaves like one too.
 function isChromatic(scale) { return new Set(scale.map(n => ((n % 12) + 12) % 12)).size >= 12; }
+
+// The scale on screen: the pinned one if there is one, else the set's own.
+function shownScale() {
+    if (_pinScale) {
+        const s = _ctx.scaleNamed(_pinScale);
+        if (s) return { ...s, pinned: true };
+        _pinScale = null;                       // it went away; fall back to following
+    }
+    return { ..._ctx.scale(), pinned: false };
+}
 
 function mkKey(midi, black, left, width, scale, root, dimOut) {
     const el = document.createElement('div');

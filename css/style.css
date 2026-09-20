@@ -628,10 +628,18 @@ button#btn-boot.booted { background: var(--green-dim); border-color: var(--green
 .pk.pk-out .pk-name { color: #4a4d53; }
 
 
-.piano-scale {
+.piano-root {
     font-size: 10px; color: var(--green); letter-spacing: 0.04em;
-    padding: 1px 6px; border: 1px solid var(--border-1); border-radius: 3px;
+    padding: 1px 4px; border: 1px solid var(--border-1); border-radius: 3px;
 }
+.piano-scale {
+    font-size: 10px; color: var(--green);
+    background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 3px;
+    padding: 1px 2px; max-width: 120px;
+}
+/* Pinned reads differently from following, because the difference matters: the
+   keyboard is no longer showing the scale the set is playing in. */
+.piano-scale.pinned { color: var(--bg-1); background: var(--green); font-weight: 700; }
 
 /* ── webTroop watcher ─────────────────────────────────────────────────────── */
 /* Latency trim. Small, because it lives in a header and is turned by ear. */
