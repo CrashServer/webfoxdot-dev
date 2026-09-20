@@ -531,6 +531,9 @@ export function noteEval(text, who = null) {
     live.lastEvalUser = who || 'svdk';
     const slot = who ? 'zbdm' : 'svdk';
     if (who) live.otherUser = who;
+    // In troop mode the room owns both slots — your own evals would otherwise take
+    // the wall back every time you ran a line.
+    if (_codeSource === 'troop') return;
     live[slot] = { lines: String(text || '').split('\n').slice(0, 200).join('\n') };
 }
 /** The buffer on screen, so the code layers show what you are TYPING, not only evals. */
@@ -561,19 +564,61 @@ export function notedPlayers(names) { live.players = names || []; }
 export function liveFeed() {
     return {
         evalCount: live.evalCount, lastEvalUser: live.lastEvalUser, otherUser: live.otherUser,
+        source: _codeSource,
         mine:  (live.svdk && live.svdk.lines) || '',
         other: (live.zbdm && live.zbdm.lines) || '',
         players: [...live.players],
     };
 }
 
+// Whose code the CODE LAYERS draw. The feed has always had two performer slots and
+// no way to say which one you wanted on the wall.
+//
+//   'both'  — you in one slot, the troop in the other, which is what the layers that
+//             show two columns were built for
+//   'troop' — the room's code in BOTH slots, so every code layer shows them, including
+//             the ones that draw a single stream
+//   'me'    — the troop never reaches the visuals at all
+let _codeSource = 'both';
+export function codeSource(mode) {
+    if (mode == null) return _codeSource;
+    const m = String(mode).toLowerCase();
+    _codeSource = ['both', 'troop', 'me'].includes(m) ? m : 'both';
+    // Act on the code already in hand. Waiting for their next keystroke means the
+    // switch appears to do nothing for as long as nobody at the other end is typing
+    // — which, between two numbers in a set, can be the whole section.
+    if (_codeSource === 'me') { live.zbdm = { lines: '' }; live.otherUser = ''; }
+    if (_codeSource === 'troop') live.svdk = live.zbdm || { lines: '' };
+    return _codeSource;
+}
+
+// Some code layers pick their stream from lastEvalUser and only redraw when the eval
+// counter moves — codeFull and evalSeismograph among them. The troop's buffer changes
+// on every keystroke and bumping the counter per character would strobe the wall, so
+// it is pulsed on a timer instead: often enough to read as live typing, slow enough
+// to be a scroll rather than a flicker.
+const TROOP_PULSE_MS = 400;
+let _lastPulse = 0;
+
 export function noteTroop(text, user = 'troop') {
+    if (_codeSource === 'me') return;
     // webTroop's pretext window arrives as an ARRAY of lines; their shared buffer
     // arrives as a string. String(array) would comma-join it into one long line,
     // which renders as a smear rather than as code.
     const t = Array.isArray(text) ? text.join('\n') : String(text || '');
-    live.zbdm = { lines: t.split('\n').slice(0, 200).join('\n') };
+    const win = { lines: t.split('\n').slice(0, 200).join('\n') };
+    live.zbdm = win;
     live.otherUser = user;
+    // In troop mode their code is the picture: put it in your slot too, so a layer
+    // that draws one stream draws theirs rather than whatever you last evaluated.
+    if (_codeSource === 'troop') live.svdk = win;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - _lastPulse >= TROOP_PULSE_MS) {
+        _lastPulse = now;
+        live.evalCount++;
+        // Anything but 'svdk' selects the second slot in the layers that choose.
+        live.lastEvalUser = _codeSource === 'troop' ? user : user;
+    }
 }
 
 // ── vsnap() — the visual state, as CODE ──────────────────────────────────────

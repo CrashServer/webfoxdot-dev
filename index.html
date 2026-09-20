@@ -321,7 +321,7 @@
     import { initPartsPanel, toggleParts } from './js/ui/partspanel.js';
     import { initPiano, togglePiano } from './js/ui/piano.js';
     import { initEditorBg, toggleEditorBg, setEditorBg, editorBgOn } from './js/visuals/editorbg.js';
-    import { visualBuilders, getVisualPlayer, VSpec, vsnap, noteEval as noteVisualEval,
+    import { visualBuilders, getVisualPlayer, VSpec, vsnap, codeSource, noteEval as noteVisualEval,
              setOutputs as setVisualOutputs, setVideoRec as setVisualRec,
              visualRes, setVisualRes,
              liveLayers as visualLayers, setLayerParam as setVisualParam, setLayerChannel as setVisualChannel,
@@ -1405,6 +1405,23 @@
             },
             // scenes() — the contact sheet. 255 of them and no way to see any.
             scenes: () => { toggleSceneBrowser(); return '\u25a6 scenes'; },
+            // codesource(which) — whose code the CODE LAYERS draw.
+            //
+            //   codesource("troop")  the room's code, on every code layer
+            //   codesource("me")     yours only; the troop never reaches the visuals
+            //   codesource("both")   you in one slot, them in the other (the default)
+            //   codesource()         what it is set to
+            //
+            // The layers were built for two performers and there was no way to say
+            // which one you wanted on the wall. In "troop" the room's buffer goes in
+            // both slots, so even a layer that draws a single stream draws theirs.
+            codesource: (which) => {
+                let v = which;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                const m = codeSource(v == null ? null : String(v));
+                log(`codesource: ${m}${m === 'troop' ? ' — the room is the picture' : m === 'me' ? ' — the troop stays off the wall' : ' — you and them, one slot each'}`, 'info');
+                return m;
+            },
             // seed()  reports  ·  seed(42) fixes it  ·  seed(null)/seed(0) back to free.
             //
             // Under a seed every generator draws from (seed, the line's own text, which
