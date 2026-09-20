@@ -18,6 +18,14 @@ let _modal = null, _open = false, _watch = null, _log = null, _clock = null;
 // Follow their clock. Off by default: joining a room should not re-time your set
 // without being asked.
 let _sync = false, _quantum = 4, _lastBeat = null, _lastErr = null, _mode = 'beat';
+// When a PRETEXT window last arrived. Two things feed the visual texture — their
+// whole shared buffer, and the window of lines around whoever is typing — and both
+// change as they type, so without a rule they take turns and the wall flips between
+// a moving window and the tail of the document. Pretext wins while it is arriving:
+// the moving window IS the thing worth projecting, and the buffer is still there in
+// the panel for reading.
+let _lastPretextAt = 0;
+const PRETEXT_HOLD_MS = 3000;
 // Latency trim, in MILLISECONDS. Milliseconds and not beats because what it is
 // correcting — their SuperCollider's output buffer against crashDot's WASM one, plus
 // the hop between the machines — is a fixed amount of time. Expressed in beats it
@@ -259,7 +267,10 @@ export async function startTroop(host, ports) {
             // visuals window. When the canvas is in this window — which is the normal
             // way to run it — the code layers read vlang's own feed, so without this
             // line codefull and its siblings showed your code and never theirs.
-            if (_toVisuals) { try { noteTroop(code.split('\n').slice(-60).join('\n')); } catch (_) {} }
+            // Only when pretext is not carrying it — see _lastPretextAt.
+            if (_toVisuals && Date.now() - _lastPretextAt > PRETEXT_HOLD_MS) {
+                try { noteTroop(code.split('\n').slice(-60).join('\n')); } catch (_) {}
+            }
         },
         onPeers: (ps) => { peers = ps; paintPeers(ps); paintCode(code, peers); },
         onStat: (k, v) => {
@@ -305,6 +316,7 @@ export async function startTroop(host, ports) {
             // Straight into the visual code layers. postInstant is throttled and is
             // exactly this shape already — the line, who wrote it, where they are —
             // so a troop rehearsal becomes the picture with nothing in between.
+            _lastPretextAt = Date.now();
             if (!_toVisuals) return;
             try { postInstant(x.code || '', x.line || 0, x.user || 'troop', ''); } catch (_) {}
             // And the same window of lines into the in-window feed, under the name of

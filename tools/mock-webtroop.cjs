@@ -27,41 +27,43 @@ const yws = new WebSocketServer({ port: P_Y });
 yws.on('connection', (conn, req) => setupWSConnection(conn, req, { docName: ROOM }));
 console.log('yjs       ws://127.0.0.1:' + P_Y + '   room "' + ROOM + '"');
 
-// Type into it the way a player would. setupWSConnection owns the doc and does the
-// broadcasting; we just edit the one it is holding.
+// A real CLIENT, not the server poking its own document.
+//
+// It used to edit the doc through the server's own handle and set awareness on the
+// server's Doc. The text reached crashDot, but the AWARENESS did not: y-websocket
+// broadcasts a client's awareness when it changes and the server's own only when
+// somebody connects. So a watcher saw one PRETEXT window at connect and never
+// another, the buffer feed won every time, and the mock quietly could not exercise
+// the one path it was built to exercise. Connecting to itself the way a player does
+// is the only version of this that tells the truth.
+const { WebsocketProvider } = require('../server/node_modules/y-websocket');
+
 const LINES = [
     'Clock.bpm = 132',
     'p1 >> pluck([0, 2, 4, 7], dur=1/2)',
     'b1 >> play("x-o-", sample=2)',
     'd1 >> bass([0, 0, 3], dur=1, lpf=800)',
 ];
+const cdoc = new Y.Doc();
+const provider = new WebsocketProvider('ws://127.0.0.1:' + P_Y, ROOM, cdoc, { WebSocketPolyfill: WebSocket });
+provider.awareness.setLocalStateField('user', { name: 'mock-player', color: '#e85' });
+const ctext = cdoc.getText(ROOM);
 let n = 0;
-setInterval(() => {
-    const doc = docs.get(ROOM);
-    if (!doc) return;                       // nobody has joined yet, so there is no doc
-    const t = doc.getText(ROOM);
-    t.insert(t.length, LINES[n++ % LINES.length] + '\n');
-}, 2000);
 
-// A second "player", so awareness and the PRETEXT window have something in them.
+// Typing: a line into the shared buffer every couple of seconds.
+setInterval(() => { ctext.insert(ctext.length, LINES[n++ % LINES.length] + '\n'); }, 2000);
+
+// PRETEXT: a window that MOVES, around a cursor somewhere in the real buffer,
+// republished on its own beat the way a keystroke would.
 setInterval(() => {
-    const doc = docs.get(ROOM);
-    if (!doc) return;
-    // A window that MOVES, around a cursor that is somewhere in the real buffer.
-    // It used to be a constant slice of LINES, which republished the same three
-    // lines forever — and a consumer that had stopped updating looked identical to
-    // one that was working, so the test could not tell them apart.
-    const all = doc.getText(ROOM).toString().split('\n').filter(Boolean);
+    const all = ctext.toString().split('\n').filter(Boolean);
     if (!all.length) return;
     const cur = n % all.length;
     const start = Math.max(0, cur - 2);
     const win = all.slice(start, start + 5);
-    doc.awareness?.setLocalState({
-        user: { name: 'mock-player', color: '#e85' },
-        otherInstantCode: {
-            user: 'mock-player', code: all[cur], position: all[cur].length, line: cur + 1,
-            windowLines: win, windowStartLine: start + 1, windowEndLine: start + win.length,
-        },
+    provider.awareness.setLocalStateField('otherInstantCode', {
+        user: 'mock-player', code: all[cur], position: all[cur].length, line: cur + 1,
+        windowLines: win, windowStartLine: start + 1, windowEndLine: start + win.length,
     });
 }, 1200);
 
