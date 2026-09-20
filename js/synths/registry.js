@@ -502,8 +502,8 @@ export const SYNTH_DEFS = {
         scName: 'fd_ikea',
         defaults: { oct: 4, amp: 0.8, dur: 8, sus: 8, pan: 0,
                     density: 1, glitch: 1, noise: 1, bass: 1, tone: 1, bright: 1,
-                    hhat: 0.1, sn: 0.1, harm: 0, fmod: 0, vib: 0 },
-        extraParams: ['density', 'glitch', 'noise', 'bass', 'tone', 'bright', 'hhat', 'sn', 'harm', 'fmod', 'vib'],
+                    hhat: 0.1, snare: 1, harm: 0, fmod: 0, vib: 0 },
+        extraParams: ['density', 'glitch', 'noise', 'bass', 'tone', 'bright', 'hhat', 'snare', 'harm', 'fmod', 'vib'],
     },
     // fbass — Karplus-Strong comb-filter exciter bass, credit Josh Mitchell (CrashServer port)
     fbass: {
