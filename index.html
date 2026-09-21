@@ -1900,7 +1900,9 @@
         // fader, something changes, and finding out WHICH control you just bound
         // means going to look for it.
         onMidiLearn((x) => log(`\u25c9 learned cc${x.cc}${x.short ? ' \u00b7 ' + x.short : ''}`
-            + (x.channel ? ` \u00b7 ch${x.channel}` : '') + ` \u2014 midimap() lists them`, 'ok'));
+            + (x.channel ? ` \u00b7 ch${x.channel}` : '')
+            + (x.waiting ? ` \u2014 now move the next control (${x.waiting} still waiting)`
+                         : ' \u2014 midimap() lists them'), 'ok'));
         enableMidi()
             .then(() => log('MIDI enabled — twist a control', 'ok'))
             .catch(e => log(`MIDI: ${e.message}`, 'error'));

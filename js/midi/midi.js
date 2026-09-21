@@ -27,6 +27,11 @@ const _last     = new Map();   // "src|cc" → 0..1  last value seen (seeds new 
 const _monitor  = new Map();   // "src|cc" → { cc, src, srcName, value, channel, t }
 const _bindings = new Set();   // live midi value objects — routing targets
 const _learnQ   = [];          // bindings armed for learn, awaiting the next CC
+// Controls that have already claimed a slot in the CURRENT round of learning. A
+// fader sends a stream of messages while you move it, and without this the second
+// mlearn on a line would be claimed by the same fader a millisecond after the
+// first. Cleared when nothing is waiting any more.
+const _learnTaken = new Set();
 const _controls   = new Set(); // control bindings — call onValue(0..1, cc) on each CC move
 const _learnCtrlQ = [];        // control bindings armed for learn
 let _onChange   = null;        // panel refresh hook
@@ -154,11 +159,26 @@ function _onMessage(ev) {
     // MIDI learn: armed bindings latch onto the control that moved, and remember
     // WHICH BOX it was on, so the other controller's CC 7 is not this one's.
     if (moved) {
-        let learned = 0;
-        if (_learnQ.length) for (const b of _learnQ.splice(0)) { b.cc = cc; b.src = src; b.srcName = srcName; learned++; }
-        if (_learnCtrlQ.length) for (const c of _learnCtrlQ.splice(0)) { c.cc = cc; c.src = src; c.srcName = srcName; learned++; }
-        if (learned && _onLearn) {
-            try { _onLearn({ cc, channel, src, srcName, short: shortName(srcName), count: learned }); } catch (_) {}
+        // ONE control claims ONE binding, in the order they were armed — so
+        //   d1 >> dbass(mlearn(0, 12), dur=mlearn(0, 4))
+        // learns the degree from the first control you move and the duration from
+        // the second. Before, every armed binding took the same CC, which meant two
+        // mlearns on a line could only ever end up on the same fader, moving
+        // together. A control that has already claimed one is skipped, or the fader
+        // still under your finger would take the next slot too.
+        let target = null, waiting = 0;
+        if (!_learnTaken.has(key)) {
+            if (_learnQ.length) target = _learnQ.shift();
+            else if (_learnCtrlQ.length) target = _learnCtrlQ.shift();
+            if (target) {
+                target.cc = cc; target.src = src; target.srcName = srcName;
+                _learnTaken.add(key);
+            }
+        }
+        waiting = _learnQ.length + _learnCtrlQ.length;
+        if (!waiting) _learnTaken.clear();          // the round is over
+        if (target && _onLearn) {
+            try { _onLearn({ cc, channel, src, srcName, short: shortName(srcName), waiting }); } catch (_) {}
         }
     }
 
@@ -274,5 +294,7 @@ export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin', device = null
 export function clearMidiBindings() {
     _bindings.clear();
     _learnQ.length = 0;
+    _learnCtrlQ.length = 0;
+    _learnTaken.clear();
     _changed();
 }

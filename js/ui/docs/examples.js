@@ -469,7 +469,7 @@ p1.lpf = midi(74, 100, 8000, "exp")      # CC74 → filter cutoff
 p1.amp = midi(7, 0, 1)                    # CC7 → volume
 p2 >> saw([0,4,7], room=midi(1, 0, 1, "s"))    # mod wheel → reverb size
 p1.mverb = mlearn(0, 1)                   # learn: move the control you want`)}
-        ${note('<b>mlearn</b> waits for a control that MOVES, not merely the first CC that arrives — a keyboard sitting untouched is often still transmitting, and it used to win every learn. When it lands, the log says which control and which device. <code>midimap()</code> lists everything currently bound.')}
+        ${note('<b>mlearn</b> waits for a control that MOVES, not merely the first CC that arrives \u2014 a keyboard sitting untouched is often still transmitting, and it used to win every learn. When it lands, the log says which control and which device. Several <code>mlearn()</code> on ONE line learn one control each, in the order they appear: <code>d1 &gt;&gt; dbass(mlearn(0, 12), dur=mlearn(0, 4))</code> takes the degree from the first control you move and the duration from the second. <code>midimap()</code> lists everything bound.')}
 
         ${note('<b>5 · Two controllers at once</b> — a keyboard to play and a box of faders to turn. Their CC numbers overlap by convention (a nanoKONTROL2’s faders are CC 0..7; a keyboard’s own volume is CC 7), so a binding can name the device it listens to. A fragment of the name is enough, and a bare <code>midi(7)</code> still answers to any device.')}
         ${code(`p1.lpf = midi(7, 200, 4000, "exp", "nano")   # only the nanoKONTROL's CC7
