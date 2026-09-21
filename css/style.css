@@ -2989,8 +2989,13 @@ body.desktop-ui #keybar { z-index: 140; }
     display: flex; align-items: center; justify-content: center;
     font: 700 300px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
     letter-spacing: -0.02em;
-    color: var(--text-1);
-    opacity: 0.045;
+    /* The accent, not the text colour, and enough of it to read. At 0.045 of a
+       neutral grey it was a rumour. The glow is what gives it presence without
+       raising the opacity to the point where it competes with a panel sitting on
+       top of it — light spreads, so a little carries further than a lot. */
+    color: var(--green);
+    opacity: 0.16;
+    text-shadow: 0 0 38px var(--glow), 0 0 90px var(--glow);
     z-index: 0;
 }
 
@@ -3005,29 +3010,43 @@ body.desktop-ui #keybar { z-index: 140; }
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     z-index: 0;
 }
-.hud-bpm { display: flex; align-items: baseline; gap: 16px; opacity: 0.11; }
-.hud-bpm-n { font: 700 132px/1 inherit; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.hud-bpm-u { font: 600 34px/1 inherit; letter-spacing: 0.28em; text-transform: uppercase; }
-.hud-bars { display: flex; gap: 12px; width: 74%; opacity: 0.1; }
+.hud-bpm { display: flex; align-items: baseline; gap: 16px; opacity: 0.34; color: var(--green);
+           text-shadow: 0 0 26px var(--glow); }
+/* Separate properties, not the `font` shorthand: `font: 700 132px/1 inherit` is
+   INVALID — inherit is not a family name there — so the browser dropped the whole
+   declaration and this drew at the default 16px instead of 132. That, not the
+   opacity, is why the counters could not be read. The family still inherits from
+   .canvas-hud, which is what the shorthand was reaching for. */
+.hud-bpm-n { font-weight: 700; font-size: 132px; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.hud-bpm-u { font-weight: 600; font-size: 34px; line-height: 1; letter-spacing: 0.28em; text-transform: uppercase; }
+.hud-bars { display: flex; gap: 12px; width: 74%; opacity: 0.4; }
 .hud-cell {
     position: relative; flex: 1; height: 48px; border-radius: 5px;
-    background: var(--text-1); overflow: hidden;
+    /* A dark trough with a lit fill reads at a glance from across a room; a pale
+       block with a slightly paler block inside it does not. */
+    background: rgba(0, 0, 0, 0.42); border: 1px solid var(--green); overflow: hidden;
     display: flex; align-items: center; justify-content: center;
 }
 /* The fill is the beat position — the same discrete step the sidebar counters
    make, just large enough to read without looking straight at it. */
 .hud-cell > i {
     position: absolute; left: 0; top: 0; bottom: 0;
-    background: var(--green); opacity: 0.55;
+    background: var(--green); opacity: 0.95;
+    box-shadow: 0 0 18px var(--glow);
 }
 .hud-cell > span {
     position: relative;
-    font: 700 24px/1 inherit; font-variant-numeric: tabular-nums;
-    color: var(--bg-1);
+    font-weight: 700; font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums;
+    /* The number sits ON the sweeping fill, so it has to survive both sides of the
+       edge. Plain white with a dark halo does that in every theme; a blend mode
+       looked clever and came out muddy pink over the accent. */
+    color: #fff;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 .hud-pos {
-    font: 600 30px/1 inherit; letter-spacing: 0.16em; text-transform: uppercase;
-    opacity: 0.09; font-variant-numeric: tabular-nums;
+    font-weight: 600; font-size: 30px; line-height: 1; letter-spacing: 0.16em; text-transform: uppercase;
+    opacity: 0.34; color: var(--green); text-shadow: 0 0 20px var(--glow);
+    font-variant-numeric: tabular-nums;
 }
 
 /* Two background zones: the whole workspace, and the "home" rectangle the
