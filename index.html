@@ -290,7 +290,7 @@
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
     import { setPanelNames } from './js/editor/autocomplete.js';
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
-    import { listLayouts, applyLayout } from './js/ui/desktop/layouts.js';
+    import { listLayouts, applyLayout, saveLayout, deleteLayout } from './js/ui/desktop/layouts.js';
     import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
     import { initTroopPanel, startTroop, stopTroop, troopState, isTroopOpen, troopToVisuals, troopClock, troopClockOn, troopClockError, troopClockMode, troopNudge } from './js/ui/trooppanel.js';
     // <…> IS a bracket in a player line (a subdivision), which is why the gutter
@@ -1368,6 +1368,39 @@
             // the keyboard mid-set. A NAME or a 0-based INDEX that wraps — the same
             // shape theme() and pal= already use — so it can be computed rather than
             // typed, and put in a #@ section that switches the desk at the drop.
+            // store(name) — save the desk as it stands, so recall() can bring it back.
+            // The counterpart to recall(), and the reason it exists in code at all: you
+            // had to open the layouts panel and click a row, which is the one thing you
+            // cannot do with your hands on the keyboard mid-set. store() with no name
+            // lists what is saved; forget(name) drops one.
+            store: (name) => {
+                if (!_desktopApi) { log('store: the classic layout has no panels \u2014 switch to desktop mode', 'warn'); return null; }
+                let v = name;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                if (v == null) {
+                    const all = Object.keys(listLayouts());
+                    log(all.length ? `store: ${all.length} saved \u00b7 store("name") to overwrite or add:` : 'store: nothing saved yet \u2014 store("name")', 'info');
+                    all.forEach((n, i) => log(`  ${String(i).padStart(2)}.  ${n}`, 'info'));
+                    return all;
+                }
+                const key = String(v).trim();
+                if (!key) { log('store: give it a name \u2014 store("performance")', 'warn'); return null; }
+                const had = key in listLayouts();
+                saveLayout(key);
+                log(`\u25a6 ${had ? 'replaced' : 'stored'} "${key}" \u2014 recall(${JSON.stringify(key)}) brings it back`, 'ok');
+                return key;
+            },
+            forget: (name) => {
+                let v = name;
+                if (v && typeof v.get === 'function') { try { v = v.get(0); } catch (_) { v = null; } }
+                const all = Object.keys(listLayouts());
+                if (v == null) { log(`forget: which one? ${all.join(' \u00b7 ') || '(nothing saved)'}`, 'info'); return all; }
+                const key = String(v).trim();
+                if (!(key in listLayouts())) { log(`forget: no layout called "${key}" \u2014 ${all.join(' \u00b7 ') || 'nothing saved'}`, 'warn'); return null; }
+                deleteLayout(key);
+                log(`\u25a6 forgot "${key}"`, 'ok');
+                return key;
+            },
             recall: (which, beats = 0) => {
                 const names = Object.keys(listLayouts());
                 if (!names.length) {
