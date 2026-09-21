@@ -34,6 +34,22 @@ function walker(initial, advance) {
     };
 }
 
+// A numeric argument that may itself be a pattern, a list or a TimeVar.
+//
+// The wave generators took raw numbers and used them directly, so a list arrived at
+// a comparison as an ARRAY: PPulse(0, 4, 16, [0.7, 0.7]) coerced [0.7,0.7] to NaN,
+// every comparison came out false, and the pulse sat on `lo` forever while looking
+// like a perfectly good line. A single-element [0.7] coerced to 0.7 and appeared to
+// work, which is worse — it makes the failure look like a quirk of the values.
+//
+// Falls back to the default when a value resolves to something that is not a finite
+// number, so a bad element in a list costs that step and not the whole pattern.
+function numAt(val, step, def) {
+    if (val === null || val === undefined) return def;
+    const n = Number(patGet(val, step, def));
+    return Number.isFinite(n) ? n : def;
+}
+
 export function patGet(val, step, def) {
     if (val === null || val === undefined) return def;
     if (typeof val?.get === 'function') return val.get(step);
@@ -455,7 +471,8 @@ export function P10(n = 8) { const r = makeStream(); const out = []; for (let i 
 
 // PSaw(lo, hi, steps) — rising sawtooth ramp (companion to PSine/PTri).
 export function PSaw(lo = 0, hi = 1, steps = 16) {
-    return { get: (step) => { const t = ((((step | 0) % steps) + steps) % steps) / steps; return lo + (hi - lo) * t; } };
+    return { get: (step) => { const l = numAt(lo, step, 0), h = numAt(hi, step, 1);
+        return l + (h - l) * phase(step, steps); } };
 }
 
 // PSq(a, b, c) — powers: [a^b, (a+1)^b, … ] for c terms (FoxDot PSq).
@@ -789,8 +806,8 @@ export function PStep(n, value = 1, dflt = 0) {
 export function PSine(lo = 0, hi = 1, steps = 16) {
     return {
         get: (step) => {
-            const t = ((((step | 0) % steps) + steps) % steps) / steps;
-            return lo + (hi - lo) * (Math.sin(t * Math.PI * 2) * 0.5 + 0.5);
+            const l = numAt(lo, step, 0), h = numAt(hi, step, 1), t = phase(step, steps);
+            return l + (h - l) * (Math.sin(t * Math.PI * 2) * 0.5 + 0.5);
         }
     };
 }
@@ -799,8 +816,8 @@ export function PSine(lo = 0, hi = 1, steps = 16) {
 export function PTri(lo = 0, hi = 1, steps = 16) {
     return {
         get: (step) => {
-            const t = ((((step | 0) % steps) + steps) % steps) / steps;
-            return lo + (hi - lo) * (t < 0.5 ? t * 2 : (1 - t) * 2);
+            const l = numAt(lo, step, 0), h = numAt(hi, step, 1), t = phase(step, steps);
+            return l + (h - l) * (t < 0.5 ? t * 2 : (1 - t) * 2);
         }
     };
 }
@@ -1180,14 +1197,22 @@ export function PExp(lo = 0, hi = 1, steps = 16) {
 // PPulse(lo, hi, steps, width=0.5) — square/pulse wave; width is the duty cycle
 // (fraction of the cycle spent at hi). width=0.1 → short stabs.
 export function PPulse(lo = 0, hi = 1, steps = 16, width = 0.5) {
-    return { get: (step) => (((((step | 0) % steps) + steps) % steps) / steps < width ? hi : lo) };
+    return { get: (step) => (phase(step, steps) < numAt(width, step, 0.5)
+        ? numAt(hi, step, 1) : numAt(lo, step, 0)) };
+}
+
+// Where in the cycle this step falls, 0..1. `steps` may itself be a pattern or a
+// list; a cycle length of zero or nonsense would divide by zero, so it floors at 1.
+function phase(step, steps) {
+    const n = Math.max(1, Math.round(numAt(steps, step, 16)));
+    return ((((step | 0) % n) + n) % n) / n;
 }
 
 // PSlide(lo, hi, steps) — smoothstep-eased ramp (soft S-curve lo→hi).
 export function PSlide(lo = 0, hi = 1, steps = 16) {
     return { get: (step) => {
-        const t = ((((step | 0) % steps) + steps) % steps) / steps;
-        return lo + (hi - lo) * t * t * (3 - 2 * t);
+        const l = numAt(lo, step, 0), h = numAt(hi, step, 1), t = phase(step, steps);
+        return l + (h - l) * t * t * (3 - 2 * t);
     } };
 }
 
