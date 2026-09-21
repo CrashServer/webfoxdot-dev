@@ -442,12 +442,21 @@ function themeItems() {
 // recall( … ) — the workspaces you have saved, by name, each showing its index too.
 // Read from storage at completion time rather than kept as a second list: a layout
 // saved thirty seconds ago should be offered thirty seconds later.
-function layoutItems() {
+function layoutItems(fn = 'recall') {
     let all = {};
     try { all = JSON.parse(localStorage.getItem('wfd-desktop-layouts') || '{}'); } catch (_) {}
     const names = Object.keys(all);
-    if (!names.length) return [item('""', 'hint-keyword', 'no saved workspaces yet — arrange the panels, then save one in the layouts panel')];
-    return names.map((n, i) => item(`"${n}"`, 'hint-keyword', `${n}   · or recall(${i})`));
+    if (!names.length) {
+        // The advice differs by verb: store() is how you MAKE one, so telling it
+        // there are none to pick from and stopping there would be a dead end.
+        return [item('""', 'hint-keyword', fn === 'store'
+            ? 'nothing saved yet — any name you like, and this desk is kept under it'
+            : 'no saved workspaces yet — arrange the panels, then store("a name")')];
+    }
+    return names.map((n, i) => item(`"${n}"`, 'hint-keyword',
+        fn === 'store'  ? `${n}   · replaces this one`
+      : fn === 'forget' ? `${n}   · drops this one`
+      :                   `${n}   · or recall(${i})`));
 }
 // panel( … ) — every panel and canvas toggle, by name, each with its index. Read
 // from the live desktop so the list is what is actually on screen.
@@ -488,9 +497,15 @@ function getContext(cm) {
 
     // Inside theme( … ) / language( … ) — a fixed set of names.
     if (/\btheme\(\s*["']?[\w-]*$/.test(before))    return { type: 'theme', word };
-    // recall( … ) — saved workspace names. Before the generic in-a-call rules, or
-    // "inside parentheses" wins and offers synth params instead.
-    if (/\brecall\(\s*["']?[\w -]*$/.test(before))   return { type: 'layout', word };
+    // recall( … ) / store( … ) / forget( … ) — saved workspace names. Before the
+    // generic in-a-call rules, or "inside parentheses" wins and offers synth params
+    // instead. store() is in here too: its argument is usually a NEW name, but the
+    // existing ones are exactly what you need to see in order to overwrite one on
+    // purpose rather than by accident.
+    {
+        const m = /\b(recall|store|forget)\(\s*["']?[\w -]*$/.exec(before);
+        if (m) return { type: 'layout', word, fn: m[1] };
+    }
     if (/\bpanel\(\s*["']?[\w -]*$/.test(before))    return { type: 'panel', word };
     // compo_base(n, beats, <family>) — only the third argument is a name.
     if (/\bcompo_base\(\s*[^,)]*,\s*[^,)]*,\s*["']?[\w]*$/.test(before)) return { type: 'partfamily', word };
@@ -598,6 +613,31 @@ function item(text, cls, display) {
     return { text, displayText: display ?? text, className: cls };
 }
 
+/**
+ * Does a menu row match what you have typed?
+ *
+ * Exported only so a test can reach it: the filtering lives inside the hint
+ * closure, and it has now failed silently three times — quoted names, then the
+ * name pickers that were never filtered at all, then panels. A menu that shows
+ * the whole list looks like it is working, so nothing catches it but a test.
+ *
+ * What you type is matched against both what the row SHOWS and what it would
+ * INSERT, and neither one raw, because every name picker decorates one or the
+ * other: a layout inserts `"chorus"`, so the opening quote made `ch` match
+ * nothing; a panel shows `● editor · or panel(0)` and inserts `"wfd-editor"`,
+ * so the status dot blocked one candidate and the id prefix the other.
+ */
+export function matchesTyped(it, typed) {
+    if (!typed) return true;
+    const lw    = String(typed).toLowerCase();
+    const label = String(it.displayText ?? it.text ?? '').toLowerCase();
+    const text  = String(it.text || '').toLowerCase();
+    const naked = (x) => x.replace(/^["']+/, '').replace(/^[^\w"']+/, '');
+    return [label, naked(label), text, naked(text),
+            naked(text).replace(/^wfd-/, ''), label.replace('=', '')]
+        .some(c => c.startsWith(lw));
+}
+
 // pbuild(…) with every knob exposed — genre (a name or an index number), evolve,
 // fill, density, and per-layer gates (1=on, 0=off, or a pattern like PBin(4)/{1,0}).
 function pbuildItem() {
@@ -658,29 +698,32 @@ function hintFn(cm) {
 
     function filter(list) {
         if (!typedWord) return list;
-        const lw = typedWord.toLowerCase();
-        return list.filter(it => {
-            const label = (it.displayText ?? it.text).toLowerCase();
-            return label.startsWith(lw) || label.replace('=','').startsWith(lw);
-        });
+        return list.filter(it => matchesTyped(it, typedWord));
     }
+
+    // The name pickers were never narrowed as you typed: filter() was applied to
+    // the method and parameter lists and not to these, so store("ch went on
+    // offering every saved workspace. Falls back to the whole list when a filter
+    // would leave nothing, because an empty menu tells you less than a full one —
+    // and it keeps the "nothing saved yet" hint visible while you type a new name.
+    const narrow = (l) => { const f = filter(l); return f.length ? f : l; };
 
     let list = [];
 
     if (ctx.type === 'asciistyle') {
-        list = asciiStyleItems();
+        list = narrow(asciiStyleItems());
     } else if (ctx.type === 'audiviz') {
-        list = audivizItems();
+        list = narrow(audivizItems());
     } else if (ctx.type === 'theme') {
-        list = themeItems();
+        list = narrow(themeItems());
     } else if (ctx.type === 'layout') {
-        list = layoutItems();
+        list = narrow(layoutItems(ctx.fn));
     } else if (ctx.type === 'panel') {
-        list = panelItems();
+        list = narrow(panelItems());
     } else if (ctx.type === 'partfamily') {
-        list = partFamilyItems();
+        list = narrow(partFamilyItems());
     } else if (ctx.type === 'language') {
-        list = languageItems();
+        list = narrow(languageItems());
     } else if (ctx.type === 'attack') {
         list = attackItems();
     } else if (ctx.type === 'attackpart') {
