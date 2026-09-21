@@ -53,6 +53,7 @@ const WORK_OY = -800;    // workspace top  edge in canvas-space
 
 let canvasEl = null, desktop = null;
 let panX = 0, panY = 0, zoom = 1;
+let _zoomVar = null;              // last value published to CSS (see apply)
 let panning = false;
 let panStartX = 0, panStartY = 0, panBaseX = 0, panBaseY = 0;
 let spaceDown = false;
@@ -351,7 +352,18 @@ function apply() {
     // the canvas scales, which is right for the work and wrong for the controls: at
     // the default fit zoom of about 0.31 a panel's close button is an 18px square
     // drawn six pixels wide, which is not a thing a mouse can hit.
-    document.documentElement.style.setProperty('--wfd-zoom', String(zoom));
+    //
+    // QUANTISED, and only written when it changes. A custom property on :root
+    // invalidates style for the whole document, and writing it every frame cost two
+    // thirds of the frame rate on any pan or zoom — measured at 24fps against 58
+    // with the write removed. In 0.05 steps a full zoom sweep writes it a dozen
+    // times instead of hundreds, and a control being a pixel off for two frames
+    // mid-zoom is not something an eye can catch.
+    const zr = Math.round(zoom * 20) / 20;
+    if (zr !== _zoomVar) {
+        _zoomVar = zr;
+        document.documentElement.style.setProperty('--wfd-zoom', String(zr));
+    }
 
     // Pinned panels stay at a fixed desktop-space position — back-solve their
     // canvas-space coordinates from the pinned desktop-space target.

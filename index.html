@@ -1368,14 +1368,14 @@
             // the keyboard mid-set. A NAME or a 0-based INDEX that wraps — the same
             // shape theme() and pal= already use — so it can be computed rather than
             // typed, and put in a #@ section that switches the desk at the drop.
-            recall: (which) => {
+            recall: (which, beats = 0) => {
                 const names = Object.keys(listLayouts());
                 if (!names.length) {
                     log('recall: no saved workspaces yet — arrange the panels and save one in the layouts panel', 'warn');
                     return null;
                 }
                 if (which == null) {
-                    log(`recall: ${names.length} saved  ·  recall("${names[0]}")  or  recall(n):`, 'info');
+                    log(`recall: ${names.length} saved  ·  recall("${names[0]}")  ·  recall("${names[0]}", 8) glides over 8 beats:`, 'info');
                     names.forEach((n, i) => log(`  ${String(i).padStart(2)}.  ${n}`, 'info'));
                     return names;
                 }
@@ -1399,8 +1399,15 @@
                     log(`recall: "${name}" is a desktop workspace — switch to desktop mode first`, 'warn');
                     return name;
                 }
-                const ok = applyLayout(name);
-                log(ok ? `▦ ${name}` : `recall: "${name}" could not be applied`, ok ? 'ok' : 'warn');
+                // A glide instead of a cut, in BEATS — so the move lands with the
+                // music rather than at some wall-clock moment near it. recall(name)
+                // with no time still cuts, which is what you want on a drop.
+                let b = beats;
+                if (b && typeof b.get === 'function') { try { b = b.get(0); } catch (_) { b = 0; } }
+                const secs = Number(b) > 0 ? Number(b) * 60 / (Number(clock.bpm) || 120) : 0;
+                const ok = applyLayout(name, null, secs);
+                log(ok ? `▦ ${name}${secs ? ` over ${Math.round(secs * 100) / 100}s` : ''}`
+                       : `recall: "${name}" could not be applied`, ok ? 'ok' : 'warn');
                 return ok ? name : null;
             },
             // scenes() — the contact sheet. 255 of them and no way to see any.
