@@ -324,6 +324,7 @@ const GLOBALS = [
     'displace(','lumakey(','matte(','freeze(','lut(','lutmix(',
     'output(','outclose(','outlist()','vrec(',
     'softReload()','savePatch(','loadPatch(','tour()','vbg(','cancelSection()',
+    'Server.addFx(','Server.removeFx(','Server.clearFx()','Master.',
     'rules(','role(','grant(','tracks()','release(',
 ];
 
@@ -458,6 +459,71 @@ function layoutItems(fn = 'recall') {
       : fn === 'forget' ? `${n}   · drops this one`
       :                   `${n}   · or recall(${i})`));
 }
+// Server.addFx( … ) / Server.removeFx( … ) / Master. … — the master bus.
+//
+// The whole mix, and until now the only way to reach it was to already know the
+// name: none of Server, Master, addFx or removeFx was offered anywhere, while the
+// docs described all four. The built-ins are fd_master's own (gain, lpf, echo…) and
+// everything else a player can have works here too, which is the part nobody
+// guesses — so the menu shows both, in that order, separated.
+const MASTER_BUILTIN = [
+    ['gain',    1,     'the whole mix · 1 is unity'],
+    ['ceiling', 0.95,  'limiter ceiling'],
+    ['lpf',     800,   'master low-pass · 0 is off'],
+    ['lpr',     0.7,   'its resonance'],
+    ['hpf',     200,   'master high-pass · 0 is off'],
+    ['hpr',     0.7,   'its resonance'],
+    ['mverb',   0.3,   'a wash over everything'],
+    ['echo',    0.4,   'master echo'],
+    ['echo_time', 0.25, 'its time, in seconds'],
+    ['echo_dec',  0.5,  'its decay'],
+    ['tanh',    0.5,   'soft clip'],
+    ['drive',   2,     'how hard into it'],
+    ['lofi',    0.5,   'global glue/saturation'],
+];
+function masterBuiltinItems() {
+    return MASTER_BUILTIN.map(([k, v, why]) => item(`${k}=${v}`, 'hint-fx', `${k}   ${why}`));
+}
+/** addFx( … ) — built-ins first, then every player effect, which also works here. */
+function addFxItems() {
+    // A handful of effects are BOTH: lpf, hpf, echo, mverb and tanh are built into
+    // fd_master, and masterSet sends those to the limiter node rather than the chain.
+    // Offering them twice would put two rows that do the same thing next to each
+    // other and suggest they differ.
+    const builtin = new Set(MASTER_BUILTIN.map(([k]) => k));
+    return [
+        sep('— master built-ins —'), ...masterBuiltinItems(),
+        sep('— any player effect, over the whole mix —'),
+        ...FX_GROUPS.filter(g => !builtin.has(g.name)).map(fxItem),
+    ];
+}
+// What is on the master RIGHT NOW, for removeFx( … ). Injected from the app rather
+// than read from storage, because this one is live state and nothing else knows it.
+let _masterOn = null;
+export function setMasterFx(fn) { _masterOn = fn; }
+function removeFxItems() {
+    let on = [];
+    try { on = (_masterOn && _masterOn()) || []; } catch (_) { on = []; }
+    if (!on.length) {
+        // Not a dead end: say what removeFx is FOR, since with nothing on there is
+        // nothing to list and an empty menu would just look broken.
+        return [item('""', 'hint-keyword', 'nothing on the master yet — Server.addFx(chorus=0.5) first')];
+    }
+    return on.map(k => item(`"${k}"`, 'hint-keyword', `${k}   · take it off the master`));
+}
+/** Master. … — the built-ins as an assignment, which is the documented form. */
+function masterAttrItems() {
+    return MASTER_BUILTIN.map(([k, v, why]) => item(`${k} = ${v}`, 'hint-fx', `${k}   ${why}`));
+}
+/** Server. … — three methods, and the one people reach for is not clearFx. */
+function serverItems() {
+    return [
+        item('addFx(', 'hint-method', 'addFx(chorus=0.5, lpf=800)   · effects over the whole mix'),
+        item('removeFx("', 'hint-method', 'removeFx("chorus")   · take one back off'),
+        item('clearFx()', 'hint-method', 'clearFx()   · all of them at once'),
+    ];
+}
+
 // panel( … ) — every panel and canvas toggle, by name, each with its index. Read
 // from the live desktop so the list is what is actually on screen.
 let _panelNames = null;
@@ -494,6 +560,17 @@ function getContext(cm) {
     if (/\bascii_gen\(\s*["'][^"']*["']\s*,\s*["']?[\w-]*$/.test(before)) return { type: 'asciistyle', word };
     // audiviz( … ) — the band number.
     if (/\baudi?o?viz\(\s*[\w]*$/.test(before)) return { type: 'audiviz', word };
+
+    // The master bus. These come BEFORE the generic in-a-call rules, which would
+    // otherwise see "inside parentheses" and offer synth params.
+    // [^)]* rather than one argument's worth: addFx takes several, and the menu was
+    // no use from the second one on — which is where you are when you are stacking
+    // effects on the mix.
+    if (/\bServer\s*\.\s*addFx\([^)]*$/.test(before))                          return { type: 'addfx', word };
+    if (/\bServer\s*\.\s*removeFx\([^)]*$/.test(before))                       return { type: 'removefx', word };
+    if (/\bServer\s*\.\s*[\w]*$/.test(before))                                return { type: 'server', word };
+    // Master.lpf = 800 and Master().lpf = 800 are both real; complete either.
+    if (/\bMaster\s*(?:\(\s*\))?\s*\.\s*[\w]*$/.test(before))                 return { type: 'masterattr', word };
 
     // Inside theme( … ) / language( … ) — a fixed set of names.
     if (/\btheme\(\s*["']?[\w-]*$/.test(before))    return { type: 'theme', word };
@@ -710,7 +787,15 @@ function hintFn(cm) {
 
     let list = [];
 
-    if (ctx.type === 'asciistyle') {
+    if (ctx.type === 'addfx') {
+        list = dropEmptySeps(narrow(addFxItems()));
+    } else if (ctx.type === 'removefx') {
+        list = narrow(removeFxItems());
+    } else if (ctx.type === 'server') {
+        list = narrow(serverItems());
+    } else if (ctx.type === 'masterattr') {
+        list = narrow(masterAttrItems());
+    } else if (ctx.type === 'asciistyle') {
         list = narrow(asciiStyleItems());
     } else if (ctx.type === 'audiviz') {
         list = narrow(audivizItems());

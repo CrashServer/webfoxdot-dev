@@ -76,6 +76,33 @@ export class FXChain {
         if (prev !== null && this._outId !== null) sc.send('/n_after', this._outId, prev);
     }
 
+    /**
+     * Free the nodes that own these keys — Server.removeFx("chorus").
+     *
+     * A player's chain never removes anything: its FX args are inherited across
+     * re-evals, so a node stays and its own XFade handles value 0 = dry. The master
+     * bus is the other case. There you are taking an effect OFF, and leaving a
+     * bypassed node in front of the limiter for the rest of the set is not what was
+     * asked for. The node is freed rather than zeroed, so a delay's tail stops with
+     * it — which is the point of removing a delay.
+     *
+     * @returns {string[]} the effects actually removed, by scName
+     */
+    remove(keys, sc) {
+        const want = new Set(keys);
+        const gone = [];
+        for (const [i, node] of [...this._nodes]) {
+            const eff = FX_EFFECTS[i];
+            if (!eff.keys.some(k => want.has(k))) continue;
+            try { sc.send('/n_free', node.id); } catch (_) {}
+            this._nodes.delete(i);
+            gone.push(eff.scName);
+        }
+        // The router has to follow whatever is left, including nothing at all.
+        if (gone.length) this._reorder(sc);
+        return gone;
+    }
+
     free(sc) {
         for (const node of this._nodes.values()) {
             try { sc.send('/n_free', node.id); } catch (_) {}

@@ -50,6 +50,62 @@ export default function ({ test, eq, ok }) {
         eq(byId.get(last[2]), 'fd_fx_crush');
     });
 
+    test('fxchain: remove frees the node, not just its value', () => {
+        // Server.removeFx("chorus"). Zeroing the value would leave a bypassed node in
+        // front of the limiter for the rest of the set, and a delay would go on
+        // ringing — "remove" has to mean the node is gone.
+        const sc = fakeSc();
+        const c = new FXChain(0, 5, sc, { router: false });
+        c.update({ chorus: 0.5, crush: 6 }, sc);
+        const ids = new Map(sc.sent.filter(m => m[0] === '/s_new').map(m => [m[1], m[2]]));
+        eq(c.remove(['chorus'], sc).join(','), 'fd_fx_chorus');
+        eq(c.size, 1);
+        const freed = sc.sent.filter(m => m[0] === '/n_free').map(m => m[1]);
+        eq(freed.join(','), String(ids.get('fd_fx_chorus')));
+    });
+
+    test('fxchain: removing an effect by a SHAPING key takes the whole effect', () => {
+        // lpr belongs to the lpf node; asking for either has to free that one node.
+        const sc = fakeSc();
+        const c = new FXChain(0, 5, sc, { router: false });
+        c.update({ lpf: 800, lpr: 0.5 }, sc);
+        eq(c.remove(['lpr'], sc).join(','), 'fd_fx_lpf');
+        eq(c.size, 0);
+    });
+
+    test('fxchain: removing what is not there changes nothing', () => {
+        const sc = fakeSc();
+        const c = new FXChain(0, 5, sc, { router: false });
+        c.update({ chorus: 0.5 }, sc);
+        const before = sc.sent.length;
+        eq(c.remove(['crush', 'nonsense'], sc).length, 0);
+        eq(sc.sent.length, before, 'sent something for an effect that was not on');
+        eq(c.size, 1);
+    });
+
+    test('fxchain: a player chain keeps its router after a removal', () => {
+        // The router must end up after whatever is left — including nothing at all,
+        // where the player would otherwise go silent.
+        const sc = fakeSc();
+        const c = new FXChain(16, 3, sc);
+        c.update({ chorus: 0.5, crush: 6 }, sc);
+        c.remove(['chorus'], sc);
+        const last = sc.sent.filter(m => m[0] === '/n_after').pop();
+        const byId = new Map(sc.sent.filter(m => m[0] === '/s_new').map(m => [m[2], m[1]]));
+        eq(byId.get(last[1]), 'fd_fx_out');
+        eq(byId.get(last[2]), 'fd_fx_crush');
+    });
+
+    test('fxchain: an effect comes back after being removed', () => {
+        const sc = fakeSc();
+        const c = new FXChain(0, 5, sc, { router: false });
+        c.update({ chorus: 0.5 }, sc);
+        c.remove(['chorus'], sc);
+        c.update({ chorus: 0.7 }, sc);
+        eq(c.size, 1);
+        eq(defs(sc).filter(d => d === 'fd_fx_chorus').length, 2, 'the second chorus was never created');
+    });
+
     test('fxchain: a built-in-free update adds nothing', () => {
         const sc = fakeSc();
         const c = new FXChain(0, 5, sc, { router: false });

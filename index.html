@@ -288,7 +288,7 @@
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
-    import { setPanelNames } from './js/editor/autocomplete.js';
+    import { setPanelNames, setMasterFx } from './js/editor/autocomplete.js';
     import { fadeTheme, themeNow } from './js/ui/themefade.js';
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout, saveLayout, deleteLayout } from './js/ui/desktop/layouts.js';
@@ -1132,6 +1132,13 @@
         mverb: 'mverb', echo: 'echo', echo_time: 'echo_time', echo_dec: 'echo_dec',
         tanh: 'tanh', drive: 'tanh_drive', lofi: 'lofi',
     };
+    // What "off" means for each built-in — the fd_master SynthDef's own defaults,
+    // not zero for everything: gain 0 would mute the set and ceiling 0 would clamp
+    // the limiter shut, so removing a filter would take the whole mix with it.
+    const MASTER_OFF = {
+        gain: 1, ceiling: 0.95, lpf: 0, lpr: 0.7, hpf: 0, hpr: 0.7,
+        mverb: 0, echo: 0, echo_time: 0.25, echo_dec: 0.5, tanh: 0, drive: 2, lofi: 0,
+    };
     // Two places a master effect can live, and the rule for which is simple: the
     // built-ins of fd_master (gain, ceiling, lpf, hpf, mverb, echo, tanh, lofi) stay
     // there, so every set that already used Server.addFx sounds exactly as it did.
@@ -1218,6 +1225,72 @@
         set(_t, k, v) { masterSet({ [String(k)]: v }); return true; },
         get() { return undefined; },
     });
+    /**
+     * Take named effects OFF the master bus — Server.removeFx("chorus", "echo").
+     *
+     * clearFx() is all-or-nothing, which on stage means losing the master filter you
+     * spent the whole set setting up in order to drop one reverb. Names are
+     * prefix-matched like everything else here, so removeFx("chor") works.
+     *
+     * A built-in goes back to its SynthDef default; a chain effect has its node
+     * freed, so a delay stops ringing rather than being left in the path at zero.
+     * Either way the sweep on that key is dropped first, or the next tick would put
+     * the value straight back and the line would look like it had done nothing.
+     */
+    function masterRemove(names) {
+        const known = Object.keys(MASTER_PARAMS).concat(Object.keys(FX_REGISTRY));
+        const asked = [].concat(...[].concat(names))
+            .map(x => (x && typeof x.get === 'function') ? (() => { try { return x.get(0); } catch (_) { return null; } })() : x)
+            .map(x => String(x ?? '').trim().toLowerCase())
+            .filter(Boolean);
+
+        if (!asked.length) {
+            const on = masterOnKeys();
+            log(on.length ? `master: on now — ${on.join(', ')}` : 'master: nothing on beyond the built-ins', 'info');
+            log('  Server.removeFx("chorus")  ·  Server.removeFx("chorus", "echo")  ·  Server.clearFx() for all of it', 'info');
+            return on;
+        }
+
+        const builtins = [], chained = [], unknown = [];
+        for (const q of asked) {
+            const k = known.includes(q) ? q : known.find(x => x.startsWith(q));
+            if (!k) { unknown.push(q); continue; }
+            (MASTER_PARAMS[k] ? builtins : chained).push(k);
+        }
+        if (unknown.length) log(`removeFx: no effect called ${unknown.join(', ')} — Server.addFx() lists them`, 'warn');
+
+        // The sweeps go first: masterTick would otherwise write the old value back
+        // 40ms later, and the removal would silently undo itself.
+        for (const k of builtins.concat(chained)) delete _masterLive[k];
+
+        if (builtins.length) {
+            const off = {};
+            for (const k of builtins) off[k] = MASTER_OFF[k] ?? 0;
+            masterSet(off);
+        }
+        let freed = [];
+        if (chained.length) {
+            for (const k of chained) delete _masterChainOpts[k];
+            if (_masterChain && _scRef) freed = _masterChain.remove(chained, _scRef);
+        }
+        masterTickSync();
+        const done = builtins.concat(chained);
+        if (done.length) log(`master: ${done.join(', ')} off${freed.length ? ` (${freed.length} node${freed.length === 1 ? '' : 's'} freed)` : ''}`, 'ok');
+        return done;
+    }
+
+    /** Which master effects are on right now — for removeFx() and for the menu. */
+    function masterOnKeys() {
+        const on = Object.keys(_masterChainOpts);
+        for (const k of Object.keys(MASTER_PARAMS)) {
+            const sp = MASTER_PARAMS[k];
+            const v = _masterSent[sp];
+            if (v == null) continue;
+            if (v !== (MASTER_OFF[k] ?? 0)) on.push(k);
+        }
+        return [...new Set(on)];
+    }
+
     function masterClear() {
         _masterLive = {};                     // sweeps stop first, or the next tick puts them back
         masterSet({ gain: 1, lpf: 0, hpf: 0, mverb: 0, echo: 0, tanh: 0, lofi: 0 });
@@ -1868,11 +1941,14 @@
                         log(`master built-ins: ${Object.keys(MASTER_PARAMS).join(' · ')}`, 'info');
                         log(`  plus ANY player effect — chorus, crush, shimmer, fbdelay, pumper… (${Object.keys(FX_REGISTRY).length} keys)`, 'info');
                         log(`  on now: ${on.length ? on.join(', ') : 'nothing beyond the built-ins'}`, 'info');
-                        log('  Server.addFx(chorus=0.5, crush=6)  ·  Server.clearFx()  ·  Master.chorus = 0.3', 'info');
+                        log('  Server.addFx(chorus=0.5, crush=6)  ·  Server.removeFx("chorus")  ·  Server.clearFx()  ·  Master.chorus = 0.3', 'info');
                         return Object.keys(MASTER_PARAMS).concat(Object.keys(FX_REGISTRY));
                     }
                     return masterSet(opts);
                 },
+                // removeFx("chorus") takes ONE effect off. clearFx() is all of them,
+                // which is rarely what you want mid-set.
+                removeFx: (...names) => masterRemove(names),
                 clearFx: () => masterClear(),
             },
             // Both Master.lpf = 800 and Master().lpf = 800 work. It was the second
@@ -4764,6 +4840,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         const dest = navUrl(_sessionSlug).replace(/([?&])ui=[^&]*&?/, '$1').replace(/[?&]$/, '');
         setTimeout(() => { location.href = dest; }, 150);
     };
+    // So Server.removeFx( … ) can offer what is actually ON the master right now —
+    // not desktop-only, unlike the panel list below.
+    setMasterFx(() => { try { return masterOnKeys(); } catch (_) { return []; } });
     if (desktopModeOn()) {
         try {
             const _dk = initDesktop(editor, clock, makeEditor, dropEditor, log);
