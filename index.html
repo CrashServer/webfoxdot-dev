@@ -289,6 +289,7 @@
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
     import { setPanelNames } from './js/editor/autocomplete.js';
+    import { fadeTheme, themeNow } from './js/ui/themefade.js';
     import { initSetFile, openSet, saveSet, enableDropOpen } from './js/ui/setfile.js';
     import { listLayouts, applyLayout, saveLayout, deleteLayout } from './js/ui/desktop/layouts.js';
     import { compoBase, PART_FAMILIES } from './js/engine/partnames.js';
@@ -1550,7 +1551,7 @@
                 else log(`interface ${Math.round(got * 100)}%`, 'ok');
                 return got;
             },
-            theme: (name) => {
+            theme: (name, seconds) => {
                 // The list is the DROPDOWN's, read at call time rather than kept as a
                 // second copy here. Two lists of themes drift, and the one people can
                 // see is the one that has to be right — the numbers have to agree with
@@ -1561,7 +1562,7 @@
                     : ['dark', 'nova', 'cyberpunk', 'synthwave', 'hacker', 'brutalist', 'paper', 'sakura', 'fiesta', 'solar'];
                 const cur = localStorage.getItem('theme') || 'cyberpunk';
                 if (name == null) {
-                    log(`theme: ${cur}  ·  theme("synthwave")  or  theme(n):`, 'info');
+                    log(`theme: ${cur}  ·  theme("synthwave")  ·  theme(n)  ·  theme("paper", 2) fades over 2 beats:`, 'info');
                     THEMES.forEach((x, i) => log(`  ${String(i).padStart(2)}.  ${x}${x === cur ? '   ←' : ''}`, 'info'));
                     return cur;
                 }
@@ -1578,10 +1579,18 @@
                     t = THEMES.find(x => x === q) || THEMES.find(x => x.startsWith(q)) || THEMES.find(x => q.startsWith(x));
                 }
                 if (!t) { log(`unknown theme "${name}" — try a name or 0…${THEMES.length - 1}: ${THEMES.join(', ')}`, 'error'); return null; }
-                document.documentElement.className = t === 'dark' ? '' : t;
+                // The second argument is a FADE, in beats — beats rather than seconds
+                // because everything else you type here is in beats, and a theme change
+                // written into a set wants to land with the bar, not with the clock.
+                let secs = seconds;
+                if (secs && typeof secs.get === 'function') { try { secs = secs.get(0); } catch (_) { secs = 0; } }
+                const beats = Number(secs);
+                const fadeS = isFinite(beats) && beats > 0 ? beats * (60 / (clock.bpm || 120)) : 0;
+                const cls = t === 'dark' ? '' : t;
+                const moving = fadeS > 0 ? fadeTheme(cls, fadeS) : (themeNow(cls), false);
                 try { localStorage.setItem('theme', t); } catch (_) {}
                 if (sel) sel.value = t;
-                log(`🎨 theme → ${t} (${THEMES.indexOf(t)})`, 'info');
+                log(`🎨 theme → ${t} (${THEMES.indexOf(t)})${moving ? `  ·  over ${beats} beat${beats === 1 ? '' : 's'}` : ''}`, 'info');
                 return t;
             },
             // tour()  lists every lesson · tour(n)  jumps straight to lesson n.
@@ -3405,7 +3414,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             closePads: () => { if (_tabs && _tabs.closeScratch) _tabs.closeScratch(); },
             newPad: (name, text) => { if (_tabs && _tabs.newTab) _tabs.newTab(name, text); },
             applyTheme: (t) => {
-                document.documentElement.className = t === 'dark' ? '' : t;
+                themeNow(t === 'dark' ? '' : t);
                 try { localStorage.setItem('theme', t); } catch (_) {}
                 const sel = document.getElementById('theme-select');
                 if (sel) sel.value = t;

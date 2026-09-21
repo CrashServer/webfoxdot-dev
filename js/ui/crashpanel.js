@@ -5,6 +5,7 @@ import { toggleMute, toggleSolo, isMuted, isSoloed, forget as gateForget } from 
 import { share, shareState } from '../collab/actions.js';
 import { levelOf, setLevel } from './mixer.js';
 import { heldByUser } from './controls.js';
+import { themeNow } from './themefade.js';
 
 let _clock = null;
 // The live video layers, injected so this panel never imports the visual language —
@@ -325,7 +326,10 @@ function _initTheme() {
     sel.value = stored;
     sel.onchange = () => {
         const t = sel.value;
-        document.documentElement.className = t === 'dark' ? '' : t;
+        // themeNow rather than a bare class swap: theme(name, beats) pins the palette
+        // inline while it glides, and a class change cannot override an inline one —
+        // picking from the dropdown mid-glide would leave the old colours frozen on.
+        themeNow(t === 'dark' ? '' : t);
         localStorage.setItem('theme', t);
     };
 }
