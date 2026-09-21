@@ -19,8 +19,12 @@ let _access  = null;
 let _enabled = false;
 let _err     = null;
 const _inputs   = new Map();   // id → name
-const _last     = new Map();   // cc → 0..1   last value seen (seeds new bindings)
-const _monitor  = new Map();   // cc → { value, channel, t }  recent activity (discovery)
+// Keyed by DEVICE and cc, not cc alone. Two controllers is the normal case — a
+// keyboard to play and a box of faders to turn — and their CC numbers overlap: a
+// nanoKONTROL2's faders are CC 0..7 and a keyboard's own volume is CC 7. Keyed by
+// number alone they fight over the same binding, and the one that moves last wins.
+const _last     = new Map();   // "src|cc" → 0..1  last value seen (seeds new bindings)
+const _monitor  = new Map();   // "src|cc" → { cc, src, srcName, value, channel, t }
 const _bindings = new Set();   // live midi value objects — routing targets
 const _learnQ   = [];          // bindings armed for learn, awaiting the next CC
 const _controls   = new Set(); // control bindings — call onValue(0..1, cc) on each CC move
@@ -28,6 +32,11 @@ const _learnCtrlQ = [];        // control bindings armed for learn
 let _onChange   = null;        // panel refresh hook
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
+
+// "nanoKONTROL2 SLIDER/KNOB" is not a thing to type. The first word is.
+export function shortName(name) {
+    return String(name || '').split(/[\s_/:]+/).filter(Boolean)[0] || String(name || '');
+}
 
 export function midiSupported() {
     return typeof navigator !== 'undefined' && typeof navigator.requestMIDIAccess === 'function';
@@ -45,7 +54,8 @@ export function midiState() {
     const byCc = new Map();
     for (const b of _bindings) {
         if (b.cc == null) continue;
-        byCc.set(b.cc, { cc: b.cc, lo: b.lo, hi: b.hi, curve: b.curve, value: b.get(), norm: b._norm });
+        byCc.set(`${b.src || ''}|${b.cc}`, { cc: b.cc, src: b.srcName ? shortName(b.srcName) : null,
+            lo: b.lo, hi: b.hi, curve: b.curve, value: b.get(), norm: b._norm });
     }
     return {
         supported: midiSupported(),
@@ -53,10 +63,10 @@ export function midiState() {
         error:     _err,
         inputs:    [..._inputs.values()],
         learning:  _learnQ.length,
-        monitor:   [..._monitor.entries()]
-                       .map(([cc, m]) => ({ cc, ...m }))
+        monitor:   [..._monitor.values()]
+                       .map(m => ({ ...m, src: m.srcName ? shortName(m.srcName) : null }))
                        .sort((a, b) => b.t - a.t),
-        bindings:  [...byCc.values()].sort((a, b) => a.cc - b.cc),
+        bindings:  [...byCc.values()].sort((a, b) => a.cc - b.cc || String(a.src).localeCompare(String(b.src))),
     };
 }
 
@@ -85,6 +95,11 @@ function _bindInputs() {
     _changed();
 }
 
+// Does this binding accept a message from this device? A binding with no device
+// takes any, which is what a bare midi(7) means and what every existing set does.
+const srcOk = (b, src, srcName) => !b.src || b.src === src
+    || (srcName || '').toLowerCase().includes(String(b.src).toLowerCase());
+
 // Note-input handler — set by onMidiNote(). fn(note, velocity0to1, isOn).
 let _noteHandler = null;
 export function onMidiNote(fn) { _noteHandler = fn; }
@@ -101,22 +116,34 @@ function _onMessage(ev) {
     const cc = d1;
     const value = d2 / 127;                       // 0..1
 
-    _last.set(cc, value);
-    _monitor.set(cc, { value, channel, t: now() });
-    if (_monitor.size > 16) {                     // keep the monitor recent + short
+    const src     = ev.target?.id || '';
+    const srcName = ev.target?.name || '';
+    const key     = `${src}|${cc}`;
+
+    // Did this control actually MOVE? A keyboard can sit there restating its state
+    // forever — this one streams tens of kilobytes while nobody touches it — and
+    // learn used to latch onto the first CC that arrived, which was always the
+    // chatty device and never the fader you just reached for.
+    const moved = _last.has(key) && Math.abs(_last.get(key) - value) > 1e-9;
+    _last.set(key, value);
+    _monitor.set(key, { cc, src, srcName, value, channel, t: now() });
+    if (_monitor.size > 24) {                     // keep the monitor recent + short
         let oldKey = null, oldT = Infinity;
         for (const [k, m] of _monitor) if (m.t < oldT) { oldT = m.t; oldKey = k; }
         _monitor.delete(oldKey);
     }
 
-    // MIDI learn: any armed bindings latch onto this CC.
-    if (_learnQ.length) for (const b of _learnQ.splice(0)) b.cc = cc;
-    if (_learnCtrlQ.length) for (const c of _learnCtrlQ.splice(0)) c.cc = cc;
+    // MIDI learn: armed bindings latch onto the control that moved, and remember
+    // WHICH BOX it was on, so the other controller's CC 7 is not this one's.
+    if (moved) {
+        if (_learnQ.length) for (const b of _learnQ.splice(0)) { b.cc = cc; b.src = src; b.srcName = srcName; }
+        if (_learnCtrlQ.length) for (const c of _learnCtrlQ.splice(0)) { c.cc = cc; c.src = src; c.srcName = srcName; }
+    }
 
-    // Live-update every binding on this CC (one knob can be a macro).
-    for (const b of _bindings) if (b.cc === cc) b._norm = value;
+    // Live-update every binding on this CC from a device it accepts.
+    for (const b of _bindings) if (b.cc === cc && srcOk(b, src, srcName)) b._norm = value;
     // Control bindings fire their callback with the raw 0..1 value (e.g. mixer faders).
-    for (const c of _controls) if (c.cc === cc) { try { c.onValue(value, cc); } catch (_) {} }
+    for (const c of _controls) if (c.cc === cc && srcOk(c, src, srcName)) { try { c.onValue(value, cc); } catch (_) {} }
 
     _changed();
 }
@@ -172,10 +199,15 @@ export function shapeValue(lo, hi, curve, n) {
 }
 
 // Factory. cc == null arms MIDI learn (binds to the next control touched).
-export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin') {
+export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin', device = null) {
     const b = {
         isMidi: true, isTimeVar: true,
         cc: (cc == null ? null : cc | 0),
+        // Which box this CC has to come from. A name fragment is enough — "nano"
+        // matches "nanoKONTROL2 SLIDER/KNOB" — and null means any, which is what a
+        // bare midi(7) has always meant.
+        src: device == null ? null : String(device),
+        srcName: device == null ? null : String(device),
         lo, hi, curve,
         _norm: 0.5,                              // start mid so a fresh patch isn't silent
         get() { return shape(this); },
@@ -186,12 +218,29 @@ export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin') {
             const tail = (this.lo === 0 && this.hi === 1 && this.curve === 'lin') ? ''
                        : `${this.cc == null ? '' : ', '}${num(this.lo)}, ${num(this.hi)}`
                          + (this.curve === 'lin' ? '' : `, ${JSON.stringify(this.curve)}`);
-            return this.cc == null ? `mlearn(${tail.replace(/^, /, '')})` : `midi(${this.cc}${tail})`;
+            if (this.cc == null) return `mlearn(${tail.replace(/^, /, '')})`;
+            // A learned binding writes itself back as the CC and the DEVICE it landed
+            // on, so a saved set re-binds to the same fader rather than to whatever
+            // moves first next time. device is the FIFTH argument, so the ones before
+            // it have to be written out too — midi(21, "nano") would read the name as
+            // the low end of the range and bind a fader to nothing.
+            if (!this.srcName) return `midi(${this.cc}${tail})`;
+            return `midi(${this.cc}, ${num(this.lo)}, ${num(this.hi)}, `
+                 + `${JSON.stringify(this.curve)}, ${JSON.stringify(shortName(this.srcName))})`;
         },
         /** Short label for a panel row — "midi cc7", or "learn…" while unbound. */
-        label() { return this.cc == null ? 'learn\u2026' : 'midi cc' + this.cc; },
+        label() {
+            if (this.cc == null) return 'learn\u2026';
+            return 'midi cc' + this.cc + (this.srcName ? ' \u00b7 ' + shortName(this.srcName) : '');
+        },
     };
-    if (b.cc != null && _last.has(b.cc)) b._norm = _last.get(b.cc);
+    if (b.cc != null) {
+        // Seed from the most recent matching value, whichever device it came from.
+        for (const [k, v] of _last) {
+            const [src, c] = k.split('|');
+            if (Number(c) === b.cc && srcOk(b, src, _inputs.get(src) || '')) { b._norm = v; break; }
+        }
+    }
     _bindings.add(b);
     if (b.cc == null) _learnQ.push(b);
     // Re-evals create fresh objects; cap the set so it can't grow unbounded.

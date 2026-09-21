@@ -1839,7 +1839,10 @@
             // MIDI control: midi(cc,lo,hi[,curve]) binds a CC knob to a live value;
             // mlearn(lo,hi[,curve]) binds the next control you touch. Use inline or
             // via assignment: p1.lpf = midi(74, 100, 8000, 'exp')
-            midi:   (cc, lo = 0, hi = 1, curve = 'lin') => { _ensureMidi(); return makeMidi(cc, lo, hi, curve); },
+            // midi(cc, lo, hi, curve, device) — device is a name fragment ("nano"),
+            // for when two controllers send the same CC numbers, which they do: a
+            // nanoKONTROL2's faders are CC 0..7 and a keyboard's volume is CC 7.
+            midi:   (cc, lo = 0, hi = 1, curve = 'lin', device = null) => { _ensureMidi(); return makeMidi(cc, lo, hi, curve, device); },
             mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
             // aud(band,lo,hi[,curve[,smooth]]) — the SOUND as a value, same shape as
             // midi() so it works on every param in the language, audio and visual:
