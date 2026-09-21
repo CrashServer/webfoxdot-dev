@@ -231,7 +231,7 @@ function noteOn(midi, vel = 1) {
     // Wall time as well as the beat: the clock does not advance until audio is
     // booted, and a phrase played before then would otherwise land on one beat and
     // collapse into a single chord. See toCode().
-    _down.set(midi, { beat: _ctx.beat(), t: performance.now(), midi: m });
+    _down.set(midi, { beat: _ctx.beat(), t: performance.now(), midi: m, vel });
     _ctx.playNote(_synth, m, { ..._params, sus: _sus, amp: _amp * vel });
     markKey(midi, true);
 }
@@ -242,7 +242,7 @@ function noteOff(midi) {
     markKey(midi, false);
     if (!held || !_rec || !_rec.armed) return;
     _rec.notes.push({
-        midi: held.midi, beat: held.beat, t: held.t,
+        midi: held.midi, beat: held.beat, t: held.t, vel: held.vel ?? 1,
         heldBeats: Math.max(0, _ctx.beat() - held.beat),
         heldMs:    Math.max(30, performance.now() - held.t),
     });
@@ -283,36 +283,72 @@ function toCode() {
         const at = Math.round(beatOf(nt) / q) * q - t0;
         let deg = midiToDegree(nt.midi, _oct, scale, root);
         if (deg === null) { const nd = nearestDegree(nt.midi, _oct, scale, root); deg = nd.degree; offScale++; }
-        if (!slots.has(at)) slots.set(at, { degs: [], held: heldOf(nt) });
+        if (!slots.has(at)) slots.set(at, { degs: [], held: heldOf(nt), vel: nt.vel ?? 1 });
         const s = slots.get(at);
         if (!s.degs.includes(deg)) s.degs.push(deg);
         s.held = Math.max(s.held, heldOf(nt));
+        s.vel  = Math.max(s.vel, nt.vel ?? 1);    // a chord is as loud as its loudest note
     }
 
-    // Walk the timeline, emitting rests for the gaps.
+    // Walk the timeline. Three things come out of it, and they used to be one:
+    //
+    //   dur  - the grid-aligned gap to the next onset, which is the RHYTHM
+    //   sus  - how long the key was actually down, which is the ARTICULATION
+    //   amp  - how hard it was struck
+    //
+    // Before, a staccato stab followed by a long gap became a long note, because the
+    // gap was the only thing measured. Holding those apart is most of what makes a
+    // played phrase come back sounding played.
+    //
+    // And a gap longer than the note is silence: silence is a rest, `_`, not a note
+    // stretched to cover it.
     const times = [...slots.keys()].sort((a, b) => a - b);
-    const degs = [], durs = [];
+    const degs = [], durs = [], suss = [], amps = [];
+    const snap = (v) => Math.max(q, Math.round(v / q) * q);
     for (let i = 0; i < times.length; i++) {
         const at = times[i];
-        const next = i + 1 < times.length ? times[i + 1] : at + Math.max(q, Math.round(slots.get(at).held / q) * q);
-        const span = Math.max(q, next - at);
         const s = slots.get(at);
+        const held = snap(s.held);
+        const next = i + 1 < times.length ? times[i + 1] : at + held;
+        const span = Math.max(q, next - at);
+        const play = Math.min(span, held);
         degs.push(s.degs.length > 1 ? `(${s.degs.join(', ')})` : String(s.degs[0]));
-        durs.push(fmtDur(span));
+        durs.push(fmtDur(play));
+        suss.push(held);
+        amps.push(s.vel);
+        const rest = span - play;
+        // A rest carries the previous note's amp: nothing sounds, and a 0 in the
+        // middle of the list would read as "this note is silent" rather than "there
+        // is no note here".
+        if (rest >= q - 1e-9) { degs.push('_'); durs.push(fmtDur(rest)); suss.push(rest); amps.push(s.vel); }
     }
+    const same = (arr) => arr.every(x => Math.abs(x - arr[0]) < 1e-6);
     const allSame = durs.every(d => d === durs[0]);
     const durPart = allSame ? durs[0] : `[${durs.join(', ')}]`;
+    const round2 = (v) => Math.round(v * 100) / 100;
+    // sus and amp only when they say something: a list of identical numbers is noise,
+    // and a velocity you never varied (a mouse, or a flat keybed) is not worth a line.
+    const susRaw = same(suss) ? fmtDur(suss[0]) : `[${suss.map(fmtDur).join(', ')}]`;
+    // sus defaults to dur, so saying it twice is just a longer line.
+    const susPart = susRaw === durPart ? '' : `, sus=${susRaw}`;
+    const velVaries = !same(amps.filter((_v, i) => degs[i] !== '_'));
+    const ampPart = velVaries
+        ? `, amp=[${amps.map(v => round2(Math.max(0.05, v) * _amp)).join(', ')}]`
+        : '';
     // Only parameters you actually moved: a line restating every default would be
     // noise, and the defaults are what the synth does anyway.
     const moved = Object.entries(_params)
         .filter(([k, v]) => Number(v) !== Number(_paramDefs[k]))
         .map(([k, v]) => `, ${k}=${Math.round(v * 1000) / 1000}`).join('');
-    const line = `p1 >> ${_synth}([${degs.join(', ')}], dur=${durPart}, oct=${_oct}, sus=${_sus}${moved})`;
+    const line = `p1 >> ${_synth}([${degs.join(', ')}], dur=${durPart}${susPart}, oct=${_oct}${ampPart}${moved})`;
 
     renderTargets();                       // in case the list changed since you last looked
     const where = _ctx.insert(line, _target);
-    _ctx.log(`piano → ${where ? `"${where}"` : 'the editor'}: ${degs.length} step${degs.length === 1 ? '' : 's'} in ${name}`
-        + (offScale ? ` · ${offScale} note${offScale === 1 ? '' : 's'} snapped to the scale` : ''), 'ok');
+    const rests = degs.filter(d => d === '_').length;
+    _ctx.log(`piano → ${where ? `"${where}"` : 'the editor'}: ${degs.length - rests} note${degs.length - rests === 1 ? '' : 's'} in ${name}`
+        + (rests ? ` · ${rests} rest${rests === 1 ? '' : 's'}` : '')
+        + (velVaries ? ' · velocity kept' : '')
+        + (offScale ? ` · ${offScale} snapped to the scale` : ''), 'ok');
 }
 
 // Durations read better as the fractions people write than as decimals.
@@ -321,6 +357,9 @@ function fmtDur(v) {
         if (Math.abs(v - 1 / d) < 1e-6) return d === 1 ? '1' : `1/${d}`;
         if (Math.abs(v - 3 / d) < 1e-6) return `3/${d}`;
     }
+    // Triplets, so a phrase played in threes comes back as 1/3 rather than 0.333.
+    for (const [n, d] of [[1, 3], [2, 3], [1, 6], [1, 12], [4, 3], [5, 3]])
+        if (Math.abs(v - n / d) < 1e-4) return `${n}/${d}`;
     return String(Math.round(v * 1000) / 1000);
 }
 
@@ -351,11 +390,13 @@ function build() {
             <button class="piano-rec" title="record what you play against the clock">● rec</button>
             <button class="piano-code" title="write what you played into the editor as a player line">✎ to code</button>
             <span class="piano-ctl">grid
-                <select class="piano-quant">
+                <select class="piano-quant" title="the grid onsets and lengths are snapped to. The triplet grids are there because a phrase played in threes quantised to sixteenths comes out limping.">
+                    <option value="1">1/4</option>
                     <option value="0.5">1/8</option>
                     <option value="0.25" selected>1/16</option>
                     <option value="0.125">1/32</option>
-                    <option value="1">1/4</option>
+                    <option value="0.3333333333333333">1/8 triplet</option>
+                    <option value="0.16666666666666666">1/16 triplet</option>
                 </select></span>
             <span class="piano-ctl">to <select class="piano-target" title="which buffer ✎ to code writes into"></select></span>
             <span class="piano-hint">keys: a s d f g h j k · w e t y u · z x octave</span>

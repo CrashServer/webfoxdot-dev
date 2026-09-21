@@ -312,7 +312,7 @@
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
     import { visualStats, setVisualFps, visualFps, setVisualBudget, visualBudget } from './js/visuals/render/vperf.js';
     import { setWorkshopRes, workshopRes } from './js/visuals/render/wsres.js';
-    import { enableMidiOut, makeMidiOut } from './js/midi/midiout.js';
+    import { enableMidiOut, makeMidiOut, ccMessage, programMessages, nrpnMessages, sendRaw } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
     import { initLinkPanel }             from './js/ui/linkpanel.js';
     import { initLink, enableLink, disableLink } from './js/sync/link.js';
@@ -1405,6 +1405,42 @@
             },
             // scenes() — the contact sheet. 255 of them and no way to see any.
             scenes: () => { toggleSceneBrowser(); return '\u25a6 scenes'; },
+            // midicc / midiprog / midinrpn — the settings of an external instrument,
+            // as one-shots. The same things a midiout() line can carry per step, for
+            // when you just want to set the thing up and get on with playing.
+            //
+            //   midicc(74, 100)          brightness on channel 1
+            //   midicc(91, 64, 2)        reverb send, channel 2
+            //   midiprog(5, 121, 100)    program 5 from bank 121/100
+            //   midinrpn(50, 12, 64)     the parameters that have no CC of their own
+            //
+            // A keyboard announces what it understands when it powers on — watch the
+            // MIDI panel's monitor, or amidi -d on Linux, and it tells you its map.
+            midicc: (cc, value, chan = 1) => {
+                // Ask for MIDI first: these can be the FIRST thing a set does, and
+                // before anything has opened a port there is nothing to send to.
+                // It was sending into the void and saying nothing.
+                const go = () => sendRaw([ccMessage(cc, value, chan)]);
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi cc${Math.round(cc)} = ${Math.round(value)}`, 'ok'); else log('midicc: no MIDI output', 'warn'); }); return true; }
+                const n = 1;
+                log(n ? `midi cc${Math.round(cc)} = ${Math.round(value)} ch${Math.round(chan)}` : 'midicc: no MIDI output selected', n ? 'ok' : 'warn');
+                return n > 0;
+            },
+            midiprog: (prog, bank = null, bankLsb = null, chan = 1) => {
+                const go = () => sendRaw(programMessages(prog, bank, bankLsb, chan));
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi program ${Math.round(prog)}`, 'ok'); else log('midiprog: no MIDI output', 'warn'); }); return true; }
+                const n = 1;
+                log(n ? `midi program ${Math.round(prog)}${bank != null ? ` bank ${Math.round(bank)}${bankLsb != null ? '/' + Math.round(bankLsb) : ''}` : ''} ch${Math.round(chan)}`
+                      : 'midiprog: no MIDI output selected', n ? 'ok' : 'warn');
+                return n > 0;
+            },
+            midinrpn: (msb, lsb, value, chan = 1, fine = null) => {
+                const go = () => sendRaw(nrpnMessages(msb, lsb, value, chan, fine));
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi nrpn ${Math.round(msb)}/${Math.round(lsb)} = ${Math.round(value)}`, 'ok'); else log('midinrpn: no MIDI output', 'warn'); }); return true; }
+                const n = 1;
+                log(n ? `midi nrpn ${Math.round(msb)}/${Math.round(lsb)} = ${Math.round(value)} ch${Math.round(chan)}` : 'midinrpn: no MIDI output selected', n ? 'ok' : 'warn');
+                return n > 0;
+            },
             // codesource(which) — whose code the CODE LAYERS draw.
             //
             //   codesource("troop")  the room's code, on every code layer

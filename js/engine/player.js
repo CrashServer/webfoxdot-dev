@@ -65,7 +65,8 @@ import { randomGroove, randomFill } from './drummer.js';
 
 // .gtr(string) guitar-string → root semitone offset (FoxDot/CrashServer submap).
 const GTR_STRINGS = { 0: -10, 1: -8, 2: -3, 3: 2, 4: 7, 5: 11, 6: 16 };
-import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut } from '../midi/midiout.js';
+import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut,
+         ccMessage, programMessages, nrpnMessages, sendRaw } from '../midi/midiout.js';
 import { midiCapture } from '../midi/midifile.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
@@ -925,6 +926,48 @@ export class Player {
         const dur        = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
         const noteLen    = (ungroup(r.sus, step) ?? dur) * (ungroup(r.leg, step) ?? 1);
         const chan       = Math.round(ungroup(r.channel, step) ?? 1);
+
+        // ── settings, not notes ─────────────────────────────────────────────
+        // ccNN=, prog=, bank=, nrpn= alongside the degrees, resolved per step like
+        // any other param — so a filter can be swept from a linvar and a sound
+        // changed from a pattern. Sent only when the value CHANGES: a CC repeated
+        // every step is a stream of identical bytes down a 31250-baud wire, which
+        // is how you make a hardware synth stutter.
+        this._midiSent ??= {};
+        const seen = this._midiSent;
+        const at = this._clock.beatToPerfMs(this._nextBeat);
+        const once = (key, val, build) => {
+            if (val == null || !isFinite(Number(val))) return;
+            const v = Number(val);
+            if (seen[key] === v) return;
+            seen[key] = v;
+            sendRaw(build(v), at);
+        };
+        for (const [k, v] of Object.entries(r)) {
+            const m = /^cc(\d{1,3})$/.exec(k);
+            if (m) once(k, ungroup(v, step), (val) => [ccMessage(Number(m[1]), val, chan)]);
+        }
+        // A bank on its own does nothing until a program arrives, so the program is
+        // what triggers the pair — and a bank CHANGE re-sends the program with it.
+        const prog = ungroup(r.prog ?? r.program, step);
+        const bank = ungroup(r.bank, step), bankLsb = ungroup(r.banklsb, step);
+        if (prog != null && isFinite(Number(prog))) {
+            const sig = `${prog}/${bank ?? ''}/${bankLsb ?? ''}`;
+            if (seen.__prog !== sig) {
+                seen.__prog = sig;
+                sendRaw(programMessages(Number(prog), bank == null ? null : Number(bank),
+                                        bankLsb == null ? null : Number(bankLsb), chan), at);
+            }
+        }
+        const nr = r.nrpn;
+        if (Array.isArray(nr) && nr.length >= 3) {
+            const [a1, b1, c1, d1] = nr.map(x => (x == null ? null : Number(ungroup(x, step) ?? x)));
+            const sig = `${a1}/${b1}/${c1}/${d1 ?? ''}`;
+            if (seen.__nrpn !== sig) {
+                seen.__nrpn = sig;
+                sendRaw(nrpnMessages(a1, b1, c1, chan, d1 ?? null), at);
+            }
+        }
 
         // Group/chord expansion — voices = longest group among the params.
         let voices = 1;

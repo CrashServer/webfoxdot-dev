@@ -52,6 +52,62 @@ export function midiOutState() {
     };
 }
 
+// ── the bytes, as pure functions ────────────────────────────────────────────
+//
+// Built separately from sending them, because on this platform the browser will
+// happily report a port as open and put nothing on the wire — so the only part
+// that can be tested honestly is the part that does not touch a device.
+
+const clamp7 = v => Math.max(0, Math.min(127, Math.round(Number(v) || 0)));
+
+/** Control Change. */
+export function ccMessage(cc, value, chan = 1) {
+    return [CC | chanNibble(chan), clamp7(cc), clamp7(value)];
+}
+
+/**
+ * Program Change, with Bank Select in front of it when a bank is given.
+ *
+ * Bank before program is not a style choice: a synth latches the bank when the
+ * program arrives, so the other order selects the sound from whatever bank was
+ * already there. MSB and LSB are separate controls (0 and 32) and a device may
+ * use either or both — the SP5600 announces 121/100, which is the General MIDI 2
+ * convention.
+ */
+export function programMessages(prog, bank = null, bankLsb = null, chan = 1) {
+    const c = chanNibble(chan), out = [];
+    if (bank != null)    out.push([CC | c, 0,  clamp7(bank)]);
+    if (bankLsb != null) out.push([CC | c, 32, clamp7(bankLsb)]);
+    out.push([0xc0 | c, clamp7(prog)]);
+    return out;
+}
+
+/**
+ * NRPN — four Control Changes that address a parameter by number and set it.
+ *
+ * 99/98 choose the parameter (MSB/LSB), then 6 is its value; 38 is the fine half,
+ * sent only when asked for, because plenty of devices ignore it and some treat a
+ * stray 38 as a second edit. This is how a keyboard exposes the settings that have
+ * no CC of their own.
+ */
+export function nrpnMessages(msb, lsb, value, chan = 1, fine = null) {
+    const c = chanNibble(chan);
+    const out = [[CC | c, 99, clamp7(msb)], [CC | c, 98, clamp7(lsb)], [CC | c, 6, clamp7(value)]];
+    if (fine != null) out.push([CC | c, 38, clamp7(fine)]);
+    return out;
+}
+
+/** Send any of the above; whenMs is optional (immediate when omitted). */
+export function sendRaw(msgs, whenMs) {
+    const p = port();
+    if (!p) return 0;
+    let n = 0;
+    for (const m of msgs) {
+        try { whenMs == null ? p.send(m) : p.send(m, whenMs); n++; } catch (_) {}
+    }
+    return n;
+}
+
 const clampNote = n => Math.max(0, Math.min(127, Math.round(n)));
 const clampVel  = v => Math.max(1, Math.min(127, Math.round(v)));
 const chanNibble = c => (Math.max(1, Math.min(16, Math.round(c))) - 1) & 0x0f;
