@@ -443,23 +443,57 @@ soff(true)                      # stop the loop AND its players`)}
         ${note('<b>Tempo automation</b> — <code>Clock.bpm</code> now takes a TimeVar, so the tempo can ramp: <code>Clock.bpm = linvar([120,140],[32])</code>, or the helpers <code>linbpm(120,140,32)</code> / <code>dropbpm(90,8)</code>. And you can schedule one-shots: <code>Clock.future(8, fn)</code>, <code>Clock.mod(4, fn)</code>, <code>Clock.nextBar(fn)</code>.')}
     `, 'syncgen');
 
-    const midi = section('MIDI — control in, notes out', `
-        ${note('Web MIDI (Chromium / Edge / Brave). Enables on the first <code>midi()</code> / <code>mlearn()</code> / <code>midiout()</code> call (the eval keypress is the required user gesture). Discover CC numbers and pick the output port in the <b>MIDI panel</b> (Alt+I sidebar).')}
-        ${note('<b>Control in</b> — a <code>midi()</code> value is sampled every step (like a TimeVar), so a knob sweeps any synth/FX param live. One CC can drive several params (a macro). Curves: <code>lin</code>, <code>exp</code> (cutoffs/freq), <code>log</code>, <code>quad</code>, <code>cubic</code>, <code>sqrt</code>, <code>s</code> (smoothstep).')}
-        ${code(`p1 >> prophet([0, (0,4,7), 4], oct=5, dur=0.5)
-p1.lpf = midi(74, 100, 8000, "exp")    # CC74 knob → filter cutoff (exp)
-p1.amp = midi(7, 0, 1)                  # CC7 fader → volume (linear)
-p2 >> saw([0,4,7], room=midi(1, 0, 1, "s"))   # mod-wheel → reverb size
-p1.mverb = mlearn(0, 1)                 # MIDI learn: twist the NEXT control`)}
-        ${note('<b>Notes out</b> — <code>midiout()</code> sends to an external/virtual MIDI port instead of making sound. Velocity follows <code>amp</code>, note length follows <code>sus</code>/<code>leg</code>, groups <code>(0,4,7)</code> make chords, and <code>degree / +transpose / .every / .stutter / .sometimes</code> all work like a synth. Notes are scheduled sub-beat-accurate, phase-locked to the internal synths. Route through a virtual port (IAC · loopMIDI · ALSA/JACK) to drive a DAW. Stop / Ctrl+. sends all-notes-off.')}
-        ${code(`m1 >> midiout([0, 2, 4, 7], channel=1, oct=5, dur=0.5)
-m2 >> midiout([0, (0,4,7), 5, (2,5,9)], channel=2, oct=4, dur=1, amp=0.9)
-m1 >> midiout([0,2,4], channel=1, sus=2, leg=1.5)   # long, overlapping notes
-m1 >> midiout(P[0,3,5,7], channel=10).every(4, "reverse")   # drum machine on ch10
+    const midi = section('MIDI — keyboards, controllers, notes and settings', `
+        ${note('<b>Chromium, Edge or Brave.</b> Firefox will not do Web MIDI here. Access is asked for on the first <code>midi()</code> / <code>mlearn()</code> / <code>midiin()</code> / <code>midiout()</code> call — the eval keypress is the user gesture the browser requires. The <b>MIDI panel</b> (Alt+I sidebar) lists your inputs, shows a live CC monitor, and picks the output port.')}
+        ${note('<b>On Linux a MIDI device belongs to one program at a time.</b> If FoxDot, a DAW or another browser tab already holds your keyboard, crashDot cannot open it, and vice versa. Close the other one first.')}
 
-# layer: hear it locally AND send it out
+        ${note('<b>1 · Play a keyboard</b> — <code>midiin(synth)</code> plays incoming notes through any synth. Velocity scales <code>amp</code>.')}
+        ${code(`midiin("prophet")                       # play the keyboard through prophet
+midiin("pluck", amp=0.8, oct=5)
+midiin(0)                                # stop listening`)}
+        ${note('Or open the <b>piano</b> panel and press its <b>midi</b> button: the keyboard then plays the piano’s synth with the piano’s knobs, and — unlike <code>midiin</code> — what you play is recorded.')}
+
+        ${note('<b>2 · Turn what you played into a pattern</b> — in the piano: <b>● rec</b>, play, <b>● rec</b> again to stop, then <b>✎ to code</b> writes a real player line into the buffer you pick. The <b>grid</b> selector is the quantisation: 1/4 down to 1/32, plus 1/8 and 1/16 <b>triplets</b> (a phrase played in threes snapped to sixteenths comes out limping).')}
+        ${note('Three things are captured, and they are not the same thing: <code>dur</code> is the grid-aligned gap to the next note (the rhythm), <code>sus</code> is how long you actually held the key (the articulation), and <code>amp</code> is how hard you hit it. Silence longer than a note becomes a real rest, <code>_</code>. Notes outside the current Scale are snapped to it, and the log says how many were.')}
+        ${code(`# after playing a hard stab, a soft held note, a gap, then a chord:
+p1 >> pluck([0, _, 2, _, (4, 6)], dur=[1/4, 1.75, 1.75, 2, 3/4], oct=5, amp=[0.66, 0.66, 0.25, 0.25, 0.55])`)}
+
+        ${note('<b>3 · Record to a MIDI file</b> — this records every note that PLAYS, whatever started it, and writes a Standard MIDI File you can drop in a DAW.')}
+        ${code(`midi_rec()                               # arm — call again to stop and save
+midi_save("mytrack", 1/4)                # stop, save, snap onsets to a 1/4 grid
+midi_map("K", 36)                        # point a play() char at a GM drum note`)}
+
+        ${note('<b>4 · Knobs and faders</b> — a <code>midi()</code> value is sampled every step like a TimeVar, so a control sweeps any synth or FX param live, and one control can drive several (a macro). Curves: <code>lin</code>, <code>exp</code> (cutoffs and frequency), <code>log</code>, <code>quad</code>, <code>cubic</code>, <code>sqrt</code>, <code>s</code> (smoothstep).')}
+        ${code(`p1 >> prophet([0, (0,4,7), 4], oct=5, dur=0.5)
+p1.lpf = midi(74, 100, 8000, "exp")      # CC74 → filter cutoff
+p1.amp = midi(7, 0, 1)                    # CC7 → volume
+p2 >> saw([0,4,7], room=midi(1, 0, 1, "s"))    # mod wheel → reverb size
+p1.mverb = mlearn(0, 1)                   # learn: move the control you want`)}
+        ${note('<b>mlearn</b> waits for a control that MOVES, not merely the first CC that arrives — a keyboard sitting untouched is often still transmitting, and it used to win every learn. When it lands, the log says which control and which device. <code>midimap()</code> lists everything currently bound.')}
+
+        ${note('<b>5 · Two controllers at once</b> — a keyboard to play and a box of faders to turn. Their CC numbers overlap by convention (a nanoKONTROL2’s faders are CC 0..7; a keyboard’s own volume is CC 7), so a binding can name the device it listens to. A fragment of the name is enough, and a bare <code>midi(7)</code> still answers to any device.')}
+        ${code(`p1.lpf = midi(7, 200, 4000, "exp", "nano")   # only the nanoKONTROL's CC7
+p1.amp = midi(7)                          # any device's CC7
+midimap()                                 # what is bound, to which control, on which box`)}
+
+        ${note('<b>6 · Notes out</b> — <code>midiout()</code> sends to an external or virtual port instead of making sound. Velocity follows <code>amp</code>, length follows <code>sus</code>/<code>leg</code>, groups make chords, and <code>.every</code> / <code>.stutter</code> / <code>.sometimes</code> / <code>+transpose</code> all work as they do on a synth. Notes are scheduled sub-beat-accurate and stay phase-locked to the internal voices. Stop sends all-notes-off. Route through IAC, loopMIDI or ALSA/JACK to reach a DAW.')}
+        ${code(`m1 >> midiout([0, 2, 4, 7], channel=1, oct=5, dur=0.5)
+m2 >> midiout([0, (0,4,7), 5], channel=2, oct=4, dur=1, amp=0.9)
+m1 >> midiout(P[0,3,5,7], channel=10).every(4, "reverse")   # drums on ch10
+
+# layer: hear it here AND send it out
 p1 >> prophet([0,4,7], oct=5, dur=0.5)
 m1 >> midiout([0,4,7], channel=1, oct=5, dur=0.5)`)}
+
+        ${note('<b>7 · The instrument’s settings</b> — sound selection and knobs, not just notes. <code>prog=</code> (with <code>bank=</code> / <code>banklsb=</code>) chooses the instrument, <code>ccNN=</code> sends Control Change NN, and <code>nrpn=[msb, lsb, value]</code> reaches the parameters that have no CC of their own. All resolve per step like any param, and each is sent only when it CHANGES — a CC restated every step is a stream of identical bytes down a slow wire.')}
+        ${code(`m1 >> midiout([0,4,7], channel=1, prog=12, bank=121, banklsb=100)
+m1 >> midiout([0,4,7], cc74=sinvar([40, 110], [16]))   # sweep the hardware filter
+m1 >> midiout([0,4,7], cc91=100, cc93=40)              # its reverb and chorus
+
+midicc(74, 100)                           # one-shot Control Change
+midiprog(5, 121, 100)                     # program 5 from bank 121/100
+midinrpn(50, 12, 64)                      # NRPN 50/12 = 64`)}
+        ${note('Common General MIDI controls: <code>7</code> volume · <code>10</code> pan · <code>11</code> expression · <code>64</code> sustain pedal · <code>73</code> attack · <code>74</code> brightness · <code>75</code> decay · <code>76/77/78</code> vibrato rate/depth/delay · <code>91</code> reverb send · <code>93</code> chorus send · <code>121</code> reset all controllers. Your instrument will tell you its own map: most announce their whole state when they power on, and the MIDI panel’s monitor shows it arriving.')}
     `, 'midi');
 
     const sections = section('Section sequencer ( #@ )', `

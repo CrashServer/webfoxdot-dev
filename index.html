@@ -308,7 +308,7 @@
     import { defineFromSource } from './js/modular/codegen.js';
     import { initPerform, togglePerform, applyXY, applyRemoteFX } from './js/ui/perform.js';
     import { initMidiPanel }             from './js/ui/midipanel.js';
-    import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl } from './js/midi/midi.js';
+    import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl, onMidiLearn, midiBindings } from './js/midi/midi.js';
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
     import { visualStats, setVisualFps, visualFps, setVisualBudget, visualBudget } from './js/visuals/render/vperf.js';
     import { setWorkshopRes, workshopRes } from './js/visuals/render/wsres.js';
@@ -1843,6 +1843,20 @@
             // for when two controllers send the same CC numbers, which they do: a
             // nanoKONTROL2's faders are CC 0..7 and a keyboard's volume is CC 7.
             midi:   (cc, lo = 0, hi = 1, curve = 'lin', device = null) => { _ensureMidi(); return makeMidi(cc, lo, hi, curve, device); },
+            // midimap() — what is bound to what, and on which box.
+            midimap: () => {
+                const rows = midiBindings();
+                if (!rows.length) { log('midimap: nothing bound yet — p1.amp = mlearn(0, 1), then move a control', 'info'); return []; }
+                log(`midimap: ${rows.length} binding${rows.length === 1 ? '' : 's'}`, 'info');
+                for (const r of rows) {
+                    if (r.learning) { log('  \u25cb waiting for a control to move\u2026', 'info'); continue; }
+                    log(`  \u25c9 cc${String(r.cc).padStart(3)}${r.device ? ' \u00b7 ' + r.device : ' \u00b7 any device'}`
+                        + `  ${r.lo}\u2192${r.hi}${r.curve && r.curve !== 'lin' ? ' ' + r.curve : ''}`
+                        + `  = ${typeof r.value === 'number' ? Math.round(r.value * 1000) / 1000 : '?'}`
+                        + `   ${r.code}`, 'info');
+                }
+                return rows;
+            },
             mlearn: (lo = 0, hi = 1, curve = 'lin')      => { _ensureMidi(); return makeMidi(null, lo, hi, curve); },
             // aud(band,lo,hi[,curve[,smooth]]) — the SOUND as a value, same shape as
             // midi() so it works on every param in the language, audio and visual:
@@ -1882,6 +1896,11 @@
     function _ensureMidi() {
         if (_midiAsked) return;
         _midiAsked = true;
+        // Say what a learn landed on, the moment it lands. Otherwise you move a
+        // fader, something changes, and finding out WHICH control you just bound
+        // means going to look for it.
+        onMidiLearn((x) => log(`\u25c9 learned cc${x.cc}${x.short ? ' \u00b7 ' + x.short : ''}`
+            + (x.channel ? ` \u00b7 ch${x.channel}` : '') + ` \u2014 midimap() lists them`, 'ok'));
         enableMidi()
             .then(() => log('MIDI enabled — twist a control', 'ok'))
             .catch(e => log(`MIDI: ${e.message}`, 'error'));

@@ -317,7 +317,7 @@ const GLOBALS = [
     // every one is documented and several take an argument the menu can complete,
     // but none of them was offered, so the completion never fired because you had
     // to type the whole name to get to it.
-    'ascii_gen(','audiviz(','audioviz(','theme(','uisize(','seed(','scenes()','record(','recall(','panel(','compo_base(','troop(','codesource(','midicc(','midiprog(','midinrpn(','troopclock(','troopnudge(','rgbshift(','grain(','solarize(','threshold(','tint(','halftone(','language(','attack(','modular()','panic()',
+    'ascii_gen(','audiviz(','audioviz(','theme(','uisize(','seed(','scenes()','record(','recall(','panel(','compo_base(','troop(','codesource(','midimap()','midicc(','midiprog(','midinrpn(','troopclock(','troopnudge(','rgbshift(','grain(','solarize(','threshold(','tint(','halftone(','language(','attack(','modular()','panic()',
     // The visual globals. Same story as the line above: every one is documented and
     // none of them was offered, so you had to already know the name to find it.
     'palette(','vmode(','vres(','wres(','vfps(','vbudget(','vperf(','vsnap(','vrand(',

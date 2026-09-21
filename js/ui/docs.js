@@ -459,15 +459,20 @@ export function initDocs() {
         examples: exampleList(),
     });
     function runSearch(q) {
-        if (!q || q.trim().length < 2) { showTab(lastTab); return; }
+        // A single letter is too short to search on, so the tab comes back — but
+        // WITHOUT clearing the box, which used to eat the letter you had just typed.
+        // Type m, pause past the 90ms debounce, and "midi" arrived as "idi".
+        if (!q || q.trim().length < 2) { showTab(lastTab, false); return; }
         tabs.forEach(t => t.classList.remove('active'));
         body.innerHTML = renderResults(searchDocs(q, index()), q.trim());
         body.scrollTop = 0;
     }
 
-    function showTab(name) {
+    function showTab(name, clearSearch = true) {
         lastTab = name;
-        if (input && input.value) input.value = '';     // leaving search by picking a tab
+        // Only when you LEAVE search by picking a tab. Clearing it on every call made
+        // the box fight what you were typing.
+        if (clearSearch && input && input.value) input.value = '';
         tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
         if (!cache[name]) cache[name] = CONTENT[name]();
         body.innerHTML = cache[name];

@@ -30,6 +30,12 @@ const _learnQ   = [];          // bindings armed for learn, awaiting the next CC
 const _controls   = new Set(); // control bindings — call onValue(0..1, cc) on each CC move
 const _learnCtrlQ = [];        // control bindings armed for learn
 let _onChange   = null;        // panel refresh hook
+// Called when a learn actually lands, with what it landed on. Learning is the one
+// moment where the app knows something you do not — which fader, on which box — and
+// it used to keep it: you moved a control, something changed, and the only way to
+// find out what had bound was to go looking in a panel.
+let _onLearn    = null;
+export function onMidiLearn(fn) { _onLearn = fn; }
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
@@ -49,6 +55,18 @@ export function onMidiChange(fn) { _onChange = fn; }
 function _changed() { if (_onChange) _onChange(); }
 
 // Snapshot for the panel.
+/** Every live binding, for a readout: what is bound, to which control, on which box. */
+export function midiBindings() {
+    const out = [];
+    for (const b of _bindings) {
+        out.push({ cc: b.cc, device: b.srcName ? shortName(b.srcName) : (b.src || null),
+                   lo: b.lo, hi: b.hi, curve: b.curve,
+                   value: b.cc == null ? null : b.get(), norm: b._norm,
+                   learning: b.cc == null, code: b.toCode() });
+    }
+    return out.sort((a, b) => (a.cc ?? 999) - (b.cc ?? 999));
+}
+
 export function midiState() {
     // Dedupe bindings by CC for display (a CC can drive several params).
     const byCc = new Map();
@@ -136,8 +154,12 @@ function _onMessage(ev) {
     // MIDI learn: armed bindings latch onto the control that moved, and remember
     // WHICH BOX it was on, so the other controller's CC 7 is not this one's.
     if (moved) {
-        if (_learnQ.length) for (const b of _learnQ.splice(0)) { b.cc = cc; b.src = src; b.srcName = srcName; }
-        if (_learnCtrlQ.length) for (const c of _learnCtrlQ.splice(0)) { c.cc = cc; c.src = src; c.srcName = srcName; }
+        let learned = 0;
+        if (_learnQ.length) for (const b of _learnQ.splice(0)) { b.cc = cc; b.src = src; b.srcName = srcName; learned++; }
+        if (_learnCtrlQ.length) for (const c of _learnCtrlQ.splice(0)) { c.cc = cc; c.src = src; c.srcName = srcName; learned++; }
+        if (learned && _onLearn) {
+            try { _onLearn({ cc, channel, src, srcName, short: shortName(srcName), count: learned }); } catch (_) {}
+        }
     }
 
     // Live-update every binding on this CC from a device it accepts.

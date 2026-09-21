@@ -55,6 +55,9 @@ function _render() {
         monEl.innerHTML = s.monitor.length
             ? s.monitor.slice(0, 6).map(m =>
                 `<div class="midi-row"><span class="midi-cc">CC${m.cc}</span>` +
+                // Which box it came from: with two controllers the CC number alone
+                // does not tell you which control you just touched.
+                `<span class="midi-dev">${escapeHtml(m.src || '')}</span>` +
                 `<span class="midi-meter">${bar(m.value)}</span>` +
                 `<span class="midi-val">${m.value.toFixed(2)}</span></div>`).join('')
             : (s.enabled ? '<div class="midi-hint">twist a knob…</div>' : '');
@@ -66,6 +69,7 @@ function _render() {
         bindEl.innerHTML = s.bindings.length
             ? s.bindings.map(b =>
                 `<div class="midi-row"><span class="midi-cc bound">CC${b.cc}</span>` +
+                `<span class="midi-dev">${escapeHtml(b.src || 'any')}</span>` +
                 `<span class="midi-meter">${bar(b.norm)}</span>` +
                 `<span class="midi-curve">${escapeHtml(b.curve || 'lin')}</span>` +
                 `<span class="midi-val">${fmt(b.value)}</span></div>`).join('')
