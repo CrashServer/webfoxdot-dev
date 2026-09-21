@@ -63,6 +63,54 @@ export function fxPrimaryRange(name) {
     return { min: 0, max: 1, default: 0.5 };
 }
 
+// ── The universal knobs, and which of them are REAL for a given name ─────────
+//
+// Every scene and layer was offered the same twelve, and a lot of them did nothing.
+// Three separate reasons, all of which looked identical from the outside — you type
+// the knob, nothing happens, nothing says why:
+//
+//   1. The completion inserted the layer's OWN speed/hue and then a universal one
+//      after it. Duplicate keys in a call: the last wins, so accepting the menu's
+//      own suggestion reset matrixrain's speed from 0.5 to 1 and its hue from 120
+//      to 0. That hit 182 of the 194 workshop layers.
+//   2. contrast and inv were never applied to a workshop layer at all. (They are
+//      now — see wsdeck.)
+//   3. speed and scale are a SCENE's business: a field scene that does not use them
+//      cannot be made to, and a workshop layer only has them if it declares one.
+//
+// So the menu asks here instead of offering a fixed list. The two Sets below are
+// checked by tests/unit/vparams.test.mjs, which RUNS every scene's field() with two
+// values and fails if one of these lists disagrees with what the code does.
+export const VSCENE_UNIVERSAL = [
+    ['ch', 0], ['speed', 1], ['scale', 1], ['bright', 1], ['gain', 1], ['contrast', 0],
+    ['hue', 0], ['zoom', 1], ['rot', 0], ['panx', 0], ['pany', 0], ['inv', 0],
+    ['opacity', 1], ['blend', 0],
+];
+// Field scenes whose field() does not read these — probed, not assumed.
+export const SCENE_NO_SPEED = new Set(['circuit', 'panopticon', 'barcode', 'equalizer', 'butterfly']);
+export const SCENE_NO_SCALE = new Set(['bars', 'kaleido', 'metaballs', 'swarm', 'mandala',
+    'spectrum', 'biomech', 'panopticon', 'penrose', 'mobius', 'lissajous', 'barcode', 'lightning']);
+
+/**
+ * The universal knobs that actually DO something for this scene or layer, minus any
+ * the thing declares as its own (those come from sceneParams and would otherwise be
+ * offered twice — which is bug 1 above).
+ *
+ * @returns {[string, number][]} [name, default] pairs
+ */
+export function universalParams(name) {
+    const own = new Set(sceneParams(name).map(x => x.n));
+    const field = SCENE_SET.has(name);
+    return VSCENE_UNIVERSAL.filter(([k]) => {
+        if (own.has(k)) return false;
+        if (k === 'speed') return field ? !SCENE_NO_SPEED.has(name) : false;
+        if (k === 'scale') return field ? !SCENE_NO_SCALE.has(name) : false;
+        // Everything else is the compositor's (field) or wsdeck's (workshop), and both
+        // apply all of them to every layer.
+        return true;
+    });
+}
+
 /** Params for ANY scene name, field or workshop. [{ n, d }] — name and default. */
 export function sceneParams(name) {
     // A FIELD scene wins a name collision — that is how visualBuilders() resolves the

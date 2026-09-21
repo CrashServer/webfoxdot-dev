@@ -4,7 +4,7 @@
 
 import { SYNTH_DEFS }   from '../synths/registry.js';
 import { FX_REGISTRY }  from '../fx/registry.js';
-import { SCENES as VSCENES, WS_SCENES, sceneParams, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
+import { SCENES as VSCENES, WS_SCENES, sceneParams, universalParams, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 import { exampleList, exampleCode } from '../ui/docs/examples.js';
 import { ASCII_STYLES } from '../ui/ascii.js';
 
@@ -17,10 +17,17 @@ const VFX_NAMES   = ['trails', 'feedback', 'blur', 'bloom', 'scan', 'vignette', 
 // universal controls the compositor applies to any scene. Ctrl+Space inside a scene call
 // lists them all. `pal`/`dur` are discoverable here but kept OUT of the inserted template
 // (pal would force a palette; dur is a pattern-timing meta-param).
-const VSCENE_PARAMS = ['ch=', 'speed=', 'scale=', 'bright=', 'gain=', 'contrast=', 'hue=', 'pal=', 'zoom=', 'rot=', 'panx=', 'pany=', 'inv=', 'dur='];
+// Real knobs that are NOT part of the call the menu writes for you: pal takes a
+// palette name and dur a number of beats, so neither has a sensible value to sit in
+// an inserted call — but both work, and both belong in the list you get from inside
+// the parens.
+const VSCENE_EXTRA_PARAMS = ['pal=', 'dur='];
 // The template a scene pick inserts — all knobs at NO-OP defaults (behaves like name()),
 // so every control is visible and tweakable in place, the way a synth pick exposes its.
-const VSCENE_DEFAULTS = [['ch', 0], ['speed', 1], ['scale', 1], ['bright', 1], ['gain', 1], ['contrast', 0], ['hue', 0], ['zoom', 1], ['rot', 0], ['panx', 0], ['pany', 0], ['inv', 0]];
+// The universal knobs are no longer a list here: which of them are REAL depends on
+// the scene, and this list being fixed is what made the menu offer a dozen knobs that
+// did nothing and — worse — repeat the layer's own speed/hue after its defaults, so
+// accepting the completion reset them. See universalParams() in vdata.js.
 const FX_PARAMS   = Object.keys(FX_REGISTRY);
 
 const PLAYER_METHODS = [
@@ -98,7 +105,7 @@ function synthItem(name) {
 // the parens (on ch) rather than selecting anything.
 function fullSceneCall(name) {
     const specific = sceneParams(name).map((x) => `${x.n}=${x.d}`);   // scene's own params first
-    const universal = VSCENE_DEFAULTS.map(([k, v]) => `${k}=${v}`);
+    const universal = universalParams(name).map(([k, v]) => `${k}=${v}`);
     return `${name}(${[...specific, ...universal].join(', ')})`;
 }
 function sceneItem(name) {
@@ -851,7 +858,8 @@ function hintFn(cm) {
     } else if (ctx.type === 'vparam') {
         // scene's own params first (spiral → arms=, tunnel → sectors=), then the universal knobs
         const specific = sceneParams(ctx.vfn).map((x) => x.n + '=');
-        const ps = ctx.vfn === 'mix' ? ['blend=', 'dur='] : [...specific, ...VSCENE_PARAMS];
+        const ps = ctx.vfn === 'mix' ? ['blend=', 'dur=']
+                 : [...specific, ...universalParams(ctx.vfn).map(([k]) => k + '='), ...VSCENE_EXTRA_PARAMS];
         list = filter(ps.map(p => item(p, 'hint-param', p.replace('=', ''))));
     } else if (ctx.type === 'vnames') {
         const names = ctx.kind === 'palette' ? PALETTE_NAMES : ctx.kind === 'mode' ? RENDER_MODE_NAMES : BLEND_NAMES;

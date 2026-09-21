@@ -304,7 +304,26 @@ export function createWorkshopDeck() {
             const px = num(p.panx, 0), py = num(p.pany, 0);
             const alpha = Math.max(0, Math.min(1,
                 num(p.bright, 1) * num(p.gain, 1) * num(p.opacity, 1)));
+            // contrast, inv and hue — the value knobs a FIELD scene gets from the
+            // compositor. A workshop layer had none of them: they were accepted on the
+            // line, stored on the layer, and read by nobody, so contrast= and inv= were
+            // dead on all 194 of them. A canvas filter is the same arithmetic the
+            // compositor does per pixel, done by the compositor of the browser.
+            //
+            // hue only when the LAYER has no hue of its own. 152 of them do, and that
+            // one means "what colour is this thing" — rotating it again afterwards
+            // would move a colour the layer was asked to paint.
+            const contrast = num(p.contrast, 0);
+            const inv = p.inv === true || p.inv === 1;
+            const hue = ('hue' in (defaults(l.scene) || EMPTY)) ? 0 : num(p.hue, 0);
+            const filt = [];
+            if (contrast) filt.push(`contrast(${Math.max(0, 1 + contrast) * 100}%)`);
+            if (hue)      filt.push(`hue-rotate(${hue}deg)`);
+            if (inv)      filt.push('invert(1)');
             g.save();
+            // Only ever set when something asked for it: an unset filter costs nothing,
+            // and 'none' on every layer of every frame does not.
+            if (filt.length) g.filter = filt.join(' ');
             g.globalAlpha = alpha;
             // `max` is the default because it is what stacking did before this existed.
             // The FIRST layer onto a freshly cleared deck draws plainly: `multiply`
