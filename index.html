@@ -2009,6 +2009,29 @@
     // draw differently under a fixed seed. Keyed by the text, so it follows the line
     // rather than the player name.
     const _rerollSalt = new Map();
+    // Best-effort recovery for a block that would not compile: run the lines that
+    // do, and name the one that does not. Only ever called after a SyntaxError on
+    // the whole block, so nothing here can run something twice.
+    function _runPerLine(raw, ctx, keys) {
+        const vals  = Object.values(ctx);
+        const lines = raw.replace(/\r/g, '').split('\n');
+        let ran = 0;
+        const bad = [];
+        for (let i = 0; i < lines.length; i++) {
+            const src = lines[i].trim();
+            if (!src || src.startsWith('#')) continue;
+            try {
+                const ljs = applyRenames(transpile(src));
+                new Function(...keys, ljs)(...vals);
+                ran++;
+            } catch (e) { bad.push({ n: i + 1, src, msg: e.message }); }
+        }
+        for (const b of bad) {
+            log(`Error on line ${b.n}: ${b.msg}  \u2014  ${b.src.slice(0, 60)}`, 'error');
+        }
+        if (ran) log(`\u26a0 ${ran} line${ran === 1 ? '' : 's'} ran; ${bad.length} did not \u2014 the block would not compile as a whole`, 'warn');
+    }
+
     function _runCode(raw, { fromRemote = false, author = '', color = '', authorId = '' } = {}) {
         // Track claims. A line that defines someone else's instrument is dropped —
         // whether it came off the wire or was just typed here, because running it
@@ -2050,7 +2073,21 @@
             let entry = _fnCache.get(js);
             if (!entry || entry.n !== keys.length) {
                 if (_fnCache.size > 200) _fnCache.clear();
-                entry = { fn: new Function(...keys, js), n: keys.length };
+                try {
+                    entry = { fn: new Function(...keys, js), n: keys.length };
+                } catch (syn) {
+                    // The BLOCK does not compile, which means not one line of it ran
+                    // — including the good ones above the typo. In a #@ section that
+                    // is brutal: a stray word at the bottom silently takes the whole
+                    // section with it, and what you notice is that the recall at the
+                    // top "didn't happen".
+                    //
+                    // Safe to retry line by line precisely BECAUSE it was a compile
+                    // error: nothing executed, so nothing can run twice. A runtime
+                    // error is a different animal and is left alone below.
+                    if (/\n/.test(raw.trim())) { _runPerLine(raw, ctx, keys); return; }
+                    throw syn;
+                }
                 _fnCache.set(js, entry);
             }
             entry.fn(...Object.values(ctx));

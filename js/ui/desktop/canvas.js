@@ -347,6 +347,11 @@ function apply() {
     canvasEl.style.left      = `${panX}px`;
     canvasEl.style.top       = `${panY}px`;
     canvasEl.style.transform = zoom !== 1 ? `scale(${zoom})` : "";
+    // Publish the zoom so CSS can size the panel CHROME against it. Everything on
+    // the canvas scales, which is right for the work and wrong for the controls: at
+    // the default fit zoom of about 0.31 a panel's close button is an 18px square
+    // drawn six pixels wide, which is not a thing a mouse can hit.
+    document.documentElement.style.setProperty('--wfd-zoom', String(zoom));
 
     // Pinned panels stay at a fixed desktop-space position — back-solve their
     // canvas-space coordinates from the pinned desktop-space target.

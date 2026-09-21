@@ -3181,6 +3181,28 @@ body.desktop-ui .wfd-body-wfd-controls > .cp-section + .cp-section {
     color: var(--text-2); cursor: pointer; border-radius: 2px;
 }
 .panel-close:hover { background: var(--bg-1); color: var(--red); }
+
+/* ── Panel chrome keeps its size on SCREEN, not on the canvas ─────────────────
+   The canvas scales everything, which is what you want for the work and exactly
+   what you do not want for the controls: at the default fit zoom (~0.31) an 18px
+   close button is drawn six pixels across, and the galaxy's own close comes out
+   24x8. Sizing these in inverse-zoom units keeps the hit target constant however
+   far out you are. Clamped at both ends so the header cannot swell absurdly when
+   zoomed right out, nor vanish when zoomed right in. */
+.panel-head {
+    --wfd-chrome: clamp(16px, calc(18px / var(--wfd-zoom, 1)), 64px);
+}
+.panel-close, .panel-collapse, .panel-pin, .panel-home-set, .panel-home-go,
+.panel-color-btn, .panel-backdrop-btn {
+    width: var(--wfd-chrome); height: var(--wfd-chrome);
+    font-size: calc(var(--wfd-chrome) * 0.72);
+    line-height: 1;
+}
+/* The galaxy brought its own header, and it shrinks with everything else. */
+body.desktop-ui .wfd-hosted #galaxy-close {
+    padding: calc(4px / var(--wfd-zoom, 1)) calc(11px / var(--wfd-zoom, 1));
+    font-size: clamp(11px, calc(12px / var(--wfd-zoom, 1)), 26px);
+}
 .panel-backdrop-btn.armed, .panel-close.armed {
     color: var(--red); background: var(--bg-1);
     box-shadow: inset 0 0 0 1px var(--red);
