@@ -26,6 +26,7 @@ import { visualBudget } from './vperf.js';
 import { defaults, fxDefaults, fxPrimary } from '../workshop/catalog.js';
 import { capSize } from './wsres.js';
 import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
+import { spanStart, spanEnd } from '../../engine/perfstats.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
@@ -112,7 +113,7 @@ export function createWorkshopDeck() {
                   // without it, four layers each drawing every 6th frame all draw on
                   // frame 0, and the average is fine while every sixth frame is a
                   // disaster. The average was never the thing that makes audio late.
-                  cost: null, every: 1, phase: phaseSeq++, frames: 0, silentChecked: false };
+                  cost: null, worst: null, every: 1, phase: phaseSeq++, frames: 0, silentChecked: false };
             cache.set(name, s);
         }
         // Resizing a canvas already blanks it; this covers the first frame of a slot
@@ -241,17 +242,32 @@ export function createWorkshopDeck() {
             // with bgAlpha do; the canvas is cleared once when the slot is made.
             const due = ((frame + s.phase) % s.every) === 0 || s.cost == null;
             if (due) {
+                // Named, so a stall can be blamed on the layer that caused it rather
+                // than landing in perfstats' "other" bucket. spanEnd drops anything
+                // under its floor, so a cheap layer costs one timestamp and no more.
+                const span = spanStart('layer:' + l.scene);
                 const t0 = performance.now();
                 try { kind.draw(s.ctx, w, h, p, t, extra); }
-                catch (e) { if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }
+                catch (e) { spanEnd(span); if (!s.warned) { s.warned = true; console.warn(`visuals: workshop layer "${l.scene}" threw —`, e?.message || e); } continue; }
                 const ms = performance.now() - t0;
+                spanEnd(span);
                 s.cost = s.cost == null ? ms : s.cost * 0.85 + ms * 0.15;
-                const want = Math.max(1, Math.min(MAX_SKIP, Math.ceil(s.cost / BUDGET_MS())));
+                // An EMA alone is the wrong basis for a layer that is cheap on most
+                // frames and catastrophic on a few: constellation draws in 5ms and then
+                // spends over a second rebuilding, and the mean of those throttles it as
+                // though the spike never happened. So the worst draw seen recently is
+                // kept as well, decaying ~8% a draw, and the interval is sized from
+                // whichever is worse. One spike backs the layer right off and then
+                // relaxes over ~20 draws; a layer that spikes REPEATEDLY never gets its
+                // slot back, which is the right answer for one.
+                s.worst = s.worst == null ? ms : Math.max(ms, s.worst * 0.92);
+                const basis = Math.max(s.cost, s.worst * 0.6);
+                const want = Math.max(1, Math.min(MAX_SKIP, Math.ceil(basis / BUDGET_MS())));
                 if (want !== s.every) {
                     s.every = want;
                     if (want > 1 && !s.told) {
                         s.told = true;
-                        console.info(`visuals: "${l.scene}" costs ${s.cost.toFixed(1)}ms a frame — drawing it every ${want} frames so the audio clock keeps its slot`);
+                        console.info(`visuals: "${l.scene}" costs ${s.cost.toFixed(1)}ms a frame (worst ${s.worst.toFixed(0)}ms) — drawing it every ${want} frames so the audio clock keeps its slot`);
                     }
                 }
             }
@@ -353,6 +369,6 @@ export function createWorkshopDeck() {
         // The budget already keeps an EMA of every layer's draw cost and the interval
         // it was throttled to — reading them back costs nothing, and it is the only
         // place that knows WHICH layer is expensive.
-        stats: () => [...cache].map(([name, s]) => ({ name, kind: s.kind, cost: s.cost, every: s.every })),
+        stats: () => [...cache].map(([name, s]) => ({ name, kind: s.kind, cost: s.cost, worst: s.worst, every: s.every })),
         dispose() { cache.clear(); deck[0] = deck[1] = null; dctx[0] = dctx[1] = null; } };
 }

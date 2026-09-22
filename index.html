@@ -2046,7 +2046,8 @@
                     const heavy = (liveVisualDeck?.()?.stats?.() || [])
                         .filter(l => l.cost != null).sort((a2, b2) => b2.cost - a2.cost).slice(0, 3);
                     if (heavy.length) log(`  heaviest ${heavy.map(h =>
-                        `${h.name} ${n(h.cost, 1)}ms${h.every > 1 ? ` (every ${h.every})` : ''}`).join(' \u00b7 ')}`, 'info');
+                        `${h.name} ${n(h.cost, 1)}ms${h.worst > h.cost * 1.5 ? ` (spikes to ${n(h.worst, 0)})` : ''}`
+                        + `${h.every > 1 ? ` every ${h.every}` : ''}`).join(' \u00b7 ')}`, 'info');
                 } catch (_) {}
                 // The engine, which is on its own thread and usually fine.
                 if (m.audioHealthPct != null) {
