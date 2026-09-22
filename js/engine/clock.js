@@ -37,6 +37,11 @@ export class Clock {
         // means notes missed their timetag. See perfstats.js.
         this._late    = new Lateness();
         this._due     = null;   // when the pending tick was supposed to fire
+        // A monotonic count of ticks later than the lookahead. Separate from the
+        // histogram on purpose: perf("reset") clears that one to scope a passage,
+        // and the governor diffs THIS, so a reset must not read to it as a sudden
+        // drop to zero late ticks.
+        this._lateTotal = 0;
     }
 
     /** Tick-lateness stats, for perf(). Reset to measure one passage. */
@@ -51,6 +56,8 @@ export class Clock {
         };
     }
     resetLateStats() { this._late.reset(); }
+    /** Ticks later than the lookahead since boot — never reset. For the governor. */
+    lateTotal() { return this._lateTotal; }
 
     start() {
         this._running = true;
@@ -91,7 +98,11 @@ export class Clock {
         // Measured against when this tick was DUE, not against the last tick: the
         // difference is the whole point, since a run of on-time ticks after a stall
         // would otherwise hide it.
-        if (this._due !== null) this._late.add(now - this._due);
+        if (this._due !== null) {
+            const behind = now - this._due;
+            this._late.add(behind);
+            if (behind >= LOOKAHEAD_S * 1000) this._lateTotal++;
+        }
         let dt    = (now - this._lastMs) / 1000;
         this._lastMs = now;
         // Clamp dt: a backgrounded tab or a main-thread stall makes this 10ms tick

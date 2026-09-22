@@ -218,6 +218,39 @@ export function visualBuilders() {
              + `wres ${workshopRes() || 'full'} \u00b7 budget ${visualBudget()}ms`
              + (st.fps ? ` \u2014 drawing ${st.fps.toFixed(0)}fps at ${st.ms.toFixed(1)}ms/frame` : '');
     };
+    // ── Audio first: the loop closed ──────────────────────────────────────
+    //
+    // vperf() is the manual version of this: three points on one axis, chosen by
+    // hand. The knobs were real and nothing ever drove them, so the picture went on
+    // costing whatever it cost and the performer found out by ear.
+    //
+    // This drives the same axis from the measurement. It does NOT act on a slow
+    // frame or a high budget — by design it acts only when the clock has actually
+    // been later than the lookahead, which means notes were already late. Below that
+    // line a stall is free, and degrading the picture to fix a problem nobody can
+    // hear would be a worse trade than the one it is preventing.
+    //
+    // Down fast, up slow: one late tick steps down at once, and it takes ten clean
+    // seconds to give a step back. A governor that restored as eagerly as it cut
+    // would oscillate through the whole set.
+    out.audiofirst = (on) => {
+        if (on != null) {
+            _guard.on = !!on;
+            if (!_guard.on && _guard.level > 0) _guardApply(0);   // hands it back
+            _guard.level = 0; _guard.clear = 0; _guard.seen = null;
+        }
+        const st = visualStats();
+        const line = `audiofirst ${_guard.on ? 'on' : 'off'}`
+             + (_guard.level ? ` \u00b7 stepped down ${_guard.level} (${_guard.acted} time${_guard.acted === 1 ? '' : 's'})` : ' \u00b7 not needed yet')
+             + ` \u00b7 ${visualFps() ? visualFps() + 'fps cap' : 'no fps cap'} \u00b7 wres ${workshopRes() || 'full'}`
+             + ` \u00b7 budget ${visualBudget()}ms`
+             + (st.fps ? ` \u2014 drawing ${st.fps.toFixed(0)}fps` : '');
+        // Say it. A visual command's return value is not logged, so a command that
+        // only returned its state would look like it had done nothing at all.
+        if (_guard.log) _guard.log(line, 'info');
+        return line;
+    };
+
     // ── Output windows ────────────────────────────────────────────────────
     // output()       open a projector window (one full-frame surface)
     // output(2)      …with 2 independently warped surfaces — one per face of the
@@ -300,6 +333,99 @@ export function visualBuilders() {
     out.wstep  = (step, ch, on)  => { _ws({ cmd: 'seq_step', step: Number(step), ch: Number(ch), on: on == null ? null : !!on }); return `wstep(${step},${ch})`; };
 
     return out;
+}
+
+// ── The audio-first governor ─────────────────────────────────────────────────
+// State for out.audiofirst(). Kept at module scope so a re-eval of the language
+// does not reset a governor that is mid-intervention.
+const _guard = {
+    on: true,          // acts only when the clock has ALREADY been late, so on is safe
+    level: 0,          // 0 = the performer's own settings
+    clear: 0,          // consecutive clean seconds
+    acted: 0,          // how many times it has stepped down this session
+    seen: null,        // last cumulative late-tick count
+    base: null,        // the settings to give back
+    applied: null,     // what the governor itself last wrote, to spot a manual change
+    late: null,        // () => cumulative count of ticks later than the lookahead
+    log: null,
+};
+
+/** Where the late-tick count comes from. Injected so this file never imports the clock. */
+export function setGuardSource(fn, logFn) { _guard.late = fn; _guard.log = logFn || null; }
+export function guardState() { return { on: _guard.on, level: _guard.level, acted: _guard.acted }; }
+
+// Down the same axis vperf() walks by hand.
+const _GUARD_STEPS = [
+    null,                                        // 0 — whatever the performer chose
+    { fps: 30, ws: 1280, budget: 4,   res: null },
+    { fps: 30, ws: 960,  budget: 2,   res: 0.75 },
+    { fps: 24, ws: 720,  budget: 1.5, res: 0.6  },
+];
+
+function _guardRead() {
+    return { fps: visualFps(), ws: workshopRes(), budget: visualBudget(), res: master.res };
+}
+function _guardWrite(v) {
+    setVisualFps(v.fps); setWorkshopRes(v.ws); setVisualBudget(v.budget); master.res = v.res;
+    _guard.applied = _guardRead();
+}
+function _guardApply(level) {
+    if (level === 0) {
+        if (_guard.base) _guardWrite(_guard.base);
+        _guard.applied = null;
+        return;
+    }
+    if (!_guard.base) _guard.base = _guardRead();
+    _guardWrite(_GUARD_STEPS[level]);
+}
+
+/**
+ * One second of governing. Call on an interval; costs two reads and a compare.
+ * @returns {string|null} what it did, for the caller to log
+ */
+export function guardTick() {
+    if (!_guard.on || !_guard.late) return null;
+    let total = 0;
+    try { total = _guard.late() || 0; } catch (_) { return null; }
+    if (_guard.seen === null) { _guard.seen = total; return null; }
+
+    // The performer's hand always wins: anything written to these knobs by hand
+    // becomes the new baseline, and the governor starts again from there.
+    if (_guard.applied) {
+        const now = _guardRead();
+        for (const k of ['fps', 'ws', 'budget', 'res']) {
+            if (now[k] !== _guard.applied[k]) {
+                _guard.base = now; _guard.applied = null; _guard.level = 0; _guard.clear = 0;
+                break;
+            }
+        }
+    }
+
+    const late = total - _guard.seen;
+    _guard.seen = total;
+
+    if (late > 0) {
+        _guard.clear = 0;
+        if (_guard.level < _GUARD_STEPS.length - 1) {
+            _guard.level++;
+            _guard.acted++;
+            _guardApply(_guard.level);
+            const s = _GUARD_STEPS[_guard.level];
+            return `audio first: ${late} note${late === 1 ? '' : 's'} went out late \u2014 `
+                 + `picture stepped down to ${s.fps}fps / wres ${s.ws} / budget ${s.budget}ms`;
+        }
+        return null;                      // already as low as it goes; saying so every second helps nobody
+    }
+
+    if (_guard.level > 0 && ++_guard.clear >= 10) {
+        _guard.clear = 0;
+        _guard.level--;
+        _guardApply(_guard.level);
+        return _guard.level === 0
+            ? 'audio first: clear for 10s \u2014 the picture has its settings back'
+            : `audio first: clear for 10s \u2014 picture stepped back up to ${_GUARD_STEPS[_guard.level].fps}fps`;
+    }
+    return null;
 }
 
 // ── Visual player (vN) ───────────────────────────────────────────────────────

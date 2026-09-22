@@ -286,6 +286,7 @@
     import { initUiScale, setUiScale, uiScale, nudgeUiScale, onUiScaleChange, UI_SCALE_RANGE } from './js/ui/uiscale.js';
     import { setSeed, currentSeed, isSeeded, beginEvalScope, randAt } from './js/patterns/rng.js';
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
+    import { setGuardSource, guardTick, guardState } from './js/visuals/vlang.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
     import { setPanelNames, setMasterFx } from './js/editor/autocomplete.js';
@@ -2033,6 +2034,15 @@
                         + ` \u00b7 pre late ${m.preschedulerLates || 0} \u00b7 dropped ${m.scsynthMessagesDropped || 0}`,
                         bad ? 'warn' : 'info');
                 } else log('  engine   not booted', 'info');
+
+                const g = guardState();
+                // level is where it is NOW; acted is whether it ever had to. They come
+                // apart the moment you move a knob by hand, which hands control back
+                // and returns level to 0 with the history intact.
+                log(`  audiofirst ${g.on ? 'on' : 'off'}`
+                    + (g.level ? ` \u00b7 stepped down ${g.level} \u00b7 acted ${g.acted}\u00d7 this session`
+                       : g.acted ? ` \u00b7 back at your settings \u00b7 acted ${g.acted}\u00d7 this session`
+                       : ' \u00b7 has not needed to act'), 'info');
 
                 if (!lost && !(m.scsynthSchedulerLates || m.preschedulerLates)) {
                     log('  \u2192 audio lost nothing. Any slowness you feel is the picture or the UI.', 'ok');
@@ -5031,6 +5041,12 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     setStallWarn(120, (label, ms) => {
         log(`\u26a0 ${label} blocked the thread ${Math.round(ms)}ms \u2014 notes were late. perf() for the picture.`, 'warn');
     });
+    // Close the loop: the governor reads the clock and turns the picture down when
+    // notes have ALREADY gone out late, then gives it back after ten clean seconds.
+    // One second apart, because it is a policy and not a control loop — reacting
+    // faster would chase single frames and flap.
+    setGuardSource(() => clock.lateTotal(), (msg, kind) => log(msg, kind || 'info'));
+    setInterval(() => { const said = guardTick(); if (said) log(said, 'warn'); }, 1000);
 
     log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>
