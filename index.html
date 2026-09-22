@@ -312,7 +312,8 @@
     import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl, onMidiLearn, midiBindings } from './js/midi/midi.js';
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
     import { visualStats, setVisualFps, visualFps, setVisualBudget, visualBudget } from './js/visuals/render/vperf.js';
-    import { startLongTasks, longTasks, resetLongTasks } from './js/engine/perfstats.js';
+    import { startLongTasks, longTasks, resetLongTasks, timed, stallCauses, setStallWarn }
+        from './js/engine/perfstats.js';
     import { setWorkshopRes, workshopRes } from './js/visuals/render/wsres.js';
     import { enableMidiOut, makeMidiOut, ccMessage, programMessages, nrpnMessages, sendRaw } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
@@ -2008,9 +2009,22 @@
                         + `${lt.n ? ` \u00b7 ${n(lt.total / lt.windowS, 1)}ms/s of the thread` : ''}`,
                         lt.max > LOOK ? 'warn' : 'info');
                 } else log('  longtask not supported in this browser', 'info');
+                // What blocked it, by name. This is the half that tells you what to do.
+                const causes = stallCauses();
+                if (causes.length) {
+                    log(`  blocked by  ${causes.map(c =>
+                        `${c.label} \u00d7${c.n} worst ${n(c.max)}ms`).join('  \u00b7  ')}`, 'info');
+                }
                 // The picture, which is what you would turn down.
                 log(`  visuals  ${n(st.fps)}fps \u00b7 ${n(st.ms, 1)}ms/frame \u00b7 budget ${visualBudget()}ms`
                     + ` \u00b7 fps cap ${visualFps() || 'none'}`, 'info');
+                // The three most expensive layers, so the advice can name one.
+                try {
+                    const heavy = (liveVisualDeck?.()?.stats?.() || [])
+                        .filter(l => l.cost != null).sort((a2, b2) => b2.cost - a2.cost).slice(0, 3);
+                    if (heavy.length) log(`  heaviest ${heavy.map(h =>
+                        `${h.name} ${n(h.cost, 1)}ms${h.every > 1 ? ` (every ${h.every})` : ''}`).join(' \u00b7 ')}`, 'info');
+                } catch (_) {}
                 // The engine, which is on its own thread and usually fine.
                 if (m.audioHealthPct != null) {
                     const bad = (m.scsynthSchedulerLates || 0) + (m.preschedulerLates || 0)
@@ -2023,10 +2037,14 @@
                 if (!lost && !(m.scsynthSchedulerLates || m.preschedulerLates)) {
                     log('  \u2192 audio lost nothing. Any slowness you feel is the picture or the UI.', 'ok');
                 } else if (lost) {
-                    log(`  \u2192 the main thread ate the slack ${lost} time${lost === 1 ? '' : 's'}.`
-                        + ' vfps(30) or vbudget(2) first; heavy layers next.', 'warn');
+                    const worst = causes[0];
+                    const who = worst ? `${worst.label} was the worst of it (${n(worst.max)}ms). ` : '';
+                    const fix = worst && worst.label === 'eval'
+                        ? 'That is running a set, not the picture \u2014 split the section, or run fewer lines at once.'
+                        : 'vfps(30) or vbudget(2) first; heavy layers next.';
+                    log(`  \u2192 the main thread ate the slack ${lost} time${lost === 1 ? '' : 's'}. ${who}${fix}`, 'warn');
                 }
-                return { clock: c, longTasks: lt, visuals: st, engine: m };
+                return { clock: c, longTasks: lt, visuals: st, engine: m, causes };
             },
             midimap: () => {
                 const rows = midiBindings();
@@ -2185,7 +2203,10 @@
         const prevEvalDoc = _evalDoc;
         _evalDoc = opts.doc || activeSectionDoc()
                  || (opts.fromRemote ? mainEditor.getDoc() : editor.getDoc());
-        try { return _runCode(raw, opts); }
+        // Timed so a stall can name its cause. Running a set is transpile + compile +
+        // execute, synchronously, on the thread the clock lives on — the most likely
+        // spike in a performance and the worst possible moment for one.
+        try { return timed('eval', () => _runCode(raw, opts)); }
         finally { _evalDoc = prevEvalDoc; }
     }
 
@@ -5005,6 +5026,11 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
 
     // Passive, and free until something blocks the thread for 50ms.
     startLongTasks();
+    // 120ms is the lookahead: past that, notes miss their timetag. Rate-limited to
+    // one line every few seconds inside perfstats — you are playing, not reading.
+    setStallWarn(120, (label, ms) => {
+        log(`\u26a0 ${label} blocked the thread ${Math.round(ms)}ms \u2014 notes were late. perf() for the picture.`, 'warn');
+    });
 
     log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>

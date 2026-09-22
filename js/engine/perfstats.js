@@ -96,6 +96,74 @@ export class Lateness {
     }
 }
 
+// ── Spans: what the thread was doing ─────────────────────────────────────────
+// A count of stalls is half a diagnostic. "Something blocked the thread for 300ms"
+// is not actionable; "the eval blocked it for 300ms" is. So the synchronous work
+// worth naming marks itself, and a long task is attributed to whichever span was
+// open when it happened — by timestamp, after the fact, since the browser delivers
+// long-task entries asynchronously and the span has long since closed.
+//
+// Only spans of MIN_SPAN_MS or more are kept. A frame that took 2ms cannot have
+// caused a 50ms long task, and at 60fps recording every one would flood the ring
+// with noise that buries the thing you are looking for.
+
+const MIN_SPAN_MS = 8;
+const MAX_SPANS = 256;
+const _spans = [];                 // recent {label, t0, t1}, oldest first
+const _causes = new Map();         // label -> { n, total, max }
+let _onStall = null;               // called when a long task eats the slack
+let _stallMs = Infinity;
+let _lastWarn = 0;
+
+/** Open a span. Cheap: one timestamp. */
+export function spanStart(label) {
+    return { label, t0: (typeof performance !== 'undefined' ? performance.now() : Date.now()) };
+}
+
+/** Close one. Short spans are dropped — see MIN_SPAN_MS. */
+export function spanEnd(h) {
+    if (!h) return 0;
+    const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const dur = t1 - h.t0;
+    if (dur >= MIN_SPAN_MS) {
+        h.t1 = t1;
+        _spans.push(h);
+        if (_spans.length > MAX_SPANS) _spans.shift();
+    }
+    return dur;
+}
+
+/** Time a synchronous function. Async work must NOT use this: an await is not a stall. */
+export function timed(label, fn) {
+    const h = spanStart(label);
+    try { return fn(); } finally { spanEnd(h); }
+}
+
+/** Which span was open across this instant — the midpoint of a long task. */
+function attribute(at) {
+    for (let i = _spans.length - 1; i >= 0; i--) {
+        const s = _spans[i];
+        if (at >= s.t0 && at <= s.t1) return s.label;
+    }
+    return 'other';
+}
+
+/** What blocked the thread, by name: [{label, n, total, max}] worst first. */
+export function stallCauses() {
+    return [..._causes.entries()]
+        .map(([label, v]) => ({ label, ...v }))
+        .sort((a, b) => b.max - a.max);
+}
+
+export function resetCauses() { _causes.clear(); _spans.length = 0; }
+
+/**
+ * Say when a long task eats the audio slack, without being asked.
+ * @param {number} stallMs the slack, in ms (LOOKAHEAD_S * 1000)
+ * @param {(label:string, ms:number)=>void} fn
+ */
+export function setStallWarn(stallMs, fn) { _stallMs = stallMs; _onStall = fn; }
+
 // ── Long tasks ───────────────────────────────────────────────────────────────
 // A "long task" is the browser's own name for >50ms of uninterrupted main-thread
 // work. It is the direct cause of a late tick, and unlike the tick histogram it says
@@ -116,6 +184,20 @@ export function startLongTasks() {
                 _long.total += e.duration;
                 _long.last = e.duration;
                 if (e.duration > _long.max) _long.max = e.duration;
+                // Attribute it by the MIDPOINT: a long task's start can precede the
+                // span it belongs to by a fraction of a ms, and its end can fall
+                // after the span closed.
+                const label = attribute(e.startTime + e.duration / 2);
+                const c = _causes.get(label) || { n: 0, total: 0, max: 0 };
+                c.n++; c.total += e.duration;
+                if (e.duration > c.max) c.max = e.duration;
+                _causes.set(label, c);
+                // Tell the performer once every few seconds at most: this fires while
+                // they are playing, and a wall of warnings is its own kind of stall.
+                if (e.duration >= _stallMs && _onStall && e.startTime - _lastWarn > 4000) {
+                    _lastWarn = e.startTime;
+                    try { _onStall(label, e.duration); } catch (_) {}
+                }
             }
         });
         _lt.observe({ entryTypes: ['longtask'] });
@@ -130,6 +212,7 @@ export function longTasks() {
 }
 
 export function resetLongTasks() {
+    resetCauses();
     _long.n = 0; _long.max = 0; _long.total = 0; _long.last = 0;
     _long.since = (typeof performance !== 'undefined' ? performance.now() : Date.now());
 }
