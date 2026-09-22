@@ -287,6 +287,7 @@
     import { setSeed, currentSeed, isSeeded, beginEvalScope, randAt } from './js/patterns/rng.js';
     import { setVisualClock, setVisualReroll, isVideoLayer } from './js/visuals/vlang.js';
     import { setGuardSource, guardTick, guardState } from './js/visuals/vlang.js';
+    import { setOffloadLog, offloadStats } from './js/visuals/render/wsoffload.js';
     import { registerRecorder, record as recordAll, running as recRunning, currentTake } from './js/ui/rectransport.js';
     import { initSceneBrowser, toggleSceneBrowser } from './js/ui/scenebrowser.js';
     import { setPanelNames, setMasterFx } from './js/editor/autocomplete.js';
@@ -2057,6 +2058,12 @@
                         + ` \u00b7 pre late ${m.preschedulerLates || 0} \u00b7 dropped ${m.scsynthMessagesDropped || 0}`,
                         bad ? 'warn' : 'info');
                 } else log('  engine   not booted', 'info');
+
+                try {
+                    const off = offloadStats();
+                    if (off.length) log(`  offloaded ${off.map(o =>
+                        `${o.name}${o.ms == null ? '' : ' ' + n(o.ms, 0) + 'ms'} in the worker`).join(' \u00b7 ')}`, 'info');
+                } catch (_) {}
 
                 const g = guardState();
                 // level is where it is NOW; acted is whether it ever had to. They come
@@ -5069,6 +5076,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // One second apart, because it is a policy and not a control loop — reacting
     // faster would chase single frames and flap.
     setGuardSource(() => clock.lateTotal(), (msg, kind) => log(msg, kind || 'info'));
+    // The worker says so itself if it cannot start or a layer misbehaves there —
+    // otherwise a silent fallback to the main thread would look like nothing happened.
+    setOffloadLog((msg, kind) => log(msg, kind || 'warn'));
     setInterval(() => { const said = guardTick(); if (said) log(said, 'warn'); }, 1000);
 
     log('crashDot loaded. Click "boot" to start audio.', 'info');

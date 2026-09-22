@@ -27,6 +27,7 @@ import { defaults, fxDefaults, fxPrimary } from '../workshop/catalog.js';
 import { capSize } from './wsres.js';
 import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
 import { spanStart, spanEnd } from '../../engine/perfstats.js';
+import { isOffloaded, bitmapFor, releaseOffload } from './wsoffload.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
@@ -205,7 +206,7 @@ export function createWorkshopDeck() {
         // not accumulate a canvas per name ever used.
         frame++;
         const live = new Set(layers.map((l) => l.name));
-        for (const k of [...cache.keys()]) if (!live.has(k)) cache.delete(k);
+        for (const k of [...cache.keys()]) if (!live.has(k)) { const c = cache.get(k); cache.delete(k); try { releaseOffload(c && c.kind); } catch (_) {} }
         if (!layers.length) return { a: null, b: null };
 
         // `extra` is exactly what the workshop's channel.js hands a layer. spectrum is
@@ -240,7 +241,24 @@ export function createWorkshopDeck() {
             // frame and visible on one — which is exactly what "it blinks" means.
             // A layer that wants a clean frame paints its own background, which the ones
             // with bgAlpha do; the canvas is cleared once when the slot is made.
-            const due = ((frame + s.phase) % s.every) === 0 || s.cost == null;
+            // Offloaded layers draw in a worker: take the newest bitmap it has and
+            // paint that instead. Nothing waits here — a frame with no bitmap yet
+            // falls through to drawing on this thread exactly as before.
+            let offBmp = null;
+            if (isOffloaded(l.scene)) {
+                offBmp = bitmapFor(l.scene, w, h, p, t, extra);
+                if (offBmp) {
+                    s.ctx.globalAlpha = 1;
+                    s.ctx.globalCompositeOperation = 'source-over';
+                    s.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    s.ctx.clearRect(0, 0, w, h);
+                    s.ctx.drawImage(offBmp, 0, 0, w, h);
+                    // It cost this thread a drawImage, so it must never be throttled
+                    // and must not carry the old main-thread cost around.
+                    s.cost = 0.1; s.worst = 0.1; s.every = 1;
+                }
+            }
+            const due = !offBmp && (((frame + s.phase) % s.every) === 0 || s.cost == null);
             if (due) {
                 // Named, so a stall can be blamed on the layer that caused it rather
                 // than landing in perfstats' "other" bucket. spanEnd drops anything
