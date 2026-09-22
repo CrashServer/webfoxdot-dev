@@ -251,7 +251,7 @@
 
   <script type="module">
     import { SuperSonic }     from './lib/dist/supersonic.js';
-    import { Clock }          from './js/engine/clock.js';
+    import { Clock, LOOKAHEAD_S, setLookahead } from './js/engine/clock.js';
     import { Player, setSuperSonic, setWarn, setStepListener as _setStepListener, setTriggerListener as _setTriggerListener, PLAYER_GROUP, FX_GROUP,
              drop as _dropFn, unsolo as _unsoloFn, soloRnd as _soloRndFn, panic as _panicFn, busStats as _busStats, playSynthNote, REST, setRerollHandler, setGate } from './js/engine/player.js';
     import * as gate from './js/engine/gate.js';
@@ -1973,7 +1973,29 @@
             midi:   (cc, lo = 0, hi = 1, curve = 'lin', device = null) => { _ensureMidi(); return makeMidi(cc, lo, hi, curve, device); },
             // midimap() — what is bound to what, and on which box.
             /**
-             * perf() — did the picture cost the audio anything?
+             * lookahead(ms) \u2014 how much main-thread stall the audio can absorb.
+             *
+             * Raising it is a TRADE, not an upgrade: notes are handed over earlier, so
+             * knob moves (midi/mlearn), aud() following and .stop() all lag by the same
+             * amount. TimeVars are fine \u2014 they are sampled at the note\u2019s own beat.
+             * 120ms is the balance; go up only if perf() says stalls are costing you.
+             */
+            lookahead: (ms) => {
+                if (ms == null) {
+                    log(`lookahead ${Math.round(LOOKAHEAD_S * 1000)}ms \u2014 stalls shorter than this cost nothing.`, 'info');
+                    log('  raising it absorbs longer stalls, and delays knobs, aud() and stop() by the same.', 'info');
+                    return Math.round(LOOKAHEAD_S * 1000);
+                }
+                const got = setLookahead(Number(ms) / 1000);
+                const msg = `lookahead \u2192 ${Math.round(got * 1000)}ms`;
+                if (Math.abs(got * 1000 - Number(ms)) > 0.5)
+                    log(`${msg}  (asked for ${Math.round(Number(ms))}; the range is 20\u2013450ms)`, 'warn');
+                else log(msg, 'ok');
+                if (got > 0.2) log('  knobs, aud() and stop() now lag by that much \u2014 that is the trade.', 'warn');
+                return Math.round(got * 1000);
+            },
+            /**
+             * perf() \u2014 did the picture cost the audio anything?
              *
              * The engine already reports on itself (audioHealthPct and friends, and
              * ?diag logs them). What it cannot report is the CLOCK, which is
@@ -1989,7 +2011,7 @@
                     log('perf: counters reset \u2014 run the passage, then perf()', 'ok');
                     return null;
                 }
-                const LOOK = 120;                       // ms of slack, = LOOKAHEAD_S
+                const LOOK = Math.round(LOOKAHEAD_S * 1000);   // the live value, not a copy
                 const c = clock.lateStats();
                 const lt = longTasks();
                 const st = visualStats();
@@ -5038,7 +5060,7 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     startLongTasks();
     // 120ms is the lookahead: past that, notes miss their timetag. Rate-limited to
     // one line every few seconds inside perfstats — you are playing, not reading.
-    setStallWarn(120, (label, ms) => {
+    setStallWarn(() => LOOKAHEAD_S * 1000, (label, ms) => {
         log(`\u26a0 ${label} blocked the thread ${Math.round(ms)}ms \u2014 notes were late. perf() for the picture.`, 'warn');
     });
     // Close the loop: the governor reads the clock and turns the picture down when

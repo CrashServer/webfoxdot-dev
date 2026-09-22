@@ -164,6 +164,11 @@ export function resetCauses() { _causes.clear(); _spans.length = 0; }
  */
 export function setStallWarn(stallMs, fn) { _stallMs = stallMs; _onStall = fn; }
 
+/** The threshold, resolved — it may be a live getter, since lookahead() can move it. */
+function _stallThreshold() {
+    return typeof _stallMs === 'function' ? (Number(_stallMs()) || Infinity) : _stallMs;
+}
+
 // ── Long tasks ───────────────────────────────────────────────────────────────
 // A "long task" is the browser's own name for >50ms of uninterrupted main-thread
 // work. It is the direct cause of a late tick, and unlike the tick histogram it says
@@ -194,7 +199,7 @@ export function startLongTasks() {
                 _causes.set(label, c);
                 // Tell the performer once every few seconds at most: this fires while
                 // they are playing, and a wall of warnings is its own kind of stall.
-                if (e.duration >= _stallMs && _onStall && e.startTime - _lastWarn > 4000) {
+                if (e.duration >= _stallThreshold() && _onStall && e.startTime - _lastWarn > 4000) {
                     _lastWarn = e.startTime;
                     try { _onStall(label, e.duration); } catch (_) {}
                 }

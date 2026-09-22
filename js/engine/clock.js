@@ -18,7 +18,39 @@ import { Lateness } from './perfstats.js';
 
 // How far ahead audio events are dispatched. Must stay below SuperSonic's
 // bypassLookaheadS (0.5s) so bundles route straight to scsynth's scheduler.
-export const LOOKAHEAD_S = 0.12;
+// `let`, not `const`, and deliberately: an ES module export is a LIVE binding, so
+// changing it here changes it for player.js too without threading a setter through
+// ten call sites.
+export let LOOKAHEAD_S = 0.12;
+
+/**
+ * Trade responsiveness for stall immunity, at runtime.
+ *
+ * Bigger is NOT simply better, which is the thing worth knowing before reaching for
+ * it. The lookahead is how early a note is handed to scsynth with its timetag, so it
+ * is also the age of everything sampled at that moment:
+ *
+ *   TimeVars   unaffected — resolveArgsAt() already samples them at the note's OWN
+ *              beat rather than at "now", so linvar and friends stay correct.
+ *   midi()/aud()  read LIVE at dispatch. At 120ms a knob move is imperceptible; at
+ *              500ms it is a beat behind at 120bpm, and aud() follows sound from
+ *              before the note it is shaping.
+ *   .stop()    a note already sent still lands. Today that window is 120ms and
+ *              nobody notices; make it 500ms and stopping feels broken.
+ *
+ * So the ceiling here is 0.45s: past the transport's own 0.5s bypass window, bundles
+ * would be held by the prescheduler worker instead of going straight to scsynth's
+ * scheduler, which is where cancellation would become both possible and necessary —
+ * and none of that is wired.
+ *
+ * @param {number} sec  seconds; 0.02 to 0.45
+ * @returns {number} what it actually became
+ */
+export function setLookahead(sec) {
+    const v = Number(sec);
+    if (isFinite(v)) LOOKAHEAD_S = Math.max(0.02, Math.min(0.45, v));
+    return LOOKAHEAD_S;
+}
 
 export class Clock {
     constructor() {
