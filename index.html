@@ -312,6 +312,7 @@
     import { enableMidi, makeMidi, onMidiNote, midiControl, clearMidiControl, onMidiLearn, midiBindings } from './js/midi/midi.js';
     import { makeAud, AUD_BANDS } from './js/visuals/audiofollow.js';
     import { visualStats, setVisualFps, visualFps, setVisualBudget, visualBudget } from './js/visuals/render/vperf.js';
+    import { startLongTasks, longTasks, resetLongTasks } from './js/engine/perfstats.js';
     import { setWorkshopRes, workshopRes } from './js/visuals/render/wsres.js';
     import { enableMidiOut, makeMidiOut, ccMessage, programMessages, nrpnMessages, sendRaw } from './js/midi/midiout.js';
     import { armMidiCapture, saveMidiCapture, midiCaptureArmed, setDrumNote } from './js/midi/midifile.js';
@@ -1969,6 +1970,64 @@
             // nanoKONTROL2's faders are CC 0..7 and a keyboard's volume is CC 7.
             midi:   (cc, lo = 0, hi = 1, curve = 'lin', device = null) => { _ensureMidi(); return makeMidi(cc, lo, hi, curve, device); },
             // midimap() — what is bound to what, and on which box.
+            /**
+             * perf() — did the picture cost the audio anything?
+             *
+             * The engine already reports on itself (audioHealthPct and friends, and
+             * ?diag logs them). What it cannot report is the CLOCK, which is
+             * main-thread JS: notes go out LOOKAHEAD_S early with a timetag, so a
+             * stall shorter than that costs nothing and a longer one makes notes
+             * late. So this pairs the two halves and says plainly which, if either,
+             * actually lost. perf("reset") zeroes the counters to measure one
+             * passage — a drop, a section, one heavy layer.
+             */
+            perf: (arg) => {
+                if (String(arg || '').toLowerCase() === 'reset') {
+                    clock.resetLateStats(); resetLongTasks();
+                    log('perf: counters reset \u2014 run the passage, then perf()', 'ok');
+                    return null;
+                }
+                const LOOK = 120;                       // ms of slack, = LOOKAHEAD_S
+                const c = clock.lateStats();
+                const lt = longTasks();
+                const st = visualStats();
+                let m = {}; try { m = _scRef?.getMetrics?.() || {}; } catch (_) {}
+                const n = (x, d = 0) => (typeof x === 'number' && isFinite(x) ? x.toFixed(d) : '\u2014');
+
+                log(`perf \u00b7 ${n(c.windowS, 0)}s window \u00b7 ${c.n} ticks`, 'info');
+                // The clock: the main thread's own health, at ~100 samples a second.
+                const lost = c.overLookahead;
+                log(`  clock    p95 ${n(c.p95)}ms \u00b7 p99 ${n(c.p99)}ms \u00b7 worst ${n(c.max)}ms`
+                    + `   (slack is ${LOOK}ms)`, lost ? 'warn' : 'info');
+                if (c.histogram) log(`           ${c.histogram}`, 'info');
+                log(`  over ${LOOK}ms  ${lost}${lost ? '  \u2190 notes were late' : '  \u2014 nothing was late'}`,
+                    lost ? 'error' : 'ok');
+                // Long tasks: the cause, when there is one.
+                if (lt.supported) {
+                    log(`  longtask ${lt.n} over 50ms \u00b7 worst ${n(lt.max)}ms`
+                        + `${lt.n ? ` \u00b7 ${n(lt.total / lt.windowS, 1)}ms/s of the thread` : ''}`,
+                        lt.max > LOOK ? 'warn' : 'info');
+                } else log('  longtask not supported in this browser', 'info');
+                // The picture, which is what you would turn down.
+                log(`  visuals  ${n(st.fps)}fps \u00b7 ${n(st.ms, 1)}ms/frame \u00b7 budget ${visualBudget()}ms`
+                    + ` \u00b7 fps cap ${visualFps() || 'none'}`, 'info');
+                // The engine, which is on its own thread and usually fine.
+                if (m.audioHealthPct != null) {
+                    const bad = (m.scsynthSchedulerLates || 0) + (m.preschedulerLates || 0)
+                              + (m.scsynthMessagesDropped || 0);
+                    log(`  engine   health ${n(m.audioHealthPct)}% \u00b7 sched late ${m.scsynthSchedulerLates || 0}`
+                        + ` \u00b7 pre late ${m.preschedulerLates || 0} \u00b7 dropped ${m.scsynthMessagesDropped || 0}`,
+                        bad ? 'warn' : 'info');
+                } else log('  engine   not booted', 'info');
+
+                if (!lost && !(m.scsynthSchedulerLates || m.preschedulerLates)) {
+                    log('  \u2192 audio lost nothing. Any slowness you feel is the picture or the UI.', 'ok');
+                } else if (lost) {
+                    log(`  \u2192 the main thread ate the slack ${lost} time${lost === 1 ? '' : 's'}.`
+                        + ' vfps(30) or vbudget(2) first; heavy layers next.', 'warn');
+                }
+                return { clock: c, longTasks: lt, visuals: st, engine: m };
+            },
             midimap: () => {
                 const rows = midiBindings();
                 if (!rows.length) { log('midimap: nothing bound yet — p1.amp = mlearn(0, 1), then move a control', 'info'); return []; }
@@ -4943,6 +5002,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     document.addEventListener('pointerdown', () => {
         try { if (_scRef?.audioContext?.state === 'suspended') _scRef.resume(); } catch (_) {}
     }, { capture: true });
+
+    // Passive, and free until something blocks the thread for 50ms.
+    startLongTasks();
 
     log('crashDot loaded. Click "boot" to start audio.', 'info');
   </script>

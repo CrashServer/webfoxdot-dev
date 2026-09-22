@@ -14,6 +14,7 @@
 // so beat→timetag conversion is exact, with no audio-clock drift.
 
 import { osc } from '../../lib/dist/supersonic.js';
+import { Lateness } from './perfstats.js';
 
 // How far ahead audio events are dispatched. Must stay below SuperSonic's
 // bypassLookaheadS (0.5s) so bundles route straight to scsynth's scheduler.
@@ -31,11 +32,31 @@ export class Clock {
         this._players = new Map();
         this._running = false;
         this._onBpm   = null; // callback when bpm changes
+        // How late each 10ms tick actually fired. This is the number that decides
+        // whether a main-thread stall cost anything: a tick later than LOOKAHEAD_S
+        // means notes missed their timetag. See perfstats.js.
+        this._late    = new Lateness();
+        this._due     = null;   // when the pending tick was supposed to fire
     }
+
+    /** Tick-lateness stats, for perf(). Reset to measure one passage. */
+    lateStats() {
+        const l = this._late;
+        return {
+            n: l.n, max: l.max, mean: l.mean, p95: l.pct(0.95), p99: l.pct(0.99),
+            overLookahead: l.over(LOOKAHEAD_S * 1000),
+            over40: l.over(40),
+            histogram: l.histogram(),
+            windowS: l.windowS,
+        };
+    }
+    resetLateStats() { this._late.reset(); }
 
     start() {
         this._running = true;
         this._lastMs  = performance.now();
+        this._due     = null;          // the first tick is not late, it is the first
+        this._late.reset();
         this._tick();
     }
 
@@ -67,6 +88,10 @@ export class Clock {
     _tick() {
         if (!this._running) return;
         const now = performance.now();
+        // Measured against when this tick was DUE, not against the last tick: the
+        // difference is the whole point, since a run of on-time ticks after a stall
+        // would otherwise hide it.
+        if (this._due !== null) this._late.add(now - this._due);
         let dt    = (now - this._lastMs) / 1000;
         this._lastMs = now;
         // Clamp dt: a backgrounded tab or a main-thread stall makes this 10ms tick
@@ -108,6 +133,7 @@ export class Clock {
                 setTimeout(evt.fn, delayMs);
             }
         }
+        this._due = performance.now() + 10;
         setTimeout(() => this._tick(), 10);
     }
 
