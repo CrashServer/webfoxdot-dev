@@ -35,6 +35,16 @@ const SEED_MAYBE = ['holographicwave', 'kalitunnel', 'slimemold', 'starnest', 'f
 let PROMOTE_MS = 24;
 export function setPromoteMs(ms) { const v = Number(ms); if (isFinite(v) && v > 0) PROMOTE_MS = v; return PROMOTE_MS; }
 
+// A worker cannot be handed a <video>, a MediaStream or the live-code feed, so a
+// layer that reads one must never be promoted into it — it would go quietly black,
+// which is the worst way for this to fail. These are the layers that read extra.cam,
+// extra.media or extra.live.
+const NEEDS_MAIN_THREAD = new Set([
+    'webcam', 'media', 'pong', 'asciiradar', 'systemgauge', 'systemboot',
+    'evalseismograph', 'filmleader', 'livecode', 'codefull', 'flickerfilm',
+    'codecomic', 'codeconspiracy',
+]);
+
 const promoted = new Set();
 
 /**
@@ -49,6 +59,7 @@ const promoted = new Set();
  */
 export function promote(name, costMs) {
     if (broken || !name || !(costMs > PROMOTE_MS)) return false;
+    if (NEEDS_MAIN_THREAD.has(name)) return false;
     if (OFFLOAD.has(name) || promoted.has(name)) return false;
     promoted.add(name);
     OFFLOAD.add(name);
@@ -59,6 +70,7 @@ export function promote(name, costMs) {
 /** Was this one measured into the worker, or seeded there? For perf(). */
 export function wasPromoted(name) { return promoted.has(name); }
 export function offloadSeeds() { return SEED_MAYBE.slice(); }
+export function needsMainThread(name) { return NEEDS_MAIN_THREAD.has(name); }
 
 let worker = null;
 let started = false;      // tried to start, successfully or not
@@ -105,7 +117,7 @@ function start() {
 
 /** Should this layer draw in the worker? */
 export function isOffloaded(name) {
-    if (broken || !OFFLOAD.has(name)) return false;
+    if (broken || !OFFLOAD.has(name) || NEEDS_MAIN_THREAD.has(name)) return false;
     const s = slots.get(name);
     return !(s && s.give);
 }

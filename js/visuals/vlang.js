@@ -18,6 +18,7 @@ import { patGet } from '../patterns/sequences.js';
 import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES, PALETTE_NAMES } from './vdata.js';
 import { defaults as wsDefaults } from './workshop/catalog.js';
 import { setWorkshopRes, workshopRes } from './render/wsres.js';
+import { startCamera, stopCamera, cameraState, cameraList } from './camera.js';
 import { setVisualFps, visualFps, setVisualBudget, visualBudget, visualStats } from './render/vperf.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
@@ -218,6 +219,30 @@ export function visualBuilders() {
              + `wres ${workshopRes() || 'full'} \u00b7 budget ${visualBudget()}ms`
              + (st.fps ? ` \u2014 drawing ${st.fps.toFixed(0)}fps at ${st.ms.toFixed(1)}ms/frame` : '');
     };
+    // ── The camera ────────────────────────────────────────────────────────
+    // webcam() asks for it, webcam(0) gives it back, webcam() again says where it
+    // stands. The layers that want it (webcam, media) have read extra.cam since they
+    // were written; nothing ever filled it, so they drew nothing and no permission was
+    // ever requested. Running the line is the gesture that asks.
+    out.webcam = async (on) => {
+        const say = (m, k) => { if (_guard.log) _guard.log(m, k || 'info'); };
+        if (on === 0 || on === false) { stopCamera(); say('webcam off \u2014 the light goes out', 'ok'); return 'off'; }
+        const before = cameraState();
+        if (on == null && before.live) {
+            say(`webcam on \u00b7 ${before.detail}`, 'info');
+            const list = await cameraList();
+            if (list.length > 1) say(`  ${list.length} cameras: ${list.map(c => c.label).join(' \u00b7 ')}`, 'info');
+            return 'on';
+        }
+        say('webcam: asking for the camera\u2026', 'info');
+        const ok = await startCamera(typeof on === 'object' && on ? on : {});
+        const st = cameraState();
+        if (ok) { say(`webcam on \u00b7 ${st.detail} \u2014 v1 >> webcam() to see it`, 'ok'); return 'on'; }
+        say(`webcam ${st.state}: ${st.detail}`, 'warn');
+        if (st.state === 'denied') say('  the browser remembers a refusal \u2014 clear it in the site settings (the icon in the address bar)', 'info');
+        return st.state;
+    };
+
     // ── Audio first: the loop closed ──────────────────────────────────────
     //
     // vperf() is the manual version of this: three points on one axis, chosen by
@@ -334,6 +359,9 @@ export function visualBuilders() {
 
     return out;
 }
+
+// Layers that cannot draw without the camera. They ask for it themselves.
+const CAM_LAYERS = new Set(['webcam', 'media']);
 
 // ── The audio-first governor ─────────────────────────────────────────────────
 // State for out.audiofirst(). Kept at module scope so a re-eval of the language
@@ -455,6 +483,15 @@ class VisualPlayer {
             mixer = { owner: this.name, value: spec.value, dur: Number(spec.dur) || 1, blend: spec.blend };
             layers.delete(this.name);                   // a name is a mixer OR a layer, not both
             return this;
+        }
+        // A layer that needs the camera asks for it the moment it is used: running the
+        // line IS the gesture, and being told to type a second command to make the
+        // first one do anything is the sort of thing you discover on stage.
+        if (_spec.scene && CAM_LAYERS.has(_spec.scene) && !cameraState().live) {
+            startCamera().then((ok) => {
+                if (_guard.log) _guard.log(ok ? `webcam on \u00b7 ${cameraState().detail}`
+                    : `webcam ${cameraState().state}: ${cameraState().detail}`, ok ? 'ok' : 'warn');
+            });
         }
         const s = _spec;
         const cur = (!reset && layers.get(this.name)) || null;

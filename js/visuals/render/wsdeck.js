@@ -28,6 +28,7 @@ import { capSize } from './wsres.js';
 import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
 import { spanStart, spanEnd } from '../../engine/perfstats.js';
 import { isOffloaded, bitmapFor, releaseOffload, promote } from './wsoffload.js';
+import { cameraEl } from '../camera.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
@@ -215,7 +216,11 @@ export function createWorkshopDeck() {
         // `live` here is the live-CODING feed the code layers render, not to be confused
         // with the set of live LAYERS above — which is exactly the collision that made
         // this module fail to parse the first time.
-        const extra = { spectrum: aud && aud.spectrum, message: null, cam: null, media: null, palette: null, live: liveCode };
+        // cam was null here from the day the webcam layer was written, so it drew
+        // nothing and nothing ever asked for permission. camera.js owns the one shared
+        // stream; null until somebody turns it on, which is what the layer expects.
+        const extra = { spectrum: aud && aud.spectrum, message: null,
+                        cam: cameraEl(), media: null, palette: null, live: liveCode };
 
         const used = [false, false];
         for (const l of layers) {
