@@ -10,13 +10,55 @@
 // a browser without module workers — `bitmapFor` returns null and the deck draws it
 // on the main thread exactly as it always did.
 
-// Measured with tools/bench-layers.mjs: these draw for longer than the frame budget's
-// throttle can hide (its cap is every 6th frame, on purpose), so they cost main-thread
-// time no matter how the budget is set. starnest and fractalkaleidoscope draw into an
-// internal buffer, which they used to make with document.createElement — they take one
-// from makeBuffer() now, so they can come here too.
-export const OFFLOAD = new Set(['audiotterrain', 'holographicwave', 'kalitunnel', 'slimemold',
-                                'starnest', 'fractalkaleidoscope']);
+// Which layers draw in the worker.
+//
+// This started as a list measured with tools/bench-layers.mjs, and a list is the wrong
+// mechanism: those numbers came off headless Chromium, which turned out to be about
+// five times slower at this than a real machine — audiotterrain drew in 240ms there and
+// 51ms on the first real browser it was tried on. A layer that has to be offloaded on
+// one machine does not need it on another, and hardware moves.
+//
+// So the list is only a SEED: the layers heavy enough to be worth offloading before
+// they have had a chance to prove it, sparing the first few frames. Anything else
+// earns its place by being measured here — see promote(), which the deck calls with
+// each layer's real cost on this machine.
+export const OFFLOAD = new Set(['audiotterrain']);
+
+// Seeded but unproven: heavy in the headless bench, plausibly fine on a fast machine.
+// They are promoted by measurement like anything else rather than assumed.
+const SEED_MAYBE = ['holographicwave', 'kalitunnel', 'slimemold', 'starnest', 'fractalkaleidoscope'];
+
+// Past this, the frame budget cannot hide a layer: its throttle caps at every 6th
+// frame on purpose, so a layer costing more than budget x cap still lands on the main
+// thread for its full draw every sixth frame. Below it, a worker round trip and a
+// frame of latency buy nothing worth having.
+let PROMOTE_MS = 24;
+export function setPromoteMs(ms) { const v = Number(ms); if (isFinite(v) && v > 0) PROMOTE_MS = v; return PROMOTE_MS; }
+
+const promoted = new Set();
+
+/**
+ * The deck reports what a layer actually cost on this machine; if that is more than
+ * the budget can hide, it draws in the worker from now on.
+ *
+ * One way only. A layer that is promoted stops being measured on the main thread, so
+ * demoting it would need the cost it no longer has — and a layer that flipped back
+ * and forth would be worse than either.
+ *
+ * @returns {boolean} true the moment it is promoted, so the caller can say so
+ */
+export function promote(name, costMs) {
+    if (broken || !name || !(costMs > PROMOTE_MS)) return false;
+    if (OFFLOAD.has(name) || promoted.has(name)) return false;
+    promoted.add(name);
+    OFFLOAD.add(name);
+    if (_log) _log(`visuals: "${name}" costs ${costMs.toFixed(0)}ms a draw \u2014 moving it to the worker`, 'info');
+    return true;
+}
+
+/** Was this one measured into the worker, or seeded there? For perf(). */
+export function wasPromoted(name) { return promoted.has(name); }
+export function offloadSeeds() { return SEED_MAYBE.slice(); }
 
 let worker = null;
 let started = false;      // tried to start, successfully or not
@@ -110,7 +152,8 @@ export function bitmapFor(name, w, h, params, t, extra) {
 /** What the worker is carrying, for perf(). */
 export function offloadStats() {
     return [...slots.values()].filter(s => s.opened || s.bmp)
-        .map(s => ({ name: s.name, ms: s.ms == null ? null : +s.ms.toFixed(1), live: !s.give }));
+        .map(s => ({ name: s.name, ms: s.ms == null ? null : +s.ms.toFixed(1),
+                     live: !s.give, promoted: promoted.has(s.name) }));
 }
 
 /** Drop a layer that is no longer on screen, so its canvas goes with it. */

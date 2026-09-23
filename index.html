@@ -2062,7 +2062,8 @@
                 try {
                     const off = offloadStats();
                     if (off.length) log(`  offloaded ${off.map(o =>
-                        `${o.name}${o.ms == null ? '' : ' ' + n(o.ms, 0) + 'ms'} in the worker`).join(' \u00b7 ')}`, 'info');
+                        `${o.name}${o.ms == null ? '' : ' ' + n(o.ms, 0) + 'ms'} in the worker`
+                        + `${o.promoted ? ' (measured here)' : ''}`).join(' \u00b7 ')}`, 'info');
                 } catch (_) {}
 
                 const g = guardState();

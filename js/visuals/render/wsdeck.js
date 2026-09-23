@@ -27,7 +27,7 @@ import { defaults, fxDefaults, fxPrimary } from '../workshop/catalog.js';
 import { capSize } from './wsres.js';
 import { LAYER_BLENDS, LAYER_BLEND_OPS, layerBlendIndex } from '../vdata.js';
 import { spanStart, spanEnd } from '../../engine/perfstats.js';
-import { isOffloaded, bitmapFor, releaseOffload } from './wsoffload.js';
+import { isOffloaded, bitmapFor, releaseOffload, promote } from './wsoffload.js';
 
 const num = (x, d) => { const n = Number(x); return (x == null || Number.isNaN(n)) ? d : n; };
 
@@ -279,6 +279,9 @@ export function createWorkshopDeck() {
                 // relaxes over ~20 draws; a layer that spikes REPEATEDLY never gets its
                 // slot back, which is the right answer for one.
                 s.worst = s.worst == null ? ms : Math.max(ms, s.worst * 0.92);
+                // Report what it really cost HERE. Past what the budget can hide, it
+                // moves to the worker and this stops being called for it.
+                promote(l.scene, s.cost);
                 const basis = Math.max(s.cost, s.worst * 0.6);
                 const want = Math.max(1, Math.min(MAX_SKIP, Math.ceil(basis / BUDGET_MS())));
                 if (want !== s.every) {
