@@ -12,9 +12,11 @@
 
 // Measured with tools/bench-layers.mjs: these draw for longer than the frame budget's
 // throttle can hide (its cap is every 6th frame, on purpose), so they cost main-thread
-// time no matter how the budget is set. starnest and fractalkaleidoscope belong here
-// too on cost, but they reach for `document` and a worker has none.
-export const OFFLOAD = new Set(['audiotterrain', 'holographicwave', 'kalitunnel', 'slimemold']);
+// time no matter how the budget is set. starnest and fractalkaleidoscope draw into an
+// internal buffer, which they used to make with document.createElement — they take one
+// from makeBuffer() now, so they can come here too.
+export const OFFLOAD = new Set(['audiotterrain', 'holographicwave', 'kalitunnel', 'slimemold',
+                                'starnest', 'fractalkaleidoscope']);
 
 let worker = null;
 let started = false;      // tried to start, successfully or not

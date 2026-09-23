@@ -1,3 +1,4 @@
+import { makeBuffer } from '../buffer.js';
 // ── Fractal Kaleidoscope ──────────────────────────────────────────────────────
 // Adapted from CRIC/512_VISUALISATION FractalKaleidoscopeScene.
 // Polar-coordinate folded fractal rendered via ImageData pixel-by-pixel.
@@ -101,8 +102,7 @@ export function drawFractalKaleidoscope(ctx, w, h, p, t, extra) {
     }
 
     if (!st.buf) {
-        st.buf = document.createElement('canvas');
-        st.buf.width = IW; st.buf.height = IH;
+        st.buf = makeBuffer(IW, IH);
     }
     st.buf.getContext('2d').putImageData(img, 0, 0);
     ctx.imageSmoothingEnabled = true;

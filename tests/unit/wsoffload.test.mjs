@@ -18,7 +18,7 @@ export default function ({ test, eq, ok }) {
         // it costs less than the round trip would.
         ok(OFFLOAD.has('audiotterrain'), 'the 240ms one must be in the list');
         ok(!OFFLOAD.has('plasma'), 'a 0.02ms layer must not pay for a worker');
-        ok(!OFFLOAD.has('starnest'), 'it needs document, which a worker has not got');
+        ok(OFFLOAD.has('starnest'), 'it takes its buffer from makeBuffer now, so it can go');
     });
 
     test('wsoffload: a layer not on the list is never offloaded', () => {

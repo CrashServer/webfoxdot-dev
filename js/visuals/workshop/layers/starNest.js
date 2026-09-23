@@ -1,3 +1,4 @@
+import { makeBuffer } from '../buffer.js';
 // ── Star Nest ─────────────────────────────────────────────────────────────────
 // Volumetric star-field tunnel — ported from the famous "Star Nest" GLSL by
 // Kali (Pablo Roman Andrioli).  Fold-space iteration produces infinite depth.
@@ -43,8 +44,7 @@ export function drawStarNest(ctx, w, h, p, t, extra) {
 
     let st = _st.get(ctx);
     if (!st || st.SW !== SW || st.SH !== SH) {
-        const buf = document.createElement("canvas");
-        buf.width = SW; buf.height = SH;
+        const buf = makeBuffer(SW, SH);
         st = { buf, bctx: buf.getContext("2d", { willReadFrequently: false }), SW, SH };
         _st.set(ctx, st);
     }
