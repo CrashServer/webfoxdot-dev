@@ -51,9 +51,15 @@ export async function startCamera({ width = 1280, height = 720, deviceId = null 
         const name = e?.name || '';
         state = name === 'NotAllowedError' || name === 'SecurityError' ? 'denied'
               : name === 'NotFoundError' || name === 'OverconstrainedError' ? 'missing'
+              // The camera exists and you may have it, but something else has it open.
+              // Common enough to deserve its own answer: another tab, a video call, or
+              // a previous page of this app that never released the stream.
+              : name === 'NotReadableError' || name === 'AbortError' ? 'busy'
               : 'unsupported';
         detail = name === 'NotAllowedError' ? 'permission was refused'
                : name === 'NotFoundError' ? 'no camera on this machine'
+               : name === 'NotReadableError' || name === 'AbortError'
+                   ? 'another program or tab has the camera open'
                : (e?.message || String(e));
         stream = null;
         return false;
