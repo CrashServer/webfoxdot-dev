@@ -18,7 +18,7 @@ import { patGet } from '../patterns/sequences.js';
 import { SCENES, blendIndex, WS_SET, WS_SCENES, WS_FX_NAMES, PALETTE_NAMES } from './vdata.js';
 import { defaults as wsDefaults } from './workshop/catalog.js';
 import { setWorkshopRes, workshopRes } from './render/wsres.js';
-import { startCamera, stopCamera, cameraState, cameraList } from './camera.js';
+import { startCamera, stopCamera, cameraState, cameraList, switchCamera } from './camera.js';
 import { setVisualFps, visualFps, setVisualBudget, visualBudget, visualStats } from './render/vperf.js';
 import { workshopSend } from '../net/workshop-bridge.js';
 
@@ -229,24 +229,48 @@ export function visualBuilders() {
     // the scene list. Taking it for the device command overwrote the builder, so
     // `v1 >> webcam()` asked for the camera and created no layer — the camera came on
     // and the screen stayed black, which is exactly how it was reported.
-    out.camera = async (on) => {
+    out.camera = async (which) => {
         const say = (m, k) => { if (_guard.log) _guard.log(m, k || 'info'); };
-        if (on === 0 || on === false) { stopCamera(); say('camera off \u2014 the light goes out', 'ok'); return 'off'; }
-        const before = cameraState();
-        if (on == null && before.live) {
-            say(`camera on \u00b7 ${before.detail}`, 'info');
+        // off is `false` or "off", never 0 \u2014 0 is the FIRST camera, the way it is in
+        // theme(0) and panel(0). A toggle and a selector on one argument cannot both
+        // own zero, and picking a camera is the thing you will do more often.
+        if (which === false || String(which).toLowerCase() === 'off') {
+            stopCamera(); say('camera off \u2014 the light goes out', 'ok'); return 'off';
+        }
+
+        const listed = async (mark) => {
             const list = await cameraList();
-            if (list.length > 1) say(`  ${list.length} cameras: ${list.map(c => c.label).join(' \u00b7 ')}`, 'info');
+            if (list.length > 1) {
+                say(`  ${list.length} cameras:`, 'info');
+                list.forEach((c, i) => say(`    ${i}  ${c.label}${mark && c.id === mark ? '   \u2190' : ''}`, 'info'));
+                say('    camera(1) or camera("logi") to switch', 'info');
+            }
+            return list;
+        };
+
+        // A bare camera() reports; anything else picks.
+        if (which == null) {
+            const st = cameraState();
+            if (st.live) { say(`camera on \u00b7 ${st.detail}`, 'info'); await listed(st.deviceId); return 'on'; }
+            say('camera: asking\u2026', 'info');
+            const ok = await startCamera();
+            const now = cameraState();
+            if (!ok) {
+                say(`camera ${now.state}: ${now.detail}`, 'warn');
+                if (now.state === 'denied') say('  the browser remembers a refusal \u2014 clear it in the site settings (the icon in the address bar)', 'info');
+                if (now.state === 'busy')   say('  close the other tab or app using it, then camera() again', 'info');
+                return now.state;
+            }
+            say(`camera on \u00b7 ${now.detail} \u2014 v1 >> webcam() to see it`, 'ok');
+            await listed(now.deviceId);
             return 'on';
         }
-        say('camera: asking\u2026', 'info');
-        const ok = await startCamera(typeof on === 'object' && on ? on : {});
-        const st = cameraState();
-        if (ok) { say(`camera on \u00b7 ${st.detail} \u2014 v1 >> webcam() to see it`, 'ok'); return 'on'; }
-        say(`camera ${st.state}: ${st.detail}`, 'warn');
-        if (st.state === 'denied') say('  the browser remembers a refusal \u2014 clear it in the site settings (the icon in the address bar)', 'info');
-        if (st.state === 'busy') say('  close the other tab or app using it, then webcam() again', 'info');
-        return st.state;
+
+        const r = await switchCamera(typeof which === 'object' ? null : which);
+        const now = cameraState();
+        if (!r.ok) { say(`camera: ${r.why}`, 'warn'); return now.state; }
+        say(`camera \u2192 ${r.label || now.detail}  (${r.why}) \u00b7 ${now.detail}`, 'ok');
+        return 'on';
     };
 
     // ── Audio first: the loop closed ──────────────────────────────────────

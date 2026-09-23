@@ -15,10 +15,42 @@
 
 let el = null;
 let stream = null;
-let state = 'off';        // off · asking · on · denied · missing · insecure · unsupported
+let state = 'off';        // off · asking · on · denied · missing · busy · insecure · unsupported
 let detail = '';
+let current = null;       // the deviceId in use, once one has been chosen
 
-export function cameraState() { return { state, detail, live: state === 'on' }; }
+export function cameraState() { return { state, detail, live: state === 'on', deviceId: current }; }
+
+/**
+ * Which camera does `which` mean, given the list?
+ *
+ * Pure, so the rules are testable without a camera:
+ *   a number   an index into the list, 0-based like theme(n) and panel(n) — and it
+ *              WRAPS, so camera(5) on a two-camera machine is camera(1), the same way
+ *              every other index in this language behaves
+ *   a string   a fragment of the label, matched case-insensitively the way midiin()
+ *              matches a port: "logi" finds "Logitech StreamCam"
+ *   nothing    whatever is already in use, else the first
+ *
+ * @returns {{device: object|null, why: string}}
+ */
+export function resolveCamera(which, list, currentId = null) {
+    if (!list || !list.length) return { device: null, why: 'no cameras' };
+    if (which == null || which === true) {
+        const cur = currentId && list.find(d => d.id === currentId);
+        return { device: cur || list[0], why: cur ? 'already in use' : 'the first one' };
+    }
+    if (typeof which === 'number' && isFinite(which)) {
+        const i = ((Math.round(which) % list.length) + list.length) % list.length;
+        return { device: list[i], why: `camera ${i}` };
+    }
+    const q = String(which).trim().toLowerCase();
+    if (!q) return { device: list[0], why: 'the first one' };
+    const hit = list.find(d => (d.label || '').toLowerCase().includes(q))
+             || list.find(d => (d.id || '').toLowerCase() === q);
+    return hit ? { device: hit, why: `matched "${which}"` }
+               : { device: null, why: `no camera matching "${which}"` };
+}
 
 /** The <video> for the layers, or null when there is nothing to show. */
 export function cameraEl() { return state === 'on' ? el : null; }
@@ -47,6 +79,7 @@ export async function startCamera({ width = 1280, height = 720, deviceId = null 
         const video = deviceId ? { deviceId: { exact: deviceId } }
                                : { width: { ideal: width }, height: { ideal: height } };
         stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
+        current = deviceId || (stream.getVideoTracks()[0]?.getSettings?.().deviceId ?? null);
     } catch (e) {
         const name = e?.name || '';
         state = name === 'NotAllowedError' || name === 'SecurityError' ? 'denied'
@@ -92,7 +125,7 @@ export function stopCamera() {
     if (stream) { for (const t of stream.getTracks()) { try { t.stop(); } catch (_) {} } }
     stream = null;
     if (el) { try { el.srcObject = null; } catch (_) {} }
-    state = 'off'; detail = '';
+    state = 'off'; detail = ''; current = null;
 }
 
 /** The cameras this machine has, once permission exists to know their names. */
@@ -102,4 +135,33 @@ export async function cameraList() {
         return all.filter(d => d.kind === 'videoinput')
                   .map((d, i) => ({ id: d.deviceId, label: d.label || `camera ${i + 1}` }));
     } catch (_) { return []; }
+}
+
+/**
+ * Switch to another camera, by index or by a fragment of its name.
+ *
+ * The old stream is stopped first, deliberately: many machines will not open two
+ * cameras at once, and a machine that would has no reason to keep one running that
+ * nothing is drawing. The shared <video> is reused, so every layer follows the switch
+ * without knowing it happened.
+ *
+ * @returns {Promise<{ok: boolean, why: string, label?: string}>}
+ */
+export async function switchCamera(which) {
+    const list = await cameraList();
+    if (!list.length) {
+        // Labels (and often the list itself) stay empty until permission exists, so a
+        // switch before the first grant has to grant first and then look again.
+        const got = await startCamera();
+        if (!got) return { ok: false, why: cameraState().detail || 'no camera' };
+        const after = await cameraList();
+        if (!after.length) return { ok: true, why: 'the only camera', label: cameraState().detail };
+        return switchCamera(which);
+    }
+    const { device, why } = resolveCamera(which, list, current);
+    if (!device) return { ok: false, why };
+    if (device.id && device.id === current && state === 'on') return { ok: true, why: 'already on it', label: device.label };
+    stopCamera();
+    const ok = await startCamera({ deviceId: device.id || null });
+    return ok ? { ok: true, why, label: device.label } : { ok: false, why: cameraState().detail };
 }
