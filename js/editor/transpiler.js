@@ -73,9 +73,16 @@ function scanToMatch(s, openIdx) {
 // Blank out string literals (returning a restore fn) so line-level regexes don't
 // rewrite tokens that sit inside a quoted string. Placeholder uses NUL so it can't
 // collide with real source or match the rest/bracket regexes.
+// Comments are masked too. applyRenames runs over a whole transpiled BLOCK, where
+// every "# …" has become "// …", and an apostrophe in a comment — "the nano's CC7",
+// "don't" — opened a "string" that ran to the next apostrophe, lines later. Every
+// var( / linvar( / sinvar( in between escaped the rename and failed at run time as
+// "sinvar is not defined", depending only on what the comments around it said.
+// Strings are matched first at any position, so a "//" inside one (a URL) stays
+// part of the string; a quote inside a comment is just text.
 function maskStrings(s) {
     const strs = [];
-    const masked = s.replace(/(["'`])(?:\\.|(?!\1)[\s\S])*?\1/g, m => `\x00${strs.push(m) - 1}\x00`);
+    const masked = s.replace(/(["'`])(?:\\.|(?!\1)[\s\S])*?\1|\/\/[^\n]*/g, m => `\x00${strs.push(m) - 1}\x00`);
     return { masked, restore: (t) => t.replace(/\x00(\d+)\x00/g, (_, i) => strs[+i]) };
 }
 
@@ -101,6 +108,7 @@ export function transpile(code) {
         let main = line, tail = '';
         const ci = findCommentChar(line);
         if (ci !== -1) { main = line.slice(0, ci); tail = '  //' + line.slice(ci + 1); }
+        main = convertFloorDiv(main);
 
         // FoxDot P object (no JS operator overloading, so rewrite the syntax):
         //   P*[a,b,c] → PRand([a,b,c])   (random pick from the list)
@@ -359,6 +367,62 @@ function splitAltItems(inner) {
     }
     if (cur.trim()) items.push(cur.trim());
     return items;
+}
+
+// Python floor division. `//` is an operator there and a COMMENT in JavaScript, so it
+// passed straight through and cut the line: x = 7 // 2 ran as x = 7, and
+// dur=8//3 left "3}))" behind a comment — a syntax error. Rewritten to
+// Math.floor(a / b). An operand is a number or dotted name, a bracketed group, or a
+// call — which is how it is written in live code. Runs before anything masks "//".
+function convertFloorDiv(s) {
+    for (let guard = 0; guard < 32; guard++) {
+        let at = -1;
+        for (let i = 0; i < s.length - 1; i++) {
+            if (QUOTE(s[i])) { i = skipString(s, i) - 1; continue; }
+            if (s[i] === '/' && s[i + 1] === '/') { at = i; break; }
+        }
+        if (at < 0) return s;
+        // left operand: back over spaces, then a bracket group (and the name that
+        // calls it) or a run of word chars and dots
+        let l = at - 1;
+        while (l >= 0 && s[l] === ' ') l--;
+        const lEnd = l + 1;
+        if (s[l] === ')' || s[l] === ']') {
+            let depth = 0;
+            for (; l >= 0; l--) {
+                if (s[l] === ')' || s[l] === ']') depth++;
+                else if (s[l] === '(' || s[l] === '[') { depth--; if (depth === 0) break; }
+            }
+            l--;
+        }
+        while (l >= 0 && /[\w.]/.test(s[l])) l--;
+        // A unary minus belongs to the operand: Python reads -7 // 2 as (-7) // 2,
+        // which is -4, not -(7 // 2). It is unary when nothing, or an operator or an
+        // opening bracket, comes before it.
+        if (s[l] === '-' || s[l] === '+') {
+            let p = l - 1;
+            while (p >= 0 && s[p] === ' ') p--;
+            if (p < 0 || /[=([,+\-*/%<>:]/.test(s[p])) l--;
+        }
+        const lStart = l + 1;
+        // right operand: over spaces, an optional sign, then word chars / a group
+        let r = at + 2;
+        while (r < s.length && s[r] === ' ') r++;
+        const rStart = r;
+        if (s[r] === '-' || s[r] === '+') r++;
+        while (r < s.length && /[\w.]/.test(s[r])) r++;
+        if (s[r] === '(' || s[r] === '[') {
+            let depth = 0;
+            for (; r < s.length; r++) {
+                if (s[r] === '(' || s[r] === '[') depth++;
+                else if (s[r] === ')' || s[r] === ']') { depth--; if (depth === 0) { r++; break; } }
+            }
+        }
+        const L = s.slice(lStart, lEnd), R = s.slice(rStart, r);
+        if (!L.trim() || !R.trim()) return s;          // not an expression we understand
+        s = s.slice(0, lStart) + `Math.floor((${L}) / (${R}))` + s.slice(r);
+    }
+    return s;
 }
 
 function findCommentChar(line) {

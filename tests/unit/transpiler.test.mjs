@@ -59,4 +59,25 @@ export default function ({ test, eq, ok }) {
         ok(js('foo(src=p1)').includes('{src: p1}'), 'another call changed meaning');
         ok(js('resample(src=p1)').includes('{src: p1}'), 'a name ending in sample matched');
     });
+    // applyRenames masks strings over the whole block, and an apostrophe in a
+    // comment opened a "string" to the next one: the lines between kept a bare
+    // sinvar( and failed with "sinvar is not defined". Found by running the MIDI docs.
+    test('transpiler: apostrophes in comments do not hide var/linvar/sinvar', () => {
+        const out = js("a = 1   # the nano's CC7\np1 >> pluck([0], amp=sinvar([0.2, 0.8], 8), dur=linvar([1, 2], 4))\nb = 2   # it's done");
+        ok(out.includes('_sinvar(') && out.includes('_linvar('), out);
+        ok(!/[^_]sinvar\(/.test(out), out);
+    });
+    test('transpiler: a // inside a string is still part of the string', () => {
+        ok(js('loadpack("https://x.org/p.json")  # a url\'s slashes').includes('"https://x.org/p.json"'));
+    });
+
+    // // is floor division in Python and a comment in JS: x = 7 // 2 ran as x = 7.
+    test('transpiler: // is floor division, with Python\'s signs', () => {
+        for (const [src, want] of [['7 // 2', 3], ['-7 // 2', -4], ['7 // -2', -4], ['3 - 7 // 2', 0], ['(1+8) // 2', 4]]) {
+            const out = js('y = ' + src).replace(/^y = /, 'return ');
+            eq(new Function(out)(), want, src + ' → ' + out);
+        }
+        ok(valid('p1 >> pluck([0, 2], dur=8//3)'));
+        ok(valid('p1 >> pluck([0], dur=1/2).every(4, "stutter", 8//4)'));
+    });
 }
