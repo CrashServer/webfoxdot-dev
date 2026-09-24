@@ -9,7 +9,13 @@ SynthDef(\fd_virus, {|out=0, note=60, amp=0.7, sus=1, pan=0, attack=0.01, releas
     speed = Array.geom(4, rate, 1.5);
     freqs = Array.geom(8, freq / 2, 1.5);
     pulse = {|rat1, rat2| LFPulse.ar(rat1, [0, 0.5, 1].choose) * LFPulse.ar(rat2) };
-    a = Lag.ar(HenonN.ar(speed.choose * (mainEnv * 10000.rand), mod1, mod2), 0.01);
+    // HenonN (the chaos UGens) is not in the WASM scsynth: the def failed to load and
+    // virus played nothing. A stepped random of the same range stands in for the
+    // Henon map: two sample-and-holds, mod1 blending the second in and mod2 setting
+    // its relative speed, so both parameters still move the sound.
+    a = LFNoise0.ar(speed.choose * (mainEnv * 10000.rand + 1)) * (1 - mod1.clip(0, 1))
+      + (LFNoise0.ar(speed.choose * (mainEnv * 10000.rand + 1) * (1 + mod2.clip(0, 4))) * mod1.clip(0, 1));
+    a = Lag.ar(a * 1.5, 0.01);
     bass = SinOsc.ar(freqs.choose * (a * 1.0.rand), 0, Lag.ar(pulse.(rate, speed.choose), 0.001));
     tone1 = SinOsc.ar((freqs.choose + Rand(0, 5)) * a, 0, 0.01 * pulse.(speed.choose, speed.choose));
     tone2 = SinOsc.ar(freqs.choose * a, 0, 0.1 * pulse.(speed.choose, rate));

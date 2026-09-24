@@ -2739,13 +2739,33 @@
             // Progress stays visible in the status pill (a live count) instead of
             // spamming the log with a ✓ line per synthdef — only failures are logged.
             let _loaded = 0, _failed = 0;
+            // loadSynthDef resolves even when scsynth REJECTS the def — a UGen the WASM
+            // build does not have (HenonN, Gendy5, WaveLoss, MiClouds…) is refused
+            // inside the engine and the def is simply not there. Boot said "142 loaded
+            // ✓" while four played nothing. scsynth does say so, on its debug channel.
+            const _missingUGens = new Set();
+            const _rejectSeq = new Set();          // the debug stream repeats lines; count each once
+            const _offDbg = sc.on('debug', (d) => {
+                const t = String(d?.text || '');
+                const m = /UGen '([^']+)' not installed/.exec(t);
+                if (m) _missingUGens.add(m[1]);
+                if (/exception in GraphDef_Recv/.test(t)) _rejectSeq.add(d?.sequence ?? t + d?.timestamp);
+            });
             for (let i = 0; i < SYNTHDEFS_TO_LOAD.length; i++) {
                 const name = SYNTHDEFS_TO_LOAD[i];
                 synthStatus.textContent = `loading synthdefs… ${i + 1}/${SYNTHDEFS_TO_LOAD.length}`;
                 try { await sc.loadSynthDef(name); _loaded++; }
                 catch (e) { _failed++; log(`  ${name} FAILED: ${e.message}`, 'error'); console.error(`loadSynthDef ${name}:`, e); }
             }
-            log(`  ${_loaded} synthdefs loaded ✓${_failed ? ` (${_failed} failed)` : ''}`, _failed ? 'warn' : 'ok');
+            log(`  ${_loaded} synthdefs sent${_failed ? ` (${_failed} failed)` : ''}`, _failed ? 'warn' : 'ok');
+            // The debug channel is batched by its own worker and trails the sync reply,
+            // so the verdict comes a moment later rather than holding up the boot.
+            setTimeout(() => {
+                try { _offDbg?.(); } catch (_) {}
+                const _rejected = _rejectSeq.size;
+                if (_rejected) log(`  ${_rejected} synthdef${_rejected === 1 ? '' : 's'} refused by the engine — UGen ${[..._missingUGens].join(', ')} not in this build; anything using ${_missingUGens.size === 1 ? 'it' : 'them'} is silent`, 'warn');
+                else log(`  all ${_loaded} synthdefs accepted by the engine ✓`, 'ok');
+            }, 2000);
             // Master safety limiter at the tail of RootNode — sees the summed mix
             // of every player + FX, so stacking loud players can't hard-clip.
             sc.send('/s_new', 'fd_master', MASTER_NODE, 1, 0);

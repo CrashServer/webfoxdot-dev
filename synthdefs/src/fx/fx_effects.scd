@@ -422,11 +422,15 @@ SynthDef(\fd_fx_squiz, {|in_bus=64, squiz=0, squizpitch=2, squizzc=1|
     ReplaceOut.ar(in_bus, sig + ((wet - sig) * mix));      // linear dry↔wet mix
 }).writeDefFile(~outDir);
 
-// ── drop — waveform dropout / decimate glitch (WaveLoss) ─────────────────────
+// ── drop — waveform dropout / decimate glitch ────────────────────────────────
 // drop = mix (also how aggressively it drops), dropof = window size.
+// It used WaveLoss, which is not in the WASM scsynth: the def failed to load and
+// drop= did nothing. Now a random gate: the signal is cut for whole windows, with
+// probability drop, and dropof sets how long a window is (2 → ~1ms, 100 → ~50ms).
 SynthDef(\fd_fx_drop, {|in_bus=64, drop=0, dropof=40|
-    var sig = In.ar(in_bus, 2), wet, n = dropof.clip(2, 100).round;
-    wet = WaveLoss.ar(sig, (drop.clip(0, 1) * n).round, n, 2);
+    var sig = In.ar(in_bus, 2), wet, n = dropof.clip(2, 100), gate;
+    gate = LFNoise0.ar(SampleRate.ir / (n * 24)).range(0, 1) > drop.clip(0, 1);
+    wet = sig * Lag.ar(gate, 0.0005);
     ReplaceOut.ar(in_bus, XFade2.ar(sig, wet, (drop > 0) * 2 - 1));
 }).writeDefFile(~outDir);
 

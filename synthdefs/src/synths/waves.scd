@@ -8,7 +8,10 @@ SynthDef(\fd_waves, {|out=0, note=57, amp=0.5, sus=1, pan=0, attack=0.01, releas
     env = EnvGen.ar(Env.linen(attack, sus.max(0.01), release, 1, \lin), doneAction: 2);
     sig = SinOsc.ar(freq * (mod + 1), 0, freq * (rate + 4) * LFNoise1.kr(10.reciprocal).abs);
     sig2 = SinOsc.ar((freq * mod) + sig, 0, 0.5);
-    sig = SinOscFB.ar(sig2, Gendy5.ar(0.1, 0.4, 0.1, mul: 0.2)) + sig2;
+    // Gendy5 is an sc3-plugins UGen, not in the WASM scsynth: the def failed to load
+    // and waves played nothing. A wandering noise gives the feedback the same slow,
+    // irregular wobble.
+    sig = SinOscFB.ar(sig2, LFNoise1.ar(LFNoise1.kr(0.3).range(40, 400), 0.2)) + sig2;
     sig = DelayN.ar(sig2, 0.048, 0.048);
     sig = Mix.arFill(4, { CombN.ar(sig, 0.1, LFNoise1.ar(Rand(0, 0.1), 0.04, 0.05), 15) });
     sig = AllpassN.ar(sig, 0.05, [Rand(0, 0.05), Rand(0, 0.05)], 1);
