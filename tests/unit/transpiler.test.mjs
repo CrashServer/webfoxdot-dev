@@ -51,4 +51,12 @@ export default function ({ test, eq, ok }) {
     test('transpiler: obj.P[0] is a member access, not FoxDot P', () => {
         eq(js('x = obj.P[0]').trim(), 'x = obj.P[0]');
     });
+    // Players only exist as __p('p1'); a bare p1 in sample(src=p1) threw "p1 is not
+    // defined". It is passed as a name instead — and only there.
+    test('transpiler: sample(src=p1) passes the player by name', () => {
+        ok(js('sample("s", 2, src=p1)').includes(`{src: 'p1'}`));
+        ok(js('sample("s", 2, src="in")').includes(`{src: "in"}`));
+        ok(js('foo(src=p1)').includes('{src: p1}'), 'another call changed meaning');
+        ok(js('resample(src=p1)').includes('{src: p1}'), 'a name ending in sample matched');
+    });
 }

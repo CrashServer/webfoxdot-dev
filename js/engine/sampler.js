@@ -83,6 +83,21 @@ async function fetchToBuffer(bufId, url) {
     await _sc.loadSample(bufId, buf);
 }
 
+// ── Live takes (sample()) ─────────────────────────────────────────────────────
+// A take is recorded by scsynth into a buffer JS allocated, so it only needs an id
+// from the user range and, once the take is complete, a name to be found by.
+export function allocUserBufId() { return _nextUserBuf++; }
+
+// Point `name` at a finished take. Returns the buffer id it replaces (or null) so
+// the caller can free it once nothing is still playing it. Takes are one buffer
+// each: play("V", sample=1) on a take plays the same take.
+export function registerTake(name, bufId) {
+    const old = _manifest[name];
+    const prev = old && old._take ? old.bufStart : null;
+    _manifest[name] = { urls: [], bufStart: bufId, count: 1, _loaded: true, _take: true };
+    return prev;
+}
+
 // Yield to the event loop so the browser can paint between batches.
 const _yield = () => new Promise(res => setTimeout(res, 0));
 

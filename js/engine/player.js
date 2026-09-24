@@ -540,6 +540,19 @@ export class Player {
         if (this._fxChain && _sc) { this._fxChain.free(_sc); this._fxChain = null; }
     }
 
+    // The bus this player's sound can be read from ON ITS OWN, for sample(src=p1).
+    // A player with no FX writes straight to the main out, where it is already mixed
+    // with everything else — so give it an FX chain with no effects, which is just
+    // the router: its notes go to the private bus and fd_fx_out copies them on to
+    // the main out, sounding the same. Notes already sent (up to LOOKAHEAD_S ahead)
+    // keep their old routing, which sample()'s next-bar start leaves room for.
+    // null when the player is not playing (no bus).
+    recBus() {
+        if (!_sc || this._bus == null) return null;
+        if (!this._fxChain) this._fxChain = new FXChain(this._bus, FX_GROUP, _sc);
+        return this._bus;
+    }
+
     // Register call-level .every() specs into the every-handler array.
     // Only resets when the call has specs (preserves imperative p1.every()).
     _applyEverys(call) {

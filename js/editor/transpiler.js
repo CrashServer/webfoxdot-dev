@@ -466,10 +466,17 @@ function kwargify(expr) {
 
         const args = splitArgs(inner);
         const pos  = [], kw = {};
+        // sample(…, src=p1): a bare player name is not a value in the eval scope —
+        // players only exist as __p('p1') — so it is passed as its NAME, which
+        // sample() looks up. A string, not __p(): __p creates a player that is not
+        // there, and a typo would then record a silent new one. Only for sample(),
+        // and only a bare name, so nothing else that says src= changes meaning.
+        const isSample = isCall && /(?:^|[^\w.$])sample$/.test(result);
         for (const arg of args) {
             const t  = arg.trim();
             const km = t.match(/^([a-zA-Z_]\w*)\s*=(?![=<>!])\s*(.+)$/s);
-            if (km) kw[km[1]] = patMath(kwargify(km[2].trim()));
+            if (km && isSample && km[1] === 'src' && /^[a-zA-Z_]\w*$/.test(km[2].trim())) kw.src = `'${km[2].trim()}'`;
+            else if (km) kw[km[1]] = patMath(kwargify(km[2].trim()));
             else    pos.push(patMath(kwargify(t)));
         }
         const all = [...pos];

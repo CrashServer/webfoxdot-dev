@@ -270,6 +270,7 @@
              PExp, PPulse, PSlide, motif, arp, PContour, PGroove, PCircle } from './js/patterns/sequences.js';
     import * as _Seq from './js/patterns/sequences.js';   // namespace → derive the live pattern list for syntax highlighting
     import { _var, _linvar, _sinvar, _expvar, lininf, expinf, Pvar, _fperlin, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
+    import { initLiveSample, sample as liveSample, audioin } from './js/engine/livesample.js';
     import { loadSamples, PlayStringCall, LoopCall, loadedSampleChars,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { chaosLines, JamBot } from './js/engine/generator.js';
@@ -1521,6 +1522,12 @@
                        : `recall: "${name}" could not be applied`, ok ? 'ok' : 'warn');
                 return ok ? name : null;
             },
+            // sample(name, beats, src=…) — record the next N beats (of the mix, the
+            // live input, or one player) into a buffer, from the next bar. The take
+            // plays with loop(name) — or play() when the name is one character.
+            // audioin(which) picks the live input. See js/engine/livesample.js.
+            sample: (name, beats, opts) => { liveSample(name, beats, opts || {}); return name; },
+            audioin: (which) => { audioin(which); return '\u25cf audioin'; },
             // scenes() — the contact sheet. 255 of them and no way to see any.
             scenes: () => { toggleSceneBrowser(); return '\u25a6 scenes'; },
             // midicc / midiprog / midinrpn — the settings of an external instrument,
@@ -2590,7 +2597,7 @@
         'fd_fbass', 'fd_sawbass', 'fd_marimba', 'fd_hiss',   // CrashServer-rig ports batch
         'fd_opl2', 'fd_oplbell', 'fd_opldrone',   // OPL2/AdLib-style FM voices (Dune-inspired)
         'fd_spicebass', 'fd_spiceseq', 'fd_spicepad', 'fd_spicelead',   // Berlin-School analog (Dune / Picq)
-        'fd_sampler', 'fd_loop', 'fd_master',
+        'fd_sampler', 'fd_loop', 'fd_master', 'fd_rec',
         ...FX_SYNTHDEFS,   // fd_fx_out + per-effect fd_fx_* nodes (approach A)
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root
@@ -2717,6 +2724,9 @@
             setSuperSonic(sc);
             _scRef = sc;
             initDefsynth(sc, (name) => log(`synth "${name}" defined ✓`, 'ok'));
+            initLiveSample(sc, clock, { masterNode: MASTER_NODE, masterFxGroup: MASTER_FX_GROUP,
+                                        findPlayer: (n) => clock._players.get(n) || null,
+                                        log: (m, k) => log(m, k || 'info') });
             // feed the pop-out visuals window (audio + beat + the active #@ section)
             startVisualsAudio(sc, clock, () => {
                 try {
