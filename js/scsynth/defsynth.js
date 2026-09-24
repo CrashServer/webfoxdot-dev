@@ -33,7 +33,19 @@ export const userSynths = {};
 
 export function initDefsynth(sc, onRegister) { _sc = sc; _onRegister = onRegister; }
 
-export async function defsynth(name, extraParams, buildFn) {
+// Loads still in flight, so a block that defines a synth and plays it can wait for
+// the definition before running the rest (index.html, js/editor/defsplit.js).
+const _pending = new Set();
+export function pendingDefsynths() { return Promise.allSettled([..._pending]); }
+
+export function defsynth(name, extraParams, buildFn) {
+    const p = _defsynth(name, extraParams, buildFn);
+    _pending.add(p);
+    p.finally(() => _pending.delete(p)).catch(() => {});
+    return p;
+}
+
+async function _defsynth(name, extraParams, buildFn) {
     // Allow defsynth(name, buildFn) with no extra params
     if (typeof extraParams === 'function') { buildFn = extraParams; extraParams = {}; }
     extraParams = extraParams || {};

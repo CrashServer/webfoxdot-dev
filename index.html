@@ -361,7 +361,8 @@
     import { initSoloPresence }          from './js/collab/presence.js';
     import { esc as escHtml, safeColor } from './js/ui/safehtml.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
-    import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
+    import { defsynth, initDefsynth, userSynths, pendingDefsynths } from './js/scsynth/defsynth.js';
+    import { splitDefsynths } from './js/editor/defsplit.js';
 
     // ── Log ──────────────────────────────────────────────────────────────────
     const logEl = document.getElementById('log');
@@ -2280,6 +2281,14 @@
     let _evalDoc = null;
 
     function runCode(raw, opts = {}) {
+        // A block that defines a synth AND plays it: the definitions first, the rest
+        // once they have loaded — see js/editor/defsplit.js for why it failed before.
+        const split = splitDefsynths(raw);
+        if (split.defs && /^(?!\s*(#|\/\/)).*\S/m.test(split.rest)) {
+            runCode(split.defs, opts);
+            pendingDefsynths().then(() => runCode(split.rest, opts));
+            return;
+        }
         // The live-coding visual layers render the code that RAN — codeFull, liveCode,
         // codeConspiracy and the rest read it from the visual state. A peer's eval goes
         // in the other performer's slot, so in a jam those layers show both people.
