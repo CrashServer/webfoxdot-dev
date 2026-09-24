@@ -24,7 +24,7 @@
 
 import { osc } from '../../lib/dist/supersonic.js';
 import { LOOKAHEAD_S } from './clock.js';
-import { allocUserBufId, registerTake } from './sampler.js';
+import { allocUserBufId, registerTake, releaseBufId } from './sampler.js';
 import { resolveCamera as resolveDevice } from '../visuals/camera.js';
 import { resolveSource, planTake } from './takeplan.js';
 import { PLAYER_GROUP } from './player.js';
@@ -213,7 +213,7 @@ export async function sample(name, beats = 4, opts = {}) {
     try {
         _sc.send('/b_alloc', bufId, plan.frames, 2, _sc.audioContext.sampleRate);
         await _sc.sync();
-    } catch (e) { _log(`sample: could not allocate the take (${e.message})`, 'warn'); return null; }
+    } catch (e) { releaseBufId(bufId); _log(`sample: could not allocate the take (${e.message})`, 'warn'); return null; }
 
     const when = _clock.beatToNTP(plan.startBeat) + plan.latencySec;
     _sc.sendOSC(osc.encodeSingleBundle(when, '/s_new',
@@ -228,7 +228,7 @@ export async function sample(name, beats = 4, opts = {}) {
         const prev = registerTake(name, bufId);
         // The old take may still be sounding (a loop step started just before the
         // swap), so it is freed well after, never under a playing node.
-        if (prev != null) setTimeout(() => { try { _sc.send('/b_free', prev); } catch (_) {} }, 1000 * Math.max(30, plan.seconds * 2));
+        if (prev != null) setTimeout(() => { try { _sc.send('/b_free', prev); releaseBufId(prev); } catch (_) {} }, 1000 * Math.max(30, plan.seconds * 2));
         _log(`● "${name}" ready — ${Math.round(plan.seconds * 100) / 100}s`, 'ok');
     }, LOOKAHEAD_S + 0.05);
 

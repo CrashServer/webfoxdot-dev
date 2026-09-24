@@ -2691,6 +2691,10 @@
                 // so >~32 players ran out → writes wrapped onto the output bus and
                 // everything went silent. Raise buses (and node/wire headroom).
                 scsynthOptions: {
+                    // Buffer ids, not memory (the pool below caps that). 1024 was
+                    // the default: 520 built-in samples, then every loaded pack and
+                    // live take counting up from 600 — a few kits in, loads failed.
+                    numBuffers:          4096,
                     numAudioBusChannels: 2048,   // ~990 private stereo buses
                     maxNodes:            8192,
                     maxWireBufs:         256,    // headroom for the big FX-chain graph

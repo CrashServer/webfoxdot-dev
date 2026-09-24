@@ -7,6 +7,17 @@ let _sc       = null;             // SuperSonic ref, set at boot for runtime loa
 // User/external samples get buffer IDs from 600 up (built-ins use 0–519).
 const USER_BUF_START = 600;
 let   _nextUserBuf   = USER_BUF_START;
+// Buffer ids never came back. Every loadpack() took a fresh block even for a pack
+// already loaded, and every sample() take one more id, so re-running a set's
+// loadpack line a few times walked past the engine's last buffer and from then on
+// EVERY load failed ("Invalid buffer number 1024"). Now: a reload reuses the ids it
+// had, and ids freed with /b_free return here for single-buffer allocations.
+const _freeIds = [];
+function takeId() { return _freeIds.length ? _freeIds.pop() : _nextUserBuf++; }
+/** Hand an id back after its buffer has been freed (/b_free). */
+export function releaseBufId(id) { if (id != null && id >= USER_BUF_START && !_freeIds.includes(id)) _freeIds.push(id); }
+/** How many user buffer ids are in use / ever handed out — for tests and a readout. */
+export function userBufStats() { return { next: _nextUserBuf, free: _freeIds.length }; }
 
 // Single-character sample names currently in the bank (for the generator/chaos).
 export function loadedSampleChars() {
@@ -86,7 +97,7 @@ async function fetchToBuffer(bufId, url) {
 // ── Live takes (sample()) ─────────────────────────────────────────────────────
 // A take is recorded by scsynth into a buffer JS allocated, so it only needs an id
 // from the user range and, once the take is complete, a name to be found by.
-export function allocUserBufId() { return _nextUserBuf++; }
+export function allocUserBufId() { return takeId(); }
 
 // Point `name` at a finished take. Returns the buffer id it replaces (or null) so
 // the caller can free it once nothing is still playing it. Takes are one buffer
@@ -104,8 +115,13 @@ const _yield = () => new Promise(res => setTimeout(res, 0));
 export async function loadSampleFromURL(char, url) {
     if (!_sc) throw new Error('audio not booted — click "boot" first');
     const urls = Array.isArray(url) ? url : [url];
-    const bufStart = _nextUserBuf;
-    _nextUserBuf += urls.length;          // reserve a contiguous block up front
+    // Reloading a char reuses its block when the new set fits in it; a one-buffer
+    // char can come from the free pool; anything else takes a fresh contiguous block.
+    const had = _manifest[char];
+    let bufStart;
+    if (had && had.bufStart >= USER_BUF_START && had.count >= urls.length) bufStart = had.bufStart;
+    else if (urls.length === 1) bufStart = takeId();
+    else { bufStart = _nextUserBuf; _nextUserBuf += urls.length; }
     let count = 0;
     for (let i = 0; i < urls.length; i++) {
         try { await fetchToBuffer(bufStart + i, urls[i]); count++; }
@@ -138,14 +154,21 @@ export async function loadPackFromURL(url, onProgress) {
     for (const [char, entry] of Object.entries(pack)) {
         const urls = (Array.isArray(entry) ? entry : [entry])
             .map(u => /^https?:\/\//.test(u) ? u : base + u);
-        const bufStart = _nextUserBuf;
-        _nextUserBuf += urls.length;
+        const had = _manifest[char];
+        // The same char from the same files, already in memory: nothing to fetch.
+        // Running a set's loadpack line again used to download the whole kit again
+        // into NEW buffers, every time.
+        if (had && had._loaded && had.bufStart >= USER_BUF_START && had.urls.length === urls.length
+            && had.urls.every((u, i) => u === urls[i])) { entries.push({ char, urls, bufStart: had.bufStart, cached: true }); continue; }
+        let bufStart;
+        if (had && had.bufStart >= USER_BUF_START && had.count >= urls.length) bufStart = had.bufStart;
+        else { bufStart = _nextUserBuf; _nextUserBuf += urls.length; }
         entries.push({ char, urls, bufStart });
         urls.forEach((u, i) => jobs.push({ bufId: bufStart + i, url: u }));
     }
 
     // Register chars; mark _loading so the lazy path won't double-fetch them.
-    for (const e of entries) _manifest[e.char] = { urls: e.urls, bufStart: e.bufStart, count: e.urls.length, _loading: true };
+    for (const e of entries) if (!e.cached) _manifest[e.char] = { urls: e.urls, bufStart: e.bufStart, count: e.urls.length, _loading: true };
 
     // Load in concurrent batches, yielding between them to keep the UI live.
     const BATCH = 8;
@@ -158,7 +181,7 @@ export async function loadPackFromURL(url, onProgress) {
         }));
         await _yield();
     }
-    for (const e of entries) { _manifest[e.char]._loaded = true; _manifest[e.char]._loading = false; }
+    for (const e of entries) if (!e.cached) { _manifest[e.char]._loaded = true; _manifest[e.char]._loading = false; }
     return entries.length;
 }
 

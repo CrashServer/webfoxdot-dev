@@ -80,6 +80,16 @@ export default function ({ test, eq, ok }) {
         ok(valid('p1 >> pluck([0, 2], dur=8//3)'));
         ok(valid('p1 >> pluck([0], dur=1/2).every(4, "stutter", 8//4)'));
     });
+    // …but // is also a real comment: defsynth bodies are JavaScript. Converting
+    // these broke every defsynth example in the docs (caught by running them all).
+    test('transpiler: a JS // comment is not floor division', () => {
+        for (const l of ['const car = note.midicps()                       // carrier frequency',
+                         'const modFreq = car.mul(ratio)                   // modulator',
+                         'Out.ar(out, sig)  // 2 channels',
+                         '  sig = sig.add(SinOsc.ar(f.mul(3)).mul(0.33))    // 3rd',
+                         '  sig = sig.add(SinOsc.ar(f.mul(2)).mul(0.5))     // 2nd, half as loud'])
+            eq(js(l).trim(), l.trim());
+    });
     test('transpiler: True / False / None are Python\'s constants', () => {
         eq(js('audioin(False)').trim(), 'audioin(false)');
         ok(js('p1 >> pluck([0], x=True, y=None)').includes('{x: true, y: null}'));

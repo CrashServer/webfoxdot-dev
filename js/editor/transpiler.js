@@ -379,7 +379,17 @@ function splitAltItems(inner) {
 // dur=8//3 left "3}))" behind a comment — a syntax error. Rewritten to
 // Math.floor(a / b). An operand is a number or dotted name, a bracketed group, or a
 // call — which is how it is written in live code. Runs before anything masks "//".
+//
+// "//" is ALSO a real comment here: defsynth bodies are JavaScript, and the docs
+// write them  const car = note.midicps()   // carrier frequency. So it is only
+// floor division when it reads as an expression — a number, group or call on the
+// right, or a name followed by more expression (a bracket, comma or operator) —
+// and never on a line that is plainly JS (const / let / var / return, or =>).
+// What is left is  x = total // n  at the end of a line, which is the same shape
+// as a one-word comment, and stays as written.
+const JS_LINE = /^\s*(const|let|var|return|function|if|for|while|else|})\b|=>/;
 function convertFloorDiv(s) {
+    if (JS_LINE.test(s)) return s;
     for (let guard = 0; guard < 32; guard++) {
         let at = -1;
         for (let i = 0; i < s.length - 1; i++) {
@@ -425,6 +435,18 @@ function convertFloorDiv(s) {
         }
         const L = s.slice(lStart, lEnd), R = s.slice(rStart, r);
         if (!L.trim() || !R.trim()) return s;          // not an expression we understand
+        // Does it READ as arithmetic? A number / group / call on the right does; a
+        // bare word does only if more expression follows it — otherwise it is the
+        // first word of a comment ("// carrier frequency", "// modulator").
+        const after = s.slice(r).trimStart();
+        // A whole numeric literal — "3rd" and "4th" (as in "// 3rd harmonic") are words.
+        const rNum = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(R.trim()) || /[)\]]$/.test(R.trim());
+        // An operand at all? "2nd" and "3rd" are neither numbers nor names.
+        const rName = /^[+-]?[A-Za-z_$][\w$.]*$/.test(R.trim());
+        if (!rNum && !rName) return s;
+        const more = after === '' ? false : /^[)\],;+\-*/%<>=!&|?:#]/.test(after);
+        if (!rNum && !more) return s;
+        if (rNum && after !== '' && /^[A-Za-z_]/.test(after)) return s;   // "// 2 notes" is prose
         s = s.slice(0, lStart) + `Math.floor((${L}) / (${R}))` + s.slice(r);
     }
     return s;
