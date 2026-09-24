@@ -15,6 +15,7 @@
 // index, and reports the shape: the worst, the 95th percentile, and the count over a
 // threshold you name.
 
+import { swallowed } from './swallowed.js';
 /**
  * A bucketed distribution of lateness samples, in ms.
  *
@@ -201,7 +202,7 @@ export function startLongTasks() {
                 // they are playing, and a wall of warnings is its own kind of stall.
                 if (e.duration >= _stallThreshold() && _onStall && e.startTime - _lastWarn > 4000) {
                     _lastWarn = e.startTime;
-                    try { _onStall(label, e.duration); } catch (_) {}
+                    try { _onStall(label, e.duration); } catch (err) { swallowed('stall listener', err); }
                 }
             }
         });

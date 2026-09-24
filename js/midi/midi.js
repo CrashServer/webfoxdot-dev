@@ -15,6 +15,7 @@
 // routing (keyed by CC number — most controllers send on one channel) but kept
 // for display.
 
+import { swallowed } from '../engine/swallowed.js';
 let _access  = null;
 let _enabled = false;
 let _err     = null;
@@ -178,7 +179,7 @@ function _onMessage(ev) {
         waiting = _learnQ.length + _learnCtrlQ.length;
         if (!waiting) _learnTaken.clear();          // the round is over
         if (target && _onLearn) {
-            try { _onLearn({ cc, channel, src, srcName, short: shortName(srcName), waiting }); } catch (_) {}
+            try { _onLearn({ cc, channel, src, srcName, short: shortName(srcName), waiting }); } catch (e) { swallowed('midi learn listener', e); }
         }
     }
 

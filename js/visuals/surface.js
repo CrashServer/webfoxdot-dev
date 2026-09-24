@@ -17,6 +17,7 @@ import { snapshot }         from './vlang.js';
 import { getVisualAudio, sharedBeat } from './bridge.js';
 import { allowFrame, noteFrame } from './render/vperf.js';
 import { fxBundle } from './render/fxbundle.js';
+import { swallowed } from '../engine/swallowed.js';
 
 // fxBundle moved to render/fxbundle.js — the pop-out window (render/main.js) is a
 // separate document that needs it too, and importing THIS module to get it would
@@ -171,9 +172,9 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
             r.setWorkshop(d.a, d.b);
         } else r.setWorkshop(null, null);
         r.render(vst, t, aud, fxBundle(vst.layers));
-        for (const cb of subs) { try { cb(canvas); } catch (_) {} }
+        for (const cb of subs) { try { cb(canvas); } catch (e) { swallowed('surface frame listener', e); } }
         _lastCanvas = canvas;
-        for (const cb of _frameSubs) { try { cb(canvas, wsd); } catch (_) {} }
+        for (const cb of _frameSubs) { try { cb(canvas, wsd); } catch (e) { swallowed('frame listener', e); } }
         _lastDeck = wsd;
         noteFrame(performance.now() - t0, ts);
     }

@@ -36,6 +36,7 @@
 // was always meant to get bigger. Same trick the desktop already uses to keep the
 // editor unscaled against the canvas zoom; this is the second reason for it.
 
+import { swallowed } from '../engine/swallowed.js';
 const KEY = 'wfd-uiscale';
 const MIN = 0.7, MAX = 2;
 const DEFAULT = 1;
@@ -81,7 +82,7 @@ export function setUiScale(n, { save = true } = {}) {
     document.documentElement.style.setProperty('--wfd-editor-base', editorBasePx() + 'px');
     if (save) { try { localStorage.setItem(KEY, String(_scale)); } catch (_) {} }
     // One listener throwing must not stop the others hearing about it.
-    for (const fn of _onChange) { try { fn(_scale); } catch (_) {} }
+    for (const fn of _onChange) { try { fn(_scale); } catch (e) { swallowed('ui scale listener', e); } }
     return _scale;
 }
 

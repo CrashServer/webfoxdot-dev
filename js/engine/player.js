@@ -68,6 +68,7 @@ const GTR_STRINGS = { 0: -10, 1: -8, 2: -3, 3: 2, 4: 7, 5: 11, 6: 16 };
 import { MidiOutCall, scheduleNote, allNotesOff, panicMidiOut,
          ccMessage, programMessages, nrpnMessages, sendRaw } from '../midi/midiout.js';
 import { midiCapture } from '../midi/midifile.js';
+import { swallowed } from './swallowed.js';
 
 // SC group node IDs — use low IDs (below client allocator range ~1000)
 export const PLAYER_GROUP = 2;
@@ -126,7 +127,7 @@ export function playSynthNote(synthName, midi, opts = {}) {
 // Wrapped so a UI error can never break audio scheduling (it fires mid-_fire).
 let _onStep = null;
 export function setStepListener(fn) { _onStep = fn; }
-function emitStep(name, step) { if (_onStep) { try { _onStep(name, step); } catch (_) {} } }
+function emitStep(name, step) { if (_onStep) { try { _onStep(name, step); } catch (e) { swallowed('step listener', e); } } }
 
 // Fired when a .sometimes/.every/.rarely… modifier actually triggers on a player,
 // so the editor can briefly flash that line.
@@ -134,7 +135,7 @@ let _onTrigger = null;
 export function setTriggerListener(fn) { _onTrigger = fn; }
 // label = which chained call fired (an alias like "sometimes"/"every") so the
 // editor can flash just that .call(…) part of the line, not the whole line.
-function emitTrigger(name, label) { if (_onTrigger) { try { _onTrigger(name, label); } catch (_) {} } }
+function emitTrigger(name, label) { if (_onTrigger) { try { _onTrigger(name, label); } catch (e) { swallowed('trigger listener', e); } } }
 
 // Resolve all pattern args at the current step
 // `atBeat` is the beat this note actually lands on. Notes are dispatched LOOKAHEAD_S
