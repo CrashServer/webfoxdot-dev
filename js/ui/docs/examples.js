@@ -373,6 +373,25 @@ b1 >> loop("break", dur=8, lpf=1200, mverb=0.3)   # loops route through the FX c
 b1 >> loop("break", dur=8).every(8, "reverse")    # player methods work too`)}
     `, 'loop');
 
+    const sampling = section('Live sampling ( sample · audioin )', `
+        ${note('<code>sample(name, beats)</code> records the next N beats, starting on the next bar, into a buffer that <code>loop(name)</code> plays back stretched to the tempo — or <code>play()</code>, when the name is one character. The recording happens inside the audio engine on a timestamp, like a note, so a take starts exactly on the bar.')}
+        ${code(`sample("grab", 4)                        # the next 4 beats of the mix
+s1 >> loop("grab", dur=4)
+sample("bass", 8, src=p1)                # one player alone, with its FX
+sample("smear", 2, quant=0)              # now, not on the bar
+sample("V", 1, src="in")                 # a single character → a play() sample
+d2 >> play("V.V[VV]")`)}
+        ${note('<b>Layering.</b> Sampling a name again swaps it on the bar the new take ENDS, so a loop playing the old take keeps playing until then — and is recorded into the new one. Sample the same name over and over and it builds up.')}
+        ${note('<b>The live input</b> — a mic, a line in, an audio interface. <code>audioin()</code> opens the default and lists the rest (autocomplete offers their names); pick one by index or by part of its name. The voice-call processing browsers apply (echo cancellation, noise suppression, auto-gain) is switched off: all three damage music. The input is not played back unless you ask for the monitor — a mic near the speakers howls — and stop-all silences it.')}
+        ${code(`audioin()                                # open the default, list the others
+audioin("scarlett")                      # by part of its name — or audioin(1)
+audioin(monitor=0.6)                     # hear it, through the mix (use headphones)
+sample("vox", 8, src="in")               # record it
+audioin(False)                           # close it`)}
+        ${note('<b>Input latency.</b> Sound reaches the engine a little after it was played, so an input take starts later by the measured round trip and a note played on the downbeat lands at the start of the take. If a loop still sounds early or late on your setup, give <code>latency=</code> in seconds. Takes stay on your machine: in a jam, other players do not get them.')}
+        ${code(`sample("vox", 8, src="in", latency=0.015)`)}
+    `, 'sampling');
+
     const patterns = section('Patterns', `
         ${note('Pattern objects produce a new value each step. P shorthands: <code>P*[a,b,c]</code> random pick · <code>P[a,b,c]</code> cyclic list · <code>P(a,b,c)</code> chord. Inline in a list: <code>(a,b)</code> = chord, <code>{a,b}</code> = random pick. TimeVars can hold patterns.')}
         ${code(`p1 >> saw([0,2,4,7], amp=PWhite(0.4, 0.9))      # random float
@@ -444,12 +463,14 @@ soff(true)                      # stop the loop AND its players`)}
     `, 'syncgen');
 
     const midi = section('MIDI — keyboards, controllers, notes and settings', `
-        ${note('<b>Chromium, Edge or Brave.</b> Firefox will not do Web MIDI here. Access is asked for on the first <code>midi()</code> / <code>mlearn()</code> / <code>midiin()</code> / <code>midiout()</code> call — the eval keypress is the user gesture the browser requires. The <b>MIDI panel</b> (Alt+I sidebar) lists your inputs, shows a live CC monitor, and picks the output port.')}
+        ${note('<b>Chromium, Edge or Brave.</b> Firefox will not do Web MIDI here. Access is asked for on the first <code>midi()</code> / <code>mlearn()</code> / <code>midiin()</code> / <code>midiout()</code> call — the eval keypress is the user gesture the browser requires. The <b>MIDI panel</b> — its own <b>midi</b> panel in the desktop UI, a section of the controls column in the classic one — lists your inputs, shows a live CC monitor, and picks the default output.')}
+        ${note('<b>The whole thing, worked through:</b> <code>examples/midi-live.py</code> in the crashDot folder (open it with Ctrl+O) plays a Korg nanoKONTROL2 as a lit mixing desk and a Medeli SP5600 as keyboard, sound module and sample source — every call on this page, in use.')}
         ${note('<b>On Linux a MIDI device belongs to one program at a time.</b> If FoxDot, a DAW or another browser tab already holds your keyboard, crashDot cannot open it, and vice versa. Close the other one first.')}
 
         ${note('<b>1 · Play a keyboard</b> — <code>midiin(synth)</code> plays incoming notes through any synth. Velocity scales <code>amp</code>.')}
         ${code(`midiin("prophet")                       # play the keyboard through prophet
-midiin("pluck", amp=0.8, oct=5)
+midiin("pluck", amp=0.8, sus=1)          # velocity × 0.8, notes 1s long
+midiin("supersaw", transpose=-12)        # an octave down
 midiin(0)                                # stop listening`)}
         ${note('Or open the <b>piano</b> panel and press its <b>midi</b> button: the keyboard then plays the piano’s synth with the piano’s knobs, and — unlike <code>midiin</code> — what you play is recorded.')}
 
@@ -471,12 +492,18 @@ p2 >> saw([0,4,7], room=midi(1, 0, 1, "s"))    # mod wheel → reverb size
 p1.mverb = mlearn(0, 1)                   # learn: move the control you want`)}
         ${note('<b>mlearn</b> waits for a control that MOVES, not merely the first CC that arrives \u2014 a keyboard sitting untouched is often still transmitting, and it used to win every learn. When it lands, the log says which control and which device. Several <code>mlearn()</code> on ONE line learn one control each, in the order they appear: <code>d1 &gt;&gt; dbass(mlearn(0, 12), dur=mlearn(0, 4))</code> takes the degree from the first control you move and the duration from the second. <code>midimap()</code> lists everything bound.')}
 
-        ${note('<b>5 · Two controllers at once</b> — a keyboard to play and a box of faders to turn. Their CC numbers overlap by convention (a nanoKONTROL2’s faders are CC 0..7; a keyboard’s own volume is CC 7), so a binding can name the device it listens to. A fragment of the name is enough, and a bare <code>midi(7)</code> still answers to any device.')}
+        ${note('<b>5 · Two controllers at once</b> — a keyboard to play and a box of faders to turn. Their CC numbers overlap by convention (a nanoKONTROL2’s faders are CC 0..7; a keyboard’s own volume is CC 7), so a binding can name the device it listens to. A bare <code>midi(7)</code> still answers to any device.')}
         ${code(`p1.lpf = midi(7, 200, 4000, "exp", "nano")   # only the nanoKONTROL's CC7
 p1.amp = midi(7)                          # any device's CC7
 midimap()                                 # what is bound, to which control, on which box`)}
+        ${note('<b>The device name is not a keyword.</b> It is any piece of the name the browser gives the device, matched without case: <code>"nano"</code> finds “nanoKONTROL2 SLIDER/KNOB”, <code>"sp5600"</code> a Medeli keyboard, <code>"launch"</code> a Launchkey. Autocomplete offers the names you have at <code>midi(cc, lo, hi, curve, ▯</code> (inputs) and after <code>port=</code> (outputs) — once MIDI is allowed; before that the browser lists none. The MIDI panel shows the full names.')}
 
-        ${note('<b>6 · Notes out</b> — <code>midiout()</code> sends to an external or virtual port instead of making sound. Velocity follows <code>amp</code>, length follows <code>sus</code>/<code>leg</code>, groups make chords, and <code>.every</code> / <code>.stutter</code> / <code>.sometimes</code> / <code>+transpose</code> all work as they do on a synth. Notes are scheduled sub-beat-accurate and stay phase-locked to the internal voices. Stop sends all-notes-off. Route through IAC, loopMIDI or ALSA/JACK to reach a DAW.')}
+        ${note('<b>6 · Buttons</b> — a button is a control that sends 127 while held and 0 when let go (or latches, if the controller is set to toggle). An untouched <code>midi()</code> starts in the MIDDLE of its range — right for a fader, wrong for a button, which would sit at half. <code>init=</code> says where it starts. And <code>midi()</code> values multiply, so buttons combine into logic.')}
+        ${code(`d1.amplify = midi(48, 1, 0, "lin", "nano", init=1)       # M1 mutes the drums
+# solo: plays while its own mute is up AND the other column's solo is not held
+p1.amplify = midi(49, 1, 0, "lin", "nano", init=1) * midi(32, 1, 0, "lin", "nano", init=1)`)}
+
+        ${note('<b>7 · Notes out</b> — <code>midiout()</code> sends to an external or virtual port instead of making sound. Velocity follows <code>amp</code>, length follows <code>sus</code>/<code>leg</code>, groups make chords, and <code>.every</code> / <code>.stutter</code> / <code>.sometimes</code> / <code>+transpose</code> all work as they do on a synth. Notes are scheduled sub-beat-accurate and stay phase-locked to the internal voices. Stop sends all-notes-off. Route through IAC, loopMIDI or ALSA/JACK to reach a DAW.')}
         ${code(`m1 >> midiout([0, 2, 4, 7], channel=1, oct=5, dur=0.5)
 m2 >> midiout([0, (0,4,7), 5], channel=2, oct=4, dur=1, amp=0.9)
 m1 >> midiout(P[0,3,5,7], channel=10).every(4, "reverse")   # drums on ch10
@@ -485,7 +512,7 @@ m1 >> midiout(P[0,3,5,7], channel=10).every(4, "reverse")   # drums on ch10
 p1 >> prophet([0,4,7], oct=5, dur=0.5)
 m1 >> midiout([0,4,7], channel=1, oct=5, dur=0.5)`)}
 
-        ${note('<b>7 · The instrument’s settings</b> — sound selection and knobs, not just notes. <code>prog=</code> (with <code>bank=</code> / <code>banklsb=</code>) chooses the instrument, <code>ccNN=</code> sends Control Change NN, and <code>nrpn=[msb, lsb, value]</code> reaches the parameters that have no CC of their own. All resolve per step like any param, and each is sent only when it CHANGES — a CC restated every step is a stream of identical bytes down a slow wire.')}
+        ${note('<b>8 · The instrument’s settings</b> — sound selection and knobs, not just notes. <code>prog=</code> (with <code>bank=</code> / <code>banklsb=</code>) chooses the instrument, <code>ccNN=</code> sends Control Change NN, and <code>nrpn=[msb, lsb, value]</code> reaches the parameters that have no CC of their own. All resolve per step like any param, and each is sent only when it CHANGES — a CC restated every step is a stream of identical bytes down a slow wire.')}
         ${code(`m1 >> midiout([0,4,7], channel=1, prog=12, bank=121, banklsb=100)
 m1 >> midiout([0,4,7], cc74=sinvar([40, 110], [16]))   # sweep the hardware filter
 m1 >> midiout([0,4,7], cc91=100, cc93=40)              # its reverb and chorus
@@ -493,6 +520,33 @@ m1 >> midiout([0,4,7], cc91=100, cc93=40)              # its reverb and chorus
 midicc(74, 100)                           # one-shot Control Change
 midiprog(5, 121, 100)                     # program 5 from bank 121/100
 midinrpn(50, 12, 64)                      # NRPN 50/12 = 64`)}
+        ${note('<b>9 · More than one output</b> — the MIDI panel picks a default output. <code>port=</code> sends one line, or one message, somewhere else by name, so a keyboard and a controller can both be driven at once. A name that matches no device sends NOTHING rather than falling back to the default: a light pattern meant for a controller arriving at a synth is a stream of CCs rewriting its sound. With <code>_</code> (a rest) as the notes, a line sends only its CCs. <code>midicc</code> takes a list of CC numbers.')}
+        ${code(`m1 >> midiout([0, 2, 4, 7], channel=1, dur=1/2, port="sp5600")   # the keyboard
+n1 >> midiout(_, cc41=[127, 0], dur=1/2, port="nano")            # a light, no notes
+midicc(91, 90, port="sp5600")
+midicc([41, 42, 45], 0, port="nano")                              # three at once`)}
+
+        ${note('<b>10 · Lights on a controller</b> — many controllers light their buttons from MIDI: send the button’s own CC number, 127 on, 0 off. On a nanoKONTROL2 the LED mode has to be <b>External</b> (it may already be — try <code>midicc(45, 127, port="nano")</code>; if the rec button does not light, change it in Korg’s editor). LED CCs: S 32–39 · M 48–55 · R 64–71 · transport 41–46. A light line with the same <code>dur</code> as a track stays in step with it — a player’s step is its beat ÷ dur, however late it was started.')}
+        ${code(`# a light echoes its own button — lit while muted
+n1 >> midiout(_, dur=1/8, port="nano", cc48=midi(48, 0, 127, "lin", "nano", init=0))
+# the drums' rhythm on R1, dark whenever the drums are muted
+n2 >> midiout(_, dur=1/2, port="nano", cc64=[127, 0, 0, 0, 127, 0, 0, 0] * d1.amplify)
+# the S row shows which scale degree a random melody plays (one .map per light)
+n3 >> midiout(_, dur=1/4, port="nano")
+n3.map("m1", {0: 127, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}, "cc32")`)}
+        ${note('<b>A light from a sound.</b> A light wants 0 or 127, and <code>aud()</code> / <code>midi()</code> are smooth. Map through a range so steep it crosses 0→127 in a sliver and the light switches cleanly at a threshold t: <code>aud(band, -2540 * t, 2540 * (1 - t))</code> — values below 0 are sent as 0, above 127 as 127.')}
+        ${code(`n4 >> midiout(_, dur=1/16, port="nano", cc41=aud("bass", -1270, 1270))   # play lights on each kick
+n5 >> midiout(_, dur=1/8, port="nano", cc45=midi(16, -4064, 4064, "lin", "nano"))   # rec lights past knob halfway`)}
+        ${note('<b>Lights stay as they were last sent</b> — stopping a light line, or stop-all, does not turn them off. Send zeros. After stopping light lines, wait a beat: a line sends each step slightly AHEAD of its beat, so a 0 sent at once can be overtaken by a light already on its way.')}
+        ${code(`n1.stop(); n2.stop(); Clock.future(1, () => midicc([32,33,34,35,36,37,38,39, 48,49,50,51,52,53,54,55, 64,65,66,67,68,69,70,71, 41,42,43,44,45,46], 0, port="nano"))`)}
+
+        ${note('<b>11 · The instrument’s sound, back in</b> — play a hardware synth from code, record its audio through your interface on the bar, and loop it. See <b>Live sampling</b> for <code>sample()</code> and <code>audioin()</code>.')}
+        ${code(`audioin("scarlett", monitor=0.6)          # the interface the keyboard is plugged into
+m1 >> midiout([0, 4, 7, 11], channel=1, oct=5, dur=1/2, port="sp5600")
+sample("keys", 8, src="in")                # the next 8 beats of its sound, from the next bar
+m1.stop()
+s1 >> loop("keys", dur=8)`)}
+
         ${note('Common General MIDI controls: <code>7</code> volume · <code>10</code> pan · <code>11</code> expression · <code>64</code> sustain pedal · <code>73</code> attack · <code>74</code> brightness · <code>75</code> decay · <code>76/77/78</code> vibrato rate/depth/delay · <code>91</code> reverb send · <code>93</code> chorus send · <code>121</code> reset all controllers. Your instrument will tell you its own map: most announce their whole state when they power on, and the MIDI panel’s monitor shows it arriving.')}
     `, 'midi');
 
@@ -2011,7 +2065,7 @@ pd >> darkpad(PProg("andalusian"), oct=4, dur=8)
         ['Techniques',      [t_chords, t_arps, t_cross, t_live, t_gen, whatsNew, alpha30new, exReroll]],
         ['Basics',          [welcome, start, drums, synths, tweak]],
         ['Patterns & time', [logic, axis1, sometimes, transforms, axis2, randomness, axis3, patterns, grooves, rhythms, syncGen, exOptArgs, exRest]],
-        ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, alpha29new, samples, loop]],
+        ['Sound design',    [fx, defsynthEx, synAdditive, synSubtractive, synFM, alpha29new, samples, loop, sampling]],
         ['Perform & MIDI',  [sections, midi, perf]],
         ['Visuals',         [vAll, vWorkshop]],
         ['Deep dives',      DEEP],
