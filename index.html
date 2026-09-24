@@ -1550,10 +1550,14 @@
                 // Ask for MIDI first: these can be the FIRST thing a set does, and
                 // before anything has opened a port there is nothing to send to.
                 // It was sending into the void and saying nothing.
-                const go = () => sendRaw([ccMessage(cc, value, chan)], undefined, port);
-                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi cc${Math.round(cc)} = ${Math.round(value)}`, 'ok'); else log(_noMidiOut('midicc', port), 'warn'); }).catch((e) => log(`midicc: ${e?.message || e}`, 'warn')); return true; }
+                // A list of CC numbers sends each one — midicc([41, 42, 45], 0) — which
+                // is how a controller's lights are cleared in one line.
+                const ccs = Array.isArray(cc) ? cc : [cc];
+                const go = () => sendRaw(ccs.map(c => ccMessage(c, value, chan)), undefined, port);
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi ${ccs.length === 1 ? 'cc' + Math.round(ccs[0]) : ccs.length + ' CCs'} = ${Math.round(value)}`, 'ok'); else log(_noMidiOut('midicc', port), 'warn'); }).catch((e) => log(`midicc: ${e?.message || e}`, 'warn')); return true; }
                 const n = 1;
-                log(n ? `midi cc${Math.round(cc)} = ${Math.round(value)} ch${Math.round(chan)}` : 'midicc: no MIDI output selected', n ? 'ok' : 'warn');
+                const what = ccs.length === 1 ? `cc${Math.round(ccs[0])}` : `${ccs.length} CCs`;
+                log(n ? `midi ${what} = ${Math.round(value)} ch${Math.round(chan)}${port ? ' → ' + port : ''}` : 'midicc: no MIDI output selected', n ? 'ok' : 'warn');
                 return n > 0;
             },
             midiprog: (...a) => {

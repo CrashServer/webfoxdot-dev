@@ -193,12 +193,14 @@ n6 >> midiout(_, dur=1/4, port="nano", cc64=PRand([0, 127]), cc65=PRand([0, 127]
 #  a light that MEANS something: rec is lit while a take records
 sample("grab", 4); midicc(45, 127, port="nano"); Clock.future(8, () => midicc(45, 0, port="nano"))
 
-#  LIGHTS OFF: stop every light line, then one step of zeros to clear what they
-#  left lit — n0 has not played yet on the next line, so it stops at the next
-#  even beat, after its first step
-n1.stop(); n2.stop(); n3.stop(); n4.stop(); n5.stop(); n6.stop(); n7.stop(); n8.stop()
-n0 >> midiout(_, dur=1, port="nano", cc32=0, cc33=0, cc34=0, cc35=0, cc36=0, cc37=0, cc38=0, cc39=0, cc48=0, cc49=0, cc50=0, cc51=0, cc52=0, cc53=0, cc54=0, cc55=0, cc64=0, cc65=0, cc66=0, cc67=0, cc68=0, cc69=0, cc70=0, cc71=0, cc41=0, cc42=0, cc43=0, cc44=0, cc45=0, cc46=0)
-n0.stop(2)
+#  LIGHTS OFF. A light stays however it was last sent until it gets a 0, and
+#  stopping a light line does not send one. Stop the lines, then clear every
+#  light a beat later — a line sends each step a little AHEAD of its beat, so a
+#  0 sent at once can be overtaken by a light that was already on its way.
+n1.stop(); n2.stop(); n3.stop(); n4.stop(); n5.stop(); n6.stop(); n7.stop(); n8.stop(); Clock.future(1, () => midicc([32,33,34,35,36,37,38,39, 48,49,50,51,52,53,54,55, 64,65,66,67,68,69,70,71, 41,42,43,44,45,46], 0, port="nano"))
+
+#  nothing playing? then just the one line:
+midicc([32,33,34,35,36,37,38,39, 48,49,50,51,52,53,54,55, 64,65,66,67,68,69,70,71, 41,42,43,44,45,46], 0, port="nano")
 
 
 # ── 6 · Record the MIDI you play ────────────────────────────────────────────
@@ -279,6 +281,6 @@ s4 >> loop("keys2", dur=16, stretch=0, rate=0.5, mverb=0.6)
 s1.stop(8)                   # stop at the next 8-beat boundary
 p1.stop(); p2.stop(); p3.stop(); d1.stop(); d2.stop()
 s1.stop(); s2.stop(); s3.stop(); s4.stop(); m1.stop()
-n1.stop(); n2.stop(); n3.stop(); n4.stop(); n5.stop(); n6.stop(); n7.stop(); n8.stop()
+n1.stop(); n2.stop(); n3.stop(); n4.stop(); n5.stop(); n6.stop(); n7.stop(); n8.stop(); Clock.future(1, () => midicc([32,33,34,35,36,37,38,39, 48,49,50,51,52,53,54,55, 64,65,66,67,68,69,70,71, 41,42,43,44,45,46], 0, port="nano"))
 audioin(False)
 midiin(0)
