@@ -45,7 +45,7 @@ canvas{position:absolute;left:0;top:0;width:100vw;height:100vh;display:block}
  * @param getBuffers  () => [{name, text}] — the editor buffers, rendered to a texture
  *                    on demand so a surface can show the code itself
  */
-export function createOutputs({ getSources, getBuffers = null, onLog = () => {} } = {}) {
+export function createOutputs({ getSources, getBuffers = null, pump = null, onLog = () => {} } = {}) {
     let screenSrcInit = 'master';
     // One canvas per buffer, kept between frames: createCodeCanvas only redraws when
     // the text or the size actually changes, and a buffer is static between keystrokes.
@@ -130,7 +130,7 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
         });
         const out = { id: oid, win, surfaces: [] };
         outputs.push(out);
-        ensureLoop();
+        startOutputLoop(out);
         return out;
     }
 
@@ -175,25 +175,45 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
     }
 
     /**
-     * Draw every surface once. Driven by the loop below, NOT by the renderer's frame
-     * callback — an output showing a code buffer or a single layer must keep updating
-     * with no visual scene running at all, and the renderer's loop stops early when
-     * there is nothing to draw. That is what made a code-buffer surface show black.
+     * Draw one output's surfaces. Driven by that output's own loop, NOT by the
+     * renderer's frame callback — an output showing a code buffer or a single layer
+     * must keep updating with no visual scene running at all, and the renderer's loop
+     * stops early when there is nothing to draw. That is what made a code-buffer
+     * surface show black.
      */
-    function render() {
-        if (!outputs.length) return;
-        if (outputs.some((o) => o.win.closed)) prune();
-        for (const o of outputs) {
-            if (o.win.closed || o.win.document.hidden) continue;
-            for (const s of o.surfaces) {
-                const src = sourceCanvas(s.source, mirror);
-                if (!src || !src.width) continue;
-                s.ctx.clearRect(0, 0, W, H);
-                s.warp.drawMeshWarp(s.ctx, src);          // identity = a straight copy
-                const b = s.blend;
-                if (b.left || b.right || b.top || b.bottom) applyEdgeBlend(s.ctx, W, H, b);
-            }
+    function renderOutput(o) {
+        if (o.win.closed || o.win.document.hidden) return;
+        for (const s of o.surfaces) {
+            const src = sourceCanvas(s.source, mirror);
+            if (!src || !src.width) continue;
+            s.ctx.clearRect(0, 0, W, H);
+            s.warp.drawMeshWarp(s.ctx, src);          // identity = a straight copy
+            const b = s.blend;
+            if (b.left || b.right || b.top || b.bottom) applyEdgeBlend(s.ctx, W, H, b);
         }
+    }
+    function render() {
+        if (outputs.some((o) => o.win.closed)) prune();
+        for (const o of outputs) renderOutput(o);
+    }
+
+    // ── One loop per output, on THAT window's frames ─────────────────────────
+    // These used to share the main window's requestAnimationFrame, and a window the
+    // compositor cannot see gets no frames — KWin on Wayland stops them for any
+    // window that is covered, minimised or on another desktop. So a fullscreen
+    // output sitting over the main window froze every output, and which ones froze
+    // depended on what happened to be in front: the "not updating, inconsistently"
+    // bug. An output on screen gets its own frames, at its own monitor's rate, and
+    // it pumps the renderer (see surface.js) in case the main window is the one
+    // that stalled — otherwise the master mirror would still be a frozen frame.
+    function startOutputLoop(o) {
+        const tick = () => {
+            if (o.win.closed) { prune(); return; }
+            o.win.requestAnimationFrame(tick);
+            try { pump?.(); } catch (_) {}
+            renderOutput(o);
+        };
+        o.win.requestAnimationFrame(tick);
     }
 
     // ── The SCREEN panel as a destination ────────────────────────────────────
@@ -229,10 +249,11 @@ export function createOutputs({ getSources, getBuffers = null, onLog = () => {} 
         screenCtx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
     }
 
-    // Outputs run their own loop, alive exactly as long as there is an output open.
+    // The SCREEN overlay lives in the main window, so it rides the main window's
+    // frames; each output runs its own loop (startOutputLoop).
     let raf = 0;
-    const needsLoop = () => outputs.length > 0 || (screenEl && screenSrc !== 'master');
-    function tick() { raf = needsLoop() ? requestAnimationFrame(tick) : 0; render(); drawScreen(); }
+    const needsLoop = () => !!(screenEl && screenSrc !== 'master');
+    function tick() { raf = needsLoop() ? requestAnimationFrame(tick) : 0; drawScreen(); }
     function ensureLoop() { if (!raf && needsLoop()) raf = requestAnimationFrame(tick); }
 
     function restore() {

@@ -81,6 +81,23 @@ export function setDeckLog(fn) { _deckLog = fn; }
 let _lastCanvas = null;
 export function liveCanvas() { return _lastCanvas; }
 
+// ── Driving a surface from another window ────────────────────────────────────
+// A surface rides THIS window's requestAnimationFrame, and a window the compositor
+// cannot see gets no frames: minimised, on another desktop, or — the case that
+// matters — covered by a fullscreen output window on the same screen. (KWin on
+// Wayland stops frame callbacks for occluded windows outright.) Everything
+// downstream froze with it: the renderer, the master mirror and every output.
+//
+// An output window that IS on screen gets frames of its own, so it pumps the
+// surfaces from its rAF. Only while their own loop has stalled, though — when the
+// main window is visible its rAF drives as before, and the pump does nothing.
+const _live = new Set();
+const STALL_MS = 50;       // ~3 missed frames at 60Hz: the window's rAF has stopped
+export function pumpSurfaces() {
+    const now = performance.now();
+    for (const s of _live) s.pump(now);
+}
+
 export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     let r = null, on = false, raf = 0;
     const aud = { bass: 0, mid: 0, treble: 0, level: 0, spectrum: null };
@@ -104,9 +121,23 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
     try { r = createGLRenderer(canvas); }
     catch (e) { console.warn('visual surface: WebGL2 unavailable —', e?.message || e); }
 
+    let lastRaf = 0, lastStep = 0;
     function frame(ts) {
+        raf = 0;
         if (!on) return;
         raf = requestAnimationFrame(frame);
+        lastRaf = performance.now();
+        step(ts);
+    }
+    // Called from pumpSurfaces() by an output window's rAF. Several outputs all
+    // pump every vsync, so a step already taken this frame is not taken again.
+    function pump(now) {
+        if (!on || now - lastRaf < STALL_MS || now - lastStep < 4) return;
+        step(now);
+    }
+
+    function step(ts) {
+        lastStep = performance.now();
         // The gate goes AFTER re-arming: a capped loop still rides real frame
         // boundaries, it just skips most of them. See vperf.js.
         if (!allowFrame(ts)) return;
@@ -147,13 +178,16 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         noteFrame(performance.now() - t0, ts);
     }
 
-    return {
+    const self = {
         ok:   () => !!r,
         isOn: () => on,
         canvas,
+        pump,
         start() {
             if (!r || on) return false;
             on = true;
+            lastRaf = performance.now();
+            _live.add(self);
             canvas.style.display = 'block';
             // Clear the id after cancelling. Browsers RECYCLE requestAnimationFrame
             // ids, so a surface that stopped long ago is holding a number the browser
@@ -166,6 +200,7 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         },
         stop() {
             on = false;
+            _live.delete(self);
             if (raf) { cancelAnimationFrame(raf); raf = 0; }
             canvas.style.display = 'none';
         },
@@ -179,4 +214,5 @@ export function createSurface(canvas, clock, { fadeWhenIdle = true } = {}) {
         // starts at the window's size. Call this once it is placed.
         resize() { r?.resize?.(); },
     };
+    return self;
 }

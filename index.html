@@ -335,7 +335,7 @@
     import { initDocs, setDocsInsert, toggleDocs, openDocs, VERSION, exampleList, exampleCode } from './js/ui/docs.js';
     import { createOutputs } from './js/visuals/render/outputs.js';
     import { setVisualHint } from './js/visuals/bridge.js';
-    import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas, liveDeck as liveVisualDeck, setDeckLog } from './js/visuals/surface.js';
+    import { eachFrame as eachVisualFrame, liveCanvas as liveVisualCanvas, liveDeck as liveVisualDeck, setDeckLog, pumpSurfaces as pumpVisualSurfaces } from './js/visuals/surface.js';
 
     import { createVideoRecorder, downloadBlob as downloadVideo } from './js/visuals/render/vrec.js';
     import { vrandLines } from './js/visuals/vrand.js';
@@ -4773,6 +4773,9 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // Every buffer — the set and each scratch, attached or detached — so a
             // surface can carry the code you are typing, not only the picture.
             getBuffers: () => bufferTargets().map((t) => ({ name: t.name, text: t.doc.getValue() })),
+            // Keeps the renderer (and so the master mirror) going from an output's
+            // frames while the main window is hidden and gets none of its own.
+            pump: pumpVisualSurfaces,
             onLog: (m, k) => log(m, k || 'info'),
         });
         // Only the MASTER source needs a frame from the renderer, and only from inside

@@ -254,11 +254,16 @@ export function createMeshWarp(win, canvas, W, H, color="4fd1ff", onChange=null)
         } else {
             // Triangle-rasterise the (N-1)×(N-1) quad grid.  drawTri clips to
             // each triangle, so no pixel escapes the warped outline.
+            // u/v are scaled by the SOURCE's own size, not the output's: the GL
+            // canvas is sized by its panel and by vres, so it is rarely W×H. Using
+            // W×H here drew the texture at its native size inside a W×H frame —
+            // a half-res source came out half the size the moment it was warped.
+            const sw=srcImg.width||W, sh=srcImg.height||H;
             for (let r=0;r<N-1;r++) for (let c=0;c<N-1;c++){
                 const tl=grid[r][c],tr=grid[r][c+1],bl=grid[r+1][c],br=grid[r+1][c+1];
                 const u0=c/(N-1),v0=r/(N-1),u1=(c+1)/(N-1),v1=(r+1)/(N-1);
-                drawTri(ctx,srcImg,W,H, tl.x*W,tl.y*H, tr.x*W,tr.y*H, br.x*W,br.y*H, u0,v0,u1,v0,u1,v1);
-                drawTri(ctx,srcImg,W,H, tl.x*W,tl.y*H, br.x*W,br.y*H, bl.x*W,bl.y*H, u0,v0,u1,v1,u0,v1);
+                drawTri(ctx,srcImg,sw,sh, tl.x*W,tl.y*H, tr.x*W,tr.y*H, br.x*W,br.y*H, u0,v0,u1,v0,u1,v1);
+                drawTri(ctx,srcImg,sw,sh, tl.x*W,tl.y*H, br.x*W,br.y*H, bl.x*W,bl.y*H, u0,v0,u1,v1,u0,v1);
             }
         }
         if (editing) drawOverlay(ctx);
