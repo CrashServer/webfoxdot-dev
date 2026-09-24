@@ -28,6 +28,7 @@ import { allocUserBufId, registerTake } from './sampler.js';
 import { resolveCamera as resolveDevice } from '../visuals/camera.js';
 import { resolveSource, planTake } from './takeplan.js';
 import { PLAYER_GROUP } from './player.js';
+import { refreshAudioInputs } from './audioinputs.js';
 
 let _sc = null, _clock = null, _masterNode = 4, _masterFxGroup = 5, _findPlayer = () => null;
 let _log = () => {};
@@ -49,13 +50,9 @@ export function audioinState() {
     return { live: !!_in.stream, label: _in.label, deviceId: _in.deviceId, latency: _in.latency };
 }
 
-async function inputList() {
-    try {
-        const all = await navigator.mediaDevices.enumerateDevices();
-        return all.filter(d => d.kind === 'audioinput')
-                  .map((d, i) => ({ id: d.deviceId, label: d.label || `input ${i + 1}` }));
-    } catch (_) { return []; }
-}
+// Also what the editor's audioin( autocomplete offers, so reading it here keeps
+// that menu current — see audioinputs.js.
+const inputList = () => refreshAudioInputs();
 
 function stopInput() {
     try { _in.source?.disconnect(); } catch (_) {}

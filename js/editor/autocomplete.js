@@ -7,6 +7,7 @@ import { FX_REGISTRY }  from '../fx/registry.js';
 import { SCENES as VSCENES, WS_SCENES, sceneParams, universalParams, PALETTE_NAMES, RENDER_MODE_NAMES, BLEND_NAMES } from '../visuals/vdata.js';
 import { exampleList, exampleCode } from '../ui/docs/examples.js';
 import { ASCII_STYLES } from '../ui/ascii.js';
+import { audioInputs, refreshAudioInputs } from '../engine/audioinputs.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
@@ -466,6 +467,25 @@ function layoutItems(fn = 'recall') {
       : fn === 'forget' ? `${n}   · drops this one`
       :                   `${n}   · or recall(${i})`));
 }
+// audioin( … ) — the machine's audio inputs, by name and index, plus the things
+// audioin() takes that are not a device. The list is the one audioin() last read
+// (audioinputs.js); a refresh is started here too, so a device plugged in since
+// shows up the next time the menu opens.
+function audioinItems() {
+    refreshAudioInputs();
+    const { list, named } = audioInputs();
+    const devs = named
+        ? list.map((d, i) => item(JSON.stringify(d.label), 'hint-keyword', `${d.label}   · or audioin(${i})`))
+        : [item('', 'hint-keyword', list.length
+            ? `${list.length} input${list.length === 1 ? '' : 's'} — run audioin() once to see their names`
+            : 'run audioin() once to list the inputs')];
+    return [
+        ...devs,
+        item('monitor=0.5', 'hint-param', 'monitor=0.5   · hear the input (0 = silent)'),
+        item('False', 'hint-keyword', 'False   · close the input'),
+    ];
+}
+
 // Server.addFx( … ) / Server.removeFx( … ) / Master. … — the master bus.
 //
 // The whole mix, and until now the only way to reach it was to already know the
@@ -591,6 +611,9 @@ function getContext(cm) {
         if (m) return { type: 'layout', word, fn: m[1] };
     }
     if (/\bpanel\(\s*["']?[\w -]*$/.test(before))    return { type: 'panel', word };
+    // audioin( … ) — first argument only: after a comma it is monitor=/pan=, which
+    // the generic kwarg rules below handle.
+    if (/\baudioin\(\s*["']?[^"',()]*$/.test(before)) return { type: 'audioin', word };
     // compo_base(n, beats, <family>) — only the third argument is a name.
     if (/\bcompo_base\(\s*[^,)]*,\s*[^,)]*,\s*["']?[\w]*$/.test(before)) return { type: 'partfamily', word };
     if (/\blanguage\(\s*["']?[\w-]*$/.test(before)) return { type: 'language', word };
@@ -756,6 +779,13 @@ function hintFn(cm) {
     // p1. filters/inserts the method — not the whole "p1." (which matches nothing).
     const dotIdx = typedWord.lastIndexOf('.');
     if (dotIdx >= 0) { wordStart += dotIdx + 1; typedWord = typedWord.slice(dotIdx + 1); }
+    // audioin("Scar… — device names have spaces and come quoted, so the part being
+    // replaced starts at the opening quote, not at the last word: otherwise picking
+    // "Scarlett 2i2 USB" after typing "Scar gives ""Scarlett 2i2 USB".
+    if (ctx.type === 'audioin') {
+        const am = /\baudioin\(\s*(["']?)([^"',()]*)$/.exec(before);
+        if (am) { wordStart = cursor.ch - am[1].length - am[2].length; typedWord = am[2].trim(); }
+    }
     const from = { line: cursor.line, ch: wordStart };
     const to   = cursor;
 
@@ -810,6 +840,8 @@ function hintFn(cm) {
         list = narrow(themeItems());
     } else if (ctx.type === 'layout') {
         list = narrow(layoutItems(ctx.fn));
+    } else if (ctx.type === 'audioin') {
+        list = narrow(audioinItems());
     } else if (ctx.type === 'panel') {
         list = narrow(panelItems());
     } else if (ctx.type === 'partfamily') {
