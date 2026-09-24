@@ -3516,6 +3516,18 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
         if (e.altKey && e.shiftKey && (e.key === 'B' || e.key === 'b' || e.code === 'KeyB')) {
             e.preventDefault(); const on = toggleEditorBg(); log(`visuals background ${on ? 'on' : 'off'}`, 'info');
         }
+        // Shift+Alt+1…9 — recall(0…8), the saved workspaces in their listed order.
+        // Alt+N alone is taken (it switches buffers), and e.code rather than e.key
+        // because Shift turns the digit into a symbol that depends on the layout.
+        const d = /^Digit([1-9])$/.exec(e.code);
+        if (d && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            // recall(n) wraps, which suits computed indices; a key for a slot that is
+            // not there should say so rather than land on some other workspace.
+            const i = Number(d[1]) - 1, n = Object.keys(listLayouts()).length;
+            if (n && i >= n) log(`recall: no workspace ${i} — ${n} saved (Shift+Alt+1…${n})`, 'warn');
+            else buildCtx().recall(i);
+        }
     });
 
     // ── Split view — peers' evals stream below the shared editor (session only).

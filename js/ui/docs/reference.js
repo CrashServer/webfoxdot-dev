@@ -32,6 +32,7 @@ export const SHORTCUTS = [
     { key: 'Ctrl+/',             desc: 'Toggle line comment' },
     { key: 'Ctrl+Alt+N',         desc: 'New scratch buffer — a blank canvas next to your set, local to you' },
     { key: 'Alt+1 … Alt+9',      desc: 'Switch buffer — Alt+1 is the set, the rest are your scratch canvases' },
+    { key: 'Shift+Alt+1 … 9',    desc: 'Recall saved workspace 0 … 8 — the same as recall(0) … recall(8); recall() lists them in that order' },
     { key: 'Shift+Alt+B',        desc: 'Toggle the visuals as a live background behind the editor (or vbg())' },
     { key: 'Shift+Alt+Z',        desc: 'Zen — hide all UI' },
 ];
