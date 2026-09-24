@@ -259,15 +259,23 @@ export function setDesktopMode(on) {
 const PANELS = [
     { id: 'wfd-editor',   group: 'workspace', title: 'editor',      x:   0, y:   0, w: 1080, h: 620, minW: 420, minH: 200, adopt: ['#editor-tabs', '#editor-wrap'] },
     { id: 'wfd-log',      group: 'workspace', title: 'log',         x:   0, y: 642, w: 1080, h: 220, minW: 300, minH: 90,  adopt: ['#log'] },
-    // The control column, as ONE panel rather than six. It was six because every
-    // .cp-section could be one, not because six was the right number — clock,
-    // players and composition are read at a glance and midi and settings are set
-    // once, so they cost six headers, six borders and six rows in the window list to
-    // save nothing. This is what they already were in the classic layout: a single
-    // scrolling column of foldable sections, and the fold headers still work here
-    // because initFoldableSections() wires them before the desktop adopts them.
-    { id: 'wfd-controls', group: 'status', title: 'controls',    x:1102, y:   0, w:  400, h:1220, minW: 280, minH: 160,
-      adopt: ['#cp-clock', '#cp-players', '#cp-compo', '#cp-session', '#cp-link', '#cp-midi', '#cp-settings'] },
+    // The control column. It was one panel of six foldable sections, on the grounds
+    // that midi and settings are set once and did not earn a header each. That held
+    // until MIDI grew — a monitor, bindings, learn, device lists — and the column
+    // became a scroll to find it past the clock and players, with composition in
+    // between. So it is four again, split by what you do there: CONTROLS is read at
+    // a glance while playing (clock, players, session, link), COMPOSITION is the
+    // arrangement, MIDI is the hardware, SETTINGS is the app. Each folds, moves and
+    // closes on its own. MIDI takes the top of the right-hand column, where the
+    // changelog was: hardware is reached for mid-set, release notes are not.
+    { id: 'wfd-controls', group: 'status', title: 'controls',    x:1102, y:   0, w:  400, h: 560, minW: 280, minH: 160,
+      adopt: ['#cp-clock', '#cp-players', '#cp-session', '#cp-link'] },
+    { id: 'wfd-compo',    group: 'status', title: 'composition', x:1102, y: 582, w:  400, h: 400, minW: 280, minH: 120,
+      adopt: ['#cp-compo'] },
+    { id: 'wfd-midi',     group: 'status', title: 'midi',        x:1524, y:   0, w:  390, h: 620, minW: 280, minH: 120,
+      adopt: ['#cp-midi'] },
+    { id: 'wfd-settings', group: 'status', title: 'settings',    x:-412, y: 842, w:  390, h: 378, minW: 280, minH: 120,
+      adopt: ['#cp-settings'] },
     // A monitor on the canvas: video1 >> plasma() plays HERE, next to the code that
     // drives it, instead of in a pop-out window on another screen.
     { id: 'wfd-screen',   group: 'workspace', title: 'screen',      x:   0, y: 884, w: 1080, h: 336, minW: 240, minH: 140, screen: true },
@@ -356,7 +364,7 @@ const PANELS = [
     // Under the menu in the left strip, because the button that opens it is up there
     // and a panel that appears somewhere you are not looking is a panel you lose.
     { id: 'wfd-perf',     group: 'workspace', title: 'performance', x:-412, y: 390, w: 390, h: 430, minW: 300, minH: 140, perf: true },
-    { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1524, y:   0, w:  390, h: 620, minW: 320, minH: 200, changelog: true },
+    { id: 'wfd-changelog',  group: 'workspace', title: 'changelog', x:1936, y:   0, w:  390, h: 620, minW: 320, minH: 200, changelog: true },
 ];
 
 // The floating overlays — mixer, modular, parts, room rules, docs, galaxy — get
