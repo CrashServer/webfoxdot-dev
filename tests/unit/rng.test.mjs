@@ -81,5 +81,18 @@ export default function ({ test, eq, ok, near }) {
         eq(S.patGet(null, 0, 'DEF'), 'DEF');
         eq(S.patGet([5], 3, 'DEF'), 5);
     });
+    // A random p1 played one note while p2 >> saw(p1.degree + 7), .follow and .map
+    // read another: unseeded, every read was a fresh Math.random().
+    test('rng: unseeded, a pattern read twice at one step agrees with itself', () => {
+        R.setSeed(null);
+        const a = S.PRand(0, 1000), b = S.PWhite(0, 1);
+        for (const st of [0, 5, 99, 5]) { eq(a.get(st), a.get(st)); eq(b.get(st), b.get(st)); }
+    });
+    test('rng: unseeded, two patterns are still independent', () => {
+        R.setSeed(null);
+        const a = S.PRand(0, 1e9), b = S.PRand(0, 1e9);
+        let same = 0; for (let st = 0; st < 20; st++) if (a.get(st) === b.get(st)) same++;
+        ok(same < 3, `${same} of 20 steps identical`);
+    });
     R.setSeed(null);
 }

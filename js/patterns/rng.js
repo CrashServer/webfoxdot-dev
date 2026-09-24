@@ -85,11 +85,31 @@ export function randAt(stream, step) {
 }
 
 /** A pattern's own handle: rng.at(step) for per-step values, rng.next() for one-offs. */
+// Unseeded, randAt() is Math.random() on every call — so the SAME pattern read twice
+// at the same step gave two different values. Reading another player's pattern is
+// ordinary: p2 >> saw(p1.degree + 7), .follow, .accompany, .map — and a random p1
+// played one note while everything reading it heard another. So an unseeded stream
+// remembers what it drew for each recent step, and a second read agrees with the
+// first. Per stream OBJECT, not per id: ids restart at 0 with every eval, and two
+// separately evaluated patterns sharing a memo would play the same "random" line.
+// Seeded draws are already a pure function of the step and need none of this.
+const MEMO_STEPS = 512;
 export function makeStream() {
     const id = nextStream();
+    let memo = null;
     return {
         id,
-        at: (step) => randAt(id, step),
+        at: (step) => {
+            if (_base != null || step == null || step < 0) return randAt(id, step);
+            memo ??= new Map();
+            let v = memo.get(step);
+            if (v === undefined) {
+                v = randAt(id, step);
+                memo.set(step, v);
+                if (memo.size > MEMO_STEPS) memo.delete(memo.keys().next().value);
+            }
+            return v;
+        },
         next: () => randAt(id, -1),
     };
 }

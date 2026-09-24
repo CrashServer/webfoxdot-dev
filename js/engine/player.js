@@ -1475,8 +1475,14 @@ export class Player {
 
     // Read another player's current value of an attr as a live pattern:
     //   i9 >> faim(b1.degree, …)   reads b1's degree each step.
+    // Reads from the same place setAttr writes, per mode. It knew only sample and
+    // synth, so a midiout() or loop() player read its (empty) synth args and
+    // .follow / .accompany / .map / m1.degree on one of them got nothing.
     getAttr(attr) {
-        const target = () => (this._mode === 'sample' ? this._playOpts : this._args)[attr];
+        const target = () => (this._mode === 'sample'  ? this._playOpts
+                            : this._mode === 'loop'    ? this._loopOpts
+                            : this._mode === 'midiout' ? this._midiOpts
+                            : this._args)?.[attr];
         return { get: (step) => patGet(target(), step) };
     }
 }

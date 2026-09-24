@@ -241,7 +241,7 @@ export function shapeValue(lo, hi, curve, n) {
 }
 
 // Factory. cc == null arms MIDI learn (binds to the next control touched).
-export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin', device = null) {
+export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin', device = null, { init } = {}) {
     const b = {
         isMidi: true, isTimeVar: true,
         cc: (cc == null ? null : cc | 0),
@@ -276,6 +276,15 @@ export function makeMidi(cc = null, lo = 0, hi = 1, curve = 'lin', device = null
             return 'midi cc' + this.cc + (this.srcName ? ' \u00b7 ' + shortName(this.srcName) : '');
         },
     };
+    // init: where it starts before the control has sent anything. Mid-range suits a
+    // fader (a fresh patch is not silent) and is wrong for a BUTTON: a mute written
+    // midi(48, 1, 0) sat at half volume, and a light echoing it sat lit, until the
+    // button was first pressed. Given in output units; the position is found
+    // linearly, which is exact for a button (lin) and close enough for a curve.
+    // A value the control has actually sent still wins — see the seed below.
+    if (init != null && isFinite(Number(init)) && hi !== lo) {
+        b._norm = Math.max(0, Math.min(1, (Number(init) - lo) / (hi - lo)));
+    }
     if (b.cc != null) {
         // Seed from the most recent matching value, whichever device it came from.
         for (const [k, v] of _last) {

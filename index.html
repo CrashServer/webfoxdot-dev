@@ -1985,7 +1985,16 @@
             // midi(cc, lo, hi, curve, device) — device is a name fragment ("nano"),
             // for when two controllers send the same CC numbers, which they do: a
             // nanoKONTROL2's faders are CC 0..7 and a keyboard's volume is CC 7.
-            midi:   (cc, lo = 0, hi = 1, curve = 'lin', device = null) => { _ensureMidi(); return makeMidi(cc, lo, hi, curve, device); },
+            // midi(48, 1, 0, "lin", "nano", init=1): keyword arguments arrive as a
+            // trailing object, which may sit where curve or device would be — so it
+            // is taken off the end first, and whatever positionals remain keep their
+            // defaults. init= is where the value starts before the control moves.
+            midi:   (...a) => {
+                const last = a[a.length - 1];
+                const kw = last && typeof last === 'object' && !Array.isArray(last) && typeof last.get !== 'function' ? a.pop() : {};
+                const [cc, lo = kw.lo ?? 0, hi = kw.hi ?? 1, curve = kw.curve ?? 'lin', device = kw.device ?? null] = a;
+                _ensureMidi(); return makeMidi(cc, lo, hi, curve, device, { init: kw.init });
+            },
             // midimap() — what is bound to what, and on which box.
             /**
              * lookahead(ms) \u2014 how much main-thread stall the audio can absorb.
