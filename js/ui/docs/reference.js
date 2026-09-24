@@ -305,7 +305,7 @@ export const PLAYER_PARAMS = [
 // The version the app reports, and the newest group in the changelog. They have to
 // agree: the badge in the toolbar is what someone quotes when reporting something,
 // and the changelog is where you go to see what that version contains.
-export const VERSION = 'dev07';
+export const VERSION = 'dev08';
 
 // Chained PLAYER METHODS — p1 >> saw([0,4]).unison(3).every(4, "reverse")
 //
