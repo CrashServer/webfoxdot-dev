@@ -3982,7 +3982,6 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     // A name can appear on several lines (composition sections), so we resolve to
     // the occurrence inside the currently-active #@ section.
     const _degMarks = new Map();      // playerName → CodeMirror TextMarker
-    const _spanCache = new Map();     // lineText → [[s,e],…] | null
     // name → { line, doc } for the line that last (re)defined that player. The DOC
     // matters: a line number alone means nothing once there is more than one buffer,
     // and a same-named line sitting at the same index in another buffer would be

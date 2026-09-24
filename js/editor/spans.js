@@ -229,6 +229,11 @@ function scanArgs(lineText, from, depth) {
     return out;          // always an array — callers spread it
 }
 
+// lineText → parseArrays(lineText). Lived in index.html when this function did;
+// the refactor that moved arraysFor here left the Map behind, so every call threw
+// a ReferenceError — swallowed by emitStep's try/catch, which is how the live
+// "this element is playing" highlight quietly stopped drawing anything.
+const _spanCache = new Map();
 export function arraysFor(lineText) {
     if (_spanCache.has(lineText)) return _spanCache.get(lineText);
     const arrays = parseArrays(lineText);

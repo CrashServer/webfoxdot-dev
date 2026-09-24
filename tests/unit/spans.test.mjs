@@ -1,6 +1,7 @@
 // Where each step of a line lives, in characters — what the live gutter boxes.
 // This lived inside index.html's inline script and could not be tested at all.
 import { parseArrays, arraySpans, altSpans, elementSpans, arpIndex, parseArpMode, _numArray } from '../../js/editor/spans.js';
+import * as SP from '../../js/editor/spans.js';
 
 const text = (line, span) => line.slice(span[0], span[1]);
 
@@ -72,5 +73,13 @@ export default function ({ test, eq, ok }) {
     test('spans: a line with no call yields nothing rather than throwing', () => {
         eq(parseArrays('# just a comment'), null);
         eq(parseArrays('Clock.bpm = 120'), null);
+    });
+    // arraysFor used a Map that stayed behind in index.html when it moved here, so
+    // it threw on every call — silently, inside emitStep — and the live "playing"
+    // highlight drew nothing. Calling it at all is the test.
+    test('spans: arraysFor runs, and caches', () => {
+        const a = SP.arraysFor('p1 >> pluck([0, 2, 4], dur=[1, 2])');
+        ok(Array.isArray(a) && a.length === 2, JSON.stringify(a));
+        ok(SP.arraysFor('p1 >> pluck([0, 2, 4], dur=[1, 2])') === a, 'second call should hit the cache');
     });
 }
