@@ -270,7 +270,7 @@
              PExp, PPulse, PSlide, motif, arp, PContour, PGroove, PCircle } from './js/patterns/sequences.js';
     import * as _Seq from './js/patterns/sequences.js';   // namespace → derive the live pattern list for syntax highlighting
     import { _var, _linvar, _sinvar, _expvar, lininf, expinf, Pvar, _fperlin, _fi, _fo, _fb, setClockRef } from './js/patterns/timevars.js';
-    import { initLiveSample, sample as liveSample, audioin } from './js/engine/livesample.js';
+    import { initLiveSample, sample as liveSample, audioin, stopMonitor, monitorGone } from './js/engine/livesample.js';
     import { loadSamples, PlayStringCall, LoopCall, loadedSampleChars,
              loadSampleFromURL, loadPackFromURL } from './js/engine/sampler.js';
     import { chaosLines, JamBot } from './js/engine/generator.js';
@@ -1085,6 +1085,9 @@
         // A live audiviz meter is a timer, not a player, so nothing above reaches it
         // either. "Stop everything" should mean everything.
         stopAudiviz(true);
+        // The input monitor is a sound source like any player, and the one most
+        // likely to be the thing you are stopping (a mic that started to howl).
+        stopMonitor();
         clock.bpm = clock.bpm;                  // sampling a TimeVar → freeze at the current value
         if (escalate) {
             // The hard cut: flush both schedulers and free every player and FX node.
@@ -1116,6 +1119,7 @@
         try {
             cancelSection();
             _panicFn(clock);
+            monitorGone();                    // freed with the player group
             log('soft reload: players stopped & audio nodes freed — re-run your code', 'ok');
         } catch (e) { log('soft reload failed: ' + e.message + ' (try a page refresh)', 'error'); }
     }
@@ -1527,7 +1531,7 @@
             // plays with loop(name) — or play() when the name is one character.
             // audioin(which) picks the live input. See js/engine/livesample.js.
             sample: (name, beats, opts) => { liveSample(name, beats, opts || {}); return name; },
-            audioin: (which) => { audioin(which); return '\u25cf audioin'; },
+            audioin: (which, opts) => { audioin(which, opts); return '\u25cf audioin'; },
             // scenes() — the contact sheet. 255 of them and no way to see any.
             scenes: () => { toggleSceneBrowser(); return '\u25a6 scenes'; },
             // midicc / midiprog / midinrpn — the settings of an external instrument,
@@ -2597,7 +2601,7 @@
         'fd_fbass', 'fd_sawbass', 'fd_marimba', 'fd_hiss',   // CrashServer-rig ports batch
         'fd_opl2', 'fd_oplbell', 'fd_opldrone',   // OPL2/AdLib-style FM voices (Dune-inspired)
         'fd_spicebass', 'fd_spiceseq', 'fd_spicepad', 'fd_spicelead',   // Berlin-School analog (Dune / Picq)
-        'fd_sampler', 'fd_loop', 'fd_master', 'fd_rec',
+        'fd_sampler', 'fd_loop', 'fd_master', 'fd_rec', 'fd_monitor',
         ...FX_SYNTHDEFS,   // fd_fx_out + per-effect fd_fx_* nodes (approach A)
     ];
     const MASTER_NODE = 4;   // fixed low id — master limiter at the tail of root

@@ -17,7 +17,7 @@
 // its Web Audio input into the server's input buses, where SoundIn reads them. So
 // audioin() only has to connect a getUserMedia stream to that node. Nothing plays the
 // input back out — a mic next to the speakers would feed back — it is only there to
-// be recorded.
+// be recorded — until you ask to hear it: audioin(monitor=0.5) plays it into the mix.
 //
 // Takes are LOCAL. In a jam, a peer running loop("grab") has no buffer by that name
 // and hears nothing; sharing takes through the room is a separate step.
@@ -27,6 +27,7 @@ import { LOOKAHEAD_S } from './clock.js';
 import { allocUserBufId, registerTake } from './sampler.js';
 import { resolveCamera as resolveDevice } from '../visuals/camera.js';
 import { resolveSource, planTake } from './takeplan.js';
+import { PLAYER_GROUP } from './player.js';
 
 let _sc = null, _clock = null, _masterNode = 4, _masterFxGroup = 5, _findPlayer = () => null;
 let _log = () => {};
@@ -88,6 +89,30 @@ async function openInput(deviceId) {
     track?.addEventListener('ended', () => { if (_in.stream === stream) { stopInput(); _log('audioin: the input stopped', 'warn'); } });
 }
 
+// ── Monitoring ───────────────────────────────────────────────────────────────
+// fd_monitor plays the input into the mix, in the player group so stop-all and
+// panic free it. Off by default and never switched on by anything else: a mic in
+// the same room as the speakers howls the moment it is heard.
+let _mon = { id: null, amp: 0, pan: 0 };
+
+export function setMonitor(amp, pan = _mon.pan) {
+    const a = Math.max(0, Math.min(2, Number(amp) || 0)), p = Math.max(-1, Math.min(1, Number(pan) || 0));
+    if (a > 0 && _mon.id == null) {
+        _mon.id = _sc.nextNodeId();
+        _sc.send('/s_new', 'fd_monitor', _mon.id, 0, PLAYER_GROUP, 'amp', a, 'pan', p);
+    } else if (a > 0) {
+        _sc.send('/n_set', _mon.id, 'amp', a, 'pan', p);
+    } else if (_mon.id != null) {
+        _sc.send('/n_set', _mon.id, 'gate', 0);         // fades out and frees itself
+        _mon.id = null;
+    }
+    _mon.amp = a; _mon.pan = p;
+}
+/** Stop-all: fade the monitor out like any other voice. */
+export function stopMonitor() { if (_sc && _mon.id != null) setMonitor(0); }
+/** After something freed every node without asking (soft reload): forget the id. */
+export function monitorGone() { _mon.id = null; _mon.amp = 0; }
+
 function failWhy(e) {
     const n = e?.name || '';
     return n === 'NotAllowedError' || n === 'SecurityError' ? 'permission was refused'
@@ -100,12 +125,25 @@ function failWhy(e) {
  * audioin()            open the default input, or list what there is once open
  * audioin(1) / ("scar")   pick one by index or by a fragment of its name
  * audioin(false) / ("off")  close it
+ * audioin(monitor=0.5)    hear it, through the mix (0 = silent again); pan= too
  */
-export async function audioin(which) {
+export async function audioin(which, opts = {}) {
+    if (which && typeof which === 'object' && !Array.isArray(which)) { opts = which; which = undefined; }
+    opts = opts || {};
     if (!_sc) { _log('audioin: boot the audio first', 'warn'); return null; }
     if (which === false || (typeof which === 'string' && /^\s*off\s*$/i.test(which))) {
-        stopInput(); _log('audioin: off', 'info'); return 'off';
+        stopMonitor(); stopInput(); _log('audioin: off', 'info'); return 'off';
     }
+    const label = await openAndPick(which, opts.monitor === undefined);
+    if (label && opts.monitor !== undefined) {
+        setMonitor(opts.monitor, opts.pan);
+        _log(_mon.amp > 0 ? `audioin: monitoring ${label} at ${_mon.amp} — use headphones; a mic near the speakers will howl`
+                          : 'audioin: monitor off', _mon.amp > 0 ? 'warn' : 'info');
+    }
+    return label;
+}
+
+async function openAndPick(which, chatty) {
     if (!navigator.mediaDevices?.getUserMedia) {
         _log(window.isSecureContext ? 'audioin: this browser cannot open an audio input'
                                     : 'audioin: needs https (or localhost) — this page is not a secure context', 'warn');
@@ -117,6 +155,7 @@ export async function audioin(which) {
         if (!_in.stream) await openInput(null);
         const list = await inputList();
         if (which == null || which === true) {
+            if (!chatty) return _in.label;
             _log(`audioin: ${_in.label}${list.length > 1 ? `  ·  ${list.length} inputs:` : ''}`, 'ok');
             if (list.length > 1) list.forEach((d, i) => _log(`  ${String(i).padStart(2)}.  ${d.label}${d.id === _in.deviceId ? '   ◂' : ''}`, 'info'));
             return _in.label;
@@ -127,7 +166,7 @@ export async function audioin(which) {
         _log(`audioin: ${_in.label}`, 'ok');
         return _in.label;
     } catch (e) {
-        stopInput();
+        stopMonitor(); stopInput();
         _log(`audioin: ${failWhy(e)}`, 'warn');
         return null;
     }
