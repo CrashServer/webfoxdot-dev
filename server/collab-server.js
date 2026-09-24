@@ -37,6 +37,44 @@ const yjsRooms  = new Map();             // slug → open Yjs socket count (free
 // Per-socket message rate limit (token bucket over a 1s window) — caps eval-relay
 // floods; legit traffic (evals on Ctrl+Enter, ~1 beat_sync/s, ping/25s) is far below.
 const RATE_LIMIT = 40;
+
+// ── Resource limits ─────────────────────────────────────────────────────────
+// Every connection to a NEW slug made a room — listed in the public galaxy by
+// default, and kept for DORMANT_TTL_MS (a day) after it empties, Yjs doc and all.
+// Nothing bounded either, so a loop opening random slugs filled everyone's galaxy
+// and grew this process without limit. Two caps: rooms overall (the oldest dormant
+// room makes way first; only if every room is live is a new slug refused), and
+// sockets per address (a browser uses 2-3: app, Yjs, maybe solo presence).
+const MAX_ROOMS   = Number(process.env.COLLAB_MAX_ROOMS)  || CFG.maxRooms || 1000;
+const MAX_PER_IP  = Number(process.env.COLLAB_MAX_PER_IP) || CFG.maxPerIp || 32;
+const perIp = new Map();             // address → open socket count
+
+// The client's address. Behind a reverse proxy every socket arrives from
+// 127.0.0.1, so the proxy's X-Forwarded-For is used — but ONLY when the socket
+// really is from loopback: from anywhere else that header is the client's word.
+function clientIp(req) {
+    const a = req.socket.remoteAddress || '';
+    const loop = a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+    const xff = req.headers['x-forwarded-for'];
+    if (loop && typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+    return a;
+}
+
+// Room for one more slug? Evict the longest-dormant rooms first; refuse only when
+// every tracked room still has people in it.
+function roomCapacityFor(slug) {
+    if (roomMeta.has(slug) || roomMeta.size < MAX_ROOMS) return true;
+    const dormant = [...roomMeta].filter(([s, m]) => m.emptiedAt && !(rooms.get(s) && rooms.get(s).size) && !yjsRooms.get(s))
+                                 .sort((a, b) => a[1].emptiedAt - b[1].emptiedAt);
+    for (const [s] of dormant) {
+        if (roomMeta.size < MAX_ROOMS) break;
+        roomMeta.delete(s);
+        const d = ydocs.get(s);
+        if (d) { try { d.destroy(); } catch (_) {} ydocs.delete(s); }
+        console.log(`[evict] dormant session '${s}' made way (room cap ${MAX_ROOMS})`);
+    }
+    return roomMeta.size < MAX_ROOMS;
+}
 function rateOk(ws) {
     const now = Date.now();
     ws._rl = (ws._rl || []).filter(t => now - t < 1000);
@@ -513,6 +551,10 @@ wss.on('connection', (ws, req) => {
     // Only sane slugs may reach a room or the logs — bounds abuse and blocks log
     // injection (slugs are interpolated into console output).
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(slug)) { try { ws.close(1008, 'invalid session name'); } catch (_) {} return; }
+    const ip = clientIp(req);
+    if ((perIp.get(ip) || 0) >= MAX_PER_IP) { try { ws.close(1013, 'too many connections'); } catch (_) {} return; }
+    perIp.set(ip, (perIp.get(ip) || 0) + 1);
+    ws.on('close', () => { const n = (perIp.get(ip) || 1) - 1; if (n > 0) perIp.set(ip, n); else perIp.delete(ip); });
     const isApp = url.searchParams.get('app') === '1';
     const isSolo = url.searchParams.get('solo') === '1';
 
@@ -538,6 +580,10 @@ wss.on('connection', (ws, req) => {
     // ── Yjs CRDT channel ──────────────────────────────────────────────────
     // y-websocket owns this socket entirely. No app handler here, so JSON
     // frames never reach the Yjs decoder.
+    if (!rooms.has(slug) && !yjsRooms.has(slug) && !roomCapacityFor(slug)) {
+        try { ws.close(1013, 'server full — try again later'); } catch (_) {}
+        return;
+    }
     if (!isApp) {
         setupWSConnection(ws, req, { docName: slug });
         yjsCount++; stats.conns.yjs++;

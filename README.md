@@ -91,6 +91,8 @@ server {
 }
 ```
 
+The collab server limits each client address to 32 sockets and the whole server to 1000 rooms (live and dormant; the oldest dormant room is evicted first). Behind a proxy every socket arrives from 127.0.0.1, so it reads `X-Forwarded-For` — keep that header in your proxy config, or every visitor shares one address and the 33rd socket is refused. Tune with `collab.maxPerIp` / `collab.maxRooms` in `config.json` (or `COLLAB_MAX_PER_IP` / `COLLAB_MAX_ROOMS`).
+
 ### Apache
 
 ```apache
