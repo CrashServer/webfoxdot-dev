@@ -80,4 +80,10 @@ export default function ({ test, eq, ok }) {
         ok(valid('p1 >> pluck([0, 2], dur=8//3)'));
         ok(valid('p1 >> pluck([0], dur=1/2).every(4, "stutter", 8//4)'));
     });
+    test('transpiler: True / False / None are Python\'s constants', () => {
+        eq(js('audioin(False)').trim(), 'audioin(false)');
+        ok(js('p1 >> pluck([0], x=True, y=None)').includes('{x: true, y: null}'));
+        ok(js('print("False and None")').includes('"False and None"'), 'inside a string it stays text');
+        ok(js('a = obj.None').includes('obj.None'), 'a property is not a keyword');
+    });
 }

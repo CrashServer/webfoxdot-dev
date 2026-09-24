@@ -109,6 +109,11 @@ export function transpile(code) {
         const ci = findCommentChar(line);
         if (ci !== -1) { main = line.slice(0, ci); tail = '  //' + line.slice(ci + 1); }
         main = convertFloorDiv(main);
+        // Python's constants. FoxDot code says True / False / None, and here they were
+        // undefined names: audioin(False) threw "False is not defined". Bare words
+        // only, outside strings; a property named like one (x.True) is left alone.
+        main = maskedReplace(main, (t) => t.replace(/(^|[^.\w$])(True|False|None)\b/g,
+            (_, pre, w) => pre + (w === 'True' ? 'true' : w === 'False' ? 'false' : 'null')));
 
         // FoxDot P object (no JS operator overloading, so rewrite the syntax):
         //   P*[a,b,c] → PRand([a,b,c])   (random pick from the list)
