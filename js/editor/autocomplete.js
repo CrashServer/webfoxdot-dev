@@ -8,6 +8,8 @@ import { SCENES as VSCENES, WS_SCENES, sceneParams, universalParams, PALETTE_NAM
 import { exampleList, exampleCode } from '../ui/docs/examples.js';
 import { ASCII_STYLES } from '../ui/ascii.js';
 import { audioInputs, refreshAudioInputs } from '../engine/audioinputs.js';
+import { midiState, shortName } from '../midi/midi.js';
+import { midiOutState } from '../midi/midiout.js';
 
 const SYNTH_NAMES = Object.keys(SYNTH_DEFS);
 const VSCENE_SET  = new Set(VSCENES);
@@ -486,6 +488,22 @@ function audioinItems() {
     ];
 }
 
+// midi(cc, lo, hi, curve, ▯) and port=▯ — the MIDI devices, by the name to type.
+// The name is a FRAGMENT of what the browser calls the device, matched without
+// case: "nanoKONTROL2 SLIDER/KNOB" answers to "nano". Offered as the first word,
+// which is what shortName() already shows everywhere else, deduped because one box
+// often has several ports under one name. Inputs for midi(), outputs for port=.
+function midiDevItems(kind) {
+    const names = kind === 'out' ? (midiOutState().outputs || []).map(o => o.name)
+                                 : (midiState().inputs || []);
+    if (!names.length) return [item('', 'hint-keyword', midiState().enabled
+        ? `no MIDI ${kind === 'out' ? 'outputs' : 'inputs'} — plug one in; they appear here`
+        : 'run any midi() once — the browser only lists devices after MIDI is allowed')];
+    const seen = new Map();
+    for (const n of names) { const k = shortName(n); if (!seen.has(k)) seen.set(k, []); seen.get(k).push(n); }
+    return [...seen].map(([k, full]) => item(JSON.stringify(k), 'hint-keyword', `${k}   · ${full.join(' · ')}`));
+}
+
 // Server.addFx( … ) / Server.removeFx( … ) / Master. … — the master bus.
 //
 // The whole mix, and until now the only way to reach it was to already know the
@@ -614,6 +632,10 @@ function getContext(cm) {
     // audioin( … ) — first argument only: after a comma it is monitor=/pan=, which
     // the generic kwarg rules below handle.
     if (/\baudioin\(\s*["']?[^"',()]*$/.test(before)) return { type: 'audioin', word };
+    // midi(cc, lo, hi, curve, <device>) — the fifth argument is a device name.
+    if (/\bmidi\((?:[^,()]*,){4}\s*["']?[^"',()]*$/.test(before)) return { type: 'mididev', kind: 'in', word };
+    // port=<device> on midiout() / midicc() / midiprog() / midinrpn().
+    if (/\bport\s*=\s*["']?[^"',()]*$/.test(before)) return { type: 'mididev', kind: 'out', word };
     // compo_base(n, beats, <family>) — only the third argument is a name.
     if (/\bcompo_base\(\s*[^,)]*,\s*[^,)]*,\s*["']?[\w]*$/.test(before)) return { type: 'partfamily', word };
     if (/\blanguage\(\s*["']?[\w-]*$/.test(before)) return { type: 'language', word };
@@ -782,8 +804,13 @@ function hintFn(cm) {
     // audioin("Scar… — device names have spaces and come quoted, so the part being
     // replaced starts at the opening quote, not at the last word: otherwise picking
     // "Scarlett 2i2 USB" after typing "Scar gives ""Scarlett 2i2 USB".
-    if (ctx.type === 'audioin') {
-        const am = /\baudioin\(\s*(["']?)([^"',()]*)$/.exec(before);
+    if (ctx.type === 'audioin' || ctx.type === 'mididev') {
+        // Anchored per context: a bare comma would also match inside "…, port=" and
+        // swallow the "port=" itself.
+        const anchor = ctx.type === 'audioin' ? /\baudioin\(\s*(["']?)([^"',()]*)$/
+                     : ctx.kind === 'out'     ? /\bport\s*=\s*(["']?)([^"',()]*)$/
+                     :                          /,\s*(["']?)([^"',()=]*)$/;
+        const am = anchor.exec(before);
         if (am) { wordStart = cursor.ch - am[1].length - am[2].length; typedWord = am[2].trim(); }
     }
     const from = { line: cursor.line, ch: wordStart };
@@ -842,6 +869,8 @@ function hintFn(cm) {
         list = narrow(layoutItems(ctx.fn));
     } else if (ctx.type === 'audioin') {
         list = narrow(audioinItems());
+    } else if (ctx.type === 'mididev') {
+        list = narrow(midiDevItems(ctx.kind));
     } else if (ctx.type === 'panel') {
         list = narrow(panelItems());
     } else if (ctx.type === 'partfamily') {
