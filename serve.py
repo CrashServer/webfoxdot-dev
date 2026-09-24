@@ -17,6 +17,15 @@ WORKSHOP = '/run/media/svdk/storage/DRIVE/500_Apps/stars/workshop'
 # resolves (the stdlib does that too; this branch used to skip it).
 WORKSHOP_REAL = os.path.realpath(WORKSHOP)
 
+# Hidden paths are never served. SimpleHTTPRequestHandler serves everything under
+# ROOT, and ROOT is the repository: /.git/ (every commit ever made) and, for the
+# LAN server, /.cert/server.key (the TLS private key) went to anyone who asked —
+# on serve-lan.py that is everyone on the network. Any path segment that starts
+# with a dot is a 404, which covers .git, .cert, .env and whatever comes next.
+def is_hidden(path):
+    segs = urllib.parse.unquote(path.split('?', 1)[0].split('#', 1)[0]).replace('\\', '/').split('/')
+    return any(seg.startswith('.') and seg not in ('', '.', '..') for seg in segs)
+
 def workshop_path(rel):
     """Absolute path for `rel` under WORKSHOP, or None if it escapes the mount."""
     rel = urllib.parse.unquote(rel, errors='surrogatepass')
@@ -32,6 +41,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def translate_path(self, path):
         # Strip query string
         path = path.split('?', 1)[0].split('#', 1)[0]
+        if is_hidden(path):
+            return os.path.join(ROOT, '.no-such-file')
         # Route /workshop/ → stars/workshop/
         if path == '/workshop' or path.startswith('/workshop/'):
             rel = path[len('/workshop'):]
