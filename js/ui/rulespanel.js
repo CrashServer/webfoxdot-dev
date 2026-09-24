@@ -39,7 +39,7 @@ function build() {
     draggable(_modal.querySelector('.rules-head'), _modal, 'button');
 }
 
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+import { esc, safeColor } from './safehtml.js';
 
 export function renderRulesPanel() { if (_open) render(); }
 
@@ -93,7 +93,7 @@ function render() {
         const sel = perms.ROLES.filter(x => x !== 'host' || isHostRow)
             .map(x => `<option value="${x}"${x === r ? ' selected' : ''}>${x}</option>`).join('');
         return `<div class="rules-person">
-            <span class="rules-dot" style="background:${esc(p.color || '#888')}"></span>
+            <span class="rules-dot" style="background:${safeColor(p.color)}"></span>
             <span class="rules-name">${esc(p.name || 'anon')}${p.isSelf ? ' (you)' : ''}${isHostRow ? ' ★' : ''}</span>
             <select class="rules-rolesel" data-uid="${esc(p.id)}"
                     ${host && !isHostRow ? '' : 'disabled'}>${sel}</select>

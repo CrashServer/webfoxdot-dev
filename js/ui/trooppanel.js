@@ -106,7 +106,8 @@ function paintNudge() {
 /** How far our bar phase sits from theirs, in beats, or null if not following yet. */
 export function troopClockError() { return _lastErr; }
 
-const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// esc had no quote in it, and peer colours go inside style="…" — see safehtml.js.
+import { esc, safeColor } from './safehtml.js';
 
 function build() {
     _modal = document.createElement('div');
@@ -210,7 +211,7 @@ function paintCode(text, peers) {
     _codeEl.innerHTML = lines.slice(start).map((l, i) => {
         const n = start + i + 1;
         const who = onLine.get(n);
-        const mark = who ? ` style="border-left-color:${esc(who.color || '#8cf')}"` : '';
+        const mark = who ? ` style="border-left-color:${safeColor(who.color, '#8cf')}"` : '';
         return `<span class="troop-line${who ? ' here' : ''}"${mark}>` +
                `<i>${n}</i>${esc(l) || '&nbsp;'}` +
                (who ? `<em>${esc(who.name)}</em>` : '') + `</span>`;
@@ -222,8 +223,8 @@ function paintPeers(peers) {
     if (!peers.length) { _peersEl.innerHTML = '<div class="troop-none">nobody else in the room</div>'; return; }
     _peersEl.innerHTML = peers.map(p => `
         <div class="troop-peer">
-            <span class="troop-peer-name" style="color:${esc(p.color || '#8cf')}">${esc(p.name)}</span>
-            <span class="troop-peer-line">${p.line ? 'line ' + p.line : ''}</span>
+            <span class="troop-peer-name" style="color:${safeColor(p.color, '#8cf')}">${esc(p.name)}</span>
+            <span class="troop-peer-line">${p.line ? 'line ' + esc(p.line) : ''}</span>
             <code>${esc((p.code || '').slice(0, 90))}</code>
         </div>`).join('');
 }

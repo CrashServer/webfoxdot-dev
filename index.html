@@ -359,6 +359,7 @@
     import { encodeShare, decodeShare, shareUrl } from './js/share/share.js';
     import { initGalaxy }                from './js/galaxy/galaxy.js';
     import { initSoloPresence }          from './js/collab/presence.js';
+    import { esc as escHtml, safeColor } from './js/ui/safehtml.js';
     import * as UGENS                    from './js/scsynth/ugens.js';
     import { defsynth, initDefsynth, userSynths } from './js/scsynth/defsynth.js';
 
@@ -3766,7 +3767,8 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
                     const n = Math.min(s.beats, 16);
                     squares = '<span class="cp-prog">' + '<i></i>'.repeat(n) + '</span>';
                 }
-                d.innerHTML = `<span class="cp-part-name">${s.name}${beats}</span>${squares}`;
+                // s.name is whatever follows #@ in the (shared) buffer — text, not markup.
+                d.innerHTML = `<span class="cp-part-name">${escapeHtml(s.name)}${beats}</span>${squares}`;
                 d.dataset.line = s.line;
                 d.onclick = () => {
                     editor.setCursor({ line: s.line, ch: 0 });
@@ -4495,10 +4497,10 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
             // ◈ visuals · ♪ making sound right now (from their published analysis, not
             // their declared station — what you hear beats what they claim).
             const badge = u.station === 'visuals' ? '\u25c8' : (u.sounding ? '\u266a' : '');
-            d.innerHTML = `<span class="cp-peer-dot" style="background:${u.color || '#888'}"></span>` +
+            d.innerHTML = `<span class="cp-peer-dot" style="background:${safeColor(u.color)}"></span>` +
                 `<span class="cp-peer-name">${escapeHtml(u.name || 'anon')}${u.isSelf ? ' (you)' : ''}</span>` +
                 (badge ? `<span class="cp-peer-station" title="${u.station === 'visuals' ? 'visuals station' : 'making sound'}">${badge}</span>` : '') +
-                (role ? `<span class="cp-peer-role${role === 'host' ? ' is-host' : ''}">${role === 'host' ? '★ ' : ''}${role}</span>` : '');
+                (role ? `<span class="cp-peer-role${role === 'host' ? ' is-host' : ''}">${role === 'host' ? '★ ' : ''}${escapeHtml(role)}</span>` : '');
             el.appendChild(d);
         }
     }
@@ -4521,15 +4523,15 @@ b4 >> play(x..., fbdelay=0.5, fbtime=0.375, fbfeed=0.6, amp=0.5)
     }
 
     // ── Session chat ──────────────────────────────────────────────────────────
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    }
+    // js/ui/safehtml.js — one escaper, with quotes. A function declaration, not a
+    // const: it is hoisted, and renderParts calls it before this line runs.
+    function escapeHtml(s) { return escHtml(s); }
     function appendChat({ name, color, text }) {
         const log = document.getElementById('cp-chat-log');
         if (!log) return;
         const d = document.createElement('div');
         d.className = 'cp-chat-msg';
-        d.innerHTML = `<span class="cp-chat-name" style="color:${color || '#888'}">${escapeHtml(name || 'anon')}</span> ${escapeHtml(text)}`;
+        d.innerHTML = `<span class="cp-chat-name" style="color:${safeColor(color)}">${escapeHtml(name || 'anon')}</span> ${escapeHtml(text)}`;
         log.appendChild(d);
         while (log.childElementCount > 200) log.removeChild(log.firstChild);
         log.scrollTop = log.scrollHeight;
