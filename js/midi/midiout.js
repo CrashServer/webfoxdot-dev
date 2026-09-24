@@ -31,13 +31,30 @@ function outputs() {
     return acc ? [...acc.outputs.values()] : [];
 }
 
-// Active output port: the selected one if still present, else the first.
-function port() {
-    const outs = outputs();
-    if (!outs.length) return null;
-    if (_outId) { const m = outs.find(o => o.id === _outId); if (m) return m; }
+/**
+ * Which output does `device` mean?
+ *
+ *   nothing    the one picked in the MIDI panel if it is still there, else the first
+ *   a string   the first output whose name contains it, case-insensitively — "nano"
+ *              finds "nanoKONTROL2 CTRL", the same matching midi() does for input
+ *
+ * A name that matches nothing is null, NOT the panel's output. With two boxes on the
+ * line, a message meant for one landing on the other is worse than silence: a light
+ * pattern for the nanoKONTROL arriving at the keyboard is a stream of CCs changing
+ * its sound. Pure, so it is tested without a device.
+ */
+export function resolveOutput(device, outs, selectedId = null) {
+    if (!outs || !outs.length) return null;
+    if (device != null && String(device).trim() !== '') {
+        const q = String(device).trim().toLowerCase();
+        return outs.find(o => (o.name || '').toLowerCase().includes(q)) || null;
+    }
+    if (selectedId) { const m = outs.find(o => o.id === selectedId); if (m) return m; }
     return outs[0];
 }
+
+// Active output port: the named device, else the panel's choice, else the first.
+function port(device = null) { return resolveOutput(device, outputs(), _outId); }
 
 export function selectMidiOut(id) { _outId = id || null; }
 
@@ -97,9 +114,10 @@ export function nrpnMessages(msb, lsb, value, chan = 1, fine = null) {
     return out;
 }
 
-/** Send any of the above; whenMs is optional (immediate when omitted). */
-export function sendRaw(msgs, whenMs) {
-    const p = port();
+/** Send any of the above; whenMs is optional (immediate when omitted), device picks
+ *  the output by name (see resolveOutput). Returns how many messages went out. */
+export function sendRaw(msgs, whenMs, device = null) {
+    const p = port(device);
     if (!p) return 0;
     let n = 0;
     for (const m of msgs) {
@@ -114,8 +132,8 @@ const chanNibble = c => (Math.max(1, Math.min(16, Math.round(c))) - 1) & 0x0f;
 
 // Schedule one note: on at whenMs, off at whenMs+durMs (both performance.now()
 // ms). The device buffers the timed messages, so timing is immune to JS jitter.
-export function scheduleNote(note, vel, chan, whenMs, durMs) {
-    const p = port();
+export function scheduleNote(note, vel, chan, whenMs, durMs, device = null) {
+    const p = port(device);
     if (!p) return;
     const c = chanNibble(chan), n = clampNote(note), v = clampVel(vel);
     try {
@@ -126,8 +144,8 @@ export function scheduleNote(note, vel, chan, whenMs, durMs) {
 
 // All-notes-off (+ all-sound-off) on the given channels (1..16), or all 16 when
 // null. Used on stop so a held note whose scheduled note-off is far out is cut.
-export function allNotesOff(channels = null) {
-    const p = port();
+export function allNotesOff(channels = null, device = null) {
+    const p = port(device);
     if (!p) return;
     const chans = channels ? [...channels] : Array.from({ length: 16 }, (_, i) => i + 1);
     for (const ch of chans) {

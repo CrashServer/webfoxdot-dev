@@ -1545,27 +1545,30 @@
             //
             // A keyboard announces what it understands when it powers on — watch the
             // MIDI panel's monitor, or amidi -d on Linux, and it tells you its map.
-            midicc: (cc, value, chan = 1) => {
+            midicc: (...a) => {
+                const { args, port, kw } = _midiPortArgs(a), [cc, value, chan = kw.channel ?? 1] = args;
                 // Ask for MIDI first: these can be the FIRST thing a set does, and
                 // before anything has opened a port there is nothing to send to.
                 // It was sending into the void and saying nothing.
-                const go = () => sendRaw([ccMessage(cc, value, chan)]);
-                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi cc${Math.round(cc)} = ${Math.round(value)}`, 'ok'); else log('midicc: no MIDI output', 'warn'); }); return true; }
+                const go = () => sendRaw([ccMessage(cc, value, chan)], undefined, port);
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi cc${Math.round(cc)} = ${Math.round(value)}`, 'ok'); else log(_noMidiOut('midicc', port), 'warn'); }).catch((e) => log(`midicc: ${e?.message || e}`, 'warn')); return true; }
                 const n = 1;
                 log(n ? `midi cc${Math.round(cc)} = ${Math.round(value)} ch${Math.round(chan)}` : 'midicc: no MIDI output selected', n ? 'ok' : 'warn');
                 return n > 0;
             },
-            midiprog: (prog, bank = null, bankLsb = null, chan = 1) => {
-                const go = () => sendRaw(programMessages(prog, bank, bankLsb, chan));
-                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi program ${Math.round(prog)}`, 'ok'); else log('midiprog: no MIDI output', 'warn'); }); return true; }
+            midiprog: (...a) => {
+                const { args, port, kw } = _midiPortArgs(a), [prog, bank = kw.bank ?? null, bankLsb = kw.banklsb ?? null, chan = kw.channel ?? 1] = args;
+                const go = () => sendRaw(programMessages(prog, bank, bankLsb, chan), undefined, port);
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi program ${Math.round(prog)}`, 'ok'); else log(_noMidiOut('midiprog', port), 'warn'); }).catch((e) => log(`midiprog: ${e?.message || e}`, 'warn')); return true; }
                 const n = 1;
                 log(n ? `midi program ${Math.round(prog)}${bank != null ? ` bank ${Math.round(bank)}${bankLsb != null ? '/' + Math.round(bankLsb) : ''}` : ''} ch${Math.round(chan)}`
                       : 'midiprog: no MIDI output selected', n ? 'ok' : 'warn');
                 return n > 0;
             },
-            midinrpn: (msb, lsb, value, chan = 1, fine = null) => {
-                const go = () => sendRaw(nrpnMessages(msb, lsb, value, chan, fine));
-                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi nrpn ${Math.round(msb)}/${Math.round(lsb)} = ${Math.round(value)}`, 'ok'); else log('midinrpn: no MIDI output', 'warn'); }); return true; }
+            midinrpn: (...a) => {
+                const { args, port, kw } = _midiPortArgs(a), [msb, lsb, value, chan = kw.channel ?? 1, fine = kw.fine ?? null] = args;
+                const go = () => sendRaw(nrpnMessages(msb, lsb, value, chan, fine), undefined, port);
+                if (!go()) { enableMidiOut().then(() => { if (go()) log(`midi nrpn ${Math.round(msb)}/${Math.round(lsb)} = ${Math.round(value)}`, 'ok'); else log(_noMidiOut('midinrpn', port), 'warn'); }).catch((e) => log(`midinrpn: ${e?.message || e}`, 'warn')); return true; }
                 const n = 1;
                 log(n ? `midi nrpn ${Math.round(msb)}/${Math.round(lsb)} = ${Math.round(value)} ch${Math.round(chan)}` : 'midinrpn: no MIDI output selected', n ? 'ok' : 'warn');
                 return n > 0;
@@ -2142,6 +2145,21 @@
         };
         // userSynths (defsynth) grows at runtime — merge it fresh each eval.
         return { ..._ctxStatic, ...userSynths };
+    }
+
+    // midicc(41, 127, port="nano") arrives as (41, 127, {port: "nano"}): keyword
+    // arguments are a trailing object. Split it off so the positional defaults
+    // (channel 1, no bank, …) still apply, and a channel given by name works too.
+    function _midiPortArgs(a) {
+        const last = a[a.length - 1];
+        if (last && typeof last === 'object' && !Array.isArray(last)) {
+            return { args: a.slice(0, -1), port: last.port ?? null, kw: last };
+        }
+        return { args: a, port: null, kw: {} };
+    }
+    function _noMidiOut(what, port) {
+        return port ? `${what}: no MIDI output matching "${port}" — the MIDI panel lists them`
+                    : `${what}: no MIDI output`;
     }
 
     // Lazy Web MIDI enable — first midi()/mlearn() call (an eval keypress is a

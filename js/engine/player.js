@@ -939,6 +939,10 @@ export class Player {
         const dur        = Math.max(0.0625, ungroup(r.dur, step) ?? 1);
         const noteLen    = (ungroup(r.sus, step) ?? dur) * (ungroup(r.leg, step) ?? 1);
         const chan       = Math.round(ungroup(r.channel, step) ?? 1);
+        // port="nano": which output, by name — so one line can play the keyboard
+        // while another lights the controller. Unset = the MIDI panel's choice.
+        const dev        = ungroup(r.port, step) ?? null;
+        this._midiDev    = dev;
 
         // ── settings, not notes ─────────────────────────────────────────────
         // ccNN=, prog=, bank=, nrpn= alongside the degrees, resolved per step like
@@ -954,7 +958,7 @@ export class Player {
             const v = Number(val);
             if (seen[key] === v) return;
             seen[key] = v;
-            sendRaw(build(v), at);
+            sendRaw(build(v), at, dev);
         };
         for (const [k, v] of Object.entries(r)) {
             const m = /^cc(\d{1,3})$/.exec(k);
@@ -969,7 +973,7 @@ export class Player {
             if (seen.__prog !== sig) {
                 seen.__prog = sig;
                 sendRaw(programMessages(Number(prog), bank == null ? null : Number(bank),
-                                        bankLsb == null ? null : Number(bankLsb), chan), at);
+                                        bankLsb == null ? null : Number(bankLsb), chan), at, dev);
             }
         }
         const nr = r.nrpn;
@@ -978,7 +982,7 @@ export class Player {
             const sig = `${a1}/${b1}/${c1}/${d1 ?? ''}`;
             if (seen.__nrpn !== sig) {
                 seen.__nrpn = sig;
-                sendRaw(nrpnMessages(a1, b1, c1, chan, d1 ?? null), at);
+                sendRaw(nrpnMessages(a1, b1, c1, chan, d1 ?? null), at, dev);
             }
         }
 
@@ -1018,7 +1022,7 @@ export class Player {
                     if (midiCapture.on)
                         midiCapture.note(this.name, this._nextBeat + delayBeats + rep * repDur,
                                          lenBeats, note, mixAmp * 127);
-                    scheduleNote(note, vel, vch, whenMs, lenBeats * secPerBeat * 1000);
+                    scheduleNote(note, vel, vch, whenMs, lenBeats * secPerBeat * 1000, dev);
                 }
             }
             emitStep(this.name, step);
@@ -1181,7 +1185,7 @@ export class Player {
         emitStep(this.name, -1);   // clear the editor highlight
         // midiout: cut any note whose scheduled note-off is still pending (long sus)
         if (this._mode === 'midiout' && this._midiChans.size) {
-            allNotesOff(this._midiChans);
+            allNotesOff(this._midiChans, this._midiDev ?? null);
             this._midiChans.clear();
         }
         if (this._envTimer) { clearInterval(this._envTimer); this._envTimer = null; }

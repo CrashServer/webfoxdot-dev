@@ -2,7 +2,8 @@
 #  MIDI + LIVE SAMPLING — the whole toolbox, one block at a time
 #
 #  Gear this is written for:
-#    · Korg nanoKONTROL2  — faders, knobs and buttons (CC in)
+#    · Korg nanoKONTROL2  — faders, knobs and buttons (CC in), and its button
+#                           LIGHTS (CC out, section 5)
 #    · Medeli SP5600      — keys in (notes), sounds out (notes, CC, program, NRPN),
 #                           and its AUDIO back in through your interface
 #    · an audio interface — line in / mic, for audioin()
@@ -23,6 +24,7 @@ Clock.bpm = 110
 #                 track◀ 58 · track▶ 59 · set 60 · marker◀ 61 · marker▶ 62
 #  Buttons send 127 while held and 0 on release ("momentary"). Set them to
 #  "toggle" in the Korg editor and they latch: press on, press off.
+#  The same numbers light the buttons' LEDs — see section 5.
 #
 #  The 5th argument of midi() is a DEVICE fragment. Both boxes send low CC
 #  numbers (the SP5600's own volume is CC7, the nano's 8th fader is CC7 too),
@@ -117,13 +119,53 @@ m1 >> midiout(PRand(0, 7)[:16], channel=1, oct=5, dur=1/4, amp=PWhite(0.4, 1))
 m1.stop()
 
 
-# ── 5 · Record the MIDI you play ────────────────────────────────────────────
+# ── 5 · The nanoKONTROL2's lights (CC OUT to the controller) ────────────────
+#  One-time setup, in the Korg KONTROL Editor: Common → LED Mode = EXTERNAL,
+#  then write the scene to the device. From then on the nano stops lighting its
+#  own buttons and does what it is told: send a button's CC number to it,
+#  127 = on, 0 = off, on its global channel (1 unless you changed it).
+#  LEDs:  S 32..39 · M 48..55 · R 64..71 · play 41 · stop 42 · rew 43 · ff 44
+#         rec 45 · cycle 46        (track◀▶ and the marker buttons have none)
+#
+#  port="nano" sends to the nanoKONTROL by name, on any MIDI-out line or
+#  one-shot, whatever the MIDI panel has selected — so the SP5600 can stay the
+#  panel's output and keep playing. A name that matches nothing sends NOTHING.
+midicc(45, 127, port="nano")     # rec lit
+midicc(45, 0, port="nano")       # rec off
+
+#  a light-only line: _ is a rest, so no notes — just the CCs, every step
+#  play blinks on the beat
+n1 >> midiout(_, cc41=[127, 0], dur=1/2, port="nano")
+
+#  a chaser along the S row, one light per 16th
+n2 >> midiout(_, dur=1/4, port="nano", cc32=[127,0,0,0,0,0,0,0], cc33=[0,127,0,0,0,0,0,0], cc34=[0,0,127,0,0,0,0,0], cc35=[0,0,0,127,0,0,0,0], cc36=[0,0,0,0,127,0,0,0], cc37=[0,0,0,0,0,127,0,0], cc38=[0,0,0,0,0,0,127,0], cc39=[0,0,0,0,0,0,0,127])
+
+#  the R row sparkles at random, and follows the rhythm of the drums
+n3 >> midiout(_, dur=1/4, port="nano", cc64=PRand([0, 127]), cc65=PRand([0, 127]), cc66=PRand([0, 127]), cc67=PRand([0, 127]))
+n4 >> midiout(_, dur=1/2, port="nano", cc68=[127, 0, 0, 0], cc69=[0, 0, 127, 0])
+
+#  button → light: each M button's LED shows its own state, so a latched mute
+#  (toggle mode) stays lit while it is muting — the light IS the mute
+n5 >> midiout(_, dur=1/8, port="nano", cc48=midi(48, 0, 127, "lin", "nano"), cc49=midi(49, 0, 127, "lin", "nano"))
+
+#  a light that means something: rec on while a take records, off when it is in
+sample("grab", 4); midicc(45, 127, port="nano"); Clock.future(8, () => midicc(45, 0, port="nano"))
+
+#  lights off: stop the light lines, then send one step of zeros to clear what
+#  they left lit — run the n0 line, and stop it on the NEXT beat (it has not
+#  played yet on the line after)
+n1.stop(); n2.stop(); n3.stop(); n4.stop(); n5.stop()
+n0 >> midiout(_, dur=1, port="nano", cc41=0, cc45=0, cc32=0, cc33=0, cc34=0, cc35=0, cc36=0, cc37=0, cc38=0, cc39=0, cc48=0, cc49=0, cc64=0, cc65=0, cc66=0, cc67=0, cc68=0, cc69=0)
+n0.stop(2)                       # after its first step
+
+
+# ── 6 · Record the MIDI you play ────────────────────────────────────────────
 midi_rec()                   # arm — every note that plays is captured, as heard
 midi_map("x", 36)            # put play()'s "x" on the GM kick for the export
 midi_save("sp-jam", 1/16)    # stop + download a .mid, onsets snapped to 16ths
 
 
-# ── 6 · Live sampling — the mix ─────────────────────────────────────────────
+# ── 7 · Live sampling — the mix ─────────────────────────────────────────────
 #  sample(name, beats) records the next N beats of what you hear, starting on
 #  the next bar. loop(name) plays it back stretched to the tempo.
 sample("grab", 4)
@@ -142,7 +184,7 @@ s2 >> loop("bassline", dur=8)
 sample("smear", 2, quant=0)
 
 
-# ── 7 · Live sampling — the audio input (the SP5600's own sound) ────────────
+# ── 8 · Live sampling — the audio input (the SP5600's own sound) ────────────
 #  SP5600 audio out → interface in. Voice-call processing is off (it ruins music).
 audioin()                    # open the default input and list the others
 audioin("scarlett")          # or pick one by part of its name, or by index: audioin(1)
@@ -165,7 +207,7 @@ sample("V", 1, src="in")
 d2 >> play("V.. V. V[VV]", amp=0.8)
 
 
-# ── 8 · Playing with takes ──────────────────────────────────────────────────
+# ── 9 · Playing with takes ──────────────────────────────────────────────────
 #  natural speed instead of stretched: an octave down, half as fast
 s1 >> loop("grab", dur=8, stretch=0, rate=0.5)
 
@@ -191,9 +233,10 @@ sample("keys2", 8, src=s3)
 s4 >> loop("keys2", dur=16, stretch=0, rate=0.5, mverb=0.6)
 
 
-# ── 9 · Put the whole desk back ─────────────────────────────────────────────
+# ── 10 · Put the whole desk back ─────────────────────────────────────────────
 s1.stop(8)                   # stop at the next 8-beat boundary
 p1.stop(); p2.stop(); p3.stop(); d1.stop(); d2.stop()
 s1.stop(); s2.stop(); s3.stop(); s4.stop(); m1.stop()
+n1.stop(); n2.stop(); n3.stop(); n4.stop(); n5.stop()
 audioin(False)
 midiin(0)
